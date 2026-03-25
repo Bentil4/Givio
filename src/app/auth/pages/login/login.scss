@@ -1,0 +1,29 @@
+.login {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.login-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: 10rem 2rem;
+  max-width: 40rem;
+  background-color: var(--bg-mist);
+}
+
+.header {
+  font-family: var(--font-heading);
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--primary-deep);
+  margin-bottom: var(--space-lg);
+  justify-content: center;
+}
+
+.login-wrap {
+  justify-content: center;
+  align-items: center;
+}
