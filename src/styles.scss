@@ -110,53 +110,6 @@ body {
   overflow-x: hidden;
 }
 
-/* ── Atmospheric Background ─────────────────────────── */
-// body::before {
-//   content: '';
-//   position: fixed;
-//   inset: 0;
-//   background:
-//     radial-gradient(ellipse 60% 60% at 10% 15%, rgba(0, 200, 224, 0.15) 0%, transparent 65%),
-//     radial-gradient(ellipse 50% 50% at 90% 80%, rgba(0, 212, 176, 0.12) 0%, transparent 60%),
-//     radial-gradient(ellipse 40% 40% at 55% 40%, rgba(26, 107, 122, 0.07) 0%, transparent 55%),
-//     linear-gradient(160deg, #eef7fa 0%, #f4fbfd 50%, #e8f2f5 100%);
-//   z-index: -1;
-// }
-
-/* ── Floating Orbs ──────────────────────────────────── */
-.orb {
-  position: fixed;
-  border-radius: 50%;
-  filter: blur(60px);
-  pointer-events: none;
-  z-index: -1;
-  animation: drift 18s ease-in-out infinite;
-}
-.orb-1 {
-  width: 420px;
-  height: 420px;
-  background: rgba(0, 200, 224, 0.18);
-  top: -100px;
-  left: -80px;
-  animation-delay: 0s;
-}
-.orb-2 {
-  width: 320px;
-  height: 320px;
-  background: rgba(0, 212, 176, 0.14);
-  bottom: 50px;
-  right: -60px;
-  animation-delay: -7s;
-}
-.orb-3 {
-  width: 240px;
-  height: 240px;
-  background: rgba(86, 200, 232, 0.12);
-  top: 45%;
-  left: 60%;
-  animation-delay: -13s;
-}
-
 @keyframes drift {
   0%,
   100% {

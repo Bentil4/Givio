@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {ChangeDetectionStrategy, Component, forwardRef, input, signal} from '@angular/core';
-import {ControlValueAccessor, NG_VALUE_ACCESSOR} from '@angular/forms';
-
+import { ChangeDetectionStrategy, Component, forwardRef, input, signal } from '@angular/core';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 let nextId = 0;
 
@@ -15,11 +14,11 @@ let nextId = 0;
     {
       provide: NG_VALUE_ACCESSOR,
       useExisting: forwardRef(() => Input),
-      multi: true
-    }
-  ]
+      multi: true,
+    },
+  ],
 })
-export class Input implements  ControlValueAccessor{
+export class Input implements ControlValueAccessor {
   public label = input('');
   public type = input('text');
   public placeholder = input('');
@@ -32,18 +31,17 @@ export class Input implements  ControlValueAccessor{
   public value = signal('');
   public isDisabled = signal(false);
 
-
-  public onChange :(value:any) => void = () => {
-    // 
+  public onChange: (value: any) => void = () => {
+    //
   };
   public onTouched = () => {
-    // 
+    //
   };
 
   public onInput(event: Event) {
     const inputValue = (event.target as HTMLInputElement).value;
     this.value.set(inputValue);
-    this.onChange(this.value);
+    this.onChange(inputValue);
   }
 
   public writeValue(obj: any): void {
@@ -64,6 +62,6 @@ export class Input implements  ControlValueAccessor{
   }
 
   public onBlur(): void {
-    this.onTouched()
+    this.onTouched();
   }
 }

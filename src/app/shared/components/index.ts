@@ -1,5 +1,6 @@
 export { Button } from './button/button';
 export { Input } from './input/input';
+export { Preloader } from './preloader/preloader';
 // export { Card } from './card/card';
 // export { Checkbox } from './checkbox/checkbox';
 // export { FilterTags } from './filter-tags/filter-tags';
