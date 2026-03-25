@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {ChangeDetectionStrategy, Component, forwardRef, input, signal} from '@angular/core';
 import {ControlValueAccessor, NG_VALUE_ACCESSOR} from '@angular/forms';
 
 
-let  nextId: number = 0;
+let nextId = 0;
 
 @Component({
   selector: 'app-input',
@@ -32,8 +33,12 @@ export class Input implements  ControlValueAccessor{
   public isDisabled = signal(false);
 
 
-  public onChange :(value:any) => void = () => {};
-  public onTouched = () => {};
+  public onChange :(value:any) => void = () => {
+    // 
+  };
+  public onTouched = () => {
+    // 
+  };
 
   public onInput(event: Event) {
     const inputValue = (event.target as HTMLInputElement).value;
