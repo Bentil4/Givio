@@ -13,4 +13,6 @@ export class Button {
   public disabled = input(false);
   public type = input<'button' | 'submit' | 'reset'>('button');
   public clicked = output<void>();
+
+  public loading = input(false);
 }

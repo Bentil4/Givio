@@ -1,3 +1,6 @@
+@if (showPreloader()) {
+<app-preloader (done)="showPreloader.set(false)" />
+}
 <main class="login">
   <section class="login-page">
     <header class="header">
@@ -8,11 +11,31 @@
       <h2>Welcome Back</h2>
     </div>
 
-    <form class="form-container">
-      <app-input />
-      <app-input />
+    <form class="form-container" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+      <app-input
+        [label]="'Email'"
+        [type]="'email'"
+        [placeholder]="'Enter your email'"
+        formControlName="email"
+      />
 
-      <app-button />
+      <div class="password-field">
+        <label class="form-label" for="password">Password</label>
+        <div class="input-wrapper">
+          <input
+            id="password"
+            class="form-input"
+            [type]="showPassword() ? 'text' : 'password'"
+            formControlName="password"
+            placeholder="Enter your password"
+          />
+          <button type="button" class="toggle-visibility" (click)="togglePasswordVisibility()">
+            <i [class]="showPassword() ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+          </button>
+        </div>
+      </div>
+
+      <app-button type="submit" variant="primary" [loading]="isLoading()">Login</app-button>
     </form>
   </section>
 </main>

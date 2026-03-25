@@ -4,8 +4,12 @@
   [class.btn-secondary]="variant() === 'secondary'"
   [class.btn-ghost]="variant() === 'ghost'"
   [type]="type()"
-  [disabled]="disabled()"
+  [disabled]="disabled() || loading()"
   (click)="clicked.emit()"
 >
-  <ng-content />
+  @if (loading()) {
+    <div class="spinner"></div>
+  } @else {
+    <ng-content />
+  }
 </button>
