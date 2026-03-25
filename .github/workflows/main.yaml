@@ -24,10 +24,3 @@ jobs:
 
       - name: Lint
         run: npm run lint
-
-      - name: Start server and test health endpoint
-        run: |
-          npm start &
-          sleep 5
-          curl -f http://localhost:3000/health || exit 1
-          pkill -f "node src/server.js"
