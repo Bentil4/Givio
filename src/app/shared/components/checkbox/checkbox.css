@@ -1,3 +1,11 @@
+.cb-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .form-row {
   display: flex;
   align-items: center;
