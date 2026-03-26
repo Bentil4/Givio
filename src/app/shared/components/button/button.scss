@@ -50,6 +50,16 @@
   }
 }
 
+.btn-danger {
+  background: var(--color-danger);
+  color: var(--bg-white);
+
+  &:hover {
+    background: var(--primary-deep);
+    transform: translateY(-1px);
+  }
+}
+
 .btn-ghost {
   background: transparent;
   border: none;
@@ -78,5 +88,7 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
