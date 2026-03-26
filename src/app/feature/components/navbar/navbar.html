@@ -1,0 +1,29 @@
+<nav class="navbar">
+  <section class="nav-section">
+    <header class="nav-header">
+      <img src="assets/images/Givio-logo.png" alt="Logo" class="logo" />
+    </header>
+    <div class="nav-content" role="navigation">
+      <ul class="nav-list">
+        @for (item of navItems(); track item.name) {
+        <li class="nav-item">
+          <a [routerLink]="item.route" routerLinkActive="active" class="nav-link"
+            >{{ item.name }}
+          </a>
+        </li>
+        }
+      </ul>
+    </div>
+    <div class="user-profile">
+      <div class="status-indicator">
+        <p>online . 2min age</p>
+      </div>
+      <div class="notification">
+        <mat-icon matBadge="15">notifications</mat-icon>
+      </div>
+      <div class="user-initials">
+        <p>JD</p>
+      </div>
+    </div>
+  </section>
+</nav>
