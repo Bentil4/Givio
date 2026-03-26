@@ -43,7 +43,11 @@ body {
   --primary-mid: #00c8e0;
   --primary-dark: #0d4a5a;
   --primary-black: #334155;
-  --primary-deep-cyan: #0891b2 /* Background Colors */ --bg-white: #ffffff;
+  --primary-deep-cyan: #0891b2;
+  --color-danger: #ef0b0b;
+
+  /* Background Colors */
+  --bg-white: #ffffff;
   --bg-light: #f4f8fa;
   --bg-mist: #e8f2f5;
   --bg-frost: #d4e8ee;
@@ -139,14 +143,6 @@ body {
 }
 
 /* ── Header ─────────────────────────────────────────── */
-header {
-  // display: flex;
-  // align-items: center;
-  // justify-content: space-between;
-  // padding: var(--space-xl) 0 var(--space-lg);
-  // margin-bottom: var(--space-xl);
-  // border-bottom: 1.5px solid rgba(26, 107, 122, 0.1);
-}
 
 .logo {
   font-family: var(--font-display);
@@ -207,7 +203,7 @@ header {
 }
 
 section {
-  margin-bottom: var(--space-2xl);
+  margin-bottom: var(--space-sm);
 }
 
 /* ── Keyword Pills ───────────────────────────────────── */
@@ -371,7 +367,7 @@ section {
 }
 .btn-primary {
   background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary-dark) 100%);
-  color: #fff;
+  color: var(--bg-white);
   box-shadow: 0 4px 16px rgba(26, 107, 122, 0.35);
 }
 .btn-primary:hover {
@@ -475,7 +471,7 @@ section {
 .cb-box svg {
   width: 12px;
   height: 12px;
-  color: #fff;
+  color: var(--bg-white);
 }
 
 /* Radio */

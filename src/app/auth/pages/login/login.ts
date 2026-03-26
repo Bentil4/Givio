@@ -43,7 +43,7 @@ export class Login {
       await account.createEmailPasswordSession({ email: email ?? '', password: password ?? '' });
       this.loggedInUser.set(await account.get<IUserPrefs>());
       if (this.loggedInUser()?.prefs?.['role'] === 'admin') {
-        this.router.navigate(['/dashboard']);
+        this.router.navigate(['/admin-dashboard']);
       } else if (this.loggedInUser()?.prefs?.['role'] === 'user') {
         this.router.navigate(['/user-dashboard']);
       }
