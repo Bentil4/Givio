@@ -1,0 +1,35 @@
+.admin-dashboard {
+  width: 100%;
+  padding: var(--space-lg);
+}
+
+.dashboard-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  padding: var(--space-lg);
+}
+
+.cards-info {
+  padding: var(--space-lg);
+}
+
+.card-title {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary-black);
+  margin-bottom: var(--space-lg);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  width: 100%;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+}

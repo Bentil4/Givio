@@ -1,0 +1,23 @@
+<article class="stat-card">
+  <div class="stat-header">
+    @if (icon()) {
+    <div class="list-icon">
+        <mat-icon>list</mat-icon>
+    </div>
+
+    }
+    <span>{{ trendValue() }}</span>
+    @if (trend()) {
+    <div [class]="'trend-indicator ' + trend()">
+      @if (trend() === "positive") {
+      <i class="pi pi-arrow-up"></i>
+      } @else {
+      <i class="pi pi-arrow-down"></i>
+      }
+    </div>
+    }
+  </div>
+  <div class="stat-value">{{ value() }}</div>
+
+  <div class="stat-label">{{ label() }}</div>
+</article>
