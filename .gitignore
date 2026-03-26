@@ -38,6 +38,11 @@ testem.log
 /typings
 __screenshots__/
 
+# Sass compiled output
+src/**/*.css
+!src/styles.css
+src/**/*.css.map
+
 # System files
 .DS_Store
 Thumbs.db
