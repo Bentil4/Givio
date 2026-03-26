@@ -638,7 +638,7 @@ section {
 }
 .filter-tag.active {
   background: linear-gradient(135deg, var(--primary-deep), var(--primary-dark));
-  color: #fff;
+  color: var(--bg-white);
   border-color: transparent;
   box-shadow: 0 3px 12px rgba(26, 107, 122, 0.3);
 }
@@ -648,20 +648,7 @@ section {
 }
 
 /* Card */
-.card {
-  padding: var(--space-md);
-  border-radius: var(--radius-lg);
-  display: flex;
-  gap: var(--space-md);
-  align-items: flex-start;
-  transition:
-    transform 0.22s var(--ease),
-    box-shadow 0.22s var(--ease);
-}
-.card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 48px rgba(26, 107, 122, 0.14);
-}
+
 .card-thumb {
   width: 64px;
   height: 64px;
