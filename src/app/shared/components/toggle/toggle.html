@@ -1,0 +1,18 @@
+<div
+  class="form-row"
+  (click)="toggle()"
+  role="radio"
+  [attr.aria-checked]="checked()"
+  [attr.aria-disabled]="isDisabled()"
+  [attr.tabindex]="isDisabled() ? -1 : 0"
+  (keydown.space)="toggle()"
+  (keydown.enter)="toggle()"
+>
+  <div class="toggle-track" [class.on]="checked()">
+    <div class="toggle-thumb" [class.on]="checked()"></div>
+  </div>
+  @if (label()) {
+  <span>{{ label() }}</span>
+  }
+  <ng-content />
+</div>
