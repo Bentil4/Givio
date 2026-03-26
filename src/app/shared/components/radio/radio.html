@@ -1,0 +1,20 @@
+<div
+  class="form-row"
+  role="radio"
+  [attr.aria-checked]="checked()"
+  [attr.aria-disabled]="isDisabled()"
+  [attr.tabindex]="isDisabled() ? -1 : 0"
+  (click)="select()"
+  (keydown.space)="select()"
+  (keydown.enter)="select()"
+>
+  <div class="radio-outer">
+    @if (checked()) {
+    <div class="radio-inner"></div>
+    }
+  </div>
+  @if (label()) {
+  <label [for]="radioId()">{{ label() }}</label>
+  }
+  <ng-content />
+</div>

@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { Login } from './auth/pages/login/login';
-import { AdminDashboard } from './feature/pages/dashboard/admin-dashboard/admin-dashboard';
-import { UserDashboard } from './feature/pages/dashboard/user-dashboard/user-dashboard';
+import { AdminLayout } from './feature/pages/admin/admin-layout/admin-layout';
+import { UserLayout } from './feature/pages/user/user-layout/user-layout';
 
 export const routes: Routes = [
   {
@@ -15,12 +15,12 @@ export const routes: Routes = [
   },
   {
     path: 'dashboard',
-    component: AdminDashboard,
-    title: 'Admin Dashboard',
+    component: AdminLayout,
+    title: 'Admin layout',
   },
   {
     path: 'user-dashboard',
-    component: UserDashboard,
-    title: 'User Dashboard',
+    component: UserLayout,
+    title: 'User layout',
   },
 ];

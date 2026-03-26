@@ -1,0 +1,11 @@
+<div class="progress-wrap">
+  <div class="progress-track">
+    <div class="progress-fill" [style.width.%]="percent()"></div>
+  </div>
+  @if (raisedLabel() || goalLabel()) {
+  <div class="progress-labels">
+    <span>{{ raisedLabel() }}</span>
+    <span>{{ goalLabel() }}</span>
+  </div>
+  }
+</div>
