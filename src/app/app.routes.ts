@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { Login } from './auth/pages/login/login';
 import { AdminLayout } from './feature/pages/admin/admin-layout/admin-layout';
 import { UserLayout } from './feature/pages/user/user-layout/user-layout';
+import { AdminDashboard } from './feature/pages/admin/admin-dashboard/admin-dashboard';
 
 export const routes: Routes = [
   {
@@ -14,9 +15,16 @@ export const routes: Routes = [
     component: Login,
   },
   {
-    path: 'dashboard',
+    path: '',
     component: AdminLayout,
     title: 'Admin layout',
+    children: [
+      {
+        path: 'admin-dashboard',
+        component: AdminDashboard,
+        title: 'Admin Dashboard',
+      },
+    ],
   },
   {
     path: 'user-dashboard',

@@ -47,6 +47,15 @@
   transform: translateY(-1px);
 }
 
+.btn-danger {
+  background: var(--color-danger);
+  color: var(--bg-white);
+}
+.btn-danger:hover {
+  background: var(--primary-deep);
+  transform: translateY(-1px);
+}
+
 .btn-ghost {
   background: transparent;
   border: none;

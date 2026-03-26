@@ -1,1 +1,34 @@
-<p>page-titles works!</p>
+<section class="page-titles">
+  <div class="page-wrapper">
+    <div class="page-wrap">
+      <h1 class="page-title">Page Titles</h1>
+      <p class="page-count">12</p>
+    </div>
+
+    <div class="page-actions">
+      <div class="align" variant="secondary">
+        <app-button variant="ghost" routerLinkActive="active">
+          <mat-icon>grid_view</mat-icon>
+        </app-button>
+        <app-button variant="ghost" routerLinkActive="active">
+          <mat-icon>grid_view</mat-icon>
+        </app-button>
+        <app-button variant="ghost" routerLinkActive="active">
+          <mat-icon>grid_view</mat-icon>
+        </app-button>
+      </div>
+      <div class="export">
+        <app-button variant="ghost" routerLinkActive="active">
+          <mat-icon>file_download</mat-icon>
+        </app-button>
+      </div>
+      <div class="archive">
+        <app-button variant="ghost" routerLinkActive="active">
+          <mat-icon>archive</mat-icon>
+        </app-button>
+      </div>
+      <app-button variant="danger">Delete</app-button>
+      <app-button variant="primary">+ Create New Event</app-button>
+    </div>
+  </div>
+</section>
