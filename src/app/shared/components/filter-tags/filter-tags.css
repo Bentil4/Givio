@@ -1,0 +1,29 @@
+.filter-tags {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.filter-tag {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 7px 18px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.18s var(--ease);
+  border: 1.5px solid rgba(26, 107, 122, 0.2);
+  background: transparent;
+  color: var(--primary-dark);
+}
+.filter-tag.active {
+  background: linear-gradient(135deg, var(--primary-deep), var(--primary-dark));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 12px rgba(26, 107, 122, 0.3);
+}
+.filter-tag:not(.active):hover {
+  background: rgba(0, 200, 224, 0.08);
+  border-color: var(--primary-deep);
+}
+
+/*# sourceMappingURL=filter-tags.css.map */
