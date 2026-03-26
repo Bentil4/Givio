@@ -1,0 +1,7 @@
+<div class="filter-tags">
+  @for (tag of tags(); track tag.value) {
+  <button class="filter-tag" [class.active]="active() === tag.value" (click)="select(tag.value)">
+    {{ tag.label }}
+  </button>
+  }
+</div>
