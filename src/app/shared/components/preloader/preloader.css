@@ -1,0 +1,120 @@
+.preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background-color: var(--bg-white);
+  transition: opacity 0.7s var(--ease), visibility 0s 0.7s;
+  opacity: 1;
+  visibility: visible;
+}
+.preloader.exit {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+  position: relative;
+  z-index: 1;
+}
+
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  animation: wordReveal 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.word-givio {
+  font-family: var(--font-display);
+  font-size: clamp(3.8rem, 13vw, 7.5rem);
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--primary-deep) 0%, var(--accent-sky) 40%, var(--primary-mid) 70%, var(--accent-teal) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 32px rgba(0, 200, 224, 0.35));
+  animation: wordFloat 3s ease-in-out infinite;
+}
+
+.wordmark-line {
+  width: 0;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, transparent, var(--primary-mid), var(--accent-teal), transparent);
+  animation: lineExpand 1s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+  box-shadow: 0 0 12px rgba(0, 200, 224, 0.5);
+}
+
+@keyframes orbDrift {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(24px, -18px) scale(1.04);
+  }
+  66% {
+    transform: translate(-14px, 22px) scale(0.97);
+  }
+}
+@keyframes wordReveal {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes wordFloat {
+  0%, 100% {
+    transform: translateY(0);
+    filter: drop-shadow(0 0 28px rgba(0, 200, 224, 0.3));
+  }
+  50% {
+    transform: translateY(-7px);
+    filter: drop-shadow(0 0 44px rgba(0, 200, 224, 0.5));
+  }
+}
+@keyframes lineExpand {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+  to {
+    width: 120%;
+    opacity: 1;
+  }
+}
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes shimmerSlide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(200%);
+  }
+}
+
+/*# sourceMappingURL=preloader.css.map */

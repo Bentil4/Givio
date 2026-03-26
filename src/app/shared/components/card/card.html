@@ -1,0 +1,12 @@
+<div class="card glass">
+  @if (imageUrl()) {
+  <img class="card-thumb" [src]="imageUrl()" [alt]="imageAlt()" />
+  } @else {
+  <div class="card-thumb-placeholder"></div>
+  }
+  <div class="card-body">
+    <p class="card-title">{{ title() }}</p>
+    <p class="card-subtitle">{{ subtitle() }}</p>
+    <ng-content />
+  </div>
+</div>
