@@ -14,7 +14,7 @@
     "singleQuote": true,
     "overrides": [
       {
-        "files": "*.html, *.css, *.scss",
+        "files": "*.html, *.css, *.scss, *.ts",
         "options": {
           "parser": "angular"
         }
