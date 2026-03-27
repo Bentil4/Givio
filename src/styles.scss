@@ -4,7 +4,7 @@
 // Learn more about theming and how to use it for your application's
 // custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
-
+@import 'primeicons/primeicons.css';
 html {
   height: 100%;
   @include mat.theme(
@@ -111,6 +111,7 @@ body {
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
+  padding: var(--space-lg);
 }
 
 @keyframes drift {

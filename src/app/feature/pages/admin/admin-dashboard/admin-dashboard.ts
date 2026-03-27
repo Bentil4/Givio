@@ -1,14 +1,11 @@
 import { Component } from '@angular/core';
-import { PageTitles } from "../../../components/page-titles/page-titles";
-import { Card } from "../../../../shared/components/card/card";
-import { StatCard } from "../../../components/stat-card/stat-card";
+import { StatCard } from '../../../components/stat-card/stat-card';
+import { RecentActivity } from '../../../components/recent-activity/recent-activity';
 
 @Component({
   selector: 'app-admin-dashboard',
-  imports: [PageTitles, Card, StatCard],
+  imports: [StatCard, RecentActivity],
   templateUrl: './admin-dashboard.html',
   styleUrl: './admin-dashboard.scss',
 })
-export class AdminDashboard {
-
-}
+export class AdminDashboard {}

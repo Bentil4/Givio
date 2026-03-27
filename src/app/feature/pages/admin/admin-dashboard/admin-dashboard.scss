@@ -33,3 +33,12 @@
 .card:hover {
   transform: translateY(-3px);
 }
+
+.activity-section {
+  margin-top: var(--space-lg);
+  width: 100%;
+}
+
+.recent {
+  width: 50%;
+}
