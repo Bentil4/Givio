@@ -1,0 +1,18 @@
+.details-container {
+  display: flex;
+  gap: var(--space-lg);
+  align-items: center;
+}
+
+.details-icon {
+  background-color: color-mix(in srgb, var(--primary-mid), transparent 70%);
+  padding: var(--space-sm);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+}
+
+.donor-name {
+  font-weight: bold;
+  color: var(--primary-deep-cyan);
+}

@@ -1,0 +1,24 @@
+.recent-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+}
+
+.recent-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.recent-activity-list {
+  display: flex;
+  gap: var(--space-2xl);
+  
+}
+
+.recent-activity-list a {
+  text-decoration: none;
+  color: var(--color-primary);
+  font-weight: 500;
+}

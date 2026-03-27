@@ -9,6 +9,8 @@
 .login-page {
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  align-items: center;
   gap: var(--space-lg);
   padding: 2rem 2rem;
   width: 50%;
@@ -26,6 +28,7 @@
   color: var(--primary-deep);
   margin-bottom: var(--space-lg);
   justify-content: center;
+  text-align: center;
 }
 
 .login-wrap {
