@@ -37,6 +37,9 @@
 .activity-section {
   margin-top: var(--space-lg);
   width: 100%;
+  display: flex;
+  gap: var(--space-lg);
+  // padding: var(--space-lg);
 }
 
 .recent {
