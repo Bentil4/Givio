@@ -1,5 +1,10 @@
 <main class="admin-layout">
-  <app-navbar [navItems]="navItems" [userProfile]="userProfile" />
+  <app-sidebar
+    [navItems]="navItems"
+    [userProfile]="userProfile"
+    [collapsed]="isSidebarCollapsed()"
+    (toggleCollapsed)="toggleSidebar()"
+  />
   <div class="main-content">
     <router-outlet />
   </div>

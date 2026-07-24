@@ -45,3 +45,9 @@
 .recent {
   width: 50%;
 }
+
+.actions-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
