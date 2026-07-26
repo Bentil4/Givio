@@ -23,6 +23,7 @@ Applies across every epic below — a story isn't done just because its happy pa
 - Any story touching `share-access`-adjacent screens must stay within AD-10's v1 boundary (single read-only `accessCode`) — do not quietly rebuild the tiered scheme because the file is already open.
 - The Excel export story (Epic 4) must vendor SheetJS from `cdn.sheetjs.com` per the Stack note — never `npm install xlsx`.
 - The Excel export story (Epic 4) must verify exported totals match in-app totals to the pesewa (AD-5) — display-formatting must not reintroduce float math in the export path.
+- **Every story that ships a new or changed screen must meet NFR-USE-003 (WCAG 2.1 AA) and pass AXE checks as part of that story's own Definition of Done** — focus management, color contrast, keyboard navigation, and ARIA attributes are built in screen-by-screen starting in Epic 1, not bolted on afterward. Story 5.1 (Epic 5) is the final full-app AXE/WCAG sweep, not the first time accessibility is addressed.
 
 ## Overview
 
@@ -332,6 +333,7 @@ So that I can set up each event's basic record before donation-taking begins.
 **When** I submit Event Name, Event Type (Wedding/Funeral), Date, and Host/Family Name (Venue/Description/Notes optional)
 **Then** a new Event document is created with a unique system-generated ID, and `EventRepository`/`EventStore`/the Dexie `events` table (created for the first time in this story) all reflect it (FR-EVT-001)
 **And** the event type is clearly labelled everywhere the event appears in the UI
+**And** the Event document is created with its `nextReceiptSeq` counter initialized to 0 — Epic 3/Story 3.6 relies on this field already existing to assign canonical receipt numbers (AD-8)
 
 **Given** two events exist
 **When** donations are later recorded against each (Epic 3)
@@ -433,6 +435,10 @@ So that I never lose a donation just because the venue's signal drops.
 **Given** my connectivity status changes
 **When** it does
 **Then** a persistent Online/Offline indicator updates within 3 seconds with no action needed from me (FR-OFF-001)
+
+**Given** an event whose status is Paused or Closed (set in Story 2.2)
+**When** I attempt to submit the Add Donation form for it
+**Then** the form rejects the attempt with a clear message — Closed/Paused events never accept new donations (FR-EVT-004)
 
 ### Story 3.2: Donation List — Search, Filter & Running Total
 
@@ -669,6 +675,10 @@ So that the tool I'm handed actually works on the device I have.
 **Given** a form on a touchscreen
 **When** filling it in
 **Then** it's usable without needing to zoom
+
+**Given** every screen across all 5 epics has already met the per-story WCAG/AXE Definition of Done as it was built
+**When** this story runs a full-app AXE sweep
+**Then** the whole application passes WCAG 2.1 AA — this story is the final cross-app check, not the first time accessibility was addressed (NFR-USE-003)
 
 ### Story 5.2: Installable PWA
 
