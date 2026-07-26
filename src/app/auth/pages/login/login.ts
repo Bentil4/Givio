@@ -8,7 +8,6 @@ import { AuthStore, ROLE_HOME } from '../../../data/stores/auth-store';
   selector: 'app-login',
   imports: [Input, Button, Preloader, ReactiveFormsModule],
   templateUrl: './login.html',
-  styleUrl: './login.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Login {
