@@ -2,22 +2,22 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { ACCOUNT } from '../../../../data/appwrite/client';
 
-import { AdminLayout } from './admin-layout';
+import { OrganizerLayout } from './organizer-layout';
 
-describe('AdminLayout', () => {
-  let component: AdminLayout;
-  let fixture: ComponentFixture<AdminLayout>;
+describe('OrganizerLayout', () => {
+  let component: OrganizerLayout;
+  let fixture: ComponentFixture<OrganizerLayout>;
   let account: { deleteSession: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> };
   let router: Router;
 
   beforeEach(async () => {
     account = { deleteSession: vi.fn(), get: vi.fn() };
     await TestBed.configureTestingModule({
-      imports: [AdminLayout],
+      imports: [OrganizerLayout],
       providers: [provideRouter([]), { provide: ACCOUNT, useValue: account }],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(AdminLayout);
+    fixture = TestBed.createComponent(OrganizerLayout);
     component = fixture.componentInstance;
     router = TestBed.inject(Router);
     vi.spyOn(router, 'navigate').mockResolvedValue(true);

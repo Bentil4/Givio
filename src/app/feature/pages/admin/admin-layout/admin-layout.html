@@ -4,6 +4,7 @@
     [userProfile]="userProfile"
     [collapsed]="isSidebarCollapsed()"
     (toggleCollapsed)="toggleSidebar()"
+    (logout)="onLogout()"
   />
   <div class="main-content">
     <router-outlet />

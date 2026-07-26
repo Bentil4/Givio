@@ -1,10 +1,12 @@
-<div class="preloader" [class.exit]="exiting()">
-  <!-- Centre content -->
+<output class="preloader" [class.exit]="exiting()" aria-live="polite">
   <div class="content">
-    <!-- Wordmark -->
     <div class="wordmark">
       <span class="word-givio">Givio</span>
       <div class="wordmark-line"></div>
     </div>
+    <p class="tagline">Reliable donation tracking for life's meaningful events</p>
+    <div class="progress-track" aria-hidden="true">
+      <div class="progress-fill" [style.width.%]="progress()"></div>
+    </div>
   </div>
-</div>
+</output>

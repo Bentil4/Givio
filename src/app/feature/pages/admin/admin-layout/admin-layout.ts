@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { Router, RouterOutlet } from '@angular/router';
 import { INavbarItem, IUserProfile } from '../../../../auth/model/user.model';
 import { Sidebar } from '../../../components/sidebar/sidebar';
+import { AuthStore } from '../../../../data/stores/auth-store';
 
 @Component({
   selector: 'app-admin-layout',
@@ -11,8 +12,8 @@ import { Sidebar } from '../../../components/sidebar/sidebar';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminLayout {
-  // private authService = inject(AuthService);
-  private router = inject(Router);
+  private readonly authStore = inject(AuthStore);
+  private readonly router = inject(Router);
 
   public isSidebarCollapsed = signal(false);
   public userProfile: IUserProfile[] = [];
@@ -27,5 +28,10 @@ export class AdminLayout {
 
   public toggleSidebar(): void {
     this.isSidebarCollapsed.update((collapsed) => !collapsed);
+  }
+
+  public async onLogout(): Promise<void> {
+    await this.authStore.logout();
+    this.router.navigate(['/login']);
   }
 }

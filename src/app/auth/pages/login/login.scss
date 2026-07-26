@@ -91,6 +91,13 @@ app-button {
   }
 }
 
+.error-message {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--func-error);
+  text-align: center;
+}
+
 .toggle-visibility {
   position: absolute;
   top: 50%;

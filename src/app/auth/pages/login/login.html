@@ -35,6 +35,10 @@
         </div>
       </div>
 
+      @if (errorMessage()) {
+      <p class="error-message" role="alert">{{ errorMessage() }}</p>
+      }
+
       <app-button type="submit" variant="primary" [loading]="isLoading()">Login</app-button>
     </form>
   </section>
