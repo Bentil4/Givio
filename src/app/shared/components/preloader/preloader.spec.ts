@@ -5,77 +5,40 @@ import { Preloader } from './preloader';
 describe('Preloader', () => {
   let component: Preloader;
   let fixture: ComponentFixture<Preloader>;
-  let matchMediaSpy: ReturnType<typeof vi.fn>;
 
-  beforeEach(() => {
-    matchMediaSpy = vi.fn().mockReturnValue({ matches: false });
-    vi.stubGlobal('matchMedia', matchMediaSpy);
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.useRealTimers();
-  });
-
-  async function create() {
+  async function create(active: boolean) {
     await TestBed.configureTestingModule({ imports: [Preloader] }).compileComponents();
     fixture = TestBed.createComponent(Preloader);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('active', active);
     fixture.detectChanges();
   }
 
   it('should create', async () => {
-    await create();
+    await create(false);
     expect(component).toBeTruthy();
   });
 
-  it('animates progress from 0 toward 100, sets exiting, then emits done', async () => {
-    vi.useFakeTimers();
-    await create();
-
-    expect(component.progress()).toBe(0);
-    expect(component.exiting()).toBe(false);
-
-    const doneSpy = vi.fn();
-    component.done.subscribe(doneSpy);
-
-    // Cover the full active-fill duration, plus one frame of margin so the final
-    // rAF tick (which flips `exiting`) has actually fired, not just scheduled.
-    await vi.advanceTimersByTimeAsync(1100 + 32);
-    expect(component.progress()).toBe(100);
-    expect(component.exiting()).toBe(true);
-    expect(doneSpy).not.toHaveBeenCalled(); // still mid exit-transition
-
-    // Cover the exit-transition delay before `done` fires.
-    await vi.advanceTimersByTimeAsync(450);
-    expect(doneSpy).toHaveBeenCalledTimes(1);
+  it('applies the active class when active() is true', async () => {
+    await create(true);
+    const el: HTMLElement = fixture.nativeElement.querySelector('.preloader');
+    expect(el.classList.contains('active')).toBe(true);
   });
 
-  it('skips the animation and emits done quickly when the user prefers reduced motion', async () => {
-    matchMediaSpy.mockReturnValue({ matches: true });
-    vi.useFakeTimers();
-    await create();
-
-    expect(component.progress()).toBe(100);
-    expect(component.exiting()).toBe(true);
-
-    const doneSpy = vi.fn();
-    component.done.subscribe(doneSpy);
-
-    await vi.advanceTimersByTimeAsync(450);
-    expect(doneSpy).toHaveBeenCalledTimes(1);
+  it('does not apply the active class when active() is false', async () => {
+    await create(false);
+    const el: HTMLElement = fixture.nativeElement.querySelector('.preloader');
+    expect(el.classList.contains('active')).toBe(false);
   });
 
-  it('cancels the animation frame and exit timer on destroy without emitting done', async () => {
-    vi.useFakeTimers();
-    await create();
+  it('reflects a change in the active input immediately, with no internal delay', async () => {
+    await create(true);
+    let el: HTMLElement = fixture.nativeElement.querySelector('.preloader');
+    expect(el.classList.contains('active')).toBe(true);
 
-    const doneSpy = vi.fn();
-    component.done.subscribe(doneSpy);
-
-    fixture.destroy();
-    await vi.advanceTimersByTimeAsync(2000);
-
-    expect(doneSpy).not.toHaveBeenCalled();
+    fixture.componentRef.setInput('active', false);
+    fixture.detectChanges();
+    el = fixture.nativeElement.querySelector('.preloader');
+    expect(el.classList.contains('active')).toBe(false);
   });
 });

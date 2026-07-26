@@ -18,7 +18,6 @@ export class Login {
 
   public showPassword = signal(false);
   public isLoading = signal(false);
-  public showPreloader = signal(false);
   public errorMessage = signal<string | null>(null);
 
   public loginForm = this.formBuilder.group({
@@ -30,7 +29,6 @@ export class Login {
     this.errorMessage.set(null);
     const { email, password } = this.loginForm.value;
     this.isLoading.set(true);
-    this.showPreloader.set(true);
     try {
       await this.authStore.login(email ?? '', password ?? '');
       const role = this.authStore.role();

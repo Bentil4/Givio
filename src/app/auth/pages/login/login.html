@@ -1,6 +1,4 @@
-@if (showPreloader()) {
-<app-preloader (done)="showPreloader.set(false)" />
-}
+<app-preloader [active]="isLoading()" />
 <main class="login">
   <section class="login-page">
     <header class="header">
