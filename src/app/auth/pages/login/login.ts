@@ -1,29 +1,23 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { Input, Button, Preloader } from '../../../shared/components';
-import { ReactiveFormsModule } from '@angular/forms';
-import { FormBuilder, Validators } from '@angular/forms';
-import { account } from '../../../../lib/appwrite';
-import { Models } from 'appwrite';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-
-interface IUserPrefs extends Models.Preferences {
-  role: 'admin' | 'user' | 'member';
-}
+import { AuthStore, ROLE_HOME } from '../../../data/stores/auth-store';
 
 @Component({
   selector: 'app-login',
   imports: [Input, Button, Preloader, ReactiveFormsModule],
   templateUrl: './login.html',
-  styleUrl: './login.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Login {
-  private formBuilder = inject(FormBuilder);
-  private router = inject(Router);
+  private readonly formBuilder = inject(FormBuilder);
+  private readonly router = inject(Router);
+  private readonly authStore = inject(AuthStore);
+
   public showPassword = signal(false);
   public isLoading = signal(false);
-  public showPreloader = signal(false);
-  public loggedInUser = signal<Models.User<IUserPrefs> | null>(null);
+  public errorMessage = signal<string | null>(null);
 
   public loginForm = this.formBuilder.group({
     email: ['', { validators: [Validators.required], asyncValidators: [] }],
@@ -31,26 +25,27 @@ export class Login {
   });
 
   async onSubmit() {
+    this.errorMessage.set(null);
     const { email, password } = this.loginForm.value;
     this.isLoading.set(true);
-    this.showPreloader.set(true);
     try {
-      await account.deleteSession({ sessionId: 'current' });
-    } catch {
-      /* no active session */
-    }
-    try {
-      await account.createEmailPasswordSession({ email: email ?? '', password: password ?? '' });
-      this.loggedInUser.set(await account.get<IUserPrefs>());
-      if (this.loggedInUser()?.prefs?.['role'] === 'admin') {
-        this.router.navigate(['/admin-dashboard']);
-      } else if (this.loggedInUser()?.prefs?.['role'] === 'user') {
-        this.router.navigate(['/user-dashboard']);
+      await this.authStore.login(email ?? '', password ?? '');
+      const role = this.authStore.role();
+      if (role) {
+        this.router.navigate([ROLE_HOME[role]]);
+      } else {
+        // Authenticated with Appwrite, but no admin/operator label — don't leave a
+        // dangling session behind what looks like a failed login.
+        await this.authStore.logout();
+        this.errorMessage.set('Invalid credentials');
       }
+    } catch {
+      this.errorMessage.set('Invalid credentials');
     } finally {
       this.isLoading.set(false);
     }
   }
+
   public togglePasswordVisibility() {
     this.showPassword.update((value) => !value);
   }

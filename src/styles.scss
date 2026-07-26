@@ -4,6 +4,63 @@
 // Learn more about theming and how to use it for your application's
 // custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
+@use 'tailwindcss';
+
+// Map Tailwind's generated utilities to this project's existing design tokens
+// (defined in the :root block below) instead of Tailwind's own default palette/scale,
+// so `bg-primary-deep`, `font-display`, `rounded-md`, `p-lg`, etc. stay a single
+// source of truth with every other hand-written style in the app.
+@theme {
+  --color-primary-deep: var(--primary-deep);
+  --color-primary-mid: var(--primary-mid);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-black: var(--primary-black);
+  --color-primary-deep-cyan: var(--primary-deep-cyan);
+  // NOTE: the existing token is itself named `--color-danger` (matches Tailwind's own
+  // `--color-*` namespace) — referencing it via var() here would be a circular/invalid
+  // self-reference, so the literal value is duplicated from :root's --color-danger below.
+  --color-danger: #ef0b0b;
+
+  --color-bg-white: var(--bg-white);
+  --color-bg-light: var(--bg-light);
+  --color-bg-mist: var(--bg-mist);
+  --color-bg-frost: var(--bg-frost);
+
+  --color-func-success: var(--func-success);
+  --color-func-error: var(--func-error);
+  --color-func-warning: var(--func-warning);
+  --color-func-info: var(--func-info);
+
+  --color-accent-sky: var(--accent-sky);
+  --color-accent-teal: var(--accent-teal);
+
+  --color-data-1: var(--data-1);
+  --color-data-2: var(--data-2);
+  --color-data-3: var(--data-3);
+  --color-data-4: var(--data-4);
+
+  // Same self-reference issue as --color-danger above: --font-display/--font-body already
+  // exist under those exact names, so literal values are duplicated here instead of var().
+  --font-display: 'Syne', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+
+  --spacing-xs: var(--space-xs);
+  --spacing-sm: var(--space-sm);
+  --spacing-md: var(--space-md);
+  --spacing-lg: var(--space-lg);
+  --spacing-xl: var(--space-xl);
+  --spacing-2xl: var(--space-2xl);
+
+  // Same self-reference issue again: --radius-sm/md/lg/full already exist under those exact
+  // names (Tailwind's own --radius-* namespace), so literal values are duplicated here.
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+
+  --ease-brand: var(--ease);
+}
+
 @import 'primeicons/primeicons.css';
 html {
   height: 100%;
@@ -96,13 +153,12 @@ body {
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+// The universal box-sizing/margin/padding reset used to live here as a plain,
+// unlayered rule. Since Tailwind wraps all its own output in @layer, and CSS
+// cascade layers give ANY unlayered declaration priority over ALL layered ones
+// regardless of specificity, that one rule was silently defeating every Tailwind
+// margin/padding/border utility app-wide. Tailwind's own Preflight (in @layer base)
+// already performs the identical reset, correctly layered — removed the duplicate.
 
 body {
   font-family: var(--font-body);
@@ -517,41 +573,7 @@ section {
   transition: left 0.18s var(--ease);
 }
 
-/* Input */
-.input-wrap {
-  position: relative;
-}
-.input-wrap svg {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
-  color: var(--data-4);
-}
-.input-field {
-  width: 100%;
-  padding: 12px 16px 12px 40px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  border: 1.5px solid rgba(26, 107, 122, 0.15);
-  border-radius: var(--radius-md);
-  font-family: var(--font-body);
-  font-size: 0.85rem;
-  color: var(--primary-dark);
-  outline: none;
-  transition:
-    border-color 0.18s var(--ease),
-    box-shadow 0.18s var(--ease);
-}
-.input-field::placeholder {
-  color: var(--data-3);
-}
-.input-field:focus {
-  border-color: var(--primary-deep);
-  box-shadow: 0 0 0 3px rgba(0, 200, 224, 0.15);
-}
+/* Input styles now live in src/app/shared/components/input/input.scss (component-scoped) */
 
 /* Select */
 .select-wrap {

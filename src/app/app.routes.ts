@@ -1,8 +1,5 @@
 import { Routes } from '@angular/router';
-import { Login } from './auth/pages/login/login';
-import { AdminLayout } from './feature/pages/admin/admin-layout/admin-layout';
-import { UserLayout } from './feature/pages/user/user-layout/user-layout';
-import { AdminDashboard } from './feature/pages/admin/admin-dashboard/admin-dashboard';
+import { redirectIfAuthenticatedGuard, roleGuard } from './auth/guards/role.guard';
 
 export const routes: Routes = [
   {
@@ -12,23 +9,43 @@ export const routes: Routes = [
   },
   {
     path: 'login',
-    component: Login,
+    canActivate: [redirectIfAuthenticatedGuard],
+    loadComponent: () => import('./auth/pages/login/login').then((m) => m.Login),
   },
   {
-    path: '',
-    component: AdminLayout,
-    title: 'Admin layout',
+    path: 'admin',
+    canActivate: [roleGuard(['admin'])],
+    loadComponent: () =>
+      import('./feature/pages/admin/admin-layout/admin-layout').then((m) => m.AdminLayout),
+    title: 'Admin',
     children: [
       {
-        path: 'admin-dashboard',
-        component: AdminDashboard,
+        path: '',
+        loadComponent: () =>
+          import('./feature/pages/admin/admin-dashboard/admin-dashboard').then(
+            (m) => m.AdminDashboard,
+          ),
         title: 'Admin Dashboard',
       },
     ],
   },
   {
-    path: 'user-dashboard',
-    component: UserLayout,
-    title: 'User layout',
+    path: 'organizer',
+    canActivate: [roleGuard(['operator'])],
+    loadComponent: () =>
+      import('./feature/pages/organizer/organizer-layout/organizer-layout').then(
+        (m) => m.OrganizerLayout,
+      ),
+    title: 'Organizer',
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./feature/pages/organizer/organizer-dashboard/organizer-dashboard').then(
+            (m) => m.OrganizerDashboard,
+          ),
+        title: 'Organizer Dashboard',
+      },
+    ],
   },
 ];

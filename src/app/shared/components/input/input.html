@@ -2,24 +2,26 @@
   @if (label()) {
   <label class="form-label" [attr.for]="inputId()">{{ label() }}</label>
   }
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    stroke-width="2"
-  >
-    <circle cx="11" cy="11" r="8" />
-    <path d="m21 21-4.35-4.35" />
-  </svg>
-  <input
-    class="input-field"
-    [id]="inputId()"
-    [type]="type()"
-    [placeholder]="placeholder()"
-    [disabled]="isDisabled()"
-    [value]="value()"
-    (input)="onInput($event)"
-    (blur)="onBlur()"
-  />
+  <div class="input-control">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      stroke-width="2"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.35-4.35" />
+    </svg>
+    <input
+      class="input-field"
+      [id]="inputId()"
+      [type]="type()"
+      [placeholder]="placeholder()"
+      [disabled]="isDisabled()"
+      [value]="value()"
+      (input)="onInput($event)"
+      (blur)="onBlur()"
+    />
+  </div>
 </div>

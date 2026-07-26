@@ -17,4 +17,5 @@ export class Sidebar {
   public userProfile = input.required<IUserProfile[]>();
   public collapsed = input<boolean>(false);
   public toggleCollapsed = output<void>();
+  public logout = output<void>();
 }

@@ -21,4 +21,15 @@ describe('Sidebar', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
+
+  it('emits logout when the logout button is clicked', async () => {
+    const logoutSpy = vi.fn();
+    component.logout.subscribe(logoutSpy);
+
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector('.logout-button');
+    button.click();
+    await fixture.whenStable();
+
+    expect(logoutSpy).toHaveBeenCalledTimes(1);
+  });
 });

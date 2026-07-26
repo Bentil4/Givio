@@ -1,12 +1,11 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  OnDestroy,
-  OnInit,
-  output,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
+/**
+ * Full-screen branded loading overlay. Purely presentational — visible exactly
+ * while `active()` is true, nothing more. No internal timers or animation-driven
+ * completion event: the caller ties it directly to real request/operation state,
+ * so it can never get "stuck" or be cut off mid-animation by a navigation.
+ */
 @Component({
   selector: 'app-preloader',
   imports: [],
@@ -14,20 +13,6 @@ import {
   styleUrl: './preloader.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class Preloader implements OnInit, OnDestroy {
-  public done = output<void>();
-  public progress = signal(0);
-  public exiting = signal(false);
-
-  private raf = 0;
-  private start = 0;
-  private readonly duration = 2400;
-
-  ngOnInit() {
-    this.start = performance.now();
-  }
-
-  ngOnDestroy() {
-    cancelAnimationFrame(this.raf);
-  }
+export class Preloader {
+  public active = input.required<boolean>();
 }

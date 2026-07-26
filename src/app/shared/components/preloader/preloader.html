@@ -1,10 +1,6 @@
-<div class="preloader" [class.exit]="exiting()">
-  <!-- Centre content -->
+<output class="preloader" [class.active]="active()" aria-live="polite">
   <div class="content">
-    <!-- Wordmark -->
-    <div class="wordmark">
-      <span class="word-givio">Givio</span>
-      <div class="wordmark-line"></div>
-    </div>
+    <div class="spinner-ring" aria-hidden="true"></div>
+    <span class="word-givio">Givio</span>
   </div>
-</div>
+</output>

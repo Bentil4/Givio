@@ -1,41 +1,109 @@
-@if (showPreloader()) {
-<app-preloader (done)="showPreloader.set(false)" />
-}
-<main class="login">
-  <section class="login-page">
-    <header class="header">
-      <h3>Givio</h3>
-    </header>
-    <div class="login-wrap">
-      <p>Reliable Donation Tracking for Life's Meaningful Events</p>
-      <h2>Welcome Back</h2>
+<app-preloader [active]="isLoading()" />
+<main class="flex min-h-full w-full">
+  <section
+    class="relative hidden flex-none w-[42%] overflow-hidden bg-gradient-to-br from-primary-dark via-primary-deep to-primary-deep-cyan p-2xl lg:block"
+    aria-hidden="true"
+  >
+    <div
+      class="pointer-events-none absolute -inset-1/5 bg-[radial-gradient(circle_at_30%_20%,rgba(0,212,176,0.25),transparent_55%),radial-gradient(circle_at_80%_80%,rgba(86,200,232,0.2),transparent_50%)]"
+    ></div>
+    <div
+      class="relative z-10 mx-auto flex h-full max-w-[26rem] flex-col justify-center items-center gap-xl"
+    >
+      <span class="font-display text-4xl font-extrabold italic tracking-tight text-bg-white">
+        Givio
+      </span>
+      <p class="font-body text-lg text-center text-white/85">
+        Reliable donation tracking for life's meaningful events
+      </p>
+      <ul class="flex flex-col gap-md">
+        <li class="flex items-center gap-md font-body text-sm text-white/90">
+          <i
+            class="pi pi-bolt flex h-8 w-8 flex-none items-center text-center p-1 pt-2 justify-center rounded-md bg-white/10 text-accent-teal"
+          ></i>
+          <span>Real-time totals, online or offline</span>
+        </li>
+        <li class="flex items-center gap-md font-body text-sm text-white/90">
+          <i
+            class="pi pi-shield flex h-8 w-8 flex-none items-center justify-center text-center p-1 pt-2 rounded-md bg-white/10 text-accent-teal"
+          ></i>
+          <span>Role-based access, fully audited</span>
+        </li>
+        <li class="flex items-center gap-md font-body text-sm text-white/90">
+          <i
+            class="pi pi-receipt flex h-8 w-8 flex-none items-center justify-center text-center p-1 pt-2 rounded-md bg-white/10 text-accent-teal"
+          ></i>
+          <span>Instant receipts for every donor</span>
+        </li>
+      </ul>
     </div>
+  </section>
 
-    <form class="form-container" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
-      <app-input
-        [label]="'Email'"
-        [type]="'email'"
-        [placeholder]="'Enter your email'"
-        formControlName="email"
-      />
+  <section class="flex flex-1 items-center justify-center bg-bg-light p-xl">
+    <div class="flex w-full max-w-[24rem] flex-col gap-xl">
+      <span
+        class="block text-center font-display text-2xl font-extrabold italic tracking-tight text-primary-deep lg:hidden"
+      >
+        Givio
+      </span>
 
-      <div class="password-field">
-        <label class="form-label" for="password">Password</label>
-        <div class="input-wrapper">
-          <input
-            id="password"
-            class="form-input"
-            [type]="showPassword() ? 'text' : 'password'"
-            formControlName="password"
-            placeholder="Enter your password"
-          />
-          <button type="button" class="toggle-visibility" (click)="togglePasswordVisibility()">
-            <i [class]="showPassword() ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
-          </button>
-        </div>
+      <div class="text-center">
+        <h1 class="mb-xs font-display text-2xl font-bold text-primary-dark">Welcome back</h1>
+        <p class="font-body text-sm text-data-4">Sign in to manage your events and donations</p>
       </div>
 
-      <app-button type="submit" variant="primary" [loading]="isLoading()">Login</app-button>
-    </form>
+      <form class="flex flex-col gap-md" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+        <app-input
+          [label]="'Email'"
+          [type]="'email'"
+          [placeholder]="'you@organization.com'"
+          formControlName="email"
+        />
+
+        <div class="flex flex-col gap-1">
+          <label class="font-body text-[0.85rem] font-medium text-primary-dark" for="password">
+            Password
+          </label>
+          <div class="relative">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+              class="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-data-4"
+            >
+              <rect x="5" y="11" width="14" height="10" rx="2" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+            </svg>
+            <input
+              id="password"
+              class="w-full rounded-md border-[1.5px] border-data-1 bg-bg-white py-3 pr-10 pl-10 font-body text-[0.9rem] text-primary-dark outline-none transition-[border-color,box-shadow] duration-200 ease-brand placeholder:text-data-3 focus:border-primary-deep focus:shadow-[0_0_0_3px_rgba(0,200,224,0.15)]"
+              [type]="showPassword() ? 'text' : 'password'"
+              formControlName="password"
+              placeholder="Enter your password"
+            />
+            <button
+              type="button"
+              class="absolute top-1/2 right-3 flex -translate-y-1/2 items-center p-1 text-data-4 transition-colors duration-200 ease-brand hover:text-primary-deep"
+              [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+              (click)="togglePasswordVisibility()"
+            >
+              <i [class]="showPassword() ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+            </button>
+          </div>
+        </div>
+
+        @if (errorMessage()) {
+        <p class="m-0 text-center font-body text-sm text-func-error" role="alert">
+          {{ errorMessage() }}
+        </p>
+        }
+
+        <app-button type="submit" variant="primary" [loading]="isLoading()" class="w-full">
+          Sign In
+        </app-button>
+      </form>
+    </div>
   </section>
 </main>
