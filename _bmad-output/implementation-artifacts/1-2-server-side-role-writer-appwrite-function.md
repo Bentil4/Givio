@@ -4,7 +4,7 @@ baseline_commit: fd528e07833dde570606df25a32e96bbdbab9ed2
 
 # Story 1.2: Server-Side Role Writer (Appwrite Function)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
