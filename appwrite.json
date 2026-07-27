@@ -3,7 +3,7 @@
   "projectName": "Givio",
   "functions": [
     {
-      "$id": "6a67698e35015697823f",
+      "$id": "6a67698c0029be485dde",
       "name": "set-role-and-permissions",
       "runtime": "node-22",
       "execute": ["users"],
