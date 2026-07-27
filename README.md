@@ -2,6 +2,15 @@
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.0.4.
 
+## Environment configuration
+
+`src/environments/environment.ts` and `environment.development.ts` are gitignored (they hold deploy-specific Appwrite project/function IDs). Before building or testing, copy the template and fill in your own values:
+
+```bash
+cp src/environments/environment.example.ts src/environments/environment.ts
+cp src/environments/environment.example.ts src/environments/environment.development.ts
+```
+
 ## Development server
 
 To start a local development server, run:

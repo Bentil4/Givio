@@ -157,7 +157,7 @@ test('never trusts x-appwrite-user-id alone — only a successful JWT-verified a
 test('returns a structured error, not a throw, when updateLabels fails', async () => {
   const { ctx } = fakeContext({
     body: { userId: 'does-not-exist', role: 'admin' },
-    headers: { 'x-appwrite-user-jwt': 'admin-jwt' },
+    headers: { 'x-appwrite-user-jwt': 'admin-jwt', 'x-appwrite-key': 'dynamic-key' },
     getAccount: async () => ({ $id: 'caller-1', labels: ['admin'] }),
     updateLabels: () => {
       throw new Error('user_not_found');
@@ -167,4 +167,35 @@ test('returns a structured error, not a throw, when updateLabels fails', async (
   const result = await setRole(ctx);
 
   assert.equal(result.status, 502);
+});
+
+test('rejects an unauthenticated request with 401 even when the body is malformed — auth is checked before body shape', async () => {
+  const { ctx } = fakeContext({
+    body: { role: 'not-a-real-role' },
+    headers: {},
+    getAccount: async () => {
+      throw new Error('should not be called');
+    },
+  });
+
+  const result = await setRole(ctx);
+
+  assert.equal(result.status, 401);
+});
+
+test('returns a distinct 500 (not a generic 502) when the dynamic x-appwrite-key is missing, and never calls updateLabels', async () => {
+  let updateLabelsCalled = false;
+  const { ctx } = fakeContext({
+    body: { userId: 'user-5', role: 'operator' },
+    headers: { 'x-appwrite-user-jwt': 'admin-jwt' },
+    getAccount: async () => ({ $id: 'caller-1', labels: ['admin'] }),
+    updateLabels: () => {
+      updateLabelsCalled = true;
+    },
+  });
+
+  const result = await setRole(ctx);
+
+  assert.equal(result.status, 500);
+  assert.equal(updateLabelsCalled, false);
 });

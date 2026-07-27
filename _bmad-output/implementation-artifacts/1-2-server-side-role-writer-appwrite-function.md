@@ -111,6 +111,18 @@ claude-sonnet-5
 - Live verification used a temporary Node script (raw `fetch` against the Appwrite REST API, manually carrying the session cookie, since the `appwrite` Web SDK relies on browser cookie storage that doesn't exist in plain Node) rather than driving it through the Angular app — there's no UI yet to exercise `UserRepository.changeRole()` from (Story 1.3 builds that). Confirmed via the live project: an admin-labeled caller (`admin-test@givio.test`) successfully changed another account's Label, re-verified in Console → Auth → Users (not just trusting the API response); a non-admin caller (`operator-test@givio.test`) was rejected with 403 and made no Label change. Both test accounts were restored to their intended Labels (`admin`/`operator` respectively) afterward. The script was deleted after use — it was a throwaway verification tool, not part of the delivered code.
 - **Environment files are no longer tracked in git** (added to `.gitignore` mid-story, at the user's request, since they hold deploy-specific IDs) — `environment.ts`/`environment.development.ts` still exist locally with the real `setRoleFunctionId`, but future clones/CI will need to recreate them manually.
 
+### Post-Review Fixes
+
+A workflow-backed code review (4 finders, 8 candidates, all 8 independently verified — 7 confirmed, 1 plausible, 0 refuted) against baseline `fd528e07833dde570606df25a32e96bbdbab9ed2` found the following, all fixed:
+
+- [x] [Review][Confirmed] `environment.ts`/`environment.development.ts` were gitignored with no template — a fresh clone/CI has no `src/environments` at all, breaking `ng build`/`ng test` entirely. Added `src/environments/environment.example.ts` (committed) plus a README section explaining to copy it.
+- [x] [Review][Confirmed] `role-writer.js` validated the request body (`userId`/`role`) before checking the caller's JWT, so an unauthenticated caller with a malformed body got a 400 instead of 401 — leaking that the endpoint validates shape before identity. Reordered: JWT presence → JWT verification → admin-label check, all before body parsing/validation.
+- [x] [Review][Confirmed] `UserRepository` (Data layer) imported `Role` from `AuthStore` (State layer), inverting the architecture's declared dependency direction. Moved `Role` to a new `src/app/data/models/role.ts`; `auth-store.ts` now imports and re-exports it (existing consumers of `Role`/`ROLE_HOME` from `auth-store` untouched); `user-repository.ts` imports directly from the Data-layer location.
+- [x] [Review][Confirmed] `VALID_ROLES` (Function) and `ROLE_LABELS` (`auth-store.ts`) are two independently hardcoded role lists with no shared source of truth — genuinely can't be unified further since the Function and the Angular app are separate deployments with no shared module system. Added cross-referencing comments in both files so a future role addition is less likely to update only one.
+- [x] [Review][Confirmed] A missing `x-appwrite-key` dynamic-key header silently produced an unauthorized admin client, whose `updateLabels` failure then looked identical (generic 502) to any other transient Appwrite failure. Added an explicit check returning a distinct 500 "Server misconfiguration" response, logged separately, before ever attempting the write.
+- [x] [Review][Plausible] Two near-identical `.setEndpoint(...).setProject(...)` chains (caller-verification client vs. admin-write client) risked one being edited without the other. Extracted a shared `buildClient()` helper.
+- 2 new Function tests added (unauthenticated + malformed body → 401 not 400; missing dynamic key → distinct 500, `updateLabels` never called) — 9/9 Function tests pass. Full Angular suite re-verified: 47/49 pass (same 2 pre-existing unrelated failures), `ng lint` clean, `ng build` succeeds.
+
 ### File List
 
 **Added:**
@@ -124,6 +136,8 @@ claude-sonnet-5
 - `src/app/data/repositories/repository-error.ts`
 - `src/app/data/repositories/user-repository.ts`
 - `src/app/data/repositories/user-repository.spec.ts`
+- `src/app/data/models/role.ts` (post-review fix — `Role` type relocated out of `AuthStore`)
+- `src/environments/environment.example.ts` (post-review fix — committed template)
 
 **Modified:**
 - `src/app/data/appwrite/client.ts` (added `FUNCTIONS` `InjectionToken`)
@@ -131,6 +145,8 @@ claude-sonnet-5
 - `src/environments/environment.development.ts` (same as above — gitignored, not tracked)
 - `.gitignore` (added `src/environments/environment.ts`/`environment.development.ts`)
 - `appwrite.json` ($id corrected to the real deployed function ID after the function had to be recreated)
+- `src/app/data/stores/auth-store.ts` (post-review fix — `Role` now imported from `data/models/role.ts` and re-exported, not defined locally)
+- `README.md` (post-review fix — environment setup section)
 
 **Deleted (session-only, not part of the delivered codebase):**
 - `verify-role-function.mjs` (temporary live-verification script, removed after AC3 was confirmed)
@@ -140,3 +156,4 @@ claude-sonnet-5
 - 2026-07-27: Implemented Story 1.2 Tasks 1–4 — standalone Appwrite Function project with JWT-verified admin check + dynamic-API-key Label write (AD-9), new `data/repositories` layer (`RepositoryError`, `UserRepository`), `FUNCTIONS` InjectionToken reusing Story 1.1's DI-mocking pattern. 10 new tests (7 Function, 3 repository), all passing; full suite 47/49 (2 pre-existing unrelated failures); `ng lint` clean; `ng build` succeeds.
 - 2026-07-27: Completed Task 5 with the user — deployed the Function to the live Appwrite Cloud project. Found and fixed two real deployment issues (manifest files never committed; successful build not marked as active deployment) and one config drift (function ID changed after a recreate). Verified AC1–AC3 end-to-end against the live project: admin caller succeeds and writes a real Label change (confirmed in Console), non-admin caller rejected with 403. Story is fully implemented and verified; ready for code review.
 - 2026-07-27: At the user's request, stopped tracking `environment.ts`/`environment.development.ts` in git (added to `.gitignore`) since they hold deploy-specific IDs — kept locally, no longer pushed.
+- 2026-07-27: Ran a workflow-backed code review (high effort) against baseline `fd528e0`. 8 candidates, all independently verified (7 confirmed, 1 plausible). Fixed all 6: committed environment template, reordered auth-before-body-validation in the Function, fixed a Data→State layering inversion (`Role` type relocated), cross-referenced the two duplicated role lists, added a distinct error for a missing dynamic API key, and deduplicated Client construction. 2 new Function tests added (9/9 pass); full Angular suite re-verified (47/49, same pre-existing failures); `ng lint` clean; `ng build` succeeds.

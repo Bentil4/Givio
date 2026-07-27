@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { FUNCTIONS } from '../appwrite/client';
 import { RepositoryError } from './repository-error';
-import type { Role } from '../stores/auth-store';
+import type { Role } from '../models/role';
 import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
