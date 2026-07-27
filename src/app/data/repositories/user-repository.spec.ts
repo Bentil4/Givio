@@ -15,37 +15,6 @@ describe('UserRepository', () => {
     repository = TestBed.inject(UserRepository);
   });
 
-  describe('changeRole', () => {
-    it('resolves when the function execution succeeds', async () => {
-      functions.createExecution.mockResolvedValueOnce({
-        responseStatusCode: 200,
-        responseBody: JSON.stringify({ success: true }),
-      });
-
-      await expect(repository.changeRole('user-1', 'admin')).resolves.toBeUndefined();
-      expect(functions.createExecution).toHaveBeenCalledWith(
-        expect.objectContaining({
-          body: JSON.stringify({ action: 'setRole', userId: 'user-1', role: 'admin' }),
-        }),
-      );
-    });
-
-    it('throws a RepositoryError, not a raw AppwriteException, when createExecution rejects', async () => {
-      functions.createExecution.mockRejectedValueOnce(new Error('network down'));
-
-      await expect(repository.changeRole('user-1', 'operator')).rejects.toBeInstanceOf(RepositoryError);
-    });
-
-    it('throws a RepositoryError when the function itself returns a non-2xx status (e.g. 403 from a non-admin caller)', async () => {
-      functions.createExecution.mockResolvedValueOnce({
-        responseStatusCode: 403,
-        responseBody: JSON.stringify({ error: 'Forbidden' }),
-      });
-
-      await expect(repository.changeRole('user-1', 'admin')).rejects.toBeInstanceOf(RepositoryError);
-    });
-  });
-
   describe('listUsers', () => {
     it('resolves with the mapped user list on success', async () => {
       const users = [{ id: 'u1', name: 'Ama', email: 'ama@givio.test', role: 'admin', active: true, registeredAt: '2026-01-01' }];

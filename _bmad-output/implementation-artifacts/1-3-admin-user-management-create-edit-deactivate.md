@@ -116,11 +116,27 @@ claude-sonnet-5
 - **Task 5 (manual deployment + live verification) is intentionally left unchecked — cannot be completed by a coding agent**, same class of exception as Story 1.2: the renamed Function entrypoint needs to be redeployed to the live Appwrite Cloud project, and all four flows (create/edit/deactivate/delete) need to be exercised against the real project to satisfy full verification. Additionally, per this story's own Dev Notes, the "donation records preserved" half of AC4 cannot be verified at all yet — no `donations` collection exists until Epic 3.
 - **Three PRD-vs-Appwrite-API gaps were flagged for PM follow-up during story creation** (password not literally emailed, email-change verification not literally sent, no distinct deleted-vs-deactivated state) — implemented exactly as scoped in the story file's Dev Notes; no new information changes those flags during implementation.
 
+### Post-Review Fixes
+
+A workflow-backed code review (4 finders, 12 candidates, all independently verified — 0 refuted) against baseline `fba8dd82d29d4d75d5f0a5c569c07969e51e8f19` found 10 distinct findings (after collapsing duplicates), all fixed:
+
+- [x] [Review][Confirmed] "Delete" and "Deactivate" were two buttons doing the exact same underlying call (`setUserActive(id, false)`), misleadingly implying a difference that didn't exist. **User decision: merged into one "Deactivate" action** — removed the separate Delete button/dialog/`requestDelete()` method entirely; AC4 is satisfied via the same Deactivate path, exactly as already documented in Dev Notes.
+- [x] [Review][Confirmed] Every edit unconditionally reset the target's email to unverified, even when the email hadn't changed (the edit form always submits the current email). Fixed: `handleUpdateUser` now calls `users.get(userId)` first and only calls `updateEmail`/`updateEmailVerification` if the email actually differs.
+- [x] [Review][Confirmed] An explicit empty-string password (`password: ''`) bypassed auto-generation (`??` only catches `null`/`undefined`) and could misreport `generatedPassword: ''`. Fixed: `hasValue()` helper now treats empty string the same as missing, for both the generation decision and the response shape.
+- [x] [Review][Confirmed] `updateUser`'s three field updates ran sequentially with no way to know which succeeded if one failed partway through. Fixed: rewritten to run all three concurrently via `Promise.allSettled`, with the response now including `appliedFields` — the exact set of fields that actually succeeded — so a partial failure is never silently indistinguishable from total failure. The Angular component's error paths (`submitForm`, `confirmActionSubmit`) now also always call `loadUsers()` afterward (previously only on success), so the table never shows stale pre-failure data.
+- [x] [Review][Confirmed] The dynamic-key/500 check ran before each action's own payload validation, so a malformed request in a misconfigured environment returned a misleading 500 instead of 400. Fixed: extracted a `validatePayload()` step that runs for every action *before* the dynamic-key check, restoring the original validation-first ordering uniformly across all actions.
+- [x] [Review][Confirmed] No safeguard stopped an admin from deactivating or demoting their own account. Fixed: `validatePayload()` now rejects `setStatus`/`updateUser`-role-change requests where `userId === caller.$id` with a 400 (name/email changes to one's own account are still allowed).
+- [x] [Review][Confirmed] `listUsers` called `Users.list()` with no pagination, silently truncating at Appwrite's default page size. Fixed: now loops with `Query.limit`/`Query.cursorAfter` until every page is fetched.
+- [x] [Review][Confirmed] `setRole` (Function action) and `UserRepository.changeRole()` were dead/duplicate code, fully superseded by `updateUser`'s role field. Fixed: removed both, plus their dedicated tests.
+- [x] [Review][Confirmed] `updateUser`'s sequential Appwrite calls added avoidable latency. Fixed: resolved together with the `Promise.allSettled` rewrite above (same change addresses both findings).
+- [x] [Review][Confirmed] A comment in `auth-store.ts` still pointed at the deleted `role-writer.js`. Fixed: updated to `admin-users.js`.
+- All fixes re-verified: Function suite now 27/27 (7 new tests covering pagination, self-target rejection, email-unchanged-skip, empty-password normalization, partial-failure `appliedFields`, and validation-before-key ordering); Angular suite 64/66 passing (same 2 pre-existing unrelated failures — down from 67 only because the 3 dead `changeRole` tests were removed, not a coverage loss); `ng lint` clean; `ng build` succeeds.
+
 ### File List
 
 **Added:**
-- `functions/set-role-and-permissions/src/admin-users.js` (renamed from `role-writer.js` via `git mv`, then rewritten into a 5-action dispatcher)
-- `functions/set-role-and-permissions/tests/admin-users.test.js` (renamed from `role-writer.test.js` via `git mv`, then rewritten — 20 tests)
+- `functions/set-role-and-permissions/src/admin-users.js` (renamed from `role-writer.js` via `git mv`, then rewritten into a 4-action dispatcher — `setRole` removed post-review)
+- `functions/set-role-and-permissions/tests/admin-users.test.js` (renamed from `role-writer.test.js` via `git mv`, then rewritten — 27 tests after post-review additions)
 - `src/app/data/models/admin-user.ts`
 - `src/app/feature/pages/admin/admin-settings/admin-settings.ts`
 - `src/app/feature/pages/admin/admin-settings/admin-settings.html`
@@ -128,11 +144,13 @@ claude-sonnet-5
 
 **Modified:**
 - `functions/set-role-and-permissions/src/main.js` (import updated for the rename)
-- `src/app/data/repositories/user-repository.ts` (added `listUsers`/`createUser`/`updateUser`/`setUserActive`; `changeRole` now sends `action: 'setRole'`)
-- `src/app/data/repositories/user-repository.spec.ts` (updated `changeRole` assertion + 11 new tests)
+- `src/app/data/repositories/user-repository.ts` (added `listUsers`/`createUser`/`updateUser`/`setUserActive`; `changeRole()` removed post-review as dead code)
+- `src/app/data/repositories/user-repository.spec.ts` (11 new tests for the new methods; `changeRole` describe block removed post-review)
 - `src/app/app.routes.ts` (added `/admin/settings` child route)
 - `src/app/feature/pages/admin/admin-layout/admin-layout.ts` (fixed the `Settings` nav item's route)
+- `src/app/data/stores/auth-store.ts` (post-review: stale sync comment corrected to point at `admin-users.js`)
 
 ## Change Log
 
 - 2026-07-27: Implemented Story 1.3 Tasks 1–4 — extended the Appwrite Function into a 5-action Admin Users API (list/create/update/setRole/setStatus) behind one shared JWT+admin-label gate, extended `UserRepository` and added the `AdminUser` model, built the `/admin/settings` User Management screen (table + create/edit/deactivate/reactivate/delete). 42 new/updated tests, all passing; full suite 67/69 (2 pre-existing unrelated failures); `ng lint` clean; `ng build` succeeds. Task 5 (live deployment + verification against Appwrite Cloud) explicitly deferred — requires human Appwrite Console access, cannot be done by a coding agent; the "donation records preserved" half of AC4 additionally can't be verified until Epic 3's `donations` collection exists.
+- 2026-07-27: Ran a workflow-backed code review (high effort) against baseline `fba8dd8`. 12 candidates, all independently verified, 10 distinct findings after collapsing duplicates, 0 refuted. Fixed all 10: merged "Delete" into "Deactivate" (per user decision — the two were functionally identical), fixed email-unverified-on-every-edit, fixed empty-string password handling, rewrote `updateUser` to run concurrently with per-field partial-failure reporting, fixed a validation-order regression (400 vs 500), added a self-target safeguard, added `listUsers` pagination, removed dead `setRole`/`changeRole` code, and fixed a stale cross-file comment. Function suite 27/27; Angular suite 64/66 (same pre-existing failures); `ng lint` clean; `ng build` succeeds.

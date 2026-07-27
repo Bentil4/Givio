@@ -23,9 +23,11 @@ function fakeContext({ body, headers = {}, getAccount, users = {} }) {
   const errors = [];
   const calls = {};
 
+  // async so a fake impl that throws synchronously still produces a rejected promise,
+  // matching the real node-appwrite SDK's contract (its methods never throw synchronously).
   const record =
     (name) =>
-    (...args) => {
+    async (...args) => {
       calls[name] = calls[name] ?? [];
       calls[name].push(args);
       const impl = users[name];
@@ -40,6 +42,7 @@ function fakeContext({ body, headers = {}, getAccount, users = {} }) {
 
   class UsersCtor {
     list = record('list');
+    get = record('get');
     create = record('create');
     updateName = record('updateName');
     updateEmail = record('updateEmail');
@@ -80,6 +83,10 @@ function fakeContext({ body, headers = {}, getAccount, users = {} }) {
 
 const ADMIN_HEADERS = { 'x-appwrite-user-jwt': 'admin-jwt', 'x-appwrite-key': 'dynamic-key' };
 const asAdmin = async () => ({ $id: 'admin-1', labels: ['admin'] });
+// Default fake: users.get() returns a different email than any update payload, so the
+// "did the email actually change" check passes through to a real update unless a test
+// overrides `users.get` to simulate "no change".
+const defaultUsersGet = () => ({ email: 'unchanged-elsewhere@givio.test' });
 
 test('rejects an unauthenticated request with 401 even when the body is malformed', async () => {
   const { ctx } = fakeContext({
@@ -160,6 +167,18 @@ test('returns a distinct 500 when the dynamic x-appwrite-key is missing', async 
   assert.equal(calls.list, undefined);
 });
 
+test('a malformed payload returns 400, not 500, even when the dynamic key is also missing', async () => {
+  const { ctx } = fakeContext({
+    body: { action: 'setStatus' },
+    headers: { 'x-appwrite-user-jwt': 'admin-jwt' },
+    getAccount: asAdmin,
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 400);
+});
+
 test('listUsers maps the Users service result to the AdminUser shape', async () => {
   const { ctx } = fakeContext({
     body: { action: 'listUsers' },
@@ -196,6 +215,39 @@ test('listUsers maps the Users service result to the AdminUser shape', async () 
     { id: 'u1', name: 'Ama', email: 'ama@givio.test', role: 'operator', active: true, registeredAt: '2026-01-01' },
     { id: 'u2', name: 'Kofi', email: 'kofi@givio.test', role: null, active: false, registeredAt: '2026-02-01' },
   ]);
+});
+
+test('listUsers pages through the full result set instead of silently truncating', async () => {
+  const pageOf100 = Array.from({ length: 100 }, (_, i) => ({
+    $id: `u${i}`,
+    name: `User ${i}`,
+    email: `u${i}@givio.test`,
+    labels: [],
+    status: true,
+    registration: '2026-01-01',
+  }));
+  const secondPage = [
+    { $id: 'u100', name: 'Last', email: 'last@givio.test', labels: [], status: true, registration: '2026-01-01' },
+  ];
+  let call = 0;
+
+  const { ctx } = fakeContext({
+    body: { action: 'listUsers' },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+    users: {
+      list: () => {
+        call += 1;
+        return { users: call === 1 ? pageOf100 : secondPage };
+      },
+    },
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.length, 101);
+  assert.equal(call, 2);
 });
 
 test('createUser with an explicit password does not return a generatedPassword', async () => {
@@ -239,6 +291,23 @@ test('createUser without a password auto-generates one and returns it once', asy
   assert.equal(typeof result.body.generatedPassword, 'string');
   assert.ok(result.body.generatedPassword.length > 0);
   assert.equal(calls.create[0][0].password, result.body.generatedPassword);
+});
+
+test('createUser treats an empty-string password the same as omitting one', async () => {
+  const { ctx, calls } = fakeContext({
+    body: { action: 'createUser', name: 'New User', email: 'new@givio.test', role: 'admin', password: '' },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+    users: {
+      create: () => ({ $id: 'new-3' }),
+    },
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 200);
+  assert.notEqual(calls.create[0][0].password, '');
+  assert.ok(result.body.generatedPassword.length > 0);
 });
 
 test('createUser rejects a duplicate email with 409 and never sets a label', async () => {
@@ -291,11 +360,12 @@ test('updateUser only calls the update methods for fields actually provided', as
   assert.equal(calls.updateLabels, undefined);
 });
 
-test('updateUser marks a changed email as unverified', async () => {
+test('updateUser marks a genuinely changed email as unverified', async () => {
   const { ctx, calls } = fakeContext({
     body: { action: 'updateUser', userId: 'u1', email: 'new-address@givio.test' },
     headers: ADMIN_HEADERS,
     getAccount: asAdmin,
+    users: { get: defaultUsersGet },
   });
 
   const result = await handleAdminUsersRequest(ctx);
@@ -303,6 +373,22 @@ test('updateUser marks a changed email as unverified', async () => {
   assert.equal(result.status, 200);
   assert.deepEqual(calls.updateEmail[0][0], { userId: 'u1', email: 'new-address@givio.test' });
   assert.deepEqual(calls.updateEmailVerification[0][0], { userId: 'u1', emailVerification: false });
+});
+
+test('updateUser skips the email update entirely when the submitted email matches the current one', async () => {
+  const { ctx, calls } = fakeContext({
+    body: { action: 'updateUser', userId: 'u1', name: 'Renamed Only', email: 'same@givio.test' },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+    users: { get: () => ({ email: 'same@givio.test' }) },
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 200);
+  assert.deepEqual(calls.updateName[0][0], { userId: 'u1', name: 'Renamed Only' });
+  assert.equal(calls.updateEmail, undefined);
+  assert.equal(calls.updateEmailVerification, undefined);
 });
 
 test('updateUser can also change the role, reusing the same updateLabels call', async () => {
@@ -318,12 +404,13 @@ test('updateUser can also change the role, reusing the same updateLabels call', 
   assert.deepEqual(calls.updateLabels[0][0], { userId: 'u1', labels: ['admin'] });
 });
 
-test('updateUser rejects a duplicate email the same way createUser does', async () => {
+test('updateUser rejects a duplicate email the same way createUser does, reporting which fields still applied', async () => {
   const { ctx } = fakeContext({
-    body: { action: 'updateUser', userId: 'u1', email: 'taken@givio.test' },
+    body: { action: 'updateUser', userId: 'u1', name: 'Still Renamed', email: 'taken@givio.test' },
     headers: ADMIN_HEADERS,
     getAccount: asAdmin,
     users: {
+      get: defaultUsersGet,
       updateEmail: () => {
         const err = new Error('duplicate');
         err.code = 409;
@@ -336,11 +423,43 @@ test('updateUser rejects a duplicate email the same way createUser does', async 
   const result = await handleAdminUsersRequest(ctx);
 
   assert.equal(result.status, 409);
+  assert.deepEqual(result.body.appliedFields, ['name']);
 });
 
-test('setRole keeps the original single-purpose behavior', async () => {
+test('updateUser reports exactly which fields succeeded when one fails partway through', async () => {
+  const { ctx } = fakeContext({
+    body: { action: 'updateUser', userId: 'u1', name: 'Renamed', role: 'admin' },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+    users: {
+      updateLabels: () => {
+        throw new Error('transient failure');
+      },
+    },
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 502);
+  assert.deepEqual(result.body.appliedFields, ['name']);
+});
+
+test('updateUser rejects an admin trying to change their own role', async () => {
   const { ctx, calls } = fakeContext({
-    body: { action: 'setRole', userId: 'u3', role: 'operator' },
+    body: { action: 'updateUser', userId: 'admin-1', role: 'operator' },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 400);
+  assert.equal(calls.updateLabels, undefined);
+});
+
+test('updateUser still allows an admin to change their own name', async () => {
+  const { ctx, calls } = fakeContext({
+    body: { action: 'updateUser', userId: 'admin-1', name: 'New Name' },
     headers: ADMIN_HEADERS,
     getAccount: asAdmin,
   });
@@ -348,8 +467,7 @@ test('setRole keeps the original single-purpose behavior', async () => {
   const result = await handleAdminUsersRequest(ctx);
 
   assert.equal(result.status, 200);
-  assert.deepEqual(result.body, { success: true, userId: 'u3', role: 'operator' });
-  assert.deepEqual(calls.updateLabels[0][0], { userId: 'u3', labels: ['operator'] });
+  assert.deepEqual(calls.updateName[0][0], { userId: 'admin-1', name: 'New Name' });
 });
 
 test('setStatus(false) deactivates a user', async () => {
@@ -376,6 +494,19 @@ test('setStatus(true) reactivates a user', async () => {
 
   assert.equal(result.status, 200);
   assert.deepEqual(calls.updateStatus[0][0], { userId: 'u4', status: true });
+});
+
+test('setStatus rejects an admin trying to deactivate their own account', async () => {
+  const { ctx, calls } = fakeContext({
+    body: { action: 'setStatus', userId: 'admin-1', active: false },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 400);
+  assert.equal(calls.updateStatus, undefined);
 });
 
 test('returns a structured 502, not a throw, when a Users service call fails', async () => {

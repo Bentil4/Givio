@@ -7,7 +7,7 @@ import { RepositoryError } from '../../../../data/repositories/repository-error'
 import type { AdminUser } from '../../../../data/models/admin-user';
 import type { Role } from '../../../../data/models/role';
 
-type ConfirmAction = 'deactivate' | 'reactivate' | 'delete';
+type ConfirmAction = 'deactivate' | 'reactivate';
 
 @Component({
   selector: 'app-admin-settings',
@@ -48,9 +48,12 @@ export class AdminSettings implements OnInit {
     this.loadUsers();
   }
 
+  // Deliberately never clears listError on success — a caller recovering from its own
+  // action failure (see confirmActionSubmit) sets listError to that failure's message
+  // and then calls loadUsers() to refresh the table; a successful refresh here must not
+  // silently wipe out that message out from under it.
   async loadUsers(): Promise<void> {
     this.loading.set(true);
-    this.listError.set(null);
     try {
       this.users.set(await this.userRepository.listUsers());
     } catch (err) {
@@ -108,11 +111,13 @@ export class AdminSettings implements OnInit {
         }
       }
       this.showFormDialog.set(false);
-      await this.loadUsers();
     } catch (err) {
       this.formError.set(err instanceof RepositoryError ? err.message : 'Something went wrong');
     } finally {
       this.formSubmitting.set(false);
+      // Refresh regardless of outcome — an edit that partially applied (e.g. name saved,
+      // role update failed) shouldn't leave the table showing stale pre-edit data.
+      await this.loadUsers();
     }
   }
 
@@ -128,10 +133,6 @@ export class AdminSettings implements OnInit {
     this.confirmTarget.set({ action: 'reactivate', user });
   }
 
-  requestDelete(user: AdminUser): void {
-    this.confirmTarget.set({ action: 'delete', user });
-  }
-
   cancelConfirm(): void {
     this.confirmTarget.set(null);
   }
@@ -142,16 +143,19 @@ export class AdminSettings implements OnInit {
       return;
     }
 
+    this.listError.set(null);
     this.confirmSubmitting.set(true);
     try {
       const active = target.action === 'reactivate';
       await this.userRepository.setUserActive(target.user.id, active);
       this.confirmTarget.set(null);
-      await this.loadUsers();
     } catch (err) {
       this.listError.set(err instanceof RepositoryError ? err.message : 'Something went wrong');
     } finally {
       this.confirmSubmitting.set(false);
+      // Refresh regardless of outcome — a partial or unexpected failure shouldn't leave the
+      // table showing stale data the admin might mistake for "nothing happened".
+      await this.loadUsers();
     }
   }
 }

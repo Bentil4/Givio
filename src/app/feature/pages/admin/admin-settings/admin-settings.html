@@ -53,11 +53,10 @@
               <div class="flex flex-wrap gap-sm">
                 <button type="button" class="text-accent-sky" (click)="openEditDialog(user)">Edit</button>
                 @if (user.active) {
-                  <button type="button" class="text-func-warning" (click)="requestDeactivate(user)">Deactivate</button>
+                  <button type="button" class="text-danger" (click)="requestDeactivate(user)">Deactivate</button>
                 } @else {
                   <button type="button" class="text-func-success" (click)="requestReactivate(user)">Reactivate</button>
                 }
-                <button type="button" class="text-danger" (click)="requestDelete(user)">Delete</button>
               </div>
             </td>
           </tr>
@@ -116,14 +115,10 @@
 @if (confirmTarget(); as target) {
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-primary-black/40 p-md">
     <div class="flex w-full max-w-sm flex-col gap-md rounded-lg bg-bg-white p-lg">
-      @if (target.action === 'delete') {
+      @if (target.action === 'deactivate') {
         <p class="font-body text-sm text-primary-dark">
-          Delete <strong>{{ target.user.name }}</strong>? They will no longer be able to log in; their
+          Deactivate <strong>{{ target.user.name }}</strong>? They will no longer be able to log in; their
           historical records are preserved.
-        </p>
-      } @else if (target.action === 'deactivate') {
-        <p class="font-body text-sm text-primary-dark">
-          Deactivate <strong>{{ target.user.name }}</strong>? They will no longer be able to log in.
         </p>
       } @else {
         <p class="font-body text-sm text-primary-dark">

@@ -5,7 +5,7 @@ import type { Role } from '../models/role';
 
 export type { Role };
 
-// Keep in sync with functions/set-role-and-permissions/src/role-writer.js's VALID_ROLES.
+// Keep in sync with functions/set-role-and-permissions/src/admin-users.js's VALID_ROLES.
 const ROLE_LABELS: readonly Role[] = ['admin', 'operator'];
 
 export const ROLE_HOME: Record<Role, string> = {

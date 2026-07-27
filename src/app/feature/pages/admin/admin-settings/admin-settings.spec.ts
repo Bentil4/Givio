@@ -130,7 +130,7 @@ describe('AdminSettings', () => {
     });
   });
 
-  describe('deactivate/reactivate/delete', () => {
+  describe('deactivate/reactivate', () => {
     it('requestDeactivate then confirming calls setUserActive(id, false)', async () => {
       userRepository.setUserActive.mockResolvedValueOnce(undefined);
       userRepository.listUsers.mockResolvedValueOnce([{ ...sampleUser, active: false }]);
@@ -153,15 +153,16 @@ describe('AdminSettings', () => {
       expect(userRepository.setUserActive).toHaveBeenCalledWith('u1', true);
     });
 
-    it('requestDelete then confirming also calls setUserActive(id, false)', async () => {
-      userRepository.setUserActive.mockResolvedValueOnce(undefined);
-      userRepository.listUsers.mockResolvedValueOnce([]);
+    it('refreshes the list even when setUserActive fails, so the table never shows stale data', async () => {
+      userRepository.setUserActive.mockRejectedValueOnce(new RepositoryError('Failed to update user status'));
+      userRepository.listUsers.mockClear();
+      userRepository.listUsers.mockResolvedValueOnce([sampleUser]);
 
-      component.requestDelete(sampleUser);
-      expect(component.confirmTarget()?.action).toBe('delete');
+      component.requestDeactivate(sampleUser);
       await component.confirmActionSubmit();
 
-      expect(userRepository.setUserActive).toHaveBeenCalledWith('u1', false);
+      expect(component.listError()).toBe('Failed to update user status');
+      expect(userRepository.listUsers).toHaveBeenCalled();
     });
 
     it('cancelConfirm clears the confirm target without calling the repository', () => {

@@ -13,15 +13,6 @@ interface FunctionErrorBody {
 export class UserRepository {
   private readonly functions = inject(FUNCTIONS);
 
-  /**
-   * The only client-side entry point for a role change. Delegates to the one
-   * Appwrite Function that's ever allowed to write a Label (AD-9) — never writes
-   * a Label directly.
-   */
-  async changeRole(userId: string, role: Role): Promise<void> {
-    await this.invoke('setRole', 'Failed to invoke the role-change function', { userId, role });
-  }
-
   /** Admin-only listing — Appwrite's Users service (list) is server-only. */
   async listUsers(): Promise<AdminUser[]> {
     const body = await this.invoke<AdminUser[]>('listUsers', 'Failed to list users', {});
