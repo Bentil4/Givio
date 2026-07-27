@@ -1,0 +1,13 @@
+{
+  "name": "set-role-and-permissions",
+  "version": "1.0.0",
+  "description": "Appwrite Function — the sole writer of user role Labels and derived permissions (AD-9).",
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "node-appwrite": "^27.1.0"
+  }
+}
