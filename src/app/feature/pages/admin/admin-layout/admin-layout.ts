@@ -23,7 +23,7 @@ export class AdminLayout {
     { name: 'Events', icon: 'event', route: '/events' },
     { name: 'Donation', icon: 'volunteer_activism', route: '/donation' },
     { name: 'Report', icon: 'bar_chart', route: '/report' },
-    { name: 'Settings', icon: 'settings', route: '/settings' },
+    { name: 'Settings', icon: 'settings', route: '/admin/settings' },
   ];
 
   public toggleSidebar(): void {

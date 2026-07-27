@@ -1,3 +1,3 @@
-import { setRole } from './role-writer.js';
+import { handleAdminUsersRequest } from './admin-users.js';
 
-export default async (context) => setRole(context);
+export default async (context) => handleAdminUsersRequest(context);
