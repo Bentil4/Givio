@@ -1,5 +1,9 @@
 import { Routes } from '@angular/router';
-import { redirectIfAuthenticatedGuard, roleGuard } from './auth/guards/role.guard';
+import {
+  redirectIfAuthenticatedGuard,
+  roleGuard,
+  sessionExpiryGuard,
+} from './auth/guards/role.guard';
 
 export const routes: Routes = [
   {
@@ -14,7 +18,7 @@ export const routes: Routes = [
   },
   {
     path: 'admin',
-    canActivate: [roleGuard(['admin'])],
+    canActivate: [sessionExpiryGuard, roleGuard(['admin'])],
     loadComponent: () =>
       import('./feature/pages/admin/admin-layout/admin-layout').then((m) => m.AdminLayout),
     title: 'Admin',
@@ -39,7 +43,7 @@ export const routes: Routes = [
   },
   {
     path: 'organizer',
-    canActivate: [roleGuard(['operator'])],
+    canActivate: [sessionExpiryGuard, roleGuard(['operator'])],
     loadComponent: () =>
       import('./feature/pages/organizer/organizer-layout/organizer-layout').then(
         (m) => m.OrganizerLayout,

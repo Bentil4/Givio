@@ -6,7 +6,7 @@ import { Client, Account, Users, ID, Query } from 'node-appwrite';
 // so there's no way to import one list into the other; update both by hand.
 const VALID_ROLES = ['admin', 'operator'];
 
-const ACTIONS = ['listUsers', 'createUser', 'updateUser', 'setStatus'];
+const ACTIONS = ['listUsers', 'createUser', 'updateUser', 'setStatus', 'forceExpireSessions'];
 
 const LIST_PAGE_SIZE = 100;
 
@@ -61,51 +61,64 @@ async function verifyAdminCaller({ req, ClientCtor, AccountCtor, endpoint, proje
   return { caller };
 }
 
+const VALID = { valid: true };
+
+function invalid(error) {
+  return { valid: false, body: { error } };
+}
+
+/** Shared by every action that must not let an admin target their own account. */
+function rejectSelfTarget(userId, caller, error) {
+  return userId === caller.$id ? invalid(error) : VALID;
+}
+
+const PAYLOAD_VALIDATORS = {
+  listUsers: () => VALID,
+
+  createUser: ({ name, email, role }) =>
+    hasValue(name) && hasValue(email) && VALID_ROLES.includes(role)
+      ? VALID
+      : invalid('Request must include name, email, and role ("admin" | "operator")'),
+
+  updateUser: ({ userId, role }, caller) => {
+    if (!hasValue(userId)) {
+      return invalid('Request must include userId');
+    }
+    if (role !== undefined && !VALID_ROLES.includes(role)) {
+      return invalid('role must be "admin" or "operator"');
+    }
+    if (role !== undefined) {
+      return rejectSelfTarget(userId, caller, 'Cannot change your own role');
+    }
+    return VALID;
+  },
+
+  setStatus: ({ userId, active }, caller) => {
+    if (!hasValue(userId) || typeof active !== 'boolean') {
+      return invalid('Request must include userId and a boolean active');
+    }
+    return rejectSelfTarget(userId, caller, 'Cannot change your own account status');
+  },
+
+  forceExpireSessions: ({ userId }, caller) => {
+    if (!hasValue(userId)) {
+      return invalid('Request must include userId');
+    }
+    return rejectSelfTarget(userId, caller, 'Cannot force-expire your own sessions');
+  },
+};
+
 /**
  * Validates each action's payload shape (and any caller-independent business rule, like
  * "can't change your own status/role") *before* the dynamic-key check runs, so a genuinely
  * malformed request always gets 400, never a 500 that masks it as a server misconfiguration.
  */
 function validatePayload(action, payload, caller) {
-  const { userId, name, email, role, active } = payload ?? {};
-
-  switch (action) {
-    case 'listUsers':
-      return { valid: true };
-
-    case 'createUser':
-      if (!hasValue(name) || !hasValue(email) || !VALID_ROLES.includes(role)) {
-        return {
-          valid: false,
-          body: { error: 'Request must include name, email, and role ("admin" | "operator")' },
-        };
-      }
-      return { valid: true };
-
-    case 'updateUser':
-      if (!hasValue(userId)) {
-        return { valid: false, body: { error: 'Request must include userId' } };
-      }
-      if (role !== undefined && !VALID_ROLES.includes(role)) {
-        return { valid: false, body: { error: 'role must be "admin" or "operator"' } };
-      }
-      if (role !== undefined && userId === caller.$id) {
-        return { valid: false, body: { error: 'Cannot change your own role' } };
-      }
-      return { valid: true };
-
-    case 'setStatus':
-      if (!hasValue(userId) || typeof active !== 'boolean') {
-        return { valid: false, body: { error: 'Request must include userId and a boolean active' } };
-      }
-      if (userId === caller.$id) {
-        return { valid: false, body: { error: 'Cannot change your own account status' } };
-      }
-      return { valid: true };
-
-    default:
-      return { valid: false, body: { error: `action must be one of: ${ACTIONS.join(', ')}` } };
+  const validator = PAYLOAD_VALIDATORS[action];
+  if (!validator) {
+    return invalid(`action must be one of: ${ACTIONS.join(', ')}`);
   }
+  return validator(payload ?? {}, caller);
 }
 
 async function handleListUsers({ UsersCtor, adminClient, error }) {
@@ -246,6 +259,19 @@ async function handleSetStatus({ UsersCtor, adminClient, payload, error }) {
   return { status: 200, body: { success: true, userId, active } };
 }
 
+async function handleForceExpireSessions({ UsersCtor, adminClient, payload, error }) {
+  const { userId } = payload ?? {};
+
+  try {
+    await new UsersCtor(adminClient).deleteSessions({ userId });
+  } catch (err) {
+    error(`deleteSessions failed: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to force sign-out' } };
+  }
+
+  return { status: 200, body: { success: true, userId } };
+}
+
 /**
  * The sole writer of user Labels and the only place that can list/create/update/disable
  * user accounts (AD-9) — Appwrite's Users service is server-only, so every one of these
@@ -314,6 +340,9 @@ export async function handleAdminUsersRequest({
       break;
     case 'setStatus':
       result = await handleSetStatus(actionContext);
+      break;
+    case 'forceExpireSessions':
+      result = await handleForceExpireSessions(actionContext);
       break;
   }
 

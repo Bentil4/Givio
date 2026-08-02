@@ -9,18 +9,25 @@ describe('AuthService', () => {
     deleteSession: ReturnType<typeof vi.fn>;
     createEmailPasswordSession: ReturnType<typeof vi.fn>;
     get: ReturnType<typeof vi.fn>;
+    updateSession: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
+    localStorage.clear();
     account = {
       deleteSession: vi.fn(),
       createEmailPasswordSession: vi.fn(),
       get: vi.fn(),
+      updateSession: vi.fn(),
     };
     TestBed.configureTestingModule({
       providers: [{ provide: ACCOUNT, useValue: account }],
     });
     store = TestBed.inject(AuthService);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('starts with no current user and no role', () => {
@@ -127,6 +134,110 @@ describe('AuthService', () => {
 
       await expect(store.restoreSession()).resolves.toBeUndefined();
       expect(store.currentUser()).toBeNull();
+    });
+
+    it('does NOT reset lastActivityAt — a stale persisted timestamp stays expired even after a successful restoreSession()', async () => {
+      const nineHoursAgo = Date.parse('2026-08-01T00:00:00.000Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(nineHoursAgo);
+      localStorage.setItem('givio:lastActivityAt', String(nineHoursAgo));
+      // TestBed caches the providedIn:'root' singleton from the outer beforeEach, so a plain
+      // re-inject would return that already-constructed instance. Reset the module first to
+      // force a fresh AuthService that reads the persisted value set just above.
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({ providers: [{ provide: ACCOUNT, useValue: account }] });
+      store = TestBed.inject(AuthService);
+
+      vi.setSystemTime(nineHoursAgo + 9 * 60 * 60 * 1000);
+      account.get.mockResolvedValueOnce({ labels: ['admin'] });
+
+      await store.restoreSession();
+
+      expect(store.isSessionExpired()).toBe(true);
+    });
+  });
+
+  describe('recordActivity', () => {
+    it('updates the persisted timestamp', () => {
+      const now = Date.parse('2026-08-02T12:00:00.000Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+
+      store.recordActivity();
+
+      expect(localStorage.getItem('givio:lastActivityAt')).toBe(String(now));
+    });
+  });
+
+  describe('isSessionExpired', () => {
+    it('is false right after login()', async () => {
+      account.deleteSession.mockRejectedValueOnce(new Error('no session'));
+      account.createEmailPasswordSession.mockResolvedValueOnce({});
+      account.get.mockResolvedValueOnce({ labels: ['admin'] });
+
+      await store.login('admin@givio.test', 'correct-password');
+
+      expect(store.isSessionExpired()).toBe(false);
+    });
+
+    it('is true once 8 hours have passed since the last recorded activity', async () => {
+      const now = Date.parse('2026-08-02T12:00:00.000Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+
+      account.deleteSession.mockRejectedValueOnce(new Error('no session'));
+      account.createEmailPasswordSession.mockResolvedValueOnce({});
+      account.get.mockResolvedValueOnce({ labels: ['admin'] });
+      await store.login('admin@givio.test', 'correct-password');
+
+      vi.setSystemTime(now + 8 * 60 * 60 * 1000 + 1);
+
+      expect(store.isSessionExpired()).toBe(true);
+    });
+  });
+
+  describe('maybeRenewSession', () => {
+    it('calls account.updateSession when the renew interval has elapsed', async () => {
+      const now = Date.parse('2026-08-02T12:00:00.000Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+      account.updateSession.mockResolvedValueOnce({});
+
+      await store.maybeRenewSession();
+
+      expect(account.updateSession).toHaveBeenCalledWith({ sessionId: 'current' });
+    });
+
+    it('does not call account.updateSession again immediately after (throttled)', async () => {
+      const now = Date.parse('2026-08-02T12:00:00.000Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+      account.updateSession.mockResolvedValueOnce({});
+      await store.maybeRenewSession();
+
+      vi.setSystemTime(now + 5 * 60 * 1000);
+      await store.maybeRenewSession();
+
+      expect(account.updateSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls account.updateSession again once the renew interval has elapsed a second time', async () => {
+      const now = Date.parse('2026-08-02T12:00:00.000Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+      account.updateSession.mockResolvedValue({});
+      await store.maybeRenewSession();
+
+      vi.setSystemTime(now + 31 * 60 * 1000);
+      await store.maybeRenewSession();
+
+      expect(account.updateSession).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not throw when account.updateSession rejects', async () => {
+      account.updateSession.mockRejectedValueOnce(new Error('rate limited'));
+
+      await expect(store.maybeRenewSession()).resolves.toBeUndefined();
     });
   });
 });

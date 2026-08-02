@@ -27,3 +27,27 @@ export const redirectIfAuthenticatedGuard: CanActivateFn = () => {
   const role = authService.role();
   return role === null || router.createUrlTree([ROLE_HOME[role]]);
 };
+
+/**
+ * Enforces the 8-hour idle timeout (FR-SEC-005) — Appwrite has no native inactivity
+ * concept, so this is the client-side enforcement point, checked on every guarded
+ * navigation. An unauthenticated caller passes through untouched; authGuard/roleGuard
+ * elsewhere handle that case.
+ */
+export const sessionExpiryGuard: CanActivateFn = async () => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  if (!authService.isAuthenticated()) {
+    return true;
+  }
+
+  if (authService.isSessionExpired()) {
+    await authService.logout();
+    return router.createUrlTree(['/login']);
+  }
+
+  authService.recordActivity();
+  void authService.maybeRenewSession();
+  return true;
+};

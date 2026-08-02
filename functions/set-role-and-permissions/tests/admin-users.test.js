@@ -49,6 +49,7 @@ function fakeContext({ body, headers = {}, getAccount, users = {} }) {
     updateEmailVerification = record('updateEmailVerification');
     updateLabels = record('updateLabels');
     updateStatus = record('updateStatus');
+    deleteSessions = record('deleteSessions');
   }
 
   const res = {
@@ -542,6 +543,63 @@ test('returns a structured 502, not a throw, when a Users service call fails', a
     getAccount: asAdmin,
     users: {
       updateStatus: () => {
+        throw new Error('user_not_found');
+      },
+    },
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 502);
+});
+
+test('rejects a verified non-admin caller with 403 for forceExpireSessions', async () => {
+  const { ctx, calls } = fakeContext({
+    body: { action: 'forceExpireSessions', userId: 'u4' },
+    headers: { 'x-appwrite-user-jwt': 'operator-jwt' },
+    getAccount: async () => ({ $id: 'op-1', labels: ['operator'] }),
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 403);
+  assert.equal(calls.deleteSessions, undefined);
+});
+
+test('forceExpireSessions rejects an admin trying to force-expire their own sessions', async () => {
+  const { ctx, calls } = fakeContext({
+    body: { action: 'forceExpireSessions', userId: 'admin-1' },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 400);
+  assert.equal(calls.deleteSessions, undefined);
+});
+
+test('forceExpireSessions calls deleteSessions with the target userId', async () => {
+  const { ctx, calls } = fakeContext({
+    body: { action: 'forceExpireSessions', userId: 'u4' },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body, { success: true, userId: 'u4' });
+  assert.deepEqual(calls.deleteSessions[0][0], { userId: 'u4' });
+});
+
+test('forceExpireSessions returns a structured 502, not a throw, when deleteSessions fails', async () => {
+  const { ctx } = fakeContext({
+    body: { action: 'forceExpireSessions', userId: 'u4' },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+    users: {
+      deleteSessions: () => {
         throw new Error('user_not_found');
       },
     },
