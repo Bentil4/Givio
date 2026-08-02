@@ -1,9 +1,11 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AppwriteException, Models } from 'appwrite';
 import { ACCOUNT } from '../appwrite/client';
+import type { Role } from '../models/role';
 
-export type Role = 'admin' | 'operator';
+export type { Role };
 
+// Keep in sync with functions/set-role-and-permissions/src/admin-users.js's VALID_ROLES.
 const ROLE_LABELS: readonly Role[] = ['admin', 'operator'];
 
 export const ROLE_HOME: Record<Role, string> = {

@@ -1,0 +1,21 @@
+{
+  "projectId": "69c270d10029e7ed7f82",
+  "projectName": "Givio",
+  "functions": [
+    {
+      "$id": "6a67698c0029be485dde",
+      "name": "set-role-and-permissions",
+      "runtime": "node-22",
+      "execute": ["users"],
+      "scopes": ["users.write", "users.read"],
+      "events": [],
+      "schedule": "",
+      "timeout": 15,
+      "enabled": true,
+      "logging": true,
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "path": "functions/set-role-and-permissions"
+    }
+  ]
+}

@@ -28,6 +28,10 @@ yarn-error.log
 !.vscode/extensions.json
 .history/*
 
+# Environment config (contains deploy-specific IDs — not tracked)
+src/environments/environment.ts
+src/environments/environment.development.ts
+
 # Miscellaneous
 /.angular/cache
 .sass-cache/

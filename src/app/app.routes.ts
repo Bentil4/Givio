@@ -27,6 +27,14 @@ export const routes: Routes = [
           ),
         title: 'Admin Dashboard',
       },
+      {
+        path: 'settings',
+        loadComponent: () =>
+          import('./feature/pages/admin/admin-settings/admin-settings').then(
+            (m) => m.AdminSettings,
+          ),
+        title: 'User Management',
+      },
     ],
   },
   {
