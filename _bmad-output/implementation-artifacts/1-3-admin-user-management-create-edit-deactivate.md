@@ -4,7 +4,7 @@ baseline_commit: fba8dd82d29d4d75d5f0a5c569c07969e51e8f19
 
 # Story 1.3: Admin User Management — Create, Edit, Deactivate
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -52,11 +52,12 @@ so that I control exactly who can access the system and what they can do.
   - [x] `UserRepository` (11 new cases across `listUsers`/`createUser`/`updateUser`/`setUserActive`, plus the 3 pre-existing `changeRole` cases updated for the new `action` field): success + `RepositoryError` per method; duplicate-email `RepositoryError` carries the Function's message. All pass.
   - [x] `AdminSettings` component (11 tests): initial load + list-error path; create (happy path, generated-password notice shown only when auto-generated, duplicate-email inline error keeps dialog open); edit (only changed fields sent); deactivate/reactivate/delete each call `setUserActive` with the right boolean; cancel clears the confirm target without calling the repository. All pass.
 
-- [ ] Task 5: Manual deployment & live verification (AC: 1, 2, 3, 4) — same class of step as Story 1.2's Task 5, requires human Appwrite Console/CLI access to project `69c270d10029e7ed7f82`; **not completed by the coding agent — see Completion Notes**
-  - [ ] Redeploy the extended Function (rename means the entrypoint file changed — re-upload/re-push).
-  - [ ] Confirm the Console's execution API key scopes still cover everything the new actions need (`users.write` for create/update/status/label-writes, `users.read` for `list`/`get`).
-  - [ ] Exercise all four flows against the live project: create a throwaway test user (verify it appears in Console → Auth → Users with the right Label), edit its name/email/role, deactivate it (confirm login now fails for that account), and delete it (same mechanism — confirm login still fails). Delete/deactivate the throwaway account afterward if it's not otherwise needed.
-  - [ ] **Cannot be fully verified this story:** the "donation records preserved" half of AC4 — no `donations` collection exists until Epic 3. Note this explicitly as carried-forward verification debt for Epic 3 (or its retrospective) to pick up once `recordedBy` lookups against a deactivated/deleted user actually exist to test.
+- [x] Task 5: Manual deployment & live verification (AC: 1, 2, 3, 4) — same class of step as Story 1.2's Task 5, required human Appwrite Console/CLI access to project `69c270d10029e7ed7f82`
+  - [x] Redeployed the extended Function via the VCS pipeline (merge to `dev` — the remote function's config had drifted to starter defaults/`node-25`; reconciled via `appwrite-cli functions update` to match `appwrite.json` before the push would build).
+  - [x] Confirmed the Console's execution API key scopes cover the new actions (`users.write`, `users.read`); `execute` restricted to `users` (was `any` pre-fix).
+  - [x] Exercised all live flows against a throwaway test user (`verify-admin-users.mjs`, deleted after use per Story 1.2's precedent): `--whoami` confirmed admin gate; `listUsers`; `createUser` (test account created, generated password returned); `updateUser` (name + role, and later name-only after the appliedFields fix); `setStatus(false)` deactivated it, then confirmed login now fails for that account.
+  - [x] **Live verification found a real bug**, not caught by unit tests: `updateUser`'s success-path response omitted `appliedFields`, only including it on the 409/502 failure branches — contradicting the documented "reports exactly which fields succeeded" behavior. Fixed in `admin-users.js` (both the no-op and post-`Promise.allSettled` success returns now include it), two tests added, redeployed, and re-verified live. See PR #21.
+  - [x] **Cannot be fully verified this story:** the "donation records preserved" half of AC4 — no `donations` collection exists until Epic 3. Carried forward as verification debt for Epic 3 (or its retrospective) to pick up once `recordedBy` lookups against a deactivated user actually exist to test.
 
 ## Dev Notes
 
@@ -152,5 +153,6 @@ A workflow-backed code review (4 finders, 12 candidates, all independently verif
 
 ## Change Log
 
+- 2026-08-02: Completed Task 5 — redeployed the Function via the `dev` VCS pipeline (PR #20), reconciling remote function config (name/runtime/execute/scopes) that had drifted to starter defaults. Live-verified all four flows with `verify-admin-users.mjs` against a throwaway test user: auth gate, `listUsers`, `createUser`, `updateUser`, `setStatus` deactivate + confirmed login now fails. Live verification surfaced a real bug — `updateUser`'s success response omitted `appliedFields` (only failure paths had it) — fixed and re-verified live (PR #21). Status moved to `done`; the donation-preservation half of AC4 remains carried-forward verification debt for Epic 3.
 - 2026-07-27: Implemented Story 1.3 Tasks 1–4 — extended the Appwrite Function into a 5-action Admin Users API (list/create/update/setRole/setStatus) behind one shared JWT+admin-label gate, extended `UserRepository` and added the `AdminUser` model, built the `/admin/settings` User Management screen (table + create/edit/deactivate/reactivate/delete). 42 new/updated tests, all passing; full suite 67/69 (2 pre-existing unrelated failures); `ng lint` clean; `ng build` succeeds. Task 5 (live deployment + verification against Appwrite Cloud) explicitly deferred — requires human Appwrite Console access, cannot be done by a coding agent; the "donation records preserved" half of AC4 additionally can't be verified until Epic 3's `donations` collection exists.
 - 2026-07-27: Ran a workflow-backed code review (high effort) against baseline `fba8dd8`. 12 candidates, all independently verified, 10 distinct findings after collapsing duplicates, 0 refuted. Fixed all 10: merged "Delete" into "Deactivate" (per user decision — the two were functionally identical), fixed email-unverified-on-every-edit, fixed empty-string password handling, rewrote `updateUser` to run concurrently with per-field partial-failure reporting, fixed a validation-order regression (400 vs 500), added a self-target safeguard, added `listUsers` pagination, removed dead `setRole`/`changeRole` code, and fixed a stale cross-file comment. Function suite 27/27; Angular suite 64/66 (same pre-existing failures); `ng lint` clean; `ng build` succeeds.
