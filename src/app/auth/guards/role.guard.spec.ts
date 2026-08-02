@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { UrlTree } from '@angular/router';
 import { ACCOUNT } from '../../data/appwrite/client';
-import { AuthStore } from '../../data/stores/auth-store';
+import { AuthService } from '../../data/services/auth.service';
 import { authGuard, redirectIfAuthenticatedGuard, roleGuard } from './role.guard';
 
 describe('role.guard', () => {
@@ -15,9 +15,9 @@ describe('role.guard', () => {
   });
 
   async function loginAs(labels: string[]) {
-    const authStore = TestBed.inject(AuthStore);
+    const authService = TestBed.inject(AuthService);
     account.get.mockResolvedValueOnce({ labels });
-    await authStore.restoreSession();
+    await authService.restoreSession();
   }
 
   describe('authGuard', () => {

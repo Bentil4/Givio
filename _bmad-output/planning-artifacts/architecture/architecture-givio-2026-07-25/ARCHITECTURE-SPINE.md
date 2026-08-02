@@ -25,13 +25,13 @@ companions: []
 **Layered architecture** with three layers, an **offline-first Outbox** at the sync boundary, and **permissions mechanically derived from data** (never hand-edited in a second place):
 
 1. **Presentation** — `feature/{admin,organizer,member}` page trees (1:1 with the screen specs in `.claude/skills/plan/`) + `shared/components` UI library.
-2. **Domain/State** — signal-based stores (`AuthStore`, `EventStore`, `DonationStore`, `SyncStore`) and services (`ReportService`). Root-provided, no NgRx.
+2. **Domain/State** — signal-based services (`AuthService`, `EventService`, `DonationService`, `SyncService`, `ReportService`). Root-provided, no NgRx. (Renamed from an earlier `*Store` suffix convention — mid-Epic-1 decision, see Story 1.4 — since "Store" read as implying Redux/NgRx to readers unfamiliar with the codebase; these are plain injectable Angular services holding signal-based state, nothing more.)
 3. **Data** — one repository per aggregate (`EventRepository`, `DonationRepository`, `ConflictRepository`, `AuditRepository`), each the *only* code allowed to import `appwrite` or `dexie`. Each repository writes Dexie first and queues an **Outbox** entry for remote sync.
 
 ```mermaid
 flowchart TD
   Presentation["Presentation\nfeature/admin, feature/organizer, feature/member\n+ shared/components"]
-  Domain["Domain/State\nAuthStore, EventStore, DonationStore, SyncStore, ReportService"]
+  Domain["Domain/State\nAuthService, EventService, DonationService, SyncService, ReportService"]
   Data["Data\nEventRepository, DonationRepository, ConflictRepository, AuditRepository\n(only layer touching appwrite/dexie)"]
   Function[("1 Appwrite Function\nsets Labels + derives doc permissions")]
   Appwrite[("Appwrite\nAccount, Databases, Realtime")]
@@ -49,9 +49,9 @@ flowchart TD
 
 ### AD-1 — Global role via Appwrite Labels, not prefs
 
-- **Binds:** auth, all permission rules, `AuthStore`
+- **Binds:** auth, all permission rules, `AuthService`
 - **Prevents:** the current `login.ts` pattern (`account.prefs.role`) lets any signed-in user self-escalate via `account.updatePrefs`, since prefs are client-writable. Labels are server/Console-only (verified against current Appwrite docs).
-- **Rule:** the single source of truth for Admin/Operator role is an Appwrite **Label** on the user account. `AuthStore` reads `account.labels`. Appwrite permission rules needing a global (not event-scoped) check use `Role.label('admin')`. `IUserPrefs.role` is removed. (Family Members don't hold accounts at all — see AD-2.)
+- **Rule:** the single source of truth for Admin/Operator role is an Appwrite **Label** on the user account. `AuthService` reads `account.labels`. Appwrite permission rules needing a global (not event-scoped) check use `Role.label('admin')`. `IUserPrefs.role` is removed. (Family Members don't hold accounts at all — see AD-2.)
 
 ### AD-2 — Event-scoped access derived from `assignedUserIds` + `accessCode` (PRD's own data model, not Teams)
 
@@ -81,7 +81,7 @@ flowchart TD
 
 - **Binds:** `app.routes.ts` and every lazy-loaded child route config
 - **Prevents:** the current state — zero guards; role redirect happens only imperatively inside `login.ts`, so any authenticated user can navigate directly to `/admin-dashboard`; PRD acceptance criterion #16 ("unassigned operator denied even via direct URL") is currently unmet.
-- **Rule:** `CanActivateFn` guards check `AuthStore`'s label-derived role for role-gated routes, and additionally check the target event's `assignedUserIds` (or valid `accessCode` session, for Family Members) against the caller for event-scoped routes — the same data AD-2's permissions are derived from, so the guard and the Appwrite-level enforcement can never disagree.
+- **Rule:** `CanActivateFn` guards check `AuthService`'s label-derived role for role-gated routes, and additionally check the target event's `assignedUserIds` (or valid `accessCode` session, for Family Members) against the caller for event-scoped routes — the same data AD-2's permissions are derived from, so the guard and the Appwrite-level enforcement can never disagree.
 
 ### AD-7 — Feature routes are lazy-loaded
 
@@ -111,9 +111,9 @@ flowchart TD
 
 | Concern | Convention |
 | --- | --- |
-| Naming (entities, files, interfaces, events) | Entities follow PRD §9.1 exactly: `Event`, `Donation`, `DonationConflict`, `AuditLogEntry` (PascalCase, singular). Repositories: `<Entity>Repository`. Stores: `<Entity>Store`. IDs are Appwrite `$id` strings, client-generated via `ID.unique()` for offline creates (AD-4) — never a separate numeric id. |
+| Naming (entities, files, interfaces, events) | Entities follow PRD §9.1 exactly: `Event`, `Donation`, `DonationConflict`, `AuditLogEntry` (PascalCase, singular). Repositories: `<Entity>Repository`. Signal-based state holders: `<Entity>Service` (e.g. `AuthService`, `EventService`) — not `<Entity>Store`, to avoid implying Redux/NgRx (renamed mid-Epic-1, see Story 1.4). IDs are Appwrite `$id` strings, client-generated via `ID.unique()` for offline creates (AD-4) — never a separate numeric id. |
 | Data & formats (ids, dates, error shapes, envelopes) | Dates: ISO 8601 strings (never a bare `Date` — `.instructions.md` already forbids assuming `new Date()` globals). Money: integer minor units (AD-5). Deletes are soft (`isDeleted`/`deletedAt`/`deletedBy` per PRD §9.1) — never a hard Appwrite document delete. Errors: repositories translate `AppwriteException` into a domain-level `RepositoryError` before it reaches Domain/State — Presentation never sees an Appwrite-shaped error. |
-| State & cross-cutting (mutation, errors, logging, config, auth) | Signals only, no NgRx (house convention, already established). `.update()`/`.set()`, never `.mutate()`. All cross-cutting auth/session state lives in `AuthStore`, replacing the empty `Authservice` stub. `inject()` over constructor injection; `providedIn: 'root'` for all stores/repositories. Session persistence relies on the Appwrite SDK's own cookie-based session handling (FR-AUTH-002's "not in localStorage in plain text") — no hand-rolled token storage. |
+| State & cross-cutting (mutation, errors, logging, config, auth) | Signals only, no NgRx (house convention, already established). `.update()`/`.set()`, never `.mutate()`. All cross-cutting auth/session state lives in `AuthService` (renamed from the original `AuthStore`, which itself had replaced the empty `Authservice` stub). `inject()` over constructor injection; `providedIn: 'root'` for all Domain/State services and repositories. Session persistence relies on the Appwrite SDK's own cookie-based session handling (FR-AUTH-002's "not in localStorage in plain text") — no hand-rolled token storage. |
 
 ## Stack
 
@@ -132,12 +132,12 @@ flowchart TD
 ```text
 src/
   app/
-    auth/                  # existing: login page + auth model (Authservice stub -> replaced by data/stores/AuthStore)
+    auth/                  # existing: login page + auth model (Authservice stub -> replaced by data/services/AuthService)
     data/                  # NEW — the only layer touching appwrite/dexie
       appwrite/            # client.ts (Account, Databases) reads src/environments, replaces src/lib/appwrite.ts
       dexie/                # AppDb (Dexie subclass): events, donations, outbox tables
       repositories/         # EventRepository, DonationRepository, ConflictRepository, AuditRepository
-      stores/               # AuthStore, EventStore, DonationStore, SyncStore (signal-based)
+      services/             # AuthService, EventService, DonationService, SyncService (signal-based; folder renamed from stores/ — see Story 1.4)
       sync/                 # SyncEngine (per-entity outbox drain), NetworkStatusService
     feature/
       admin/                # renamed/expanded from current admin tree — admin-* screen specs
@@ -168,19 +168,19 @@ erDiagram
 
 | Capability / Area | Lives in | Governed by |
 | --- | --- | --- |
-| Login, session, role (`login-screen`) | `auth/` + `data/stores/AuthStore` | AD-1, AD-6 |
+| Login, session, role (`login-screen`) | `auth/` + `data/services/AuthService` | AD-1, AD-6 |
 | Admin dashboard/donations/events/reports (`admin-*`) | `feature/admin/` | AD-2, AD-6, AD-7 |
 | Admin settings — Change Role / Assign Operators (`admin-settings`) | `feature/admin/` calling `data/repositories` -> AD-9 Function | AD-2, AD-9 |
 | Organizer dashboard/donations/events/reports (`organizer-*`, `add-donation`, `edit-donation`, `create-event-screen`, `edit-event`, `event-detail`) | `feature/organizer/` | AD-2, AD-3, AD-4, AD-6, AD-7, AD-8 |
 | Member dashboard/donations/events (`member-*`) | `feature/member/` | AD-2, AD-10, AD-6, AD-7 |
 | Donor verification, donation list, export preview (`donor-verify`, `donation-list`, `export-preview`) | `feature/{admin,organizer}/` + `data/repositories` | AD-2, AD-5 |
 | Share access (`share-access`) | v1: not built (AD-10) — Deferred to v1.1+ | AD-10 |
-| Reports/exports (`reports`, `event-reports`, `organizer.report`, `admin-report`) | `data/stores/ReportService` (client-side generation) | AD-5, Stack (jsPDF/SheetJS) |
-| Offline sync status (`sync-status`) | `data/sync/SyncEngine`, `data/stores/SyncStore` | AD-3, AD-4 |
+| Reports/exports (`reports`, `event-reports`, `organizer.report`, `admin-report`) | `data/services/ReportService` (client-side generation) | AD-5, Stack (jsPDF/SheetJS) |
+| Offline sync status (`sync-status`) | `data/sync/SyncEngine`, `data/services/SyncService` | AD-3, AD-4 |
 
 ## Deferred
 
-- **Realtime updates** (PRD §8.2 commits to Appwrite Realtime subscriptions per-event donations collection for live dashboard/family totals): the subscription wiring itself is a Domain/State concern left to the epic that builds `EventStore`/`DonationStore` — this spine's layering is unaffected either way since Presentation only ever talks to the store.
+- **Realtime updates** (PRD §8.2 commits to Appwrite Realtime subscriptions per-event donations collection for live dashboard/family totals): the subscription wiring itself is a Domain/State concern left to the epic that builds `EventService`/`DonationService` — this spine's layering is unaffected either way since Presentation only ever talks to the service.
 - **`share-access.md`'s full tiered/revocable delegation scheme** — deferred to v1.1+ per AD-10.
 - **Deployment & environments** (hosting for the Angular PWA, Appwrite Cloud env promotion, CI/CD): out of scope for this spine.
 - **Audit log write path mechanism** (repository-level auto-write on every mutation vs. an explicit call per action): FR-SEC-004 only fixes that it must be immutable and complete, not the mechanism — left to the epic that builds `AuditRepository`.

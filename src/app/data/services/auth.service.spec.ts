@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { AppwriteException } from 'appwrite';
-import { AuthStore } from './auth-store';
+import { AuthService } from './auth.service';
 import { ACCOUNT } from '../appwrite/client';
 
-describe('AuthStore', () => {
-  let store: AuthStore;
+describe('AuthService', () => {
+  let store: AuthService;
   let account: {
     deleteSession: ReturnType<typeof vi.fn>;
     createEmailPasswordSession: ReturnType<typeof vi.fn>;
@@ -20,7 +20,7 @@ describe('AuthStore', () => {
     TestBed.configureTestingModule({
       providers: [{ provide: ACCOUNT, useValue: account }],
     });
-    store = TestBed.inject(AuthStore);
+    store = TestBed.inject(AuthService);
   });
 
   it('starts with no current user and no role', () => {

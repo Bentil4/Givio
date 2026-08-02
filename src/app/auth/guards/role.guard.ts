@@ -1,18 +1,18 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { AuthStore, ROLE_HOME, Role } from '../../data/stores/auth-store';
+import { AuthService, ROLE_HOME, Role } from '../../data/services/auth.service';
 
 export const authGuard: CanActivateFn = () => {
-  const authStore = inject(AuthStore);
+  const authService = inject(AuthService);
   const router = inject(Router);
-  return authStore.isAuthenticated() || router.createUrlTree(['/login']);
+  return authService.isAuthenticated() || router.createUrlTree(['/login']);
 };
 
 export function roleGuard(allowedRoles: readonly Role[]): CanActivateFn {
   return () => {
-    const authStore = inject(AuthStore);
+    const authService = inject(AuthService);
     const router = inject(Router);
-    const role = authStore.role();
+    const role = authService.role();
     return (role !== null && allowedRoles.includes(role)) || router.createUrlTree(['/login']);
   };
 }
@@ -22,8 +22,8 @@ export function roleGuard(allowedRoles: readonly Role[]): CanActivateFn {
  * own dashboard instead of being shown the login form again.
  */
 export const redirectIfAuthenticatedGuard: CanActivateFn = () => {
-  const authStore = inject(AuthStore);
+  const authService = inject(AuthService);
   const router = inject(Router);
-  const role = authStore.role();
+  const role = authService.role();
   return role === null || router.createUrlTree([ROLE_HOME[role]]);
 };

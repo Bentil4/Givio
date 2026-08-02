@@ -108,12 +108,12 @@ NFR-COMPAT-002: Android 8+, iOS 14+, Windows 10+, macOS 11+.
 
 From the Architecture Spine (`ARCHITECTURE-SPINE.md`, 10 ADs) — each epic below must build to these, not re-derive them:
 
-- AD-1: Global role (Admin/Operator) lives only as an Appwrite Label, never `account.prefs`. `AuthStore` reads `account.labels`.
+- AD-1: Global role (Admin/Operator) lives only as an Appwrite Label, never `account.prefs`. `AuthService` reads `account.labels`.
 - AD-2: `Event.assignedUserIds` is the sole source of truth for operator assignment; Event/Donation document permissions are a projection derived from it (`Role.user(uid)` per assignee + `Role.label('admin')`), recomputed via AD-9's Function. Family read access derives from `Event.accessCode` the same way.
 - AD-3: Conflict detection compares outbox `baseUpdatedAt` against the server's current `$updatedAt`. Conflicts land in a `DonationConflicts` collection (Admin-only), never silently overwritten. The `sync-status` screen's conflict section renders only for `Role.label('admin')`.
 - AD-4: Every mutation writes Dexie + appends a per-entity outbox entry (`id, entityType, entityId, op, payload, baseUpdatedAt?, status, retries, createdAt`); `entityId` is client-generated via `ID.unique()` for idempotent create-retries; `SyncEngine` drains per-entity FIFO.
 - AD-5: Money is integer minor units (GHS pesewas), never floats.
-- AD-6: Route guards are functional `CanActivateFn`, checking `AuthStore` role + the target event's `assignedUserIds`/`accessCode`.
+- AD-6: Route guards are functional `CanActivateFn`, checking `AuthService` role + the target event's `assignedUserIds`/`accessCode`.
 - AD-7: Each role tree (admin/organizer/member) is a `loadChildren`/`loadComponent` lazy boundary.
 - AD-8: Receipt numbers are provisional offline (`{eventShortCode}-P{n}`), finalized to a canonical sequential number via an atomic `nextReceiptSeq` counter on sync.
 - AD-9: One Appwrite Function is the sole writer of Labels and derived permissions — invoked only from `data/repositories`, never Presentation directly.
@@ -125,7 +125,7 @@ Brownfield state the epics must account for (from the Architecture Spine's recon
 - `admin` page tree partially built (dashboard + stat-card/recent-activity/quick-actions/system-health widgets already exist).
 - `organizer` tree currently exists only as an empty shell named `user` (`UserLayout`/`UserDashboard` have no logic).
 - `member` tree does not exist at all yet.
-- `auth/service/authservice.ts` is an empty, unused stub — to be replaced by `AuthStore`.
+- `auth/service/authservice.ts` is an empty, unused stub — to be replaced by `AuthService`.
 - `src/lib/appwrite.ts` hardcodes the endpoint instead of reading `src/environments`, and only wraps `Account` — `Databases` is unused.
 - Zero Dexie code exists anywhere — the entire offline layer is greenfield.
 - Zero route guards exist; routing is flat and fully eager (4 routes).
@@ -187,8 +187,8 @@ FR-DEV-003: Epic 5 - Multi-device concurrent operators
 Admin can create Admin/Operator accounts with roles; any user can log in and land on a role-appropriate, route-guarded dashboard; sessions expire and rotate securely.
 **FRs covered:** FR-AUTH-001..003, FR-AUTH-005, FR-USR-001..003, FR-SEC-001, FR-SEC-005
 **Scope note:** FR-USR-001 lists "Family Member" as an account role option, but FR-AUTH-004/AD-2/AD-10 establish Family Members as `accessCode`-based (no real account) — reconciled here: the User Management role dropdown offers Admin/Operator only; Family Member access is granted per-event via access code (Epic 2), not a user account.
-**Implementation notes:** Replaces the empty `Authservice` stub with `AuthStore` (AD-1); consolidates `src/lib/appwrite.ts` into `data/appwrite/` reading `src/environments`; introduces functional route guards (AD-6) and the lazy-loaded admin/organizer/member route skeleton (AD-7); stands up the one Appwrite Function (AD-9) — this epic only needs its "write a Label" capability, extended in Epic 2 to also derive event permissions.
-**Story sequencing:** the first story should be a thin end-to-end slice — login → guard → land on an empty role-appropriate dashboard — before building out full user-management CRUD, so the login/guard/AuthStore chain is proven working early rather than validated only once the whole epic is done.
+**Implementation notes:** Replaces the empty `Authservice` stub with `AuthService` (AD-1); consolidates `src/lib/appwrite.ts` into `data/appwrite/` reading `src/environments`; introduces functional route guards (AD-6) and the lazy-loaded admin/organizer/member route skeleton (AD-7); stands up the one Appwrite Function (AD-9) — this epic only needs its "write a Label" capability, extended in Epic 2 to also derive event permissions.
+**Story sequencing:** the first story should be a thin end-to-end slice — login → guard → land on an empty role-appropriate dashboard — before building out full user-management CRUD, so the login/guard/AuthService chain is proven working early rather than validated only once the whole epic is done.
 
 ### Epic 2: Event Lifecycle & Assignment
 Admin can create Wedding/Funeral events, edit them, control their status, assign Operators, and generate a Family Member access code that lets a Family Member log in without an account — with assignment enforced at the Appwrite permission level, not just the UI, so an unassigned Operator truly cannot reach an event's data.

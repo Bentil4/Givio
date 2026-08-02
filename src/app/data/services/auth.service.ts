@@ -14,7 +14,7 @@ export const ROLE_HOME: Record<Role, string> = {
 };
 
 @Injectable({ providedIn: 'root' })
-export class AuthStore {
+export class AuthService {
   private readonly account = inject(ACCOUNT);
   private readonly _currentUser = signal<Models.User<Models.Preferences> | null>(null);
 
@@ -62,7 +62,7 @@ export class AuthStore {
       this._currentUser.set(null);
       const isExpectedNoSession = error instanceof AppwriteException && error.code === 401;
       if (!isExpectedNoSession) {
-        console.error('AuthStore.restoreSession: unexpected error, treating as logged out', error);
+        console.error('AuthService.restoreSession: unexpected error, treating as logged out', error);
       }
     }
   }

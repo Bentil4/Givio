@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { Input, Button, Preloader } from '../../../shared/components';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { AuthStore, ROLE_HOME } from '../../../data/stores/auth-store';
+import { AuthService, ROLE_HOME } from '../../../data/services/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -13,7 +13,7 @@ import { AuthStore, ROLE_HOME } from '../../../data/stores/auth-store';
 export class Login {
   private readonly formBuilder = inject(FormBuilder);
   private readonly router = inject(Router);
-  private readonly authStore = inject(AuthStore);
+  private readonly authService = inject(AuthService);
 
   public showPassword = signal(false);
   public isLoading = signal(false);
@@ -29,14 +29,14 @@ export class Login {
     const { email, password } = this.loginForm.value;
     this.isLoading.set(true);
     try {
-      await this.authStore.login(email ?? '', password ?? '');
-      const role = this.authStore.role();
+      await this.authService.login(email ?? '', password ?? '');
+      const role = this.authService.role();
       if (role) {
         this.router.navigate([ROLE_HOME[role]]);
       } else {
         // Authenticated with Appwrite, but no admin/operator label — don't leave a
         // dangling session behind what looks like a failed login.
-        await this.authStore.logout();
+        await this.authService.logout();
         this.errorMessage.set('Invalid credentials');
       }
     } catch {
