@@ -404,6 +404,32 @@ test('updateUser can also change the role, reusing the same updateLabels call', 
   assert.deepEqual(calls.updateLabels[0][0], { userId: 'u1', labels: ['admin'] });
 });
 
+test('updateUser reports appliedFields on success too, not just on failure', async () => {
+  const { ctx } = fakeContext({
+    body: { action: 'updateUser', userId: 'u1', name: 'Renamed', role: 'admin' },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body.appliedFields, ['name', 'role']);
+});
+
+test('updateUser with no fields provided returns an empty appliedFields rather than omitting it', async () => {
+  const { ctx } = fakeContext({
+    body: { action: 'updateUser', userId: 'u1' },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body.appliedFields, []);
+});
+
 test('updateUser rejects a duplicate email the same way createUser does, reporting which fields still applied', async () => {
   const { ctx } = fakeContext({
     body: { action: 'updateUser', userId: 'u1', name: 'Still Renamed', email: 'taken@givio.test' },

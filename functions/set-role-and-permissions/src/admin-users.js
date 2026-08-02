@@ -199,7 +199,7 @@ async function handleUpdateUser({ UsersCtor, adminClient, payload, error }) {
   }
 
   if (tasks.length === 0) {
-    return { status: 200, body: { success: true, userId } };
+    return { status: 200, body: { success: true, userId, appliedFields: [] } };
   }
 
   const settled = await Promise.allSettled(tasks.map((task) => task.run()));
@@ -230,7 +230,7 @@ async function handleUpdateUser({ UsersCtor, adminClient, payload, error }) {
     return { status: 502, body: { error: 'Failed to update user', appliedFields } };
   }
 
-  return { status: 200, body: { success: true, userId } };
+  return { status: 200, body: { success: true, userId, appliedFields } };
 }
 
 async function handleSetStatus({ UsersCtor, adminClient, payload, error }) {
