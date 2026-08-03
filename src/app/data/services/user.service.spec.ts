@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { UserRepository } from './user-repository';
-import { RepositoryError } from './repository-error';
+import { UserService } from './user.service';
+import { ServiceError } from './service-error';
 import { FUNCTIONS } from '../appwrite/client';
 
-describe('UserRepository', () => {
-  let repository: UserRepository;
+describe('UserService', () => {
+  let service: UserService;
   let functions: { createExecution: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
@@ -12,7 +12,7 @@ describe('UserRepository', () => {
     TestBed.configureTestingModule({
       providers: [{ provide: FUNCTIONS, useValue: functions }],
     });
-    repository = TestBed.inject(UserRepository);
+    service = TestBed.inject(UserService);
   });
 
   describe('listUsers', () => {
@@ -23,19 +23,19 @@ describe('UserRepository', () => {
         responseBody: JSON.stringify(users),
       });
 
-      await expect(repository.listUsers()).resolves.toEqual(users);
+      await expect(service.listUsers()).resolves.toEqual(users);
       expect(functions.createExecution).toHaveBeenCalledWith(
         expect.objectContaining({ body: JSON.stringify({ action: 'listUsers' }) }),
       );
     });
 
-    it('throws a RepositoryError on failure', async () => {
+    it('throws a ServiceError on failure', async () => {
       functions.createExecution.mockResolvedValueOnce({
         responseStatusCode: 403,
         responseBody: JSON.stringify({ error: 'Forbidden' }),
       });
 
-      await expect(repository.listUsers()).rejects.toBeInstanceOf(RepositoryError);
+      await expect(service.listUsers()).rejects.toBeInstanceOf(ServiceError);
     });
   });
 
@@ -46,7 +46,7 @@ describe('UserRepository', () => {
         responseBody: JSON.stringify({ success: true, userId: 'new-1' }),
       });
 
-      const result = await repository.createUser({
+      const result = await service.createUser({
         name: 'New User',
         email: 'new@givio.test',
         role: 'operator',
@@ -62,18 +62,18 @@ describe('UserRepository', () => {
         responseBody: JSON.stringify({ success: true, userId: 'new-2', generatedPassword: 'abc123' }),
       });
 
-      const result = await repository.createUser({ name: 'New User', email: 'new@givio.test', role: 'admin' });
+      const result = await service.createUser({ name: 'New User', email: 'new@givio.test', role: 'admin' });
 
       expect(result).toEqual({ success: true, userId: 'new-2', generatedPassword: 'abc123' });
     });
 
-    it('throws a RepositoryError carrying the Function\'s message on a duplicate email (409)', async () => {
+    it('throws a ServiceError carrying the Function\'s message on a duplicate email (409)', async () => {
       functions.createExecution.mockResolvedValueOnce({
         responseStatusCode: 409,
         responseBody: JSON.stringify({ error: 'A user with this email already exists' }),
       });
 
-      await expect(repository.createUser({ name: 'Dup', email: 'dup@givio.test', role: 'admin' })).rejects.toMatchObject(
+      await expect(service.createUser({ name: 'Dup', email: 'dup@givio.test', role: 'admin' })).rejects.toMatchObject(
         { message: 'A user with this email already exists' },
       );
     });
@@ -86,19 +86,19 @@ describe('UserRepository', () => {
         responseBody: JSON.stringify({ success: true, userId: 'u1' }),
       });
 
-      await expect(repository.updateUser('u1', { name: 'Renamed' })).resolves.toBeUndefined();
+      await expect(service.updateUser('u1', { name: 'Renamed' })).resolves.toBeUndefined();
       expect(functions.createExecution).toHaveBeenCalledWith(
         expect.objectContaining({ body: JSON.stringify({ action: 'updateUser', userId: 'u1', name: 'Renamed' }) }),
       );
     });
 
-    it('throws a RepositoryError on failure', async () => {
+    it('throws a ServiceError on failure', async () => {
       functions.createExecution.mockResolvedValueOnce({
         responseStatusCode: 502,
         responseBody: JSON.stringify({ error: 'Failed to update name' }),
       });
 
-      await expect(repository.updateUser('u1', { name: 'X' })).rejects.toBeInstanceOf(RepositoryError);
+      await expect(service.updateUser('u1', { name: 'X' })).rejects.toBeInstanceOf(ServiceError);
     });
   });
 
@@ -109,19 +109,19 @@ describe('UserRepository', () => {
         responseBody: JSON.stringify({ success: true, userId: 'u1', active: false }),
       });
 
-      await expect(repository.setUserActive('u1', false)).resolves.toBeUndefined();
+      await expect(service.setUserActive('u1', false)).resolves.toBeUndefined();
       expect(functions.createExecution).toHaveBeenCalledWith(
         expect.objectContaining({ body: JSON.stringify({ action: 'setStatus', userId: 'u1', active: false }) }),
       );
     });
 
-    it('throws a RepositoryError on failure', async () => {
+    it('throws a ServiceError on failure', async () => {
       functions.createExecution.mockResolvedValueOnce({
         responseStatusCode: 502,
         responseBody: JSON.stringify({ error: 'Failed to update user status' }),
       });
 
-      await expect(repository.setUserActive('u1', true)).rejects.toBeInstanceOf(RepositoryError);
+      await expect(service.setUserActive('u1', true)).rejects.toBeInstanceOf(ServiceError);
     });
   });
 
@@ -132,19 +132,19 @@ describe('UserRepository', () => {
         responseBody: JSON.stringify({ success: true, userId: 'u1' }),
       });
 
-      await expect(repository.forceExpireSessions('u1')).resolves.toBeUndefined();
+      await expect(service.forceExpireSessions('u1')).resolves.toBeUndefined();
       expect(functions.createExecution).toHaveBeenCalledWith(
         expect.objectContaining({ body: JSON.stringify({ action: 'forceExpireSessions', userId: 'u1' }) }),
       );
     });
 
-    it('throws a RepositoryError on failure', async () => {
+    it('throws a ServiceError on failure', async () => {
       functions.createExecution.mockResolvedValueOnce({
         responseStatusCode: 502,
         responseBody: JSON.stringify({ error: 'Failed to force sign-out' }),
       });
 
-      await expect(repository.forceExpireSessions('u1')).rejects.toBeInstanceOf(RepositoryError);
+      await expect(service.forceExpireSessions('u1')).rejects.toBeInstanceOf(ServiceError);
     });
   });
 });

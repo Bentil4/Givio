@@ -193,17 +193,17 @@ Admin can create Admin/Operator accounts with roles; any user can log in and lan
 ### Epic 2: Event Lifecycle & Assignment
 Admin can create Wedding/Funeral events, edit them, control their status, assign Operators, and generate a Family Member access code that lets a Family Member log in without an account — with assignment enforced at the Appwrite permission level, not just the UI, so an unassigned Operator truly cannot reach an event's data.
 **FRs covered:** FR-EVT-001..005, FR-USR-004..005, FR-SEC-002, FR-AUTH-004
-**Implementation notes:** Builds `EventRepository`/`EventStore`/Dexie `events` table; extends the Epic 1 Function to derive Event/Donation permissions from `assignedUserIds` (AD-2); screens: `create-event-screen`, `edit-event`, `event-detail`, `admin-event`, the "Assign Operators" and access-code actions in `admin-settings`.
+**Implementation notes:** Builds `EventDataService`/`EventStore`/Dexie `events` table; extends the Epic 1 Function to derive Event/Donation permissions from `assignedUserIds` (AD-2); screens: `create-event-screen`, `edit-event`, `event-detail`, `admin-event`, the "Assign Operators" and access-code actions in `admin-settings`.
 
 ### Epic 3: Donation Recording, Offline Sync & Receipts
 An Operator can record donations at a live event — online or fully offline — see the running total update, get an instant printable/PDF receipt, and have everything sync automatically once reconnected, with conflicts safely caught (never silently lost) and donor phone numbers visible only to Admin/assigned Operators.
 **FRs covered:** FR-DON-001..005, FR-OFF-001..005, FR-REC-001..004, FR-SEC-003
-**Implementation notes:** The core value-delivery epic — consolidated rather than split across Donation/Offline/Receipt epics since all three FR groups hit the same `DonationRepository`/Dexie outbox/`SyncEngine` files (AD-3, AD-4, AD-5, AD-8). Screens: `add-donation`, `edit-donation`, `donation-list`, `donor-verify`, `sync-status`. jsPDF added per Stack.
+**Implementation notes:** The core value-delivery epic — consolidated rather than split across Donation/Offline/Receipt epics since all three FR groups hit the same `DonationDataService`/Dexie outbox/`SyncEngine` files (AD-3, AD-4, AD-5, AD-8). Screens: `add-donation`, `edit-donation`, `donation-list`, `donor-verify`, `sync-status`. jsPDF added per Stack.
 
 ### Epic 4: Reporting, Dashboards, Export & Audit
 Admin sees a real-time per-event dashboard and can export full donation records to Excel; Family Members see their own live read-only summary and a sanitized export; Admin can review the full, immutable audit log.
 **FRs covered:** FR-RPT-001..004, FR-SEC-004
-**Implementation notes:** Wires `admin-dashboard` widgets to real data, resolves the spine's Deferred Appwrite Realtime subscription; `ReportService` + vendored SheetJS export (per Stack note — not `npm install xlsx`); screens: `admin-report`, `organizer.report`, `event-reports`, `reports`, `export-preview`, `member-dashboard`, `member-donation`, `member-events`; `AuditRepository` + Audit Log Viewer.
+**Implementation notes:** Wires `admin-dashboard` widgets to real data, resolves the spine's Deferred Appwrite Realtime subscription; `ReportService` + vendored SheetJS export (per Stack note — not `npm install xlsx`); screens: `admin-report`, `organizer.report`, `event-reports`, `reports`, `export-preview`, `member-dashboard`, `member-donation`, `member-events`; `AuditDataService` + Audit Log Viewer.
 
 ### Epic 5: Install & Use Anywhere (PWA, Responsive, Multi-Device)
 The app installs to a phone's home screen, works fully offline once installed, and multiple Operators can use it simultaneously on different devices without stepping on each other.
@@ -331,7 +331,7 @@ So that I can set up each event's basic record before donation-taking begins.
 
 **Given** I am on the Create Event screen (`create-event-screen`)
 **When** I submit Event Name, Event Type (Wedding/Funeral), Date, and Host/Family Name (Venue/Description/Notes optional)
-**Then** a new Event document is created with a unique system-generated ID, and `EventRepository`/`EventStore`/the Dexie `events` table (created for the first time in this story) all reflect it (FR-EVT-001)
+**Then** a new Event document is created with a unique system-generated ID, and `EventDataService`/`EventStore`/the Dexie `events` table (created for the first time in this story) all reflect it (FR-EVT-001)
 **And** the event type is clearly labelled everywhere the event appears in the UI
 **And** the Event document is created with its `nextReceiptSeq` counter initialized to 0 — Epic 3/Story 3.6 relies on this field already existing to assign canonical receipt numbers (AD-8)
 

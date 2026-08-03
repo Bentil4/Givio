@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { FUNCTIONS } from '../appwrite/client';
-import { RepositoryError } from './repository-error';
+import { ServiceError } from './service-error';
 import type { Role } from '../models/role';
 import type { AdminUser } from '../models/admin-user';
 import { environment } from '../../../environments/environment';
@@ -10,7 +10,7 @@ interface FunctionErrorBody {
 }
 
 @Injectable({ providedIn: 'root' })
-export class UserRepository {
+export class UserService {
   private readonly functions = inject(FUNCTIONS);
 
   /** Admin-only listing — Appwrite's Users service (list) is server-only. */
@@ -51,7 +51,7 @@ export class UserRepository {
         body: JSON.stringify({ action, ...payload }),
       });
     } catch (error) {
-      throw new RepositoryError(invokeFailureMessage, error);
+      throw new ServiceError(invokeFailureMessage, error);
     }
 
     const parsedBody = this.parseBody(execution.responseBody);
@@ -60,7 +60,7 @@ export class UserRepository {
       const message =
         (parsedBody as FunctionErrorBody | undefined)?.error ??
         `Admin-users function rejected the request (status ${execution.responseStatusCode})`;
-      throw new RepositoryError(message, execution.responseBody);
+      throw new ServiceError(message, execution.responseBody);
     }
 
     return parsedBody as T;

@@ -3,8 +3,8 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Skeleton } from 'primeng/skeleton';
 import { Button, Input } from '../../../../shared/components';
 import { Select } from '../../../../shared/components/select/select';
-import { UserRepository } from '../../../../data/repositories/user-repository';
-import { RepositoryError } from '../../../../data/repositories/repository-error';
+import { UserService } from '../../../../data/services/user.service';
+import { ServiceError } from '../../../../data/services/service-error';
 import type { AdminUser } from '../../../../data/models/admin-user';
 import type { Role } from '../../../../data/models/role';
 
@@ -18,7 +18,7 @@ type ConfirmAction = 'deactivate' | 'reactivate' | 'forceExpireSessions';
 })
 export class AdminSettings implements OnInit {
   public readonly skeletonRows = [1, 2, 3, 4, 5];
-  private readonly userRepository = inject(UserRepository);
+  private readonly userService = inject(UserService);
   private readonly formBuilder = inject(FormBuilder);
 
   public readonly roleOptions = [
@@ -57,9 +57,9 @@ export class AdminSettings implements OnInit {
   async loadUsers(): Promise<void> {
     this.loading.set(true);
     try {
-      this.users.set(await this.userRepository.listUsers());
+      this.users.set(await this.userService.listUsers());
     } catch (err) {
-      this.listError.set(err instanceof RepositoryError ? err.message : 'Failed to load users');
+      this.listError.set(err instanceof ServiceError ? err.message : 'Failed to load users');
     } finally {
       this.loading.set(false);
     }
@@ -96,13 +96,13 @@ export class AdminSettings implements OnInit {
 
     try {
       if (editing) {
-        await this.userRepository.updateUser(editing.id, {
+        await this.userService.updateUser(editing.id, {
           name: name ?? undefined,
           email: email ?? undefined,
           role: (role as Role) ?? undefined,
         });
       } else {
-        const result = await this.userRepository.createUser({
+        const result = await this.userService.createUser({
           name: name ?? '',
           email: email ?? '',
           role: role as Role,
@@ -114,7 +114,7 @@ export class AdminSettings implements OnInit {
       }
       this.showFormDialog.set(false);
     } catch (err) {
-      this.formError.set(err instanceof RepositoryError ? err.message : 'Something went wrong');
+      this.formError.set(err instanceof ServiceError ? err.message : 'Something went wrong');
     } finally {
       this.formSubmitting.set(false);
       // Refresh regardless of outcome — an edit that partially applied (e.g. name saved,
@@ -153,14 +153,14 @@ export class AdminSettings implements OnInit {
     this.confirmSubmitting.set(true);
     try {
       if (target.action === 'forceExpireSessions') {
-        await this.userRepository.forceExpireSessions(target.user.id);
+        await this.userService.forceExpireSessions(target.user.id);
       } else {
         const active = target.action === 'reactivate';
-        await this.userRepository.setUserActive(target.user.id, active);
+        await this.userService.setUserActive(target.user.id, active);
       }
       this.confirmTarget.set(null);
     } catch (err) {
-      this.listError.set(err instanceof RepositoryError ? err.message : 'Something went wrong');
+      this.listError.set(err instanceof ServiceError ? err.message : 'Something went wrong');
     } finally {
       this.confirmSubmitting.set(false);
       // Refresh regardless of outcome — a partial or unexpected failure shouldn't leave the
