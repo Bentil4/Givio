@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Skeleton } from 'primeng/skeleton';
 import { Button, Input } from '../../../../shared/components';
 import { Select } from '../../../../shared/components/select/select';
 import { UserRepository } from '../../../../data/repositories/user-repository';
@@ -11,11 +12,12 @@ type ConfirmAction = 'deactivate' | 'reactivate' | 'forceExpireSessions';
 
 @Component({
   selector: 'app-admin-settings',
-  imports: [ReactiveFormsModule, Button, Input, Select],
+  imports: [ReactiveFormsModule, Button, Input, Select, Skeleton],
   templateUrl: './admin-settings.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminSettings implements OnInit {
+  public readonly skeletonRows = [1, 2, 3, 4, 5];
   private readonly userRepository = inject(UserRepository);
   private readonly formBuilder = inject(FormBuilder);
 
