@@ -17,11 +17,11 @@ export const routes: Routes = [
     loadComponent: () => import('./auth/pages/login/login').then((m) => m.Login),
   },
   {
-    path: 'admin',
+    path: 'dashboard',
     // canActivateChild is required alongside canActivate: Angular's default
     // runGuardsAndResolvers doesn't re-check a parent route's canActivate when only a child
-    // segment changes (e.g. /admin -> /admin/settings), so without this, idle expiry would
-    // only ever be checked once per visit to this subtree.
+    // segment changes (e.g. /dashboard -> /dashboard/settings), so without this, idle expiry
+    // would only ever be checked once per visit to this subtree.
     canActivate: [sessionExpiryGuard, roleGuard(['admin'])],
     canActivateChild: [sessionExpiryGuard, roleGuard(['admin'])],
     loadComponent: () =>

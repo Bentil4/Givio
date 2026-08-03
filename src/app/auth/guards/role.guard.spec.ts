@@ -89,7 +89,7 @@ describe('role.guard', () => {
         redirectIfAuthenticatedGuard({} as never, { url: '/login' } as never),
       );
       expect(result).toBeInstanceOf(UrlTree);
-      expect((result as UrlTree).toString()).toBe('/admin');
+      expect((result as UrlTree).toString()).toBe('/dashboard');
     });
 
     it('redirects an already-authenticated operator to /organizer', async () => {
