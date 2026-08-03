@@ -18,7 +18,12 @@ export const routes: Routes = [
   },
   {
     path: 'admin',
+    // canActivateChild is required alongside canActivate: Angular's default
+    // runGuardsAndResolvers doesn't re-check a parent route's canActivate when only a child
+    // segment changes (e.g. /admin -> /admin/settings), so without this, idle expiry would
+    // only ever be checked once per visit to this subtree.
     canActivate: [sessionExpiryGuard, roleGuard(['admin'])],
+    canActivateChild: [sessionExpiryGuard, roleGuard(['admin'])],
     loadComponent: () =>
       import('./feature/pages/admin/admin-layout/admin-layout').then((m) => m.AdminLayout),
     title: 'Admin',
@@ -44,6 +49,7 @@ export const routes: Routes = [
   {
     path: 'organizer',
     canActivate: [sessionExpiryGuard, roleGuard(['operator'])],
+    canActivateChild: [sessionExpiryGuard, roleGuard(['operator'])],
     loadComponent: () =>
       import('./feature/pages/organizer/organizer-layout/organizer-layout').then(
         (m) => m.OrganizerLayout,

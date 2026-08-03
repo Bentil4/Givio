@@ -100,6 +100,12 @@ export class AuthService {
    */
   registerActivityListeners(): void {
     const onActivity = () => {
+      // An already idle-expired session must stay expired until sessionExpiryGuard catches
+      // it on the next navigation and logs out — recording activity here would silently
+      // revive it, since this listener never checks isSessionExpired() itself.
+      if (this.isSessionExpired()) {
+        return;
+      }
       if (Date.now() - this._lastActivityAt() >= 60_000) {
         this.recordActivity();
       }

@@ -59,7 +59,11 @@
         </td>
         <td class="p-md">
           <div class="flex flex-wrap gap-2xl">
-            <button type="button" class="text-accent-sky" (click)="openEditDialog(user)">
+            <button
+              type="button"
+              class="text-accent-sky cursor-pointer"
+              (click)="openEditDialog(user)"
+            >
               Edit
             </button>
             @if (user.active) {

@@ -240,4 +240,43 @@ describe('AuthService', () => {
       await expect(store.maybeRenewSession()).resolves.toBeUndefined();
     });
   });
+
+  describe('registerActivityListeners', () => {
+    it('does NOT revive an already idle-expired session on a plain click with no navigation', async () => {
+      const now = Date.parse('2026-08-02T12:00:00.000Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+      account.deleteSession.mockRejectedValueOnce(new Error('no session'));
+      account.createEmailPasswordSession.mockResolvedValueOnce({});
+      account.get.mockResolvedValueOnce({ labels: ['admin'] });
+      await store.login('admin@givio.test', 'correct-password');
+      store.registerActivityListeners();
+
+      vi.setSystemTime(now + 9 * 60 * 60 * 1000);
+      expect(store.isSessionExpired()).toBe(true);
+      window.dispatchEvent(new MouseEvent('click'));
+
+      expect(store.isSessionExpired()).toBe(true);
+    });
+
+    it('still records activity on click when the session is not yet expired', async () => {
+      const now = Date.parse('2026-08-02T12:00:00.000Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+      account.deleteSession.mockRejectedValueOnce(new Error('no session'));
+      account.createEmailPasswordSession.mockResolvedValueOnce({});
+      account.get.mockResolvedValueOnce({ labels: ['admin'] });
+      await store.login('admin@givio.test', 'correct-password');
+      store.registerActivityListeners();
+
+      vi.setSystemTime(now + 5 * 60 * 60 * 1000);
+      window.dispatchEvent(new MouseEvent('click'));
+      // The click should have moved lastActivityAt forward to the 5h mark, so 7h59m later
+      // (< 8h from the click) must still be unexpired — it would be expired if measured
+      // from the original login time instead.
+      vi.setSystemTime(now + 5 * 60 * 60 * 1000 + 8 * 60 * 60 * 1000 - 1);
+
+      expect(store.isSessionExpired()).toBe(false);
+    });
+  });
 });
