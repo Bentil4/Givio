@@ -1,18 +1,18 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { AuthStore, ROLE_HOME, Role } from '../../data/stores/auth-store';
+import { AuthService, ROLE_HOME, Role } from '../../data/services/auth.service';
 
 export const authGuard: CanActivateFn = () => {
-  const authStore = inject(AuthStore);
+  const authService = inject(AuthService);
   const router = inject(Router);
-  return authStore.isAuthenticated() || router.createUrlTree(['/login']);
+  return authService.isAuthenticated() || router.createUrlTree(['/login']);
 };
 
 export function roleGuard(allowedRoles: readonly Role[]): CanActivateFn {
   return () => {
-    const authStore = inject(AuthStore);
+    const authService = inject(AuthService);
     const router = inject(Router);
-    const role = authStore.role();
+    const role = authService.role();
     return (role !== null && allowedRoles.includes(role)) || router.createUrlTree(['/login']);
   };
 }
@@ -22,8 +22,32 @@ export function roleGuard(allowedRoles: readonly Role[]): CanActivateFn {
  * own dashboard instead of being shown the login form again.
  */
 export const redirectIfAuthenticatedGuard: CanActivateFn = () => {
-  const authStore = inject(AuthStore);
+  const authService = inject(AuthService);
   const router = inject(Router);
-  const role = authStore.role();
+  const role = authService.role();
   return role === null || router.createUrlTree([ROLE_HOME[role]]);
+};
+
+/**
+ * Enforces the 8-hour idle timeout (FR-SEC-005) — Appwrite has no native inactivity
+ * concept, so this is the client-side enforcement point, checked on every guarded
+ * navigation. An unauthenticated caller passes through untouched; authGuard/roleGuard
+ * elsewhere handle that case.
+ */
+export const sessionExpiryGuard: CanActivateFn = async () => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  if (!authService.isAuthenticated()) {
+    return true;
+  }
+
+  if (authService.isSessionExpired()) {
+    await authService.logout();
+    return router.createUrlTree(['/login']);
+  }
+
+  authService.recordActivity();
+  void authService.maybeRenewSession();
+  return true;
 };

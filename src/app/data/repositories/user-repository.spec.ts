@@ -124,4 +124,27 @@ describe('UserRepository', () => {
       await expect(repository.setUserActive('u1', true)).rejects.toBeInstanceOf(RepositoryError);
     });
   });
+
+  describe('forceExpireSessions', () => {
+    it('resolves when the function execution succeeds', async () => {
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 200,
+        responseBody: JSON.stringify({ success: true, userId: 'u1' }),
+      });
+
+      await expect(repository.forceExpireSessions('u1')).resolves.toBeUndefined();
+      expect(functions.createExecution).toHaveBeenCalledWith(
+        expect.objectContaining({ body: JSON.stringify({ action: 'forceExpireSessions', userId: 'u1' }) }),
+      );
+    });
+
+    it('throws a RepositoryError on failure', async () => {
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 502,
+        responseBody: JSON.stringify({ error: 'Failed to force sign-out' }),
+      });
+
+      await expect(repository.forceExpireSessions('u1')).rejects.toBeInstanceOf(RepositoryError);
+    });
+  });
 });

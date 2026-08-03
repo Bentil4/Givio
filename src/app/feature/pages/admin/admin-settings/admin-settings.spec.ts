@@ -12,6 +12,7 @@ describe('AdminSettings', () => {
     createUser: ReturnType<typeof vi.fn>;
     updateUser: ReturnType<typeof vi.fn>;
     setUserActive: ReturnType<typeof vi.fn>;
+    forceExpireSessions: ReturnType<typeof vi.fn>;
   };
 
   const sampleUser: AdminUser = {
@@ -29,6 +30,7 @@ describe('AdminSettings', () => {
       createUser: vi.fn(),
       updateUser: vi.fn(),
       setUserActive: vi.fn(),
+      forceExpireSessions: vi.fn(),
     };
 
     await TestBed.configureTestingModule({
@@ -171,6 +173,29 @@ describe('AdminSettings', () => {
 
       expect(component.confirmTarget()).toBeNull();
       expect(userRepository.setUserActive).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('force sign-out', () => {
+    it('requestForceExpireSessions then confirming calls forceExpireSessions, not setUserActive', async () => {
+      userRepository.forceExpireSessions.mockResolvedValueOnce(undefined);
+      userRepository.listUsers.mockResolvedValueOnce([sampleUser]);
+
+      component.requestForceExpireSessions(sampleUser);
+      expect(component.confirmTarget()?.action).toBe('forceExpireSessions');
+      await component.confirmActionSubmit();
+
+      expect(userRepository.forceExpireSessions).toHaveBeenCalledWith('u1');
+      expect(userRepository.setUserActive).not.toHaveBeenCalled();
+      expect(component.confirmTarget()).toBeNull();
+    });
+
+    it('cancel clears the target without calling the repository', () => {
+      component.requestForceExpireSessions(sampleUser);
+      component.cancelConfirm();
+
+      expect(component.confirmTarget()).toBeNull();
+      expect(userRepository.forceExpireSessions).not.toHaveBeenCalled();
     });
   });
 });

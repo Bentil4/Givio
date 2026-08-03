@@ -7,7 +7,7 @@ import { RepositoryError } from '../../../../data/repositories/repository-error'
 import type { AdminUser } from '../../../../data/models/admin-user';
 import type { Role } from '../../../../data/models/role';
 
-type ConfirmAction = 'deactivate' | 'reactivate';
+type ConfirmAction = 'deactivate' | 'reactivate' | 'forceExpireSessions';
 
 @Component({
   selector: 'app-admin-settings',
@@ -133,6 +133,10 @@ export class AdminSettings implements OnInit {
     this.confirmTarget.set({ action: 'reactivate', user });
   }
 
+  requestForceExpireSessions(user: AdminUser): void {
+    this.confirmTarget.set({ action: 'forceExpireSessions', user });
+  }
+
   cancelConfirm(): void {
     this.confirmTarget.set(null);
   }
@@ -146,8 +150,12 @@ export class AdminSettings implements OnInit {
     this.listError.set(null);
     this.confirmSubmitting.set(true);
     try {
-      const active = target.action === 'reactivate';
-      await this.userRepository.setUserActive(target.user.id, active);
+      if (target.action === 'forceExpireSessions') {
+        await this.userRepository.forceExpireSessions(target.user.id);
+      } else {
+        const active = target.action === 'reactivate';
+        await this.userRepository.setUserActive(target.user.id, active);
+      }
       this.confirmTarget.set(null);
     } catch (err) {
       this.listError.set(err instanceof RepositoryError ? err.message : 'Something went wrong');

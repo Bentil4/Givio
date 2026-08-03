@@ -1,23 +1,37 @@
 import { TestBed } from '@angular/core/testing';
 import { UrlTree } from '@angular/router';
 import { ACCOUNT } from '../../data/appwrite/client';
-import { AuthStore } from '../../data/stores/auth-store';
-import { authGuard, redirectIfAuthenticatedGuard, roleGuard } from './role.guard';
+import { AuthService } from '../../data/services/auth.service';
+import {
+  authGuard,
+  redirectIfAuthenticatedGuard,
+  roleGuard,
+  sessionExpiryGuard,
+} from './role.guard';
 
 describe('role.guard', () => {
-  let account: { get: ReturnType<typeof vi.fn> };
+  let account: {
+    get: ReturnType<typeof vi.fn>;
+    deleteSession: ReturnType<typeof vi.fn>;
+    updateSession: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
-    account = { get: vi.fn() };
+    localStorage.clear();
+    account = { get: vi.fn(), deleteSession: vi.fn(), updateSession: vi.fn() };
     TestBed.configureTestingModule({
       providers: [{ provide: ACCOUNT, useValue: account }],
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   async function loginAs(labels: string[]) {
-    const authStore = TestBed.inject(AuthStore);
+    const authService = TestBed.inject(AuthService);
     account.get.mockResolvedValueOnce({ labels });
-    await authStore.restoreSession();
+    await authService.restoreSession();
   }
 
   describe('authGuard', () => {
@@ -84,6 +98,47 @@ describe('role.guard', () => {
         redirectIfAuthenticatedGuard({} as never, { url: '/login' } as never),
       );
       expect((result as UrlTree).toString()).toBe('/organizer');
+    });
+  });
+
+  describe('sessionExpiryGuard', () => {
+    it('allows an unauthenticated caller through', async () => {
+      const result = await TestBed.runInInjectionContext(() =>
+        sessionExpiryGuard({} as never, { url: '/admin' } as never),
+      );
+      expect(result).toBe(true);
+    });
+
+    it('allows an authenticated, non-idle caller through and records activity', async () => {
+      account.updateSession.mockResolvedValueOnce({});
+      await loginAs(['admin']);
+      const authService = TestBed.inject(AuthService);
+      const recordActivitySpy = vi.spyOn(authService, 'recordActivity');
+
+      const result = await TestBed.runInInjectionContext(() =>
+        sessionExpiryGuard({} as never, { url: '/admin' } as never),
+      );
+
+      expect(result).toBe(true);
+      expect(recordActivitySpy).toHaveBeenCalled();
+    });
+
+    it('logs out and redirects to /login for an idle-expired authenticated caller', async () => {
+      const now = Date.parse('2026-08-02T12:00:00.000Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+      await loginAs(['admin']);
+      account.deleteSession.mockResolvedValueOnce({});
+
+      vi.setSystemTime(now + 8 * 60 * 60 * 1000 + 1);
+
+      const result = await TestBed.runInInjectionContext(() =>
+        sessionExpiryGuard({} as never, { url: '/admin' } as never),
+      );
+
+      expect(result).toBeInstanceOf(UrlTree);
+      expect((result as UrlTree).toString()).toBe('/login');
+      expect(account.deleteSession).toHaveBeenCalledWith({ sessionId: 'current' });
     });
   });
 });

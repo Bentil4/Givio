@@ -39,6 +39,10 @@ export class UserRepository {
     await this.invoke('setStatus', 'Failed to update user status', { userId, active });
   }
 
+  async forceExpireSessions(userId: string): Promise<void> {
+    await this.invoke('forceExpireSessions', 'Failed to force sign-out', { userId });
+  }
+
   private async invoke<T>(action: string, invokeFailureMessage: string, payload: object): Promise<T> {
     let execution;
     try {
