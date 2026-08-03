@@ -26,7 +26,24 @@
     {{ error }}
   </div>
   } @if (loading()) {
-  <p class="font-body text-sm text-primary-mid">Loading users…</p>
+  <div class="flex flex-col gap-sm" aria-busy="true" aria-label="Loading users">
+    @for (row of skeletonRows; track row) {
+      <div class="flex items-center gap-lg rounded-md border border-bg-mist p-md">
+        <!-- theme: 'none' (unstyled) ships no built-in skeleton background/animation —
+             styled here with this project's own Tailwind tokens instead of a PrimeNG theme. -->
+        <p-skeleton width="12rem" height="1rem" class="bg-bg-mist animate-pulse" />
+        <p-skeleton width="16rem" height="1rem" class="bg-bg-mist animate-pulse" />
+        <p-skeleton
+          width="5rem"
+          height="1.25rem"
+          borderRadius="9999px"
+          class="bg-bg-mist animate-pulse"
+        />
+        <p-skeleton width="4rem" height="1rem" class="bg-bg-mist animate-pulse" />
+        <p-skeleton width="6rem" height="1rem" class="bg-bg-mist animate-pulse" />
+      </div>
+    }
+  </div>
   } @else {
   <table
     class="w-full border-collapse overflow-hidden rounded-md border border-bg-mist font-body text-sm"

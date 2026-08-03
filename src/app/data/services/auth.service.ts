@@ -9,7 +9,7 @@ export type { Role };
 const ROLE_LABELS: readonly Role[] = ['admin', 'operator'];
 
 export const ROLE_HOME: Record<Role, string> = {
-  admin: '/admin',
+  admin: '/dashboard',
   operator: '/organizer',
 };
 

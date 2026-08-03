@@ -5,6 +5,7 @@
 // custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
 @use 'tailwindcss';
+@plugin 'tailwindcss-primeui';
 
 // Map Tailwind's generated utilities to this project's existing design tokens
 // (defined in the :root block below) instead of Tailwind's own default palette/scale,

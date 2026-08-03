@@ -45,7 +45,7 @@ describe('Login', () => {
     component.loginForm.setValue({ email: 'admin@givio.test', password: 'correct-password' });
     await component.onSubmit();
 
-    expect(router.navigate).toHaveBeenCalledWith(['/admin']);
+    expect(router.navigate).toHaveBeenCalledWith(['/dashboard']);
     expect(component.errorMessage()).toBeNull();
   });
 
