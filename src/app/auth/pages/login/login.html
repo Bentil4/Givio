@@ -1,19 +1,19 @@
 <app-preloader [active]="isLoading()" />
-<main class="flex min-h-full w-full">
+<main class="flex h-full w-full">
   <section
-    class="relative hidden flex-none w-[42%] overflow-hidden bg-gradient-to-br from-primary-dark via-primary-deep to-primary-deep-cyan p-2xl lg:block"
+    class="relative hidden flex-none w-1/2 h-full overflow-hidden bg-gradient-to-br from-primary-dark via-primary-deep to-primary-deep-cyan p-2xl lg:block"
     aria-hidden="true"
   >
     <div
       class="pointer-events-none absolute -inset-1/5 bg-[radial-gradient(circle_at_30%_20%,rgba(0,212,176,0.25),transparent_55%),radial-gradient(circle_at_80%_80%,rgba(86,200,232,0.2),transparent_50%)]"
     ></div>
     <div
-      class="relative z-10 mx-auto flex h-full max-w-[26rem] flex-col justify-center items-center gap-xl"
+      class="relative z-10 mx-auto flex h-full max-w-[32rem] flex-col justify-center items-center gap-xl"
     >
       <span class="font-display text-4xl font-extrabold italic tracking-tight text-bg-white">
         Givio
       </span>
-      <p class="font-body text-lg text-center text-white/85">
+      <p class="font-body text-lg text-white/85">
         Reliable donation tracking for life's meaningful events
       </p>
       <ul class="flex flex-col gap-md">
@@ -39,7 +39,7 @@
     </div>
   </section>
 
-  <section class="flex flex-1 items-center justify-center bg-bg-light p-xl">
+  <section class="flex flex-1 h-full items-center justify-center bg-bg-light p-xl">
     <div class="flex w-full max-w-[24rem] flex-col gap-xl">
       <span
         class="block text-center font-display text-2xl font-extrabold italic tracking-tight text-primary-deep lg:hidden"
@@ -100,7 +100,7 @@
         </p>
         }
 
-        <app-button type="submit" variant="primary" [loading]="isLoading()" class="w-full">
+        <app-button type="submit" variant="primary" [loading]="isLoading()" class="w-full py-10">
           Sign In
         </app-button>
       </form>
