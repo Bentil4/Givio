@@ -1,5 +1,5 @@
 import { InjectionToken } from '@angular/core';
-import { Account, Client, Functions } from 'appwrite';
+import { Account, Client, Databases, Functions } from 'appwrite';
 import { environment } from '../../../environments/environment';
 
 export const client = new Client()
@@ -14,4 +14,9 @@ export const ACCOUNT = new InjectionToken<Account>('ACCOUNT', {
 export const FUNCTIONS = new InjectionToken<Functions>('FUNCTIONS', {
   providedIn: 'root',
   factory: () => new Functions(client),
+});
+
+export const DATABASES = new InjectionToken<Databases>('DATABASES', {
+  providedIn: 'root',
+  factory: () => new Databases(client),
 });

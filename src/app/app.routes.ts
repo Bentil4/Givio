@@ -44,6 +44,20 @@ export const routes: Routes = [
           ),
         title: 'User Management',
       },
+      {
+        path: 'events/new',
+        loadComponent: () =>
+          import('./feature/pages/admin/create-event-screen/create-event-screen').then(
+            (m) => m.CreateEventScreen,
+          ),
+        title: 'Create Event',
+      },
+      {
+        path: 'events/:id/edit',
+        loadComponent: () =>
+          import('./feature/pages/admin/edit-event/edit-event').then((m) => m.EditEvent),
+        title: 'Edit Event',
+      },
     ],
   },
   {

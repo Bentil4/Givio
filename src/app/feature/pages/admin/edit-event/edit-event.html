@@ -1,0 +1,79 @@
+@if (loading()) {
+<main class="p-xl">
+  <p class="font-body text-sm text-primary-mid">Loading event…</p>
+</main>
+} @else if (notFound()) {
+<main class="p-xl">
+  <p class="font-body text-sm text-danger">Event not found.</p>
+</main>
+} @else {
+<main class="flex flex-col gap-lg p-xl">
+  <div class="flex items-center gap-md">
+    <div>
+      <h1 class="font-display text-2xl font-bold text-primary-dark">Edit Event</h1>
+      <p class="font-body text-sm text-primary-mid">Update this event's basic record</p>
+    </div>
+    <span
+      class="rounded-full bg-bg-light px-sm py-xs text-xs font-semibold uppercase text-primary-mid"
+    >
+      {{ event()?.type }}
+    </span>
+  </div>
+
+  @if (event()?.status === 'closed') {
+  <div
+    class="rounded-md border border-func-warning bg-bg-frost p-md font-body text-sm text-primary-dark"
+  >
+    This event is closed and can no longer be edited.
+  </div>
+  }
+
+  @if (formError(); as error) {
+  <div class="rounded-md border border-danger bg-bg-frost p-md font-body text-sm text-danger">
+    {{ error }}
+  </div>
+  }
+
+  <form class="flex w-full max-w-lg flex-col gap-md" [formGroup]="form" (ngSubmit)="onSubmit()">
+    <app-input label="Event Name" formControlName="name" />
+    <app-input label="Date" type="date" formControlName="date" />
+    <app-input label="Host / Family Name" formControlName="hostName" />
+    <app-input label="Venue (optional)" formControlName="venue" />
+
+    <div class="flex flex-col gap-xs">
+      <label class="form-label font-body text-sm font-medium text-primary-dark" for="description">
+        Description (optional)
+      </label>
+      <textarea
+        id="description"
+        class="w-full rounded-md border-[1.5px] border-data-1 bg-bg-white p-sm font-body text-[0.9rem] text-primary-dark outline-none focus:border-primary-deep disabled:opacity-50"
+        rows="3"
+        formControlName="description"
+      ></textarea>
+    </div>
+
+    <div class="flex flex-col gap-xs">
+      <label class="form-label font-body text-sm font-medium text-primary-dark" for="notes">
+        Notes (optional)
+      </label>
+      <textarea
+        id="notes"
+        class="w-full rounded-md border-[1.5px] border-data-1 bg-bg-white p-sm font-body text-[0.9rem] text-primary-dark outline-none focus:border-primary-deep disabled:opacity-50"
+        rows="3"
+        formControlName="notes"
+      ></textarea>
+    </div>
+
+    <div class="flex justify-end gap-sm">
+      <app-button
+        type="submit"
+        variant="primary"
+        [disabled]="form.invalid || event()?.status === 'closed'"
+        [loading]="submitting()"
+      >
+        Save Changes
+      </app-button>
+    </div>
+  </form>
+</main>
+}
