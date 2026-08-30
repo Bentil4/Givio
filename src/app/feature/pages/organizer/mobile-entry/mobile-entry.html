@@ -1,0 +1,73 @@
+<section class="phone">
+  <header class="phone-head">
+    <div class="phone-head-top">
+      <span class="phone-event">{{ eventName() }}</span>
+      <span class="phone-conn" [class.is-off]="!online()">
+        <span class="phone-dot" aria-hidden="true"></span>
+        {{ online() ? 'Online' : 'Offline' }}
+      </span>
+    </div>
+    <div class="phone-total-row">
+      <span class="phone-total">{{ totalLabel() }}</span>
+      <span class="phone-total-caption">{{ totalCaption() }}</span>
+    </div>
+    @if (pendingCount() > 0) {
+      <span class="phone-pending">
+        {{ pendingCount() }} waiting to sync
+      </span>
+    }
+  </header>
+
+  <div class="phone-body">
+    <!-- Amount first: it is where the eye lands, and the thumb never has to reach for it. -->
+    <div class="amount-block">
+      <span class="sub-label">Amount</span>
+      <div class="amount-line">
+        <span class="amount-prefix">GH₵</span>
+        <span class="amount-value" [class.is-zero]="!amountText()">{{ amountDisplay() }}</span>
+        <span class="amount-caret" aria-hidden="true"></span>
+      </div>
+      @if (!amountRequired()) {
+        <span class="t-tertiary amount-note">Optional for in-kind gifts</span>
+      }
+    </div>
+
+    <input
+      class="name-input"
+      type="text"
+      autocomplete="off"
+      placeholder="Donor's full name"
+      [value]="donorName()"
+      (input)="setName($any($event.target).value)"
+    />
+
+    <div class="type-row" role="radiogroup" aria-label="Donation type">
+      @for (t of types; track t) {
+        <button type="button" class="type-seg" role="radio"
+                [attr.aria-checked]="donationType() === t"
+                [class.is-selected]="donationType() === t"
+                (click)="setType(t)">{{ shortLabels[t] }}</button>
+      }
+    </div>
+
+    @if (hint(); as msg) {
+      <p class="phone-hint" role="alert">{{ msg }}</p>
+    }
+
+    <div class="phone-spacer"></div>
+
+    <!-- Custom keypad, not the native one: the OS keyboard would cover the amount it edits,
+         and switching text/number modes per donor costs a second every time. -->
+    <div class="keypad">
+      @for (k of keys; track k) {
+        <button type="button" class="key" [class.is-back]="k === 'back'"
+                [attr.aria-label]="k === 'back' ? 'Delete last digit' : k"
+                (click)="press(k)">{{ keyLabel(k) }}</button>
+      }
+    </div>
+
+    <button type="button" class="save-btn" [disabled]="!canSave()" (click)="save()">
+      {{ busy() ? 'Saving…' : saveLabel() }}
+    </button>
+  </div>
+</section>

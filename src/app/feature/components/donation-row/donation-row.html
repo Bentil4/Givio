@@ -1,0 +1,15 @@
+<article class="row" [class.is-new]="isNew()" [class.is-pending]="pending()">
+  <div class="row-main">
+    <div class="row-title">
+      <span class="t-body-em row-name">{{ donation().donorName }}</span>
+      @if (isNew()) { <span class="tag tag-info">New</span> }
+      @if (pending()) { <span class="tag tag-default">Pending</span> }
+    </div>
+    <p class="t-tertiary row-sub">{{ subLabel() }}</p>
+  </div>
+
+  <div class="row-amount">
+    <span class="row-value">{{ amountLabel() }}</span>
+    <span class="t-tertiary row-time">{{ donation().recordedAt }}</span>
+  </div>
+</article>

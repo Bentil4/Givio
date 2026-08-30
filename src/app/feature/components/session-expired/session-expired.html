@@ -1,0 +1,30 @@
+@if (open()) {
+<!-- No dismiss and no scrim click: the session is genuinely gone, so offering a way to
+     "cancel" would be a lie. One action, one route forward. -->
+<div class="expiry-scrim">
+  <div class="expiry glass" role="alertdialog" aria-labelledby="expiryTitle" aria-describedby="expiryBody">
+    <span class="expiry-ring">{{ idleMinutes() }}</span>
+
+    <h2 class="t-page-title" id="expiryTitle">Your session has ended</h2>
+    <p class="t-secondary expiry-body" id="expiryBody">
+      You were inactive for {{ idleMinutes() }} minutes, so we signed you out to keep the event's
+      records safe.
+      @if (queuedLabel()) {
+        Nothing was lost — anything you had queued is still stored on this device.
+      }
+    </p>
+
+    @if (queuedLabel(); as label) {
+      <div class="expiry-queue">
+        <mat-icon>cloud_off</mat-icon>
+        <span class="t-caption">Queued on this device</span>
+        <span class="expiry-queue-count">{{ label }}</span>
+      </div>
+    }
+
+    <button type="button" class="btn btn-primary expiry-cta" (click)="signIn.emit()">
+      Sign in again
+    </button>
+  </div>
+</div>
+}

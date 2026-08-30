@@ -1,0 +1,104 @@
+<section class="page">
+  <header class="page-head">
+    <div>
+      <h1 class="t-page-title">Deleted donations</h1>
+      <p class="t-secondary">
+        Donations are never truly deleted. A removed record is hidden from operators and families,
+        excluded from all totals and exports, and recoverable for 30 days. After that it is archived,
+        not erased.
+      </p>
+    </div>
+    @if (!isEmpty() && !loading()) {
+      <div class="page-head-total">
+        <span class="sub-label">Held back</span>
+        <span class="page-total-value">{{ totalLabel() }}</span>
+        <span class="t-tertiary">
+          {{ deleted().length }} {{ deleted().length === 1 ? 'record' : 'records' }}
+        </span>
+      </div>
+    }
+  </header>
+
+  @if (loading()) {
+    <div class="table-wrap glass">
+      @for (i of skeletons; track i) {
+        <div class="skel-row">
+          <span class="skel skel--sm"></span>
+          <span class="skel skel--lg"></span>
+          <span class="skel skel--md"></span>
+        </div>
+      }
+    </div>
+  } @else if (isEmpty()) {
+    <div class="empty glass">
+      <mat-icon class="empty-icon">delete_outline</mat-icon>
+      <p class="t-card-title">Nothing has been removed</p>
+      <p class="t-caption">
+        Every donation recorded for this event is live and counting toward the totals.
+      </p>
+    </div>
+  } @else {
+    <div class="table-wrap glass">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Receipt</th>
+            <th scope="col">Donor</th>
+            <th scope="col" class="is-num">Amount</th>
+            <th scope="col">Deleted by</th>
+            <th scope="col">Reason</th>
+            <th scope="col" class="is-actions">Recovery</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of deleted(); track d.id) {
+            <tr>
+              <td class="is-mono is-muted">{{ d.receiptNumber }}</td>
+              <td class="is-struck">{{ d.donorName }}</td>
+              <td class="is-num is-mono is-muted">{{ amountLabel(d) }}</td>
+              <td class="is-muted">{{ d.deletedBy }} · {{ d.deletedAt }}</td>
+              <td>{{ d.deletionReason || '—' }}</td>
+              <td class="is-actions">
+                <span class="days" [class.is-expiring]="isExpiring(d)">{{ daysLabel(d) }}</span>
+                @if (daysLeft(d) > 0) {
+                  <button type="button" class="btn btn-secondary btn-recover" (click)="askRecover(d)">
+                    Recover
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+@if (recovering(); as d) {
+<div class="scrim" (click)="dismiss()">
+  <div class="dialog dialog--sm glass" role="dialog" aria-label="Recover donation" (click)="$event.stopPropagation()">
+    <header class="dialog-head">
+      <h2 class="t-page-title">Recover {{ d.receiptNumber }}?</h2>
+      <p class="t-secondary">{{ d.donorName }} · {{ amountLabel(d) }}</p>
+    </header>
+    <div class="dialog-body">
+      <p class="t-body confirm-body">
+        This puts the donation back into the event: it counts toward the totals again, appears in
+        exports, and becomes visible to family members on the live view.
+      </p>
+      @if (d.deletionReason) {
+        <div class="reason-recall">
+          <span class="sub-label">It was removed because</span>
+          <p class="t-caption">{{ d.deletionReason }}</p>
+        </div>
+      }
+    </div>
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="dismiss()">Cancel</button>
+      <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="confirmRecover()">
+        Recover donation
+      </button>
+    </footer>
+  </div>
+</div>
+}

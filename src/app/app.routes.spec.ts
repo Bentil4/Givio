@@ -3,7 +3,7 @@ import { sessionExpiryGuard } from './auth/guards/role.guard';
 
 describe('app.routes', () => {
   // Angular's default runGuardsAndResolvers does not re-run a parent route's canActivate
-  // guards on a child-only navigation (e.g. /dashboard -> /dashboard/settings) — only
+  // guards on a child-only navigation (e.g. /dashboard -> /dashboard/users) — only
   // canActivateChild re-checks on every child activation. Without this, idle expiry would
   // only ever be enforced once per visit to the dashboard/organizer subtree.
   for (const path of ['dashboard', 'organizer']) {

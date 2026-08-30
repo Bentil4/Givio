@@ -1,0 +1,146 @@
+<section class="desk">
+  <header class="desk-header glass">
+    <a class="desk-back" routerLink="/organizer">
+      <mat-icon>arrow_back</mat-icon>
+      <span>Events</span>
+    </a>
+
+    <div class="desk-event">
+      <h1 class="t-page-title">{{ event()?.name || 'Loading event…' }}</h1>
+      <p class="desk-event-meta">
+        {{ event()?.familyCode }} @if (event()?.operators?.length) { · {{ event()!.operators[0].deskLabel }} }
+      </p>
+    </div>
+
+    <div class="desk-total">
+      <span class="sub-label">{{ totalCaption() }}</span>
+      <span class="desk-total-value" [class.is-stale]="!online()">{{ totalLabel() }}</span>
+    </div>
+
+    @if (pending().length > 0) {
+      <button type="button" class="desk-pending" (click)="openQueue()">
+        <span class="desk-pending-dot" aria-hidden="true"></span>
+        {{ pending().length }} pending
+      </button>
+    }
+  </header>
+
+  <app-connection-banner
+    [state]="connection()"
+    [pendingCount]="pending().length"
+    [syncedCount]="syncedCount()"
+    (viewQueue)="openQueue()"
+  />
+
+  <!-- A paused or closed event blocks entry outright, and says who can unblock it.
+       "Save failed" with no explanation is what sends operators back to paper. -->
+  @if (!canRecord() && event()) {
+    <div class="desk-blocked">
+      <mat-icon>lock</mat-icon>
+      <p class="t-body">{{ blocked() }}</p>
+    </div>
+  }
+
+  <div class="desk-body">
+    <div class="desk-main">
+      @switch (phase()) {
+        @case ('entry') {
+          <div class="desk-main-head">
+            <h2 class="section-label">New donation</h2>
+            @if (event()) {
+              <span class="desk-receipt">Receipt {{ event()!.familyCode }}-{{ myCount() + 1 }}</span>
+            }
+          </div>
+          <app-donation-form
+            class="glass"
+            [eventId]="event()?.id || ''"
+            [offline]="!online()"
+            [busy]="busy() || !canRecord()"
+            (submitted)="onSubmitted($event)"
+          />
+        }
+
+        @case ('confirming') {
+          <div class="confirm glass">
+            <h2 class="t-page-title">Save this donation?</h2>
+            <p class="t-secondary">Read it back to the donor before you confirm.</p>
+            <dl class="confirm-rows">
+              @for (row of confirmRows(); track row.label) {
+                <div class="confirm-row">
+                  <dt class="t-tertiary">{{ row.label }}</dt>
+                  <dd [class.confirm-amount]="row.emphasis" [class.t-body-em]="!row.emphasis">{{ row.value }}</dd>
+                </div>
+              }
+            </dl>
+            <div class="confirm-actions">
+              <button type="button" class="btn btn-secondary" (click)="backToEdit()">Go back and edit</button>
+              <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="confirm()">
+                Confirm and save
+              </button>
+            </div>
+          </div>
+        }
+
+        @case ('saved') {
+          <div class="saved glass">
+            <div class="saved-flag">
+              <mat-icon>check_circle</mat-icon>
+              <div>
+                <p class="t-body-em">Donation saved</p>
+                <p class="t-caption">
+                  {{ online() ? "The family's live view already shows it." : 'Stored on this device — it will sync automatically.' }}
+                </p>
+              </div>
+            </div>
+            <div class="saved-actions">
+              <button type="button" class="btn btn-primary">Print receipt</button>
+              <button type="button" class="btn btn-secondary">Download PDF</button>
+              <button type="button" class="btn btn-secondary" (click)="nextDonation()">
+                Record the next donation
+              </button>
+            </div>
+            <p class="t-tertiary saved-note">
+              Receipts are generated on this device, so printing works even with no internet. Every
+              receipt number is sequential within the event.
+            </p>
+          </div>
+        }
+      }
+    </div>
+
+    <aside class="desk-aside glass">
+      <h2 class="section-label">Recorded by you</h2>
+      <div class="desk-stats">
+        <div class="desk-stat">
+          <span class="desk-stat-value">{{ myCount() }}</span>
+          <span class="t-tertiary">Entries</span>
+        </div>
+        <div class="desk-stat">
+          <span class="desk-stat-value">{{ myTotalLabel() }}</span>
+          <span class="t-tertiary">Total</span>
+        </div>
+      </div>
+
+      @if (myEntries().length === 0) {
+        <p class="t-secondary desk-aside-empty">
+          Your entries will appear here as you record them.
+        </p>
+      } @else {
+        <div class="desk-aside-list">
+          @for (d of myEntries(); track d.id; let first = $first) {
+            <app-donation-row [donation]="d" [isNew]="first" [showRecordedBy]="false" />
+          }
+        </div>
+      }
+    </aside>
+  </div>
+
+  @if (queueOpen()) {
+    <app-pending-queue
+      [drafts]="pending()"
+      [online]="online()"
+      [syncing]="syncing()"
+      (closed)="closeQueue()"
+    />
+  }
+</section>

@@ -1,0 +1,67 @@
+<section class="page">
+  <header class="page-head">
+    <div>
+      <h1 class="t-page-title">Sync conflicts</h1>
+      <p class="t-secondary">
+        A donation saved offline on a tablet while the same receipt was edited on the server. Both
+        versions are kept until you choose — none of them count toward any total in the meantime.
+      </p>
+    </div>
+    @if (!isEmpty() && !loading()) {
+      <div class="page-head-total">
+        <span class="sub-label">Excluded from totals</span>
+        <span class="page-total-value">{{ excludedLabel() }}</span>
+        <span class="t-tertiary">
+          {{ conflicts().length }} {{ conflicts().length === 1 ? 'record' : 'records' }}
+        </span>
+      </div>
+    }
+  </header>
+
+  @if (loading()) {
+    <div class="table-wrap glass">
+      @for (i of [0, 1]; track i) {
+        <div class="skel-row">
+          <span class="skel skel--md"></span>
+          <span class="skel skel--lg"></span>
+        </div>
+      }
+    </div>
+  } @else if (isEmpty()) {
+    <!-- The good state. Worth showing warmly: an Admin checking this page is usually worried. -->
+    <div class="empty glass">
+      <mat-icon class="empty-icon is-clear">task_alt</mat-icon>
+      <p class="t-card-title">Nothing to resolve</p>
+      <p class="t-caption">
+        Every donation that came back from an offline desk matched the server. All records are
+        counting toward the event totals.
+      </p>
+    </div>
+  } @else {
+    <div class="conflict-layout">
+      @if (conflicts().length > 1) {
+        <aside class="conflict-list glass">
+          <h2 class="section-label">Waiting on you</h2>
+          <ul>
+            @for (c of conflicts(); track c.receiptNumber; let i = $index) {
+              <li>
+                <button type="button" class="conflict-pick" [class.is-active]="activeIndex() === i"
+                        (click)="select(i)">
+                  <span class="conflict-pick-receipt">{{ receiptOf(c) }}</span>
+                  <span class="t-body-em">{{ donorOf(c) }}</span>
+                  <span class="t-tertiary">{{ spreadOf(c) }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+        </aside>
+      }
+
+      <div class="conflict-main">
+        @if (active(); as c) {
+          <app-conflict-resolver [conflict]="c" [busy]="busy()" (resolved)="resolve($event)" />
+        }
+      </div>
+    </div>
+  }
+</section>
