@@ -117,6 +117,14 @@ export const routes: Routes = [
       {
         path: '',
         loadComponent: () =>
+          import('./feature/pages/organizer/operator-dashboard/operator-dashboard').then(
+            (m) => m.OperatorDashboard,
+          ),
+        title: 'Overview',
+      },
+      {
+        path: 'events',
+        loadComponent: () =>
           import('./feature/pages/organizer/event-select/event-select').then(
             (m) => m.EventSelect,
           ),

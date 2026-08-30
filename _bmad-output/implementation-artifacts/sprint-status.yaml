@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-07-26
-last_updated: 2026-08-03-story-2.1-drafted
+last_updated: 2026-08-30-story-3.1-in-progress
 project: givio
 project_key: NOKEY
 tracking_system: file-system
@@ -62,8 +62,8 @@ development_status:
   2-4-family-access-code-event-code-login: backlog
   epic-2-retrospective: optional
 
-  epic-3: backlog
-  3-1-record-a-donation-online-or-offline: backlog
+  epic-3: in-progress
+  3-1-record-a-donation-online-or-offline: in-progress
   3-2-donation-list-search-filter-running-total: backlog
   3-3-edit-a-donation-entry: backlog
   3-4-admin-soft-delete-a-donation: backlog

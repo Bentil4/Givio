@@ -23,6 +23,13 @@ export class DonationForm {
   /** Changes the save button's wording, nothing else. The form itself is identical offline. */
   public offline = input(false);
   public busy = input(false);
+  /**
+   * Re-populates the form from a previously-submitted draft — used when the operator taps
+   * "Go back and edit" from the confirm step. The confirm/entry phases are separate @switch
+   * cases, so this component is destroyed and recreated on that transition; without this,
+   * everything the operator typed would silently vanish.
+   */
+  public initialValue = input<DonationDraft | null>(null);
 
   public submitted = output<DonationDraft>();
   public cleared = output<void>();
@@ -50,6 +57,27 @@ export class DonationForm {
   public readonly amountRequired = computed(() => this.typeSignal() !== 'in_kind');
 
   constructor() {
+    // Reads initialValue() via effect(), not directly in the constructor body — signal inputs
+    // set through TestBed's componentRef.setInput() (and, more importantly, ordinary async
+    // parent-binding timing) aren't guaranteed to hold their bound value yet at construction
+    // time, only once the following change-detection/effect flush runs.
+    effect(
+      () => {
+        const initial = this.initialValue();
+        if (!initial) return;
+        this.form.setValue({
+          donorName: initial.donorName,
+          amount: initial.amountMinor !== null ? (initial.amountMinor / 100).toFixed(2) : '',
+          donationType: initial.donationType,
+          onBehalfOf: initial.onBehalfOf ?? '',
+          donorPhone: initial.donorPhone ?? '',
+          notes: initial.notes ?? '',
+        });
+        this.typeSignal.set(initial.donationType);
+      },
+      { allowSignalWrites: true },
+    );
+
     this.form.controls.donationType.valueChanges.subscribe((t) => this.typeSignal.set(t));
 
     effect(() => {

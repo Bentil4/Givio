@@ -97,6 +97,16 @@
     color: var(--primary-deep-cyan);
     background-color: var(--bg-mist);
   }
+
+  &.is-disabled {
+    color: var(--data-3);
+    cursor: default;
+
+    &:hover {
+      color: var(--data-3);
+      background-color: transparent;
+    }
+  }
 }
 
 .nav-icon {

@@ -57,8 +57,12 @@ async function rejectNonOperatorIds({ UsersCtor, adminClient, assignedUserIds, e
  * Recomputes an Event document's Appwrite permissions from its assignedUserIds (AD-2): Admin
  * keeps full CRUD via the Label; each assigned Operator gets read-only document access (the
  * app's own UI is the only place event fields are edited, and only by an Admin — Story 2.1/
- * 2.2). Donation-collection permissions aren't touched here — that collection doesn't exist
- * yet (Epic 3); this Function will need extending again once it does.
+ * 2.2). Donation-row permissions aren't touched here — Story 3.1 sets those directly at
+ * creation from the assignedUserIds already known at that moment, the same way EventDataService
+ * sets an Event's own permissions at create time. Known gap: if assignedUserIds ever changes
+ * *after* donations already exist for that event, this Function does not retroactively rewrite
+ * their permissions — a re-assigned/unassigned Operator's access to already-existing Donations
+ * won't reflect the change until this Function is extended to do that bulk rewrite too.
  */
 function computeEventPermissions(assignedUserIds) {
   return [

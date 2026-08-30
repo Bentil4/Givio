@@ -1,15 +1,13 @@
 <section class="desk">
   <header class="desk-header glass">
-    <a class="desk-back" routerLink="/organizer">
+    <a class="desk-back" routerLink="/organizer/events">
       <mat-icon>arrow_back</mat-icon>
       <span>Events</span>
     </a>
 
     <div class="desk-event">
-      <h1 class="t-page-title">{{ event()?.name || 'Loading event…' }}</h1>
-      <p class="desk-event-meta">
-        {{ event()?.familyCode }} @if (event()?.operators?.length) { · {{ event()!.operators[0].deskLabel }} }
-      </p>
+      <h1 class="t-page-title">{{ notFound() ? 'Event not found' : (event()?.name || 'Loading event…') }}</h1>
+      <p class="desk-event-meta">{{ eventMeta() }}</p>
     </div>
 
     <div class="desk-total">
@@ -32,6 +30,13 @@
     (viewQueue)="openQueue()"
   />
 
+  @if (loadError(); as err) {
+    <div class="desk-blocked">
+      <mat-icon>error_outline</mat-icon>
+      <p class="t-body">{{ err }}</p>
+    </div>
+  }
+
   <!-- A paused or closed event blocks entry outright, and says who can unblock it.
        "Save failed" with no explanation is what sends operators back to paper. -->
   @if (!canRecord() && event()) {
@@ -48,7 +53,7 @@
           <div class="desk-main-head">
             <h2 class="section-label">New donation</h2>
             @if (event()) {
-              <span class="desk-receipt">Receipt {{ event()!.familyCode }}-{{ myCount() + 1 }}</span>
+              <span class="desk-receipt">Receipt {{ eventCodeLabel() }}-{{ myCount() + 1 }}</span>
             }
           </div>
           <app-donation-form
@@ -56,6 +61,7 @@
             [eventId]="event()?.id || ''"
             [offline]="!online()"
             [busy]="busy() || !canRecord()"
+            [initialValue]="draft()"
             (submitted)="onSubmitted($event)"
           />
         }
@@ -72,6 +78,12 @@
                 </div>
               }
             </dl>
+            @if (saveError(); as err) {
+              <div class="desk-blocked">
+                <mat-icon>error_outline</mat-icon>
+                <p class="t-body">{{ err }}</p>
+              </div>
+            }
             <div class="confirm-actions">
               <button type="button" class="btn btn-secondary" (click)="backToEdit()">Go back and edit</button>
               <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="confirm()">

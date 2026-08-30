@@ -8,6 +8,7 @@ export const environment: {
   appwriteDatabaseId: string;
   eventsCollectionId: string;
   auditLogsCollectionId: string;
+  donationsCollectionId: string;
 } = {
   appwriteEndpoint: 'https://fra.cloud.appwrite.io/v1',
   appwriteProjectId: 'YOUR_APPWRITE_PROJECT_ID',
@@ -20,5 +21,7 @@ export const environment: {
   // "CollectionId" name, this holds a Table ID — the app uses Appwrite's TablesDB/Row API).
   eventsCollectionId: 'YOUR_EVENTS_TABLE_ID',
   // Console → Databases → your database → Tables → audit_logs → $id.
-  auditLogsCollectionId: 'YOUR_AUDIT_LOGS_TABLE_ID'
+  auditLogsCollectionId: 'YOUR_AUDIT_LOGS_TABLE_ID',
+  // Console → Databases → your database → Tables → donations → $id.
+  donationsCollectionId: 'YOUR_DONATIONS_TABLE_ID'
 };

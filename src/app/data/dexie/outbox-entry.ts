@@ -1,6 +1,6 @@
 export interface OutboxEntry {
   localId?: number;
-  entityType: 'event';
+  entityType: 'event' | 'donation';
   entityId: string;
   op: 'create' | 'update';
   payload: unknown;

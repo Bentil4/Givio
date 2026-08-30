@@ -19,16 +19,28 @@
     <ul class="nav-list">
       @for (item of navItems(); track item.name) {
       <li class="nav-item">
-        <a
-          [routerLink]="item.route"
-          routerLinkActive="active"
-          class="nav-link"
-          [matTooltip]="collapsed() ? item.name : ''"
-          matTooltipPosition="right"
-        >
-          <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
-          <span class="nav-label">{{ item.name }}</span>
-        </a>
+        @if (item.disabled) {
+          <span
+            class="nav-link is-disabled"
+            aria-disabled="true"
+            [matTooltip]="collapsed() ? item.name + ' — coming soon' : 'Coming soon'"
+            matTooltipPosition="right"
+          >
+            <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
+            <span class="nav-label">{{ item.name }}</span>
+          </span>
+        } @else {
+          <a
+            [routerLink]="item.route"
+            routerLinkActive="active"
+            class="nav-link"
+            [matTooltip]="collapsed() ? item.name : ''"
+            matTooltipPosition="right"
+          >
+            <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
+            <span class="nav-label">{{ item.name }}</span>
+          </a>
+        }
       </li>
       }
     </ul>
