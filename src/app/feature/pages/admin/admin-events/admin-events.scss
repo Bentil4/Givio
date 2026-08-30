@@ -1,0 +1,29 @@
+@use '../admin-donations/admin-donations.scss';
+
+.cell-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.72rem;
+  color: var(--data-4);
+  text-transform: capitalize;
+}
+
+.segments, .op-chips {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.segments .filter-tag { flex: 1; justify-content: center; }
+
+.code-note {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1.5px solid rgba(0, 200, 224, .25);
+  border-radius: var(--radius-md);
+  background: rgba(0, 200, 224, .07);
+
+  mat-icon { flex: none; color: var(--primary-deep); font-size: 18px; width: 18px; height: 18px; }
+  p { margin: 0; line-height: 1.55; text-wrap: pretty; }
+}

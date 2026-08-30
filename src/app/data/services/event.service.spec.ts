@@ -23,10 +23,11 @@ describe('EventService', () => {
   let eventDataService: {
     createEvent: ReturnType<typeof vi.fn>;
     updateEvent: ReturnType<typeof vi.fn>;
+    assignOperators: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
-    eventDataService = { createEvent: vi.fn(), updateEvent: vi.fn() };
+    eventDataService = { createEvent: vi.fn(), updateEvent: vi.fn(), assignOperators: vi.fn() };
     TestBed.configureTestingModule({
       providers: [{ provide: EventDataService, useValue: eventDataService }],
     });
@@ -61,5 +62,20 @@ describe('EventService', () => {
     expect(result).toEqual(updated);
     expect(service.events()).toEqual([updated]);
     expect(eventDataService.updateEvent).toHaveBeenCalledWith('e1', { name: 'Renamed' });
+  });
+
+  it('assignOperators delegates to EventDataService and replaces the event by id', async () => {
+    const original = makeEvent();
+    eventDataService.createEvent.mockResolvedValueOnce(original);
+    await service.createEvent({ name: 'Original', type: 'wedding', date: '2026-01-01', hostName: 'Host' });
+
+    const assigned = makeEvent({ assignedUserIds: ['op-1'] });
+    eventDataService.assignOperators.mockResolvedValueOnce(assigned);
+
+    const result = await service.assignOperators('e1', ['op-1']);
+
+    expect(result).toEqual(assigned);
+    expect(service.events()).toEqual([assigned]);
+    expect(eventDataService.assignOperators).toHaveBeenCalledWith('e1', ['op-1']);
   });
 });

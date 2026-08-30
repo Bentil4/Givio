@@ -18,3 +18,10 @@ export interface Event {
   createdAt: string;
   updatedAt: string;
 }
+
+/** Maps to the repo's global `.tag` chip classes (see src/styles.scss). */
+export const EVENT_STATUS_CHIP: Record<EventStatus, string> = {
+  active: 'tag-success',
+  paused: 'tag-info',
+  closed: 'tag-default',
+};

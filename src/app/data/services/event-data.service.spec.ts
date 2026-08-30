@@ -2,18 +2,21 @@ import { TestBed } from '@angular/core/testing';
 import { EventDataService } from './event-data.service';
 import { ServiceError } from './service-error';
 import { AuthService } from './auth.service';
-import { DATABASES } from '../appwrite/client';
+import { DATABASES, FUNCTIONS } from '../appwrite/client';
 import { appDb } from '../dexie/app-db';
 
 describe('EventDataService', () => {
   let service: EventDataService;
   let databases: { createDocument: ReturnType<typeof vi.fn>; updateDocument: ReturnType<typeof vi.fn> };
+  let functions: { createExecution: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     databases = { createDocument: vi.fn(), updateDocument: vi.fn() };
+    functions = { createExecution: vi.fn() };
     TestBed.configureTestingModule({
       providers: [
         { provide: DATABASES, useValue: databases },
+        { provide: FUNCTIONS, useValue: functions },
         {
           provide: AuthService,
           useValue: { currentUser: () => ({ $id: 'admin-1' }) },
@@ -149,6 +152,66 @@ describe('EventDataService', () => {
       databases.updateDocument.mockRejectedValueOnce(new Error('offline'));
       await service.updateEvent('active-2', { name: 'Pending Update' });
       expect(databases.createDocument).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('assignOperators', () => {
+    it('rejects with ServiceError for an unknown id, without calling the Function', async () => {
+      await expect(service.assignOperators('missing', ['op-1'])).rejects.toBeInstanceOf(ServiceError);
+      expect(functions.createExecution).not.toHaveBeenCalled();
+    });
+
+    it('calls the assignOperators Function action and writes assignedUserIds to Dexie on success', async () => {
+      await appDb.events.put({
+        id: 'active-1',
+        name: 'Original Name',
+        type: 'wedding',
+        date: '2026-01-01',
+        hostName: 'Host',
+        status: 'active',
+        assignedUserIds: [],
+        createdBy: 'admin-1',
+        nextReceiptSeq: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 200,
+        responseBody: JSON.stringify({ success: true, eventId: 'active-1', assignedUserIds: ['op-1'] }),
+      });
+
+      const updated = await service.assignOperators('active-1', ['op-1']);
+
+      expect(updated.assignedUserIds).toEqual(['op-1']);
+      expect((await appDb.events.get('active-1'))?.assignedUserIds).toEqual(['op-1']);
+      expect(functions.createExecution).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: JSON.stringify({ action: 'assignOperators', eventId: 'active-1', assignedUserIds: ['op-1'] }),
+        }),
+      );
+    });
+
+    it('throws ServiceError and leaves Dexie untouched when the Function rejects the request', async () => {
+      await appDb.events.put({
+        id: 'active-3',
+        name: 'Original Name',
+        type: 'wedding',
+        date: '2026-01-01',
+        hostName: 'Host',
+        status: 'active',
+        assignedUserIds: [],
+        createdBy: 'admin-1',
+        nextReceiptSeq: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 400,
+        responseBody: JSON.stringify({ error: 'User ghost does not exist' }),
+      });
+
+      await expect(service.assignOperators('active-3', ['ghost'])).rejects.toBeInstanceOf(ServiceError);
+      expect((await appDb.events.get('active-3'))?.assignedUserIds).toEqual([]);
     });
   });
 });

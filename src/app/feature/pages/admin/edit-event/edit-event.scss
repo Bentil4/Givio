@@ -1,0 +1,13 @@
+// Uses the shared admin page shell (.page/.page-head/.dialog/.field/.input/.empty/.skel) —
+// see admin-donations.scss's own header comment for the full class list this pulls in.
+@use '../admin-donations/admin-donations.scss';
+
+.page {
+  max-width: 720px;
+}
+
+.dialog {
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+}

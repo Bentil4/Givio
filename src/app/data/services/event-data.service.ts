@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { ID, Permission, Role } from 'appwrite';
-import { DATABASES } from '../appwrite/client';
+import { DATABASES, FUNCTIONS } from '../appwrite/client';
+import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
 import { appDb } from '../dexie/app-db';
 import type { OutboxEntry } from '../dexie/outbox-entry';
 import type { Event } from '../models/event';
@@ -25,7 +26,16 @@ type UpdateEventPatch = Partial<
 @Injectable({ providedIn: 'root' })
 export class EventDataService {
   private readonly databases = inject(DATABASES);
+  private readonly functions = inject(FUNCTIONS);
   private readonly authService = inject(AuthService);
+
+  /**
+   * Local-first, same as the rest of this service until Story 3.5/Epic 4's Realtime work
+   * lands a real server-pull: only returns events created or edited on this device/browser.
+   */
+  async listEvents(): Promise<Event[]> {
+    return appDb.events.toArray();
+  }
 
   async createEvent(input: CreateEventInput): Promise<Event> {
     const now = new Date().toISOString();
@@ -113,6 +123,37 @@ export class EventDataService {
       } catch (error) {
         console.error('EventDataService.updateEvent: failed to write audit log', error);
       }
+    }
+
+    return updated;
+  }
+
+  /**
+   * Online-only, unlike createEvent/updateEvent — there's no outbox path here because the
+   * whole point is a server-derived write only the trusted Function can make (AD-2/AD-9):
+   * Appwrite document permissions can't be set by the client SDK at all, so there's nothing
+   * to queue and retry locally the way an ordinary field edit is. A rejected/failed call
+   * throws before any local state changes, so Dexie is never left claiming an assignment
+   * that Appwrite doesn't actually have.
+   */
+  async assignOperators(eventId: string, assignedUserIds: string[]): Promise<Event> {
+    const current = await appDb.events.get(eventId);
+    if (!current) {
+      throw new ServiceError('Event not found');
+    }
+
+    await invokeAdminFunction(this.functions, 'assignOperators', 'Failed to save operator assignment', {
+      eventId,
+      assignedUserIds,
+    });
+
+    const updated: Event = { ...current, assignedUserIds, updatedAt: new Date().toISOString() };
+    try {
+      await appDb.events.put(updated);
+    } catch (error) {
+      // The server write already succeeded — don't report a local cache-write failure as if
+      // the assignment itself failed.
+      console.error('EventDataService.assignOperators: failed to update local cache', error);
     }
 
     return updated;

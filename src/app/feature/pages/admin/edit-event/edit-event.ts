@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
-import { Button, Input } from '../../../../shared/components';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
 import { appDb } from '../../../../data/dexie/app-db';
 import { EventService } from '../../../../data/services/event.service';
 import { ServiceError } from '../../../../data/services/service-error';
@@ -9,8 +9,9 @@ import type { Event } from '../../../../data/models/event';
 
 @Component({
   selector: 'app-edit-event',
-  imports: [ReactiveFormsModule, Button, Input],
+  imports: [ReactiveFormsModule, RouterLink, MatIconModule],
   templateUrl: './edit-event.html',
+  styleUrl: './edit-event.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EditEvent implements OnInit {
@@ -91,5 +92,10 @@ export class EditEvent implements OnInit {
     } finally {
       this.submitting.set(false);
     }
+  }
+
+  public invalid(control: string): boolean {
+    const c = this.form.get(control);
+    return !!c && c.invalid && (c.touched || c.dirty);
   }
 }

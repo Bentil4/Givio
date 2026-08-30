@@ -1,13 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { FUNCTIONS } from '../appwrite/client';
-import { ServiceError } from './service-error';
+import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
 import type { Role } from '../models/role';
 import type { AdminUser } from '../models/admin-user';
-import { environment } from '../../../environments/environment';
-
-interface FunctionErrorBody {
-  error?: string;
-}
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
@@ -43,34 +38,7 @@ export class UserService {
     await this.invoke('forceExpireSessions', 'Failed to force sign-out', { userId });
   }
 
-  private async invoke<T>(action: string, invokeFailureMessage: string, payload: object): Promise<T> {
-    let execution;
-    try {
-      execution = await this.functions.createExecution({
-        functionId: environment.setRoleFunctionId,
-        body: JSON.stringify({ action, ...payload }),
-      });
-    } catch (error) {
-      throw new ServiceError(invokeFailureMessage, error);
-    }
-
-    const parsedBody = this.parseBody(execution.responseBody);
-
-    if (execution.responseStatusCode < 200 || execution.responseStatusCode >= 300) {
-      const message =
-        (parsedBody as FunctionErrorBody | undefined)?.error ??
-        `Admin-users function rejected the request (status ${execution.responseStatusCode})`;
-      throw new ServiceError(message, execution.responseBody);
-    }
-
-    return parsedBody as T;
-  }
-
-  private parseBody(raw: string): unknown {
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return undefined;
-    }
+  private invoke<T>(action: string, invokeFailureMessage: string, payload: object): Promise<T> {
+    return invokeAdminFunction<T>(this.functions, action, invokeFailureMessage, payload);
   }
 }

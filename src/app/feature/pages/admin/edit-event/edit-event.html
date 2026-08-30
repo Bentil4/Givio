@@ -1,79 +1,89 @@
 @if (loading()) {
-<main class="p-xl">
-  <p class="font-body text-sm text-primary-mid">Loading event…</p>
-</main>
+  <section class="page">
+    <div class="dialog glass">
+      <div class="skel-row"><span class="skel skel--lg"></span></div>
+      <div class="skel-row"><span class="skel skel--lg"></span></div>
+      <div class="skel-row"><span class="skel skel--lg"></span></div>
+    </div>
+  </section>
 } @else if (notFound()) {
-<main class="p-xl">
-  <p class="font-body text-sm text-danger">Event not found.</p>
-</main>
+  <section class="page">
+    <div class="empty glass">
+      <mat-icon class="empty-icon">event_busy</mat-icon>
+      <p class="t-card-title">Event not found</p>
+      <p class="t-caption">It may not have synced to this device yet, or the link is wrong.</p>
+      <a class="btn btn-secondary" routerLink="/dashboard/events">Back to events</a>
+    </div>
+  </section>
 } @else {
-<main class="flex flex-col gap-lg p-xl">
-  <div class="flex items-center gap-md">
-    <div>
-      <h1 class="font-display text-2xl font-bold text-primary-dark">Edit Event</h1>
-      <p class="font-body text-sm text-primary-mid">Update this event's basic record</p>
-    </div>
-    <span
-      class="rounded-full bg-bg-light px-sm py-xs text-xs font-semibold uppercase text-primary-mid"
-    >
-      {{ event()?.type }}
-    </span>
-  </div>
+  <section class="page">
+    <header class="page-head">
+      <div>
+        <h1 class="t-page-title">Edit event</h1>
+        <p class="t-secondary">Update {{ event()?.name }}'s basic record.</p>
+      </div>
+    </header>
 
-  @if (event()?.status === 'closed') {
-  <div
-    class="rounded-md border border-func-warning bg-bg-frost p-md font-body text-sm text-primary-dark"
-  >
-    This event is closed and can no longer be edited.
-  </div>
-  }
+    @if (event()?.status === 'closed') {
+      <div class="code-note" role="alert">
+        <mat-icon>lock</mat-icon>
+        <p class="t-caption">This event is closed and can no longer be edited.</p>
+      </div>
+    }
 
-  @if (formError(); as error) {
-  <div class="rounded-md border border-danger bg-bg-frost p-md font-body text-sm text-danger">
-    {{ error }}
-  </div>
-  }
+    @if (formError(); as error) {
+      <div class="code-note" role="alert">
+        <mat-icon>error_outline</mat-icon>
+        <p class="t-caption">{{ error }}</p>
+      </div>
+    }
 
-  <form class="flex w-full max-w-lg flex-col gap-md" [formGroup]="form" (ngSubmit)="onSubmit()">
-    <app-input label="Event Name" formControlName="name" />
-    <app-input label="Date" type="date" formControlName="date" />
-    <app-input label="Host / Family Name" formControlName="hostName" />
-    <app-input label="Venue (optional)" formControlName="venue" />
+    <form class="dialog glass" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <div class="dialog-body">
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="evName">Event name <span class="req" aria-hidden="true">*</span></label>
+            <input id="evName" class="input" type="text" formControlName="name"
+                   [class.is-invalid]="invalid('name')" />
+            @if (invalid('name')) { <p class="field-error">Give the event a name people will recognise.</p> }
+          </div>
+          <div class="field">
+            <label class="field-label" for="evDate">Event date <span class="req" aria-hidden="true">*</span></label>
+            <input id="evDate" class="input" type="date" formControlName="date"
+                   [class.is-invalid]="invalid('date')" />
+            @if (invalid('date')) { <p class="field-error">Pick the date of the service.</p> }
+          </div>
+        </div>
 
-    <div class="flex flex-col gap-xs">
-      <label class="form-label font-body text-sm font-medium text-primary-dark" for="description">
-        Description (optional)
-      </label>
-      <textarea
-        id="description"
-        class="w-full rounded-md border-[1.5px] border-data-1 bg-bg-white p-sm font-body text-[0.9rem] text-primary-dark outline-none focus:border-primary-deep disabled:opacity-50"
-        rows="3"
-        formControlName="description"
-      ></textarea>
-    </div>
+        <div class="field">
+          <label class="field-label" for="evHost">Host / family name <span class="req" aria-hidden="true">*</span></label>
+          <input id="evHost" class="input" type="text" formControlName="hostName"
+                 [class.is-invalid]="invalid('hostName')" />
+          @if (invalid('hostName')) { <p class="field-error">Enter the host or family name.</p> }
+        </div>
 
-    <div class="flex flex-col gap-xs">
-      <label class="form-label font-body text-sm font-medium text-primary-dark" for="notes">
-        Notes (optional)
-      </label>
-      <textarea
-        id="notes"
-        class="w-full rounded-md border-[1.5px] border-data-1 bg-bg-white p-sm font-body text-[0.9rem] text-primary-dark outline-none focus:border-primary-deep disabled:opacity-50"
-        rows="3"
-        formControlName="notes"
-      ></textarea>
-    </div>
+        <div class="field">
+          <label class="field-label" for="evVenue">Venue</label>
+          <input id="evVenue" class="input" type="text" formControlName="venue" />
+        </div>
 
-    <div class="flex justify-end gap-sm">
-      <app-button
-        type="submit"
-        variant="primary"
-        [disabled]="form.invalid || event()?.status === 'closed'"
-        [loading]="submitting()"
-      >
-        Save Changes
-      </app-button>
-    </div>
-  </form>
-</main>
+        <div class="field">
+          <label class="field-label" for="evDescription">Description</label>
+          <textarea id="evDescription" class="input textarea" rows="3" formControlName="description"></textarea>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="evNotes">Notes</label>
+          <textarea id="evNotes" class="input textarea" rows="3" formControlName="notes"></textarea>
+        </div>
+      </div>
+
+      <footer class="dialog-foot">
+        <a class="btn btn-secondary" routerLink="/dashboard/events">Cancel</a>
+        <button type="submit" class="btn btn-primary" [disabled]="form.invalid || event()?.status === 'closed'">
+          {{ submitting() ? 'Saving…' : 'Save changes' }}
+        </button>
+      </footer>
+    </form>
+  </section>
 }
