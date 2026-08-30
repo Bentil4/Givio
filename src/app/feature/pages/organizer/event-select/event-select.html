@@ -10,6 +10,13 @@
     </span>
   </header>
 
+  @if (loadError(); as err) {
+    <div class="notice" role="alert">
+      <mat-icon>error_outline</mat-icon>
+      <p class="t-caption">{{ err }}</p>
+    </div>
+  }
+
   @if (notice(); as msg) {
     <div class="notice" role="status">
       <mat-icon>info</mat-icon>
@@ -22,7 +29,6 @@
       @for (i of skeletons; track i) {
         <div class="event-card glass is-skel">
           <span class="skel skel--line"></span>
-          <span class="skel skel--amount"></span>
         </div>
       }
     </div>
@@ -48,16 +54,9 @@
           <span class="event-body">
             <span class="event-title">
               <span class="t-card-title">{{ e.name }}</span>
-              <span class="tag" [class]="chipClass[e.status]">{{ statusLabel(e) }}</span>
+              <span class="tag" [class]="chipClass[e.status]">{{ statusLabel(e.status) }}</span>
             </span>
             <span class="t-tertiary">{{ metaLabel(e) }}</span>
-          </span>
-
-          <span class="event-total">
-            <span class="event-total-value">{{ totalLabel(e) }}</span>
-            <span class="t-tertiary">
-              {{ e.donorCount }} {{ e.donorCount === 1 ? 'donor' : 'donors' }}
-            </span>
           </span>
 
           <span class="event-cta" [class.is-muted]="!canOpen(e)">{{ ctaLabel(e) }}</span>

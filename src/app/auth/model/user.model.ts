@@ -7,6 +7,8 @@ export interface INavbarItem {
   name: string;
   route: string;
   icon: string;
+  /** Shown but not navigable — e.g. a planned feature with no screen yet. */
+  disabled?: boolean;
 }
 
 export interface IUserProfile {

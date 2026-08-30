@@ -32,4 +32,19 @@ describe('Sidebar', () => {
 
     expect(logoutSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('renders a disabled nav item as an inert span, not a routerLink', async () => {
+    fixture.componentRef.setInput('navItems', [
+      { name: 'Report', icon: 'bar_chart', route: '/organizer/report', disabled: true },
+    ]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const link = fixture.nativeElement.querySelector('a.nav-link');
+    const disabled = fixture.nativeElement.querySelector('span.nav-link.is-disabled');
+
+    expect(link).toBeNull();
+    expect(disabled).not.toBeNull();
+    expect(disabled.textContent).toContain('Report');
+  });
 });

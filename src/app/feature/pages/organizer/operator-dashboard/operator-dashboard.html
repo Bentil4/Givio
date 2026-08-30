@@ -1,0 +1,59 @@
+<section class="page">
+  <header class="page-head">
+    <div>
+      <h1 class="t-page-title">Overview</h1>
+      <p class="t-secondary">What you're assigned to, at a glance.</p>
+    </div>
+  </header>
+
+  <div class="stat-grid">
+    <article class="stat-tile glass">
+      <div class="stat-label">Assigned events</div>
+      <div class="stat-value">{{ assignedEvents().length }}</div>
+      <div class="stat-delta">
+        {{ assignedEvents().length === 1 ? '1 event' : assignedEvents().length + ' events' }}
+      </div>
+    </article>
+    <article class="stat-tile glass">
+      <div class="stat-label">Raised today</div>
+      <div class="stat-value">—</div>
+      <div class="stat-delta is-muted">Available once donation recording ships</div>
+    </article>
+    <article class="stat-tile glass">
+      <div class="stat-label">Donors today</div>
+      <div class="stat-value">—</div>
+      <div class="stat-delta is-muted">Available once donation recording ships</div>
+    </article>
+  </div>
+
+  <article class="panel panel--events glass">
+    <header class="panel-head">
+      <h2 class="t-card-title">Your events</h2>
+      <a class="panel-link" routerLink="/organizer/events">View all</a>
+    </header>
+
+    @if (loading()) {
+      <div class="panel-body">
+        @for (i of [0, 1, 2]; track i) {
+          <div class="skel-row"><span class="skel skel--lg"></span></div>
+        }
+      </div>
+    } @else if (loadError(); as err) {
+      <p class="panel-empty t-caption">{{ err }}</p>
+    } @else if (previewEvents().length === 0) {
+      <p class="panel-empty t-caption">Nothing assigned yet. Ask an Admin to add you to an event.</p>
+    } @else {
+      @for (e of previewEvents(); track e.id) {
+        <a class="event-row" routerLink="/organizer/events">
+          <div class="event-main">
+            <div class="event-name-row">
+              <span class="t-body-em">{{ e.name }}</span>
+              <span class="tag" [class]="chipClass[e.status]">{{ statusLabel(e.status) }}</span>
+            </div>
+            <div class="event-meta t-caption">{{ eventMeta(e) }}</div>
+          </div>
+        </a>
+      }
+    }
+  </article>
+</section>

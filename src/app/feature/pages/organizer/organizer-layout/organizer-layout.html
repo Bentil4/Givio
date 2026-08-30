@@ -1,7 +1,12 @@
 <main class="organizer-layout">
-  <header class="organizer-header">
-    <span class="brand">Givio</span>
-    <button type="button" class="logout-button" (click)="onLogout()">Logout</button>
-  </header>
-  <router-outlet />
+  <app-sidebar
+    [navItems]="navItems"
+    [userProfile]="userProfile"
+    [collapsed]="isSidebarCollapsed()"
+    (toggleCollapsed)="toggleSidebar()"
+    (logout)="onLogout()"
+  />
+  <div class="main-content">
+    <router-outlet />
+  </div>
 </main>

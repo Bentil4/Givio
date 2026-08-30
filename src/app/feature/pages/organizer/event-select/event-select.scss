@@ -115,20 +115,6 @@
   .t-card-title { margin: 0; }
 }
 
-.event-total {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.event-total-value {
-  font-family: monospace;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--primary-dark);
-}
-
 .event-cta {
   flex: none;
   padding: 11px var(--space-md);
@@ -159,16 +145,6 @@
 
 .skel--line {
   flex: 1;
-  height: 14px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, var(--data-1) 25%, #f4f8fa 50%, var(--data-1) 75%);
-  background-size: 420px 100%;
-  animation: admin-shimmer 1.4s linear infinite;
-}
-
-.skel--amount {
-  flex: none;
-  width: 92px;
   height: 14px;
   border-radius: var(--radius-sm);
   background: linear-gradient(90deg, var(--data-1) 25%, #f4f8fa 50%, var(--data-1) 75%);
