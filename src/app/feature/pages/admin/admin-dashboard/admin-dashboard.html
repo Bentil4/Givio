@@ -1,84 +1,80 @@
-<!-- <app-page-titles /> -->
-<main class="admin-dashboard">
-  <div class="dashboard-content">
-    <div class="dashboard-intro">
-      <h1 class="ad-title">Admin Dashboard</h1>
-      <p class="ad-sub-title">Central hub for system administration and monitoring</p>
+<section class="page">
+  <header class="page-head">
+    <div>
+      <h1 class="t-page-title">Overview</h1>
+      <p class="t-secondary">Every live event, the running totals, and anything needing attention.</p>
     </div>
-    <div class="cards-info">
-      <div class="card-title">
-        <h2>Statistics</h2>
-      </div>
-      <div class="cards">
-        <div class="card">
-          <app-stat-card
-            label="Total Users"
-            value="1,234"
-            trend="positive"
-            trendValue="5%"
-            icon="people"
-          ></app-stat-card>
-        </div>
-        <div class="card">
-          <app-stat-card
-            label="Total Users"
-            value="1,234"
-            trend="positive"
-            trendValue="5%"
-            icon="people"
-          ></app-stat-card>
-        </div>
-        <div class="card">
-          <app-stat-card
-            label="Total Users"
-            value="1,234"
-            trend="positive"
-            trendValue="5%"
-            icon="people"
-          ></app-stat-card>
-        </div>
-        <div class="card">
-          <app-stat-card
-            label="Total Users"
-            value="1,234"
-            trend="positive"
-            trendValue="5%"
-            icon="people"
-          ></app-stat-card>
-        </div>
-        <div class="card">
-          <app-stat-card
-            label="Total Users"
-            value="1,234"
-            trend="positive"
-            trendValue="5%"
-            icon="people"
-          ></app-stat-card>
-        </div>
-        <div class="card">
-          <app-stat-card
-            label="Total Users"
-            value="1,234"
-            trend="positive"
-            trendValue="5%"
-            icon="people"
-          ></app-stat-card>
-        </div>
-      </div>
-    </div>
+  </header>
 
-    <div class="activity-section">
-      <div class="recent">
-        <app-recent-activity></app-recent-activity>
-      </div>
-      <div class="actions-section">
-        <h1>Quick Actions</h1>
-        <app-quick-actions></app-quick-actions>
-        <h1>System Health</h1>
-        <div class="system-health">
-          <app-system-health />
-        </div>
-      </div>
-    </div>
+  <div class="stat-grid">
+    <article class="stat-tile glass">
+      <div class="stat-label">Raised today</div>
+      <div class="stat-value">—</div>
+      <div class="stat-delta is-muted">Available once donation recording ships</div>
+    </article>
+    <article class="stat-tile glass">
+      <div class="stat-label">Donors today</div>
+      <div class="stat-value">—</div>
+      <div class="stat-delta is-muted">Available once donation recording ships</div>
+    </article>
+    <article class="stat-tile glass">
+      <div class="stat-label">Live events</div>
+      <div class="stat-value">{{ liveEventCount() }}</div>
+      <div class="stat-delta">{{ events().length }} total</div>
+    </article>
+    <article class="stat-tile glass">
+      <div class="stat-label">Awaiting sync</div>
+      <div class="stat-value">—</div>
+      <div class="stat-delta is-muted">Available once offline sync ships</div>
+    </article>
   </div>
-</main>
+
+  <div class="panel-row">
+    <article class="panel panel--events glass">
+      <header class="panel-head">
+        <h2 class="t-card-title">Live events</h2>
+        <a class="panel-link" routerLink="/dashboard/events">Manage events</a>
+      </header>
+
+      @if (loading()) {
+        <div class="panel-body">
+          @for (i of [0, 1, 2]; track i) {
+            <div class="skel-row"><span class="skel skel--lg"></span></div>
+          }
+        </div>
+      } @else if (loadError(); as err) {
+        <p class="panel-empty t-caption">{{ err }}</p>
+      } @else if (dashboardEvents().length === 0) {
+        <p class="panel-empty t-caption">
+          No events yet. <a routerLink="/dashboard/events">Create one</a> to get started.
+        </p>
+      } @else {
+        @for (e of dashboardEvents(); track e.id) {
+          <a class="event-row" [routerLink]="['/dashboard/events', e.id]">
+            <div class="event-main">
+              <div class="event-name-row">
+                <span class="t-body-em">{{ e.name }}</span>
+                <span class="tag" [class]="chipClass[e.status]">{{ statusLabel(e.status) }}</span>
+              </div>
+              <div class="event-meta t-caption">{{ eventMeta(e) }}</div>
+            </div>
+            <div class="event-total">
+              <div class="is-mono is-strong">—</div>
+              <div class="t-tertiary">— donors</div>
+            </div>
+          </a>
+        }
+      }
+    </article>
+
+    <article class="panel panel--feed glass">
+      <header class="panel-head">
+        <span class="live-dot" aria-hidden="true"></span>
+        <h2 class="t-card-title">Live feed</h2>
+      </header>
+      <p class="panel-empty t-caption">
+        Nothing yet — this fills in once donation recording ships.
+      </p>
+    </article>
+  </div>
+</section>
