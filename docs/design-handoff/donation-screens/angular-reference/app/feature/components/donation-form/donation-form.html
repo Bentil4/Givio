@@ -1,0 +1,94 @@
+<form class="donation-form givio-card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+
+  <div class="field">
+    <label class="field-label" for="donorName">
+      Donor name <span class="req" aria-hidden="true">*</span>
+    </label>
+    <input
+      id="donorName"
+      class="input input--lg"
+      type="text"
+      formControlName="donorName"
+      placeholder="Type the donor's full name"
+      autocomplete="off"
+      [class.is-invalid]="isInvalid('donorName')"
+    />
+    @if (isInvalid('donorName')) {
+      <p class="field-error">Enter the donor's name.</p>
+    }
+  </div>
+
+  <!-- Amount is the largest control on the screen on purpose: it is the one field a desk
+       operator must confirm out loud in a noisy room, and the one an error is costliest in. -->
+  <div class="field">
+    <label class="field-label" for="amount">
+      Amount (GH₵)
+      @if (amountRequired()) { <span class="req" aria-hidden="true">*</span> }
+      @else { <span class="field-hint">optional for in-kind gifts</span> }
+    </label>
+    <div class="amount-wrap" [class.is-invalid]="isInvalid('amount')">
+      <span class="amount-prefix givio-num">GH₵</span>
+      <input
+        id="amount"
+        class="amount-input givio-num"
+        type="text"
+        inputmode="decimal"
+        formControlName="amount"
+        placeholder="0.00"
+      />
+    </div>
+    @if (isInvalid('amount')) {
+      <p class="field-error">Enter an amount greater than zero.</p>
+    }
+  </div>
+
+  <div class="field">
+    <span class="field-label">Donation type <span class="req" aria-hidden="true">*</span></span>
+    <div class="segments" role="radiogroup" aria-label="Donation type">
+      @for (t of types; track t.value) {
+        <button
+          type="button"
+          class="segment"
+          role="radio"
+          [attr.aria-checked]="form.controls.donationType.value === t.value"
+          [class.is-selected]="form.controls.donationType.value === t.value"
+          (click)="selectType(t.value)"
+        >{{ t.label }}</button>
+      }
+    </div>
+  </div>
+
+  <div class="field-row">
+    <div class="field">
+      <label class="field-label" for="onBehalfOf">Donated on behalf of</label>
+      <input id="onBehalfOf" class="input" type="text" formControlName="onBehalfOf"
+             placeholder="Family, church, or group" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label class="field-label" for="donorPhone">Donor phone</label>
+      <input id="donorPhone" class="input" type="tel" inputmode="tel" formControlName="donorPhone"
+             placeholder="024 000 0000" [class.is-invalid]="isInvalid('donorPhone')" />
+      @if (isInvalid('donorPhone')) {
+        <p class="field-error">That doesn't look like a Ghanaian mobile number.</p>
+      }
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="field-label" for="notes">Notes</label>
+    <textarea id="notes" class="input textarea" formControlName="notes" rows="2"
+              placeholder="Anything the family should know"></textarea>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn-save" [disabled]="busy()">
+      @if (offline()) {
+        <span>Save to this device</span>
+        <span class="btn-qualifier">will sync later</span>
+      } @else {
+        <span>Save donation</span>
+      }
+    </button>
+    <button type="button" class="btn-clear" (click)="clear()" [disabled]="busy()">Clear</button>
+  </div>
+</form>

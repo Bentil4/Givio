@@ -1,0 +1,69 @@
+<section class="resolver">
+  <!-- The explainer states the whole situation in plain sequence. An Admin resolving this
+       three hours later has no memory of the sync, and guessing is how records get lost. -->
+  <div class="resolver-explainer">
+    <h2 class="t-card-title">One record changed in two places while a desk was offline</h2>
+    <p class="t-caption">
+      The tablet saved this donation with no internet, and an Admin corrected the same receipt on the
+      server. Both versions are kept — nothing is overwritten until you choose. This donation is
+      excluded from all totals and exports in the meantime.
+    </p>
+  </div>
+
+  <div class="resolver-grid">
+    <article class="version">
+      <header class="version-header">
+        <div>
+          <h3 class="t-card-title">Version A — saved on the tablet</h3>
+          <p class="t-tertiary">{{ conflict().local.recordedAt }} · offline</p>
+        </div>
+        <span class="tag tag-default">Offline</span>
+      </header>
+      <dl class="version-rows">
+        @for (row of rows(); track row.label) {
+          <div class="version-row" [class.is-diff]="row.differs">
+            <dt class="t-tertiary">{{ row.label }}</dt>
+            <dd class="t-body-em">{{ row.local }}</dd>
+          </div>
+        }
+      </dl>
+      <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="resolved.emit('keep-local')">
+        Keep the tablet version
+      </button>
+    </article>
+
+    <article class="version is-server">
+      <header class="version-header">
+        <div>
+          <h3 class="t-card-title">Version B — on the server</h3>
+          <p class="t-tertiary">{{ conflict().server.recordedAt }} · edited by an Admin</p>
+        </div>
+        <span class="tag tag-info">Server</span>
+      </header>
+      <dl class="version-rows">
+        @for (row of rows(); track row.label) {
+          <div class="version-row" [class.is-diff]="row.differs">
+            <dt class="t-tertiary">{{ row.label }}</dt>
+            <dd class="t-body-em">{{ row.server }}</dd>
+          </div>
+        }
+      </dl>
+      <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="resolved.emit('keep-server')">
+        Keep the server version
+      </button>
+    </article>
+  </div>
+
+  <div class="resolver-both">
+    <div class="resolver-both-copy">
+      <h3 class="t-card-title">Not sure? Keep both.</h3>
+      <p class="t-caption">
+        Saves the offline version as a separate receipt ({{ bothReceipt() }}) so the desk's record
+        survives and the family can see both entries.
+      </p>
+    </div>
+    <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="resolved.emit('keep-both')">
+      Keep both records
+    </button>
+  </div>
+</section>

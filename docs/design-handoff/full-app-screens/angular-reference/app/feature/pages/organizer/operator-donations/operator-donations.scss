@@ -1,0 +1,147 @@
+@use '../../admin/admin-donations/admin-donations.scss';
+
+.op-list-page {
+  font-family: var(--font-body);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.op-list-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.op-back {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--primary-deep);
+  text-decoration: none;
+  transition: gap .2s var(--ease);
+
+  &:hover { gap: 10px; }
+}
+
+.op-list-title {
+  flex: 1;
+  min-width: 0;
+
+  h1 { margin: 0 0 3px; }
+  p { margin: 0; }
+}
+
+.op-list-total {
+  flex: none;
+  text-align: right;
+
+  .sub-label { margin-bottom: 2px; }
+}
+
+.op-total-value {
+  display: block;
+  font-family: monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary-deep);
+}
+
+.op-pending-note {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1.5px solid rgba(245, 158, 11, .28);
+  border-radius: var(--radius-md);
+  background: rgba(245, 158, 11, .08);
+
+  mat-icon { flex: none; color: var(--func-warning); font-size: 18px; width: 18px; height: 18px; }
+  p { margin: 0; color: #92400e; line-height: 1.55; text-wrap: pretty; }
+}
+
+.op-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.tab-count {
+  margin-left: 6px;
+  font-family: monospace;
+  font-size: 0.68rem;
+  opacity: .7;
+}
+
+.op-rows {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+// Cards rather than a <table>: an operator reads this on a tablet, often one-handed, and
+// a row that reflows beats one that scrolls sideways.
+.op-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid rgba(26, 107, 122, .07);
+  transition: background .18s var(--ease);
+
+  &:last-child { border-bottom: 0; }
+  &:hover { background: rgba(0, 200, 224, .04); }
+
+  &.is-pending { background: rgba(245, 158, 11, .05); }
+}
+
+.op-receipt {
+  flex: none;
+  width: 116px;
+  font-family: monospace;
+  font-size: 0.72rem;
+  color: var(--data-4);
+}
+
+.op-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.op-row-meta {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.op-amount {
+  font-family: monospace;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.op-foot {
+  margin: 0;
+  padding: 0 var(--space-xs);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+@media (max-width: 720px) {
+  .op-list-head { flex-wrap: wrap; }
+  .op-receipt { display: none; }
+}

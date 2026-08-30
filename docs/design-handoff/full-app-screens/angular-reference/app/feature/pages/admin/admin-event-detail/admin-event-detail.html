@@ -1,0 +1,130 @@
+<section class="page">
+  @if (loading()) {
+    <div class="detail-hero is-loading">
+      <span class="skel skel--lg"></span>
+    </div>
+  } @else if (event(); as e) {
+    <header class="detail-hero">
+      <div class="detail-hero-main">
+        <div class="detail-hero-title">
+          <h1 class="detail-name">{{ e.name }}</h1>
+          <span class="tag" [class]="chipClass[e.status]">{{ statusLabel() }}</span>
+        </div>
+        <p class="detail-meta">
+          @if (e.venue) { {{ e.venue }} · }{{ e.eventDate }} · created by {{ e.createdBy }}
+        </p>
+      </div>
+
+      <div class="detail-hero-total">
+        <span class="detail-total-label">Raised so far</span>
+        <span class="detail-total-value">{{ totalLabel() }}</span>
+        <span class="detail-total-meta">{{ e.donorCount }} donors</span>
+      </div>
+
+      @if (!isClosed()) {
+        <div class="detail-hero-actions">
+          @if (canPause()) {
+            <button type="button" class="btn btn-hero-ghost" (click)="ask('pause')">Pause giving</button>
+          }
+          @if (canResume()) {
+            <button type="button" class="btn btn-hero-ghost" (click)="ask('resume')">Resume giving</button>
+          }
+          <button type="button" class="btn btn-hero-solid" (click)="ask('close')">Close event</button>
+        </div>
+      }
+    </header>
+
+    <div class="detail-grid">
+      <article class="detail-card glass">
+        <h2 class="t-card-title">Family access code</h2>
+        <p class="t-caption detail-card-intro">
+          Share this with family members only. Regenerating it signs out everyone using the old code.
+        </p>
+
+        @if (hasCode()) {
+          <div class="code-row">
+            <span class="code-value">{{ e.familyCode }}</span>
+            <button type="button" class="btn btn-secondary" (click)="copyCode()">
+              {{ copied() ? 'Copied' : 'Copy' }}
+            </button>
+          </div>
+          <div class="code-foot">
+            <span class="t-tertiary">
+              {{ familyViewerCount() }}
+              {{ familyViewerCount() === 1 ? 'family member' : 'family members' }} active now
+            </span>
+            <button type="button" class="btn-ghost is-danger" (click)="ask('regenerate')">
+              Regenerate code
+            </button>
+          </div>
+        } @else {
+          <p class="t-secondary code-none">
+            @if (isClosed()) {
+              The code was released when this event closed. Family members can no longer join, but the
+              export stays available.
+            } @else {
+              No code yet — it is issued when the event goes live.
+            }
+          </p>
+        }
+      </article>
+
+      <article class="detail-card glass">
+        <h2 class="t-card-title">Assigned operators</h2>
+        @if (e.operators.length === 0) {
+          <p class="t-secondary code-none">
+            No operators assigned. Nobody can record donations for this event until at least one is.
+          </p>
+        } @else {
+          <ul class="op-list">
+            @for (op of e.operators; track op.userId) {
+              <li class="op-item">
+                <span class="op-avatar">{{ op.initials }}</span>
+                <span class="op-body">
+                  <span class="t-body-em">{{ op.name }}</span>
+                  <span class="t-tertiary">{{ op.deskLabel }} · {{ op.entryCount }} entries</span>
+                </span>
+                <span class="tag"
+                      [class.tag-success]="op.connection === 'recording'"
+                      [class.tag-default]="op.connection === 'offline'">
+                  {{ op.connection === 'recording' ? 'Recording' : 'Offline' }}
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </article>
+    </div>
+
+    @if (!isClosed()) {
+      <aside class="danger-zone">
+        <div class="danger-copy">
+          <h2 class="t-card-title">Danger zone</h2>
+          <p class="t-caption">
+            Closing the event locks all {{ e.donorCount }} donations, invalidates the family code, and
+            archives the record. It cannot be reopened — only an export remains.
+          </p>
+        </div>
+        <button type="button" class="btn btn-danger-outline" (click)="ask('close')">Close and archive</button>
+      </aside>
+    }
+  }
+</section>
+
+@if (confirmCopy(); as c) {
+<div class="scrim" (click)="dismiss()">
+  <div class="dialog dialog--sm glass" role="dialog" [attr.aria-label]="c.title" (click)="$event.stopPropagation()">
+    <header class="dialog-head">
+      <h2 class="t-page-title">{{ c.title }}</h2>
+    </header>
+    <div class="dialog-body">
+      <p class="t-body confirm-body">{{ c.body }}</p>
+    </div>
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="dismiss()">Cancel</button>
+      <button type="button" [class]="c.danger ? 'btn btn-danger' : 'btn btn-primary'"
+              [disabled]="busy()" (click)="confirm()">{{ c.cta }}</button>
+    </footer>
+  </div>
+</div>
+}

@@ -1,0 +1,36 @@
+@use '../admin-donations/admin-donations.scss';
+
+.days {
+  display: inline-block;
+  margin-right: var(--space-sm);
+  font-size: 0.72rem;
+  color: var(--data-4);
+  white-space: nowrap;
+
+  // Under a week left: after this the record only lives in the archive, so it earns colour.
+  &.is-expiring {
+    font-weight: 700;
+    color: var(--func-warning);
+  }
+}
+
+.btn-recover {
+  padding: 6px 13px;
+  font-size: 0.75rem;
+}
+
+.reason-recall {
+  padding: var(--space-md);
+  border-left: 2px solid rgba(26, 107, 122, .25);
+  background: var(--bg-white);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+
+  .sub-label { margin-bottom: 4px; }
+  p { margin: 0; line-height: 1.55; text-wrap: pretty; }
+}
+
+.confirm-body {
+  margin: 0;
+  line-height: 1.6;
+  text-wrap: pretty;
+}

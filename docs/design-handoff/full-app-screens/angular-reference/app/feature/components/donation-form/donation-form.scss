@@ -1,0 +1,169 @@
+// Styled with the tokens in src/styles.scss. Buttons reuse the global .btn / .btn-primary /
+// .btn-secondary classes rather than redefining them, so a future change to the repo's
+// button treatment carries through here for free.
+.donation-form {
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  font-family: var(--font-body);
+}
+
+.field { display: flex; flex-direction: column; }
+
+.field-row {
+  display: flex;
+  gap: var(--space-md);
+
+  > .field { flex: 1; }
+}
+
+.field-label {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  margin-bottom: 6px;
+}
+
+.field-hint {
+  font-weight: 400;
+  font-style: italic;
+  color: var(--data-4);
+}
+
+.req { color: var(--color-danger); }
+
+.field-error {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: var(--func-error);
+}
+
+.input {
+  height: 44px;
+  padding: 0 var(--space-md);
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(26, 107, 122, .15);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--primary-dark);
+  outline: none;
+  transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+
+  &::placeholder { color: var(--data-3); }
+
+  &:focus {
+    border-color: var(--primary-deep);
+    box-shadow: 0 0 0 3px rgba(0, 200, 224, .15);
+  }
+
+  &.is-invalid {
+    border-color: var(--func-error);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, .12);
+  }
+}
+
+.input--lg { height: 48px; font-size: 0.95rem; }
+
+.textarea {
+  height: auto;
+  min-height: 60px;
+  padding: 11px var(--space-md);
+  resize: vertical;
+  line-height: 1.5;
+}
+
+// The amount is the largest control on the screen on purpose: it is the one field an
+// operator reads back aloud in a noisy room, and the costliest to get wrong.
+.amount-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  height: 64px;
+  padding: 0 var(--space-md);
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(26, 107, 122, .15);
+  border-radius: var(--radius-md);
+
+  &:focus-within {
+    border-color: var(--primary-deep);
+    box-shadow: 0 0 0 3px rgba(0, 200, 224, .15);
+  }
+
+  &.is-invalid {
+    border-color: var(--func-error);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, .12);
+  }
+}
+
+.amount-prefix {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: var(--data-4);
+}
+
+.amount-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  font-family: monospace;
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+
+  &::placeholder { color: var(--data-3); font-weight: 400; }
+}
+
+// Reuses the repo's .filter-tag look for a segmented control.
+.segments { display: flex; gap: var(--space-sm); }
+
+.segment {
+  flex: 1;
+  height: 46px;
+  border: 1.5px solid rgba(26, 107, 122, .2);
+  border-radius: var(--radius-full);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--primary-dark);
+  cursor: pointer;
+  transition: all .18s var(--ease);
+
+  &:hover:not(.is-selected) {
+    background: rgba(0, 200, 224, .08);
+    border-color: var(--primary-deep);
+  }
+
+  &.is-selected {
+    background: linear-gradient(135deg, var(--primary-deep), var(--primary-dark));
+    border-color: transparent;
+    color: var(--bg-white);
+    box-shadow: 0 3px 12px rgba(26, 107, 122, .3);
+  }
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+// .btn / .btn-primary / .btn-secondary come from src/styles.scss; only the layout
+// and the offline qualifier are added here.
+.form-actions .btn-primary { flex: 1; gap: var(--space-sm); }
+
+.btn-qualifier {
+  font-size: 0.72rem;
+  font-weight: 400;
+  font-style: italic;
+  opacity: .75;
+}

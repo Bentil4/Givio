@@ -1,0 +1,116 @@
+<section class="family">
+  <header class="family-header">
+    <div class="family-header-top">
+      <span class="family-eyebrow">Family view</span>
+      <span class="family-live-dot" [class.is-off]="!connected()">
+        <span class="dot-pulse" aria-hidden="true"></span>
+        {{ connected() ? 'Live' : 'Reconnecting…' }}
+      </span>
+    </div>
+
+    @if (loading()) {
+      <div class="skel skel--title"></div>
+      <div class="skel skel--meta"></div>
+      <div class="skel skel--total"></div>
+    } @else {
+      <h1 class="family-title">{{ event()?.name }}</h1>
+      <p class="family-venue">{{ event()?.venue }} · {{ event()?.eventDate }}</p>
+
+      <div class="family-total">
+        <span class="family-total-label">Received so far</span>
+        <span class="family-total-value">{{ totalLabel() }}</span>
+        <span class="family-total-meta">
+          {{ donorCount() }} {{ donorCount() === 1 ? 'well-wisher' : 'well-wishers' }}
+          · updated {{ lastUpdated() }}
+        </span>
+      </div>
+    }
+  </header>
+
+  @if (!loading() && !isEmpty()) {
+    <div class="family-breakdown">
+      @for (slice of slices(); track slice.type) {
+        <div class="slice">
+          <span class="slice-bar" [class]="'slice-bar--' + slice.type" [style.width.%]="slice.percent || 2"></span>
+          <span class="slice-value">{{ slice.valueLabel }}</span>
+          <span class="t-tertiary">{{ slice.label }}</span>
+        </div>
+      }
+    </div>
+  }
+
+  <div class="family-list-head">
+    <h2 class="section-label">Who has given</h2>
+    @if (!isEmpty()) {
+      <button type="button" class="btn-ghost" (click)="openExport()">
+        Export list
+        <mat-icon>download</mat-icon>
+      </button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="family-list">
+      @for (i of skeletons; track i) {
+        <div class="skel-row">
+          <div class="skel skel--line"></div>
+          <div class="skel skel--amount"></div>
+        </div>
+      }
+    </div>
+  } @else if (isEmpty()) {
+    <!-- Empty here is the normal state before the doors open, so it reassures rather than
+         looking like a failure. -->
+    <div class="family-empty glass">
+      <mat-icon class="family-empty-icon">volunteer_activism</mat-icon>
+      <p class="t-card-title">Nothing yet — that's normal</p>
+      <p class="t-caption">
+        The first donation will appear here the moment an operator records it. You don't need to
+        refresh — this page updates itself.
+      </p>
+    </div>
+  } @else {
+    <div class="family-list">
+      @for (d of donations(); track d.id; let first = $first) {
+        <app-donation-row [donation]="d" [isNew]="first" [showPhone]="false" [showRecordedBy]="false" />
+      }
+    </div>
+  }
+</section>
+
+@if (exportOpen()) {
+<div class="sheet-scrim" (click)="closeExport()">
+  <div class="sheet glass" role="dialog" aria-label="Export the donor list" (click)="$event.stopPropagation()">
+    <span class="sheet-grip" aria-hidden="true"></span>
+    <h2 class="t-page-title">Export the donor list</h2>
+    <p class="t-secondary sheet-intro">
+      You'll get a spreadsheet you can share with the elders. Personal contact details are removed
+      before the file is built.
+    </p>
+
+    <div class="sheet-cols">
+      <p class="sub-label">Columns in your file</p>
+      <ul>
+        @for (col of exportColumns; track col.label) {
+          <li>
+            <mat-icon [class.is-in]="col.included" [class.is-out]="!col.included">
+              {{ col.included ? 'check' : 'close' }}
+            </mat-icon>
+            <span class="t-caption">{{ col.label }}</span>
+            <span class="tag" [class.tag-default]="col.included" [class.tag-error]="!col.included">
+              {{ col.included ? 'Included' : 'Removed' }}
+            </span>
+          </li>
+        }
+      </ul>
+    </div>
+
+    <p class="t-tertiary sheet-meta">
+      {{ donorCount() }} rows · summary row included
+    </p>
+
+    <button type="button" class="btn btn-primary sheet-cta">Download .xlsx</button>
+    <button type="button" class="btn-ghost sheet-dismiss" (click)="closeExport()">Not now</button>
+  </div>
+</div>
+}

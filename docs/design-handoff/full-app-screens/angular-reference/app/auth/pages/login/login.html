@@ -1,0 +1,102 @@
+<main class="auth">
+  <!-- Left panel: brand + the promise. Present on desktop only; on mobile the form is
+       everything, because an operator signing in at a door has no patience for a pitch. -->
+  <aside class="auth-brand">
+    <div class="brand-mark">
+      <span class="brand-bars" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </span>
+      <span class="brand-name">Givio</span>
+    </div>
+
+    <div class="brand-pitch">
+      <h1 class="brand-headline">Every gift, accounted for.</h1>
+      <p class="brand-body">
+        Record donations at the door in under 30 seconds — with or without internet. Families watch
+        the total rise live.
+      </p>
+    </div>
+
+    <ul class="brand-stats">
+      @for (s of stats; track s.label) {
+        <li>
+          <span class="brand-stat-value">{{ s.value }}</span>
+          <span class="brand-stat-label">{{ s.label }}</span>
+        </li>
+      }
+    </ul>
+  </aside>
+
+  <section class="auth-panel">
+    @if (locked()) {
+      <!-- Lockout is never a dead end: two real routes forward. -->
+      <div class="lockout">
+        <span class="lockout-ring">{{ lockoutMinutes }}</span>
+        <h2 class="auth-title">Too many attempts</h2>
+        <p class="auth-sub">
+          For your account's protection, sign-in is paused for {{ lockoutMinutes }} minutes. You can
+          still reach an event with a family code, or ask your Admin to reset your password.
+        </p>
+        <div class="lockout-actions">
+          <a class="btn btn-primary" routerLink="/forgot-password">Reset my password</a>
+          <a class="btn btn-secondary" routerLink="/family">Use a family code instead</a>
+        </div>
+      </div>
+    } @else {
+      <h2 class="auth-title">Sign in</h2>
+      <p class="auth-sub">Welcome back. Let's pick up where you left off.</p>
+
+      @if (serverError(); as err) {
+        <div class="auth-error" role="alert">
+          <p class="auth-error-title">{{ err }}</p>
+          @if (attemptWarning(); as warn) {
+            <p class="auth-error-detail">{{ warn }}</p>
+          }
+        </div>
+      }
+
+      <form class="auth-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="field">
+          <label class="field-label" for="email">Email address</label>
+          <input id="email" class="input" type="email" formControlName="email"
+                 autocomplete="username" placeholder="name@givio.app"
+                 [class.is-invalid]="invalid('email')" />
+          @if (invalid('email')) { <p class="field-error">Enter a valid email address.</p> }
+        </div>
+
+        <div class="field">
+          <div class="field-label-row">
+            <label class="field-label" for="password">Password</label>
+            <a class="field-link" routerLink="/forgot-password">Forgot password?</a>
+          </div>
+          <div class="password-wrap" [class.is-invalid]="invalid('password') || !!serverError()">
+            <input id="password" class="password-input"
+                   [type]="showPassword() ? 'text' : 'password'"
+                   formControlName="password" autocomplete="current-password" />
+            <button type="button" class="password-toggle" (click)="togglePassword()"
+                    [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
+              {{ showPassword() ? 'Hide' : 'Show' }}
+            </button>
+          </div>
+          @if (invalid('password')) { <p class="field-error">Enter your password.</p> }
+        </div>
+
+        <button type="submit" class="btn btn-primary auth-submit" [disabled]="busy()">
+          {{ busy() ? 'Signing in…' : 'Sign in' }}
+        </button>
+      </form>
+
+      <div class="auth-divider"><span>or</span></div>
+
+      <a class="btn btn-secondary auth-alt" routerLink="/family">
+        <span>I have an event code</span>
+        <span class="auth-alt-note">— family access</span>
+      </a>
+
+      <p class="auth-foot">
+        Sessions end automatically after 30 minutes of inactivity. Every sign-in is written to the
+        audit trail.
+      </p>
+    }
+  </section>
+</main>
