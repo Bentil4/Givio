@@ -16,8 +16,9 @@ export const environment: {
   setRoleFunctionId: 'YOUR_DEPLOYED_SET_ROLE_FUNCTION_ID',
   // Console → Databases → click the database → $id.
   appwriteDatabaseId: 'YOUR_APPWRITE_DATABASE_ID',
-  // Console → Databases → your database → Collections → events → $id.
-  eventsCollectionId: 'YOUR_EVENTS_COLLECTION_ID',
-  // Console → Databases → your database → Collections → audit_logs → $id.
-  auditLogsCollectionId: 'YOUR_AUDIT_LOGS_COLLECTION_ID'
+  // Console → Databases → your database → Tables → events → $id (TablesDB; despite the
+  // "CollectionId" name, this holds a Table ID — the app uses Appwrite's TablesDB/Row API).
+  eventsCollectionId: 'YOUR_EVENTS_TABLE_ID',
+  // Console → Databases → your database → Tables → audit_logs → $id.
+  auditLogsCollectionId: 'YOUR_AUDIT_LOGS_TABLE_ID'
 };

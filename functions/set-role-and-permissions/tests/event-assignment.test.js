@@ -43,8 +43,8 @@ function fakeContext({ body, headers = {}, getAccount, users = {}, databases = {
   }
 
   class DatabasesCtor {
-    getDocument = record('getDocument', databases);
-    updateDocument = record('updateDocument', databases);
+    getRow = record('getRow', databases);
+    updateRow = record('updateRow', databases);
   }
 
   const res = {
@@ -107,7 +107,7 @@ test(
     const result = await handleEventAssignmentRequest(ctx);
 
     assert.equal(result.status, 403);
-    assert.equal(calls.getDocument, undefined);
+    assert.equal(calls.getRow, undefined);
   }),
 );
 
@@ -138,7 +138,7 @@ test(
     const result = await handleEventAssignmentRequest(ctx);
 
     assert.equal(result.status, 400);
-    assert.equal(calls.getDocument, undefined);
+    assert.equal(calls.getRow, undefined);
   }),
 );
 
@@ -205,7 +205,7 @@ test(
 
     assert.equal(result.status, 400);
     assert.match(result.body.error, /ghost/);
-    assert.equal(calls.getDocument, undefined);
+    assert.equal(calls.getRow, undefined);
   }),
 );
 
@@ -223,7 +223,7 @@ test(
 
     assert.equal(result.status, 400);
     assert.match(result.body.error, /not an Operator/);
-    assert.equal(calls.getDocument, undefined);
+    assert.equal(calls.getRow, undefined);
   }),
 );
 
@@ -236,8 +236,8 @@ test(
       getAccount: asAdmin,
       users: { get: async (args) => asOperatorAccount(args.userId) },
       databases: {
-        getDocument: async () => {
-          throw new Error('document_not_found');
+        getRow: async () => {
+          throw new Error('row_not_found');
         },
       },
     });
@@ -249,7 +249,7 @@ test(
 );
 
 test(
-  'on success, writes assignedUserIds and admin+per-operator read permissions in one updateDocument call',
+  'on success, writes assignedUserIds and admin+per-operator read permissions in one updateRow call',
   withEnv(async () => {
     const { ctx, calls } = fakeContext({
       body: { action: 'assignOperators', eventId: 'e1', assignedUserIds: ['op-1', 'op-2'] },
@@ -257,8 +257,8 @@ test(
       getAccount: asAdmin,
       users: { get: async (args) => asOperatorAccount(args.userId) },
       databases: {
-        getDocument: async () => ({ $id: 'e1' }),
-        updateDocument: async () => ({ $id: 'e1' }),
+        getRow: async () => ({ $id: 'e1' }),
+        updateRow: async () => ({ $id: 'e1' }),
       },
     });
 
@@ -267,11 +267,11 @@ test(
     assert.equal(result.status, 200);
     assert.deepEqual(result.body, { success: true, eventId: 'e1', assignedUserIds: ['op-1', 'op-2'] });
 
-    assert.equal(calls.updateDocument.length, 1);
-    const [update] = calls.updateDocument[0];
+    assert.equal(calls.updateRow.length, 1);
+    const [update] = calls.updateRow[0];
     assert.equal(update.databaseId, 'db-1');
-    assert.equal(update.collectionId, 'events-1');
-    assert.equal(update.documentId, 'e1');
+    assert.equal(update.tableId, 'events-1');
+    assert.equal(update.rowId, 'e1');
     assert.deepEqual(update.data, { assignedUserIds: ['op-1', 'op-2'] });
     assert.equal(update.permissions.length, 5); // 3 admin + 2 operator
   }),
@@ -285,29 +285,29 @@ test(
       headers: ADMIN_HEADERS,
       getAccount: asAdmin,
       databases: {
-        getDocument: async () => ({ $id: 'e1' }),
-        updateDocument: async () => ({ $id: 'e1' }),
+        getRow: async () => ({ $id: 'e1' }),
+        updateRow: async () => ({ $id: 'e1' }),
       },
     });
 
     const result = await handleEventAssignmentRequest(ctx);
 
     assert.equal(result.status, 200);
-    const [update] = calls.updateDocument[0];
+    const [update] = calls.updateRow[0];
     assert.equal(update.permissions.length, 3); // admin CRUD only
   }),
 );
 
 test(
-  'returns a structured 502, not a throw, when updateDocument fails',
+  'returns a structured 502, not a throw, when updateRow fails',
   withEnv(async () => {
     const { ctx } = fakeContext({
       body: { action: 'assignOperators', eventId: 'e1', assignedUserIds: [] },
       headers: ADMIN_HEADERS,
       getAccount: asAdmin,
       databases: {
-        getDocument: async () => ({ $id: 'e1' }),
-        updateDocument: async () => {
+        getRow: async () => ({ $id: 'e1' }),
+        updateRow: async () => {
           throw new Error('boom');
         },
       },

@@ -7,11 +7,11 @@ import { appDb } from '../dexie/app-db';
 
 describe('EventDataService', () => {
   let service: EventDataService;
-  let databases: { createDocument: ReturnType<typeof vi.fn>; updateDocument: ReturnType<typeof vi.fn> };
+  let databases: { createRow: ReturnType<typeof vi.fn>; updateRow: ReturnType<typeof vi.fn> };
   let functions: { createExecution: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
-    databases = { createDocument: vi.fn(), updateDocument: vi.fn() };
+    databases = { createRow: vi.fn(), updateRow: vi.fn() };
     functions = { createExecution: vi.fn() };
     TestBed.configureTestingModule({
       providers: [
@@ -34,8 +34,8 @@ describe('EventDataService', () => {
   });
 
   describe('createEvent', () => {
-    it('writes to Dexie and calls createDocument with the right shape', async () => {
-      databases.createDocument.mockResolvedValueOnce({});
+    it('writes to Dexie and calls createRow with the right shape', async () => {
+      databases.createRow.mockResolvedValueOnce({});
 
       const event = await service.createEvent({
         name: 'Ama & Kojo',
@@ -48,16 +48,16 @@ describe('EventDataService', () => {
       expect(event.assignedUserIds).toEqual([]);
       expect(event.nextReceiptSeq).toBe(0);
       expect(await appDb.events.get(event.id)).toMatchObject({ name: 'Ama & Kojo' });
-      expect(databases.createDocument).toHaveBeenCalledWith(
+      expect(databases.createRow).toHaveBeenCalledWith(
         expect.objectContaining({
-          documentId: event.id,
+          rowId: event.id,
           data: expect.objectContaining({ status: 'active', assignedUserIds: [], nextReceiptSeq: 0 }),
         }),
       );
     });
 
-    it('still resolves with the created Event when createDocument rejects', async () => {
-      databases.createDocument.mockRejectedValueOnce(new Error('offline'));
+    it('still resolves with the created Event when createRow rejects', async () => {
+      databases.createRow.mockRejectedValueOnce(new Error('offline'));
 
       const event = await service.createEvent({
         name: 'Offline Event',
@@ -100,7 +100,7 @@ describe('EventDataService', () => {
       );
     });
 
-    it('writes the merged patch to Dexie and calls updateDocument', async () => {
+    it('writes the merged patch to Dexie and calls updateRow', async () => {
       await appDb.events.put({
         id: 'active-1',
         name: 'Original Name',
@@ -114,15 +114,15 @@ describe('EventDataService', () => {
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
       });
-      databases.updateDocument.mockResolvedValueOnce({});
-      databases.createDocument.mockResolvedValueOnce({});
+      databases.updateRow.mockResolvedValueOnce({});
+      databases.createRow.mockResolvedValueOnce({});
 
       const updated = await service.updateEvent('active-1', { name: 'New Name' });
 
       expect(updated.name).toBe('New Name');
       expect((await appDb.events.get('active-1'))?.name).toBe('New Name');
-      expect(databases.updateDocument).toHaveBeenCalledWith(
-        expect.objectContaining({ documentId: 'active-1', data: expect.objectContaining({ name: 'New Name' }) }),
+      expect(databases.updateRow).toHaveBeenCalledWith(
+        expect.objectContaining({ rowId: 'active-1', data: expect.objectContaining({ name: 'New Name' }) }),
       );
     });
 
@@ -141,17 +141,17 @@ describe('EventDataService', () => {
         updatedAt: '2026-01-01T00:00:00.000Z',
       });
 
-      // Sync succeeds → audit log written (2nd createDocument call, after the update itself).
-      databases.updateDocument.mockResolvedValueOnce({});
-      databases.createDocument.mockResolvedValueOnce({});
+      // Sync succeeds → audit log written (2nd createRow call, after the update itself).
+      databases.updateRow.mockResolvedValueOnce({});
+      databases.createRow.mockResolvedValueOnce({});
       await service.updateEvent('active-2', { name: 'Synced Update' });
-      expect(databases.createDocument).toHaveBeenCalledTimes(1);
+      expect(databases.createRow).toHaveBeenCalledTimes(1);
 
       // Sync fails (offline) → audit log is skipped entirely.
-      databases.createDocument.mockClear();
-      databases.updateDocument.mockRejectedValueOnce(new Error('offline'));
+      databases.createRow.mockClear();
+      databases.updateRow.mockRejectedValueOnce(new Error('offline'));
       await service.updateEvent('active-2', { name: 'Pending Update' });
-      expect(databases.createDocument).not.toHaveBeenCalled();
+      expect(databases.createRow).not.toHaveBeenCalled();
     });
   });
 
