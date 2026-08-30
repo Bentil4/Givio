@@ -1,0 +1,89 @@
+@if (loading()) {
+  <section class="page">
+    <div class="dialog glass">
+      <div class="skel-row"><span class="skel skel--lg"></span></div>
+      <div class="skel-row"><span class="skel skel--lg"></span></div>
+      <div class="skel-row"><span class="skel skel--lg"></span></div>
+    </div>
+  </section>
+} @else if (notFound()) {
+  <section class="page">
+    <div class="empty glass">
+      <mat-icon class="empty-icon">event_busy</mat-icon>
+      <p class="t-card-title">Event not found</p>
+      <p class="t-caption">It may not have synced to this device yet, or the link is wrong.</p>
+      <a class="btn btn-secondary" routerLink="/dashboard/events">Back to events</a>
+    </div>
+  </section>
+} @else {
+  <section class="page">
+    <header class="page-head">
+      <div>
+        <h1 class="t-page-title">Edit event</h1>
+        <p class="t-secondary">Update {{ event()?.name }}'s basic record.</p>
+      </div>
+    </header>
+
+    @if (event()?.status === 'closed') {
+      <div class="code-note" role="alert">
+        <mat-icon>lock</mat-icon>
+        <p class="t-caption">This event is closed and can no longer be edited.</p>
+      </div>
+    }
+
+    @if (formError(); as error) {
+      <div class="code-note" role="alert">
+        <mat-icon>error_outline</mat-icon>
+        <p class="t-caption">{{ error }}</p>
+      </div>
+    }
+
+    <form class="dialog glass" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <div class="dialog-body">
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="evName">Event name <span class="req" aria-hidden="true">*</span></label>
+            <input id="evName" class="input" type="text" formControlName="name"
+                   [class.is-invalid]="invalid('name')" />
+            @if (invalid('name')) { <p class="field-error">Give the event a name people will recognise.</p> }
+          </div>
+          <div class="field">
+            <label class="field-label" for="evDate">Event date <span class="req" aria-hidden="true">*</span></label>
+            <input id="evDate" class="input" type="date" formControlName="date"
+                   [class.is-invalid]="invalid('date')" />
+            @if (invalid('date')) { <p class="field-error">Pick the date of the service.</p> }
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="evHost">Host / family name <span class="req" aria-hidden="true">*</span></label>
+          <input id="evHost" class="input" type="text" formControlName="hostName"
+                 [class.is-invalid]="invalid('hostName')" />
+          @if (invalid('hostName')) { <p class="field-error">Enter the host or family name.</p> }
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="evVenue">Venue</label>
+          <input id="evVenue" class="input" type="text" formControlName="venue" />
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="evDescription">Description</label>
+          <textarea id="evDescription" class="input textarea" rows="3" formControlName="description"></textarea>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="evNotes">Notes</label>
+          <textarea id="evNotes" class="input textarea" rows="3" formControlName="notes"></textarea>
+        </div>
+      </div>
+
+      <footer class="dialog-foot">
+        <a class="btn btn-secondary" routerLink="/dashboard/events">Cancel</a>
+        <button type="submit" class="btn btn-primary" [disabled]="form.invalid || event()?.status === 'closed'">
+          {{ submitting() ? 'Saving…' : 'Save changes' }}
+        </button>
+      </footer>
+    </form>
+  </section>
+}

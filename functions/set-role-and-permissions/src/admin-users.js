@@ -1,18 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import { Client, Account, Users, ID, Query } from 'node-appwrite';
-
-// Keep in sync with src/app/data/stores/auth-store.ts's ROLE_LABELS — the two run in
-// separate deployments (this Function vs. the Angular app) with no shared module system,
-// so there's no way to import one list into the other; update both by hand.
-const VALID_ROLES = ['admin', 'operator'];
+import { VALID_ROLES, buildClient, verifyAdminCaller, VALID, invalid, hasValue } from './shared.js';
 
 const ACTIONS = ['listUsers', 'createUser', 'updateUser', 'setStatus', 'forceExpireSessions'];
 
 const LIST_PAGE_SIZE = 100;
-
-function buildClient(ClientCtor, endpoint, projectId) {
-  return new ClientCtor().setEndpoint(endpoint).setProject(projectId);
-}
 
 function mapUser(u) {
   return {
@@ -27,44 +19,6 @@ function mapUser(u) {
 
 function isDuplicateEmailError(err) {
   return err?.code === 409 || err?.type === 'user_already_exists';
-}
-
-function hasValue(field) {
-  return typeof field === 'string' && field.length > 0;
-}
-
-/**
- * Verifies the caller via their JWT (never the spoofable x-appwrite-user-id header) —
- * runs before any action-specific payload parsing/validation, so an unauthenticated or
- * non-admin caller always gets 401/403 first, regardless of what action they asked for.
- */
-async function verifyAdminCaller({ req, ClientCtor, AccountCtor, endpoint, projectId, error }) {
-  const callerJwt = req.headers['x-appwrite-user-jwt'];
-  if (!callerJwt) {
-    return { errorResponse: { status: 401, body: { error: 'Unauthenticated' } } };
-  }
-
-  const callerClient = buildClient(ClientCtor, endpoint, projectId).setJWT(callerJwt);
-
-  let caller;
-  try {
-    caller = await new AccountCtor(callerClient).get();
-  } catch (err) {
-    error(`Caller JWT verification failed: ${err.message}`);
-    return { errorResponse: { status: 401, body: { error: 'Unauthenticated' } } };
-  }
-
-  if (!(caller.labels ?? []).includes('admin')) {
-    return { errorResponse: { status: 403, body: { error: 'Forbidden' } } };
-  }
-
-  return { caller };
-}
-
-const VALID = { valid: true };
-
-function invalid(error) {
-  return { valid: false, body: { error } };
 }
 
 /** Shared by every action that must not let an admin target their own account. */

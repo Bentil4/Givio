@@ -1,0 +1,94 @@
+<section class="op-list-page">
+  <header class="op-list-head">
+    <a class="op-back" routerLink="/organizer/entry">
+      <mat-icon>arrow_back</mat-icon>
+      <span>Entry desk</span>
+    </a>
+
+    <div class="op-list-title">
+      <h1 class="t-page-title">Today's donations</h1>
+      <p class="t-secondary">
+        {{ eventName() }} · you have recorded {{ myTotalLabel() }}
+      </p>
+    </div>
+
+    <div class="op-list-total">
+      <span class="sub-label">Event total</span>
+      <span class="op-total-value">{{ eventTotalLabel() }}</span>
+    </div>
+  </header>
+
+  @if (pendingNote(); as note) {
+    <!-- Reassurance, not an alarm: pending is a normal state at a Ghanaian venue. -->
+    <div class="op-pending-note">
+      <mat-icon>cloud_off</mat-icon>
+      <p class="t-caption">{{ note }}</p>
+    </div>
+  }
+
+  <div class="op-controls">
+    <div class="filter-search">
+      <mat-icon>search</mat-icon>
+      <input type="search" placeholder="Search donor or receipt number"
+             [value]="search()" (input)="setSearch($any($event.target).value)" />
+    </div>
+
+    <div class="filter-tags">
+      @for (t of tabs(); track t.key) {
+        <button type="button" class="filter-tag" [class.active]="tab() === t.key" (click)="setTab(t.key)">
+          {{ t.label }}
+          <span class="tab-count">{{ t.count }}</span>
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="op-rows glass">
+      @for (i of skeletons; track i) {
+        <div class="skel-row">
+          <span class="skel skel--sm"></span>
+          <span class="skel skel--lg"></span>
+          <span class="skel skel--md"></span>
+        </div>
+      }
+    </div>
+  } @else if (isEmpty()) {
+    <div class="empty glass">
+      <mat-icon class="empty-icon">receipt_long</mat-icon>
+      <p class="t-card-title">{{ emptyCopy().title }}</p>
+      <p class="t-caption">{{ emptyCopy().body }}</p>
+      @if (searching()) {
+        <button type="button" class="btn btn-secondary" (click)="clearSearch()">Clear search</button>
+      }
+    </div>
+  } @else {
+    <div class="op-rows glass">
+      @for (d of visible(); track d.id) {
+        <article class="op-row" [class.is-pending]="isPending(d)">
+          <span class="op-receipt">{{ d.receiptNumber }}</span>
+
+          <span class="op-row-main">
+            <span class="t-body-em">{{ d.donorName }}</span>
+            <span class="t-tertiary">
+              {{ labels[d.donationType] }}@if (d.onBehalfOf) { · {{ d.onBehalfOf }} }
+            </span>
+          </span>
+
+          <span class="op-row-meta">
+            <span class="op-amount">{{ amountLabel(d) }}</span>
+            <span class="t-tertiary">{{ d.recordedAt }}</span>
+          </span>
+
+          <span class="tag" [class]="statusChip(d)">{{ statusLabel(d) }}</span>
+        </article>
+      }
+    </div>
+
+    <!-- Read-only by design: corrections are an Admin action, and this page says so rather
+         than leaving an operator hunting for an edit button that will never exist. -->
+    <p class="op-foot t-caption">
+      Spotted a mistake? Ask an Admin to correct it — they'll record the reason against the receipt.
+    </p>
+  }
+</section>

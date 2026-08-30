@@ -1,0 +1,67 @@
+<main class="code-page">
+  <div class="code-panel">
+    <span class="brand-bars" aria-hidden="true">
+      <span></span><span></span><span></span>
+    </span>
+
+    <h1 class="code-title">Enter your event code</h1>
+    <p class="code-intro">
+      The organiser shared an {{ length }}-character code with your family. It opens a live,
+      read-only view of the giving.
+    </p>
+
+    <!-- One real input behind the boxes: it keeps native paste, autofill and mobile keyboards
+         working, which a per-character input array quietly breaks. -->
+    <label class="code-field">
+      <span class="visually-hidden">Event code</span>
+      <input
+        class="code-input"
+        type="text"
+        inputmode="text"
+        autocapitalize="characters"
+        autocomplete="one-time-code"
+        spellcheck="false"
+        [value]="code()"
+        [disabled]="cooling()"
+        (input)="onInput($any($event.target).value)"
+        (keydown.enter)="submit()"
+      />
+      <span class="code-boxes" aria-hidden="true">
+        @for (box of boxes(); track box.index) {
+          <span class="code-box" [class.is-focused]="box.focused" [class.is-filled]="!!box.char">
+            {{ box.char }}
+          </span>
+        }
+      </span>
+    </label>
+
+    @if (recognisedEvent(); as name) {
+      <!-- Confirmation before commitment: a mistyped code costs nothing to notice here. -->
+      <p class="code-recognised">
+        <span class="code-dot" aria-hidden="true"></span>
+        Code recognised — {{ name }}
+      </p>
+    }
+
+    @if (errorCopy(); as err) {
+      <div class="code-error" role="alert">
+        <p class="code-error-title">{{ err.title }}</p>
+        <p class="code-error-body">{{ err.body }}</p>
+      </div>
+    }
+
+    <button type="button" class="btn btn-primary code-submit" [disabled]="!canSubmit()" (click)="submit()">
+      {{ checking() ? 'Checking…' : 'View the event' }}
+    </button>
+
+    <div class="code-privacy">
+      <mat-icon>lock</mat-icon>
+      <p>
+        Family access is read-only. You will see donor names and amounts — never phone numbers — and
+        you can export a summary at any time.
+      </p>
+    </div>
+
+    <a class="code-staff" routerLink="/login">I'm a staff member — sign in instead</a>
+  </div>
+</main>

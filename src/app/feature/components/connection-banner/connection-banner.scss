@@ -1,0 +1,76 @@
+// Uses only the tokens already defined in src/styles.scss :root.
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 13px var(--space-lg);
+  border-radius: var(--radius-md);
+  border: 1.5px solid;
+  margin-bottom: var(--space-md);
+  font-family: var(--font-body);
+}
+
+.banner--offline {
+  background: rgba(245, 158, 11, .10);
+  border-color: rgba(245, 158, 11, .30);
+  color: #92400e;
+}
+
+.banner--syncing {
+  background: rgba(0, 200, 224, .08);
+  border-color: rgba(26, 107, 122, .25);
+  color: var(--primary-dark);
+}
+
+.banner--synced {
+  background: rgba(34, 197, 94, .12);
+  border-color: rgba(34, 197, 94, .30);
+  color: #15803d;
+}
+
+.banner-icon {
+  flex: none;
+
+  &.is-spinning {
+    animation: givio-spin 900ms linear infinite;
+  }
+}
+
+.banner-copy {
+  flex: 1;
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.banner-heading { font-weight: 700; }
+
+.banner-detail {
+  font-weight: 400;
+  opacity: .85;
+
+  &::before { content: ' '; }
+}
+
+.banner-count {
+  flex: none;
+  font-family: monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.banner-action {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  color: currentColor;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+@keyframes givio-spin { to { transform: rotate(360deg); } }

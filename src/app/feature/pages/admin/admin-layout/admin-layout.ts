@@ -20,10 +20,11 @@ export class AdminLayout {
 
   public navItems: INavbarItem[] = [
     { name: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
-    { name: 'Events', icon: 'event', route: '/events' },
-    { name: 'Donation', icon: 'volunteer_activism', route: '/donation' },
-    { name: 'Report', icon: 'bar_chart', route: '/report' },
-    { name: 'Settings', icon: 'settings', route: '/dashboard/settings' },
+    { name: 'Events', icon: 'event', route: '/dashboard/events' },
+    { name: 'Donations', icon: 'volunteer_activism', route: '/dashboard/donations' },
+    { name: 'Reports', icon: 'bar_chart', route: '/dashboard/reports' },
+    { name: 'Audit trail', icon: 'history', route: '/dashboard/audit' },
+    { name: 'Users', icon: 'group', route: '/dashboard/users' },
   ];
 
   public toggleSidebar(): void {

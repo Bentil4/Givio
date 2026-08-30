@@ -1,0 +1,200 @@
+@use '../admin-donations/admin-donations.scss';
+
+.excluded-note {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1.5px solid rgba(245, 158, 11, .28);
+  border-radius: var(--radius-md);
+  background: rgba(245, 158, 11, .08);
+
+  mat-icon { flex: none; color: var(--func-warning); font-size: 18px; width: 18px; height: 18px; }
+  p { margin: 0; color: #92400e; line-height: 1.55; text-wrap: pretty; }
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+}
+
+.stat-value {
+  font-family: monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--primary-dark);
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: 330px 1fr;
+  gap: var(--space-md);
+}
+
+.chart-card {
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+
+  h2 { margin: 0; }
+}
+
+.chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.chart-none { margin: var(--space-lg) 0 0; }
+
+// ── Donut. A real conic-gradient, so no chart library is needed. ──────
+.donut-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+}
+
+.donut {
+  flex: none;
+  width: 132px;
+  height: 132px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-hole {
+  width: 84px;
+  height: 84px;
+  border-radius: var(--radius-full);
+  background: var(--bg-white);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-count {
+  font-family: monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.legend {
+  flex: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.legend-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+
+  &.is-cash { background: var(--primary-deep); }
+  &.is-mobile_money { background: var(--primary-mid); }
+  &.is-in_kind { background: var(--accent-sky); }
+}
+
+.legend-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.legend-value {
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: var(--data-4);
+}
+
+.legend-pct {
+  flex: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+// ── Hour histogram ────────────────────────────────────────────────────
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  min-height: 150px;
+}
+
+.bar-col {
+  flex: 1;
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.bar-count {
+  font-family: monospace;
+  font-size: 0.62rem;
+  color: var(--data-4);
+}
+
+.bar {
+  width: 100%;
+  min-height: 3px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: var(--primary-deep);
+  transition: height .3s var(--ease);
+
+  &.is-peak { background: var(--primary-mid); }
+}
+
+.bar-label {
+  font-size: 0.62rem;
+  color: var(--data-4);
+}
+
+.export-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+}
+
+.export-copy {
+  flex: 1;
+
+  h2 { margin: 0 0 3px; }
+  p { margin: 0; line-height: 1.55; text-wrap: pretty; }
+}
+
+@media (max-width: 1100px) {
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .chart-grid { grid-template-columns: 1fr; }
+}

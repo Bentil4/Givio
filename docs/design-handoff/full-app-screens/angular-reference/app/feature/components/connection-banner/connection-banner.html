@@ -1,0 +1,20 @@
+@if (visible()) {
+<div class="banner" [class]="'banner--' + state()" role="status" aria-live="polite">
+  <mat-icon class="banner-icon" [class.is-spinning]="state() === 'syncing'">{{ icon() }}</mat-icon>
+
+  <p class="banner-copy">
+    <span class="banner-heading">{{ heading() }}</span>
+    <span class="banner-detail">{{ detail() }}</span>
+  </p>
+
+  @if (state() === 'syncing' && pendingCount() > 0) {
+    <span class="banner-count givio-num">{{ syncedCount() }} / {{ pendingCount() }}</span>
+  }
+
+  @if (state() === 'offline' && pendingCount() > 0) {
+    <button type="button" class="banner-action" (click)="viewQueue.emit()">
+      View queue
+    </button>
+  }
+</div>
+}

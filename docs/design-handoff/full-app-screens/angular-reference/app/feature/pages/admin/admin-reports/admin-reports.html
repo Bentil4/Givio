@@ -1,0 +1,112 @@
+<section class="page">
+  <header class="page-head">
+    <div>
+      <h1 class="t-page-title">Reports</h1>
+      <p class="t-secondary">
+        {{ eventName() || 'Select an event' }}@if (dateRange()) { · {{ dateRange() }} }
+      </p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" [disabled]="exporting() || isEmpty()"
+              (click)="exportXlsx()">
+        <mat-icon>download</mat-icon>
+        {{ exporting() ? 'Preparing…' : 'Export to Excel' }}
+      </button>
+    </div>
+  </header>
+
+  @if (excludedNote(); as note) {
+    <!-- A conflict makes the total incomplete, so the report says so rather than quietly
+         reporting a smaller number as if it were final. -->
+    <div class="excluded-note">
+      <mat-icon>error_outline</mat-icon>
+      <p class="t-caption">{{ note }}</p>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="stat-grid">
+      @for (i of [0, 1, 2, 3]; track i) {
+        <div class="stat-card glass"><span class="skel skel--lg"></span></div>
+      }
+    </div>
+  } @else if (isEmpty()) {
+    <div class="empty glass">
+      <mat-icon class="empty-icon">insights</mat-icon>
+      <p class="t-card-title">No data to report yet</p>
+      <p class="t-caption">
+        Figures and charts appear once the first donation is recorded. The export will be ready at
+        the same moment.
+      </p>
+    </div>
+  } @else {
+    <div class="stat-grid">
+      @for (s of stats(); track s.key) {
+        <article class="stat-card glass">
+          <span class="sub-label">{{ s.key }}</span>
+          <span class="stat-value">{{ s.value }}</span>
+          <span class="t-tertiary">{{ s.sub }}</span>
+        </article>
+      }
+    </div>
+
+    <div class="chart-grid">
+      <article class="chart-card glass">
+        <h2 class="t-card-title">By donation type</h2>
+        <div class="donut-row">
+          <div class="donut" [style.background]="donutGradient()">
+            <div class="donut-hole">
+              <span class="donut-count">{{ donations().length }}</span>
+              <span class="t-tertiary">donors</span>
+            </div>
+          </div>
+          <ul class="legend">
+            @for (s of slices(); track s.type) {
+              <li class="legend-item">
+                <span class="legend-dot" [class]="colorClass(s.type)"></span>
+                <span class="legend-body">
+                  <span class="t-body-em">{{ s.label }}</span>
+                  <span class="legend-value">{{ s.valueLabel }}</span>
+                </span>
+                <span class="legend-pct">{{ s.percent }}%</span>
+              </li>
+            }
+          </ul>
+        </div>
+      </article>
+
+      <article class="chart-card glass">
+        <div class="chart-head">
+          <h2 class="t-card-title">Giving through the day</h2>
+          @if (peakLabel()) { <span class="t-tertiary">{{ peakLabel() }}</span> }
+        </div>
+        @if (hourBars().length === 0) {
+          <p class="t-secondary chart-none">Not enough recorded times to chart yet.</p>
+        } @else {
+          <div class="bars">
+            @for (b of hourBars(); track b.hour) {
+              <div class="bar-col">
+                <span class="bar-count">{{ b.count }}</span>
+                <span class="bar" [class.is-peak]="b.isPeak" [style.height.%]="b.heightPercent"></span>
+                <span class="bar-label">{{ b.hour }}</span>
+              </div>
+            }
+          </div>
+        }
+      </article>
+    </div>
+
+    <aside class="export-note glass">
+      <div class="export-copy">
+        <h2 class="t-card-title">The export the family actually asked for</h2>
+        <p class="t-caption">
+          One sheet, every column, a totals row, and the event's summary at the top. Built on this
+          device from validated data — soft-deleted and unresolved records are left out.
+        </p>
+      </div>
+      <button type="button" class="btn btn-primary" [disabled]="exporting()" (click)="exportXlsx()">
+        Generate .xlsx
+      </button>
+    </aside>
+  }
+</section>

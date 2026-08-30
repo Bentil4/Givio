@@ -1,0 +1,86 @@
+@use '../admin-donations/admin-donations.scss';
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.user-avatar {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: rgba(0, 200, 224, .14);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--primary-deep);
+}
+
+// Radio cards rather than a bare select: each role's consequence is part of the choice,
+// not something the Admin has to remember from the docs.
+.role-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.role-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: 13px var(--space-md);
+  border: 1.5px solid rgba(26, 107, 122, .15);
+  border-radius: var(--radius-md);
+  background: var(--bg-white);
+  text-align: left;
+  cursor: pointer;
+  transition: all .18s var(--ease);
+
+  &:hover:not(.is-selected) { border-color: var(--primary-deep); }
+
+  &.is-selected {
+    border-color: var(--primary-deep);
+    background: rgba(0, 200, 224, .07);
+  }
+}
+
+.role-radio {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border-radius: var(--radius-full);
+  border: 5px solid rgba(26, 107, 122, .25);
+  transition: border-color .18s var(--ease);
+
+  .role-card.is-selected & { border-color: var(--primary-deep); }
+}
+
+.role-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.code-note {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1.5px solid rgba(0, 200, 224, .25);
+  border-radius: var(--radius-md);
+  background: rgba(0, 200, 224, .07);
+
+  mat-icon { flex: none; color: var(--primary-deep); font-size: 18px; width: 18px; height: 18px; }
+  p { margin: 0; line-height: 1.55; text-wrap: pretty; }
+}
+
+.confirm-body {
+  margin: 0;
+  line-height: 1.6;
+  text-wrap: pretty;
+}

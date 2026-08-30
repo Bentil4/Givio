@@ -1,0 +1,76 @@
+@use '../admin-donations/admin-donations.scss';
+
+.trail {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.trail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid rgba(26, 107, 122, .07);
+
+  &:last-child { border-bottom: 0; }
+  &:hover { background: rgba(0, 200, 224, .04); }
+}
+
+// Fixed gutter so timestamps form a scannable column rather than a ragged edge.
+.trail-time {
+  flex: none;
+  width: 128px;
+  padding-top: 2px;
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: var(--data-4);
+}
+
+.trail-tag {
+  flex: none;
+  width: 78px;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  text-align: center;
+
+  &.is-neutral { background: var(--bg-mist); color: var(--data-4); }
+  &.is-edit { background: rgba(0, 200, 224, .14); color: var(--primary-dark); }
+  &.is-recover { background: rgba(34, 197, 94, .14); color: #15803d; }
+  &.is-delete { background: rgba(245, 158, 11, .14); color: #92400e; }
+  &.is-security { background: rgba(239, 68, 68, .12); color: var(--func-error); }
+}
+
+.trail-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trail-detail {
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.trail-actor {
+  flex: none;
+  width: 130px;
+  padding-top: 2px;
+  font-size: 0.75rem;
+  color: var(--data-4);
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .trail-row { flex-wrap: wrap; }
+  .trail-time { width: auto; }
+  .trail-actor { width: auto; text-align: left; }
+}

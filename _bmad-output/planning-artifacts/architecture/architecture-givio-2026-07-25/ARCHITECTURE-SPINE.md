@@ -3,7 +3,7 @@ name: 'Givio Donation Management System'
 type: architecture-spine
 purpose: build-substrate
 altitude: feature
-paradigm: 'Layered (Presentation -> Domain/State -> Data-Repository) with an offline-first Outbox, permissions mechanically derived from data'
+paradigm: 'Layered (Presentation -> Domain/State -> Data) with an offline-first Outbox, permissions mechanically derived from data'
 scope: 'Appwrite data model & permissions, offline-first Dexie sync, RBAC, and the Angular module boundaries all 26 planned screens build against'
 status: final
 created: '2026-07-25'
@@ -26,13 +26,13 @@ companions: []
 
 1. **Presentation** — `feature/{admin,organizer,member}` page trees (1:1 with the screen specs in `.claude/skills/plan/`) + `shared/components` UI library.
 2. **Domain/State** — signal-based services (`AuthService`, `EventService`, `DonationService`, `SyncService`, `ReportService`). Root-provided, no NgRx. (Renamed from an earlier `*Store` suffix convention — mid-Epic-1 decision, see Story 1.4 — since "Store" read as implying Redux/NgRx to readers unfamiliar with the codebase; these are plain injectable Angular services holding signal-based state, nothing more.)
-3. **Data** — one repository per aggregate (`EventRepository`, `DonationRepository`, `ConflictRepository`, `AuditRepository`), each the *only* code allowed to import `appwrite` or `dexie`. Each repository writes Dexie first and queues an **Outbox** entry for remote sync.
+3. **Data** — one data-access class per aggregate (`EventDataService`, `DonationDataService`, `ConflictDataService`, `AuditDataService`), each the *only* code allowed to import `appwrite` or `dexie`. Each writes Dexie first and queues an **Outbox** entry for remote sync. (Renamed from an earlier `*Repository` suffix — Story 2.1 decision — since the Domain/State layer already reserves `EventService`/`DonationService` for the same entities; `*DataService` disambiguates the two layers without reintroducing a Redux-sounding `*Store`/`*Repository` name. A Data-layer class with no same-named Domain/State counterpart, e.g. `UserService`, keeps the plain `<Entity>Service` name.)
 
 ```mermaid
 flowchart TD
   Presentation["Presentation\nfeature/admin, feature/organizer, feature/member\n+ shared/components"]
   Domain["Domain/State\nAuthService, EventService, DonationService, SyncService, ReportService"]
-  Data["Data\nEventRepository, DonationRepository, ConflictRepository, AuditRepository\n(only layer touching appwrite/dexie)"]
+  Data["Data\nEventDataService, DonationDataService, ConflictDataService, AuditDataService\n(only layer touching appwrite/dexie)"]
   Function[("1 Appwrite Function\nsets Labels + derives doc permissions")]
   Appwrite[("Appwrite\nAccount, Databases, Realtime")]
   Dexie[("Dexie / IndexedDB")]
@@ -43,7 +43,7 @@ flowchart TD
   Data -- "Change Role call" --> Function --> Appwrite
 ```
 
-- **Rule:** dependencies flow strictly downward. Presentation never imports `appwrite`/`dexie`; Domain/State never imports them either — both go through Data repositories. The one Appwrite Function is invoked only from `data/repositories`, never from Presentation directly.
+- **Rule:** dependencies flow strictly downward. Presentation never imports `appwrite`/`dexie`; Domain/State never imports them either — both go through the Data layer. The one Appwrite Function is invoked only from `data/services`' Data-layer classes, never from Presentation directly.
 
 ## Invariants & Rules
 
@@ -61,13 +61,13 @@ flowchart TD
 
 ### AD-3 — Conflict detection compares `$updatedAt`; conflicts resolved server-side only, Admin-only
 
-- **Binds:** `SyncEngine`, `DonationRepository`
+- **Binds:** `SyncEngine`, `DonationDataService`
 - **Prevents:** two builders inventing different "what counts as a conflict" logic, and a second offline conflict-review UI for a scenario PRD scopes as Admin-only online (PRD §10.2: "Conflict Resolution — Admin only").
 - **Rule:** per PRD §8.3 exactly — every outbox *update* entry carries `baseUpdatedAt` (the server `$updatedAt` seen when the local edit began). On push, if the server document's current `$updatedAt` no longer matches `baseUpdatedAt`, it's a conflict: the incoming version is written to a `DonationConflicts` collection (`Role.label('admin')` only, references both versions), the server document is left untouched, and the local record's `syncStatus` is set to `'conflict'` (reusing the enum PRD §9.1 already defines). The shared `sync-status` screen's conflict-resolution section renders only when `Role.label('admin')` is present; other viewers of that screen see pending/synced counts only, never conflict diffs.
 
 ### AD-4 — Offline writes go through a per-entity Dexie Outbox with client-generated IDs
 
-- **Binds:** `DonationRepository`, `EventRepository`, `SyncEngine`
+- **Binds:** `DonationDataService`, `EventDataService`, `SyncEngine`
 - **Prevents:** divergent "when do we talk to Appwrite" logic per screen; duplicate documents from retried creates; one slow/stuck entity blocking every other entity's sync.
 - **Rule:** every mutation writes to its local Dexie table **and** appends an outbox entry: `{ id, entityType: 'event'|'donation', entityId, op: 'create'|'update'|'delete', payload, baseUpdatedAt (update ops only), status: 'pending'|'synced'|'conflict'|'failed', retries, createdAt }`. `entityId` for a `create` is generated client-side via `ID.unique()` at the moment of creation (no network needed), so retrying a `create` is an idempotent upsert-by-id, never a duplicate. `SyncEngine` (root service) drains the outbox **per-entity FIFO** — each entity's own mutations apply in order, but entity A's queue never blocks entity B's. Donation entry/edit/receipt generation must work fully offline (FR-OFF-002).
 
@@ -97,9 +97,9 @@ flowchart TD
 
 ### AD-9 — One Appwrite Function is the sole writer of Labels and derived permissions
 
-- **Binds:** `data/repositories`, admin-settings "Change Role" and "Assign Operators" actions
+- **Binds:** `data/services`, admin-settings "Change Role" and "Assign Operators" actions
 - **Prevents:** AD-1 requiring server-only Label writes and AD-2 requiring bulk permission rewrites, while the rest of the architecture is pure-client with no backend of its own — without this, those two ADs would be unimplementable.
-- **Rule:** a single Appwrite Function is the only code that ever sets a user Label or rewrites an Event/Donation document's derived permissions. It's invoked by `data/repositories` (never directly from Presentation) when an Admin changes a user's role or edits `assignedUserIds`/`accessCode`. *(This is a real, small scope addition beyond the PRD's v1.0 architecture section, which names an Appwrite Function only as an optional v1.1 item for Excel export — flagged for the user/PRD to note explicitly.)*
+- **Rule:** a single Appwrite Function is the only code that ever sets a user Label or rewrites an Event/Donation document's derived permissions. It's invoked by the Data layer (`data/services`, never directly from Presentation) when an Admin changes a user's role or edits `assignedUserIds`/`accessCode`. *(This is a real, small scope addition beyond the PRD's v1.0 architecture section, which names an Appwrite Function only as an optional v1.1 item for Excel export — flagged for the user/PRD to note explicitly.)*
 
 ### AD-10 — v1 share access is the PRD baseline only
 
@@ -111,8 +111,8 @@ flowchart TD
 
 | Concern | Convention |
 | --- | --- |
-| Naming (entities, files, interfaces, events) | Entities follow PRD §9.1 exactly: `Event`, `Donation`, `DonationConflict`, `AuditLogEntry` (PascalCase, singular). Repositories: `<Entity>Repository`. Signal-based state holders: `<Entity>Service` (e.g. `AuthService`, `EventService`) — not `<Entity>Store`, to avoid implying Redux/NgRx (renamed mid-Epic-1, see Story 1.4). IDs are Appwrite `$id` strings, client-generated via `ID.unique()` for offline creates (AD-4) — never a separate numeric id. |
-| Data & formats (ids, dates, error shapes, envelopes) | Dates: ISO 8601 strings (never a bare `Date` — `.instructions.md` already forbids assuming `new Date()` globals). Money: integer minor units (AD-5). Deletes are soft (`isDeleted`/`deletedAt`/`deletedBy` per PRD §9.1) — never a hard Appwrite document delete. Errors: repositories translate `AppwriteException` into a domain-level `RepositoryError` before it reaches Domain/State — Presentation never sees an Appwrite-shaped error. |
+| Naming (entities, files, interfaces, events) | Entities follow PRD §9.1 exactly: `Event`, `Donation`, `DonationConflict`, `AuditLogEntry` (PascalCase, singular). Signal-based Domain/State holders: `<Entity>Service` (e.g. `AuthService`, `EventService`) — not `<Entity>Store`, to avoid implying Redux/NgRx (renamed mid-Epic-1, see Story 1.4). Data-layer classes (touch `appwrite`/`dexie` directly): `<Entity>DataService` when a same-named Domain/State service exists (e.g. `EventDataService` alongside `EventService`), or plain `<Entity>Service` when it doesn't (e.g. `UserService`, which has no Domain/State counterpart) — not `<Entity>Repository` (renamed Story 2.1, same Redux-adjacent-naming reasoning as the `*Store` rename). IDs are Appwrite `$id` strings, client-generated via `ID.unique()` for offline creates (AD-4) — never a separate numeric id. |
+| Data & formats (ids, dates, error shapes, envelopes) | Dates: ISO 8601 strings (never a bare `Date` — `.instructions.md` already forbids assuming `new Date()` globals). Money: integer minor units (AD-5). Deletes are soft (`isDeleted`/`deletedAt`/`deletedBy` per PRD §9.1) — never a hard Appwrite document delete. Errors: Data-layer classes translate `AppwriteException` into a domain-level `ServiceError` (renamed from `RepositoryError`, Story 2.1, alongside the `*Repository`→`*DataService` naming change) before it reaches Domain/State — Presentation never sees an Appwrite-shaped error. |
 | State & cross-cutting (mutation, errors, logging, config, auth) | Signals only, no NgRx (house convention, already established). `.update()`/`.set()`, never `.mutate()`. All cross-cutting auth/session state lives in `AuthService` (renamed from the original `AuthStore`, which itself had replaced the empty `Authservice` stub). `inject()` over constructor injection; `providedIn: 'root'` for all Domain/State services and repositories. Session persistence relies on the Appwrite SDK's own cookie-based session handling (FR-AUTH-002's "not in localStorage in plain text") — no hand-rolled token storage. |
 
 ## Stack
@@ -136,8 +136,9 @@ src/
     data/                  # NEW — the only layer touching appwrite/dexie
       appwrite/            # client.ts (Account, Databases) reads src/environments, replaces src/lib/appwrite.ts
       dexie/                # AppDb (Dexie subclass): events, donations, outbox tables
-      repositories/         # EventRepository, DonationRepository, ConflictRepository, AuditRepository
-      services/             # AuthService, EventService, DonationService, SyncService (signal-based; folder renamed from stores/ — see Story 1.4)
+      services/             # Domain/State: AuthService, EventService, DonationService, SyncService (signal-based;
+                            #   folder renamed from stores/ — see Story 1.4) + Data: UserService, EventDataService,
+                            #   DonationDataService, ConflictDataService, AuditDataService (the only files touching appwrite/dexie)
       sync/                 # SyncEngine (per-entity outbox drain), NetworkStatusService
     feature/
       admin/                # renamed/expanded from current admin tree — admin-* screen specs
@@ -170,10 +171,10 @@ erDiagram
 | --- | --- | --- |
 | Login, session, role (`login-screen`) | `auth/` + `data/services/AuthService` | AD-1, AD-6 |
 | Admin dashboard/donations/events/reports (`admin-*`) | `feature/admin/` | AD-2, AD-6, AD-7 |
-| Admin settings — Change Role / Assign Operators (`admin-settings`) | `feature/admin/` calling `data/repositories` -> AD-9 Function | AD-2, AD-9 |
+| Admin settings — Change Role / Assign Operators (`admin-settings`) | `feature/admin/` calling `data/services` -> AD-9 Function | AD-2, AD-9 |
 | Organizer dashboard/donations/events/reports (`organizer-*`, `add-donation`, `edit-donation`, `create-event-screen`, `edit-event`, `event-detail`) | `feature/organizer/` | AD-2, AD-3, AD-4, AD-6, AD-7, AD-8 |
 | Member dashboard/donations/events (`member-*`) | `feature/member/` | AD-2, AD-10, AD-6, AD-7 |
-| Donor verification, donation list, export preview (`donor-verify`, `donation-list`, `export-preview`) | `feature/{admin,organizer}/` + `data/repositories` | AD-2, AD-5 |
+| Donor verification, donation list, export preview (`donor-verify`, `donation-list`, `export-preview`) | `feature/{admin,organizer}/` + `data/services` | AD-2, AD-5 |
 | Share access (`share-access`) | v1: not built (AD-10) — Deferred to v1.1+ | AD-10 |
 | Reports/exports (`reports`, `event-reports`, `organizer.report`, `admin-report`) | `data/services/ReportService` (client-side generation) | AD-5, Stack (jsPDF/SheetJS) |
 | Offline sync status (`sync-status`) | `data/sync/SyncEngine`, `data/services/SyncService` | AD-3, AD-4 |
@@ -183,5 +184,5 @@ erDiagram
 - **Realtime updates** (PRD §8.2 commits to Appwrite Realtime subscriptions per-event donations collection for live dashboard/family totals): the subscription wiring itself is a Domain/State concern left to the epic that builds `EventService`/`DonationService` — this spine's layering is unaffected either way since Presentation only ever talks to the service.
 - **`share-access.md`'s full tiered/revocable delegation scheme** — deferred to v1.1+ per AD-10.
 - **Deployment & environments** (hosting for the Angular PWA, Appwrite Cloud env promotion, CI/CD): out of scope for this spine.
-- **Audit log write path mechanism** (repository-level auto-write on every mutation vs. an explicit call per action): FR-SEC-004 only fixes that it must be immutable and complete, not the mechanism — left to the epic that builds `AuditRepository`.
+- **Audit log write path mechanism** (data-layer auto-write on every mutation vs. an explicit call per action): FR-SEC-004 only fixes that it must be immutable and complete, not the mechanism — left to the epic that builds `AuditDataService`.
 - **Appwrite Function runtime/language** for AD-9: left to the epic that builds it.

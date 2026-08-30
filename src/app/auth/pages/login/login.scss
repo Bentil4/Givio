@@ -1,0 +1,316 @@
+// Uses only the tokens and global classes in src/styles.scss.
+.auth {
+  display: flex;
+  min-height: 100vh;
+  font-family: var(--font-body);
+}
+
+// ── Brand panel ───────────────────────────────────────────────────────
+.auth-brand {
+  flex: none;
+  width: 512px;
+  padding: var(--space-2xl) var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary-dark) 100%);
+  color: var(--bg-white);
+}
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.brand-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  span {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--primary-mid);
+
+    &:nth-child(1), &:nth-child(3) { width: 24px; }
+    &:nth-child(2) { width: 16px; }
+  }
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: -.02em;
+}
+
+.brand-headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2.7rem;
+  font-weight: 800;
+  font-style: italic;
+  line-height: 1.15;
+  letter-spacing: -.02em;
+  text-wrap: pretty;
+}
+
+.brand-body {
+  margin: var(--space-md) 0 0;
+  max-width: 380px;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, .72);
+  text-wrap: pretty;
+}
+
+.brand-stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: var(--space-xl);
+
+  li { display: flex; flex-direction: column; }
+}
+
+.brand-stat-value {
+  font-family: monospace;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--primary-mid);
+}
+
+.brand-stat-label {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, .55);
+}
+
+// ── Form panel ────────────────────────────────────────────────────────
+.auth-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-2xl) var(--space-xl);
+  max-width: 560px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.auth-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: -.02em;
+  color: var(--primary-dark);
+}
+
+.auth-sub {
+  margin: var(--space-sm) 0 var(--space-xl);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--data-4);
+  text-wrap: pretty;
+}
+
+.auth-error {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  border: 1.5px solid rgba(239, 68, 68, .28);
+  border-radius: var(--radius-md);
+  background: rgba(239, 68, 68, .07);
+
+  p { margin: 0; }
+}
+
+.auth-error-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--func-error);
+}
+
+.auth-error-detail {
+  margin-top: 3px !important;
+  font-size: 0.82rem;
+  color: #b91c1c;
+  line-height: 1.5;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.field { display: flex; flex-direction: column; }
+
+.field-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.field-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  margin-bottom: 6px;
+}
+
+.field-link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary-deep);
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}
+
+.field-error {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: var(--func-error);
+}
+
+.input, .password-wrap {
+  height: 44px;
+  border: 1.5px solid rgba(26, 107, 122, .15);
+  border-radius: var(--radius-md);
+  background: var(--bg-white);
+  transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+
+  &:focus, &:focus-within {
+    border-color: var(--primary-deep);
+    box-shadow: 0 0 0 3px rgba(0, 200, 224, .15);
+  }
+
+  &.is-invalid {
+    border-color: var(--func-error);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, .12);
+  }
+}
+
+.input {
+  padding: 0 var(--space-md);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--primary-dark);
+  outline: none;
+
+  &::placeholder { color: var(--data-3); }
+}
+
+.password-wrap {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-md);
+}
+
+.password-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  letter-spacing: .06em;
+  color: var(--primary-dark);
+}
+
+.password-toggle {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--data-4);
+  cursor: pointer;
+
+  &:hover { color: var(--primary-deep); }
+}
+
+.auth-submit {
+  height: 46px;
+  margin-top: var(--space-xs);
+  justify-content: center;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin: var(--space-lg) 0;
+  color: var(--data-3);
+  font-size: 0.78rem;
+
+  &::before, &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(26, 107, 122, .12);
+  }
+}
+
+// Equal visual weight to the primary path — for a family member this IS the front door.
+.auth-alt {
+  height: 46px;
+  justify-content: center;
+  gap: var(--space-xs);
+  text-decoration: none;
+}
+
+.auth-alt-note {
+  font-weight: 400;
+  color: var(--data-4);
+}
+
+.auth-foot {
+  margin: var(--space-xl) 0 0;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--data-3);
+  text-wrap: pretty;
+}
+
+// ── Lockout ───────────────────────────────────────────────────────────
+.lockout { text-align: center; }
+
+.lockout-ring {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border: 2px solid rgba(245, 158, 11, .35);
+  border-radius: var(--radius-full);
+  background: rgba(245, 158, 11, .10);
+  font-family: monospace;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #92400e;
+  margin-bottom: var(--space-md);
+}
+
+.lockout-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+
+  .btn { justify-content: center; text-decoration: none; }
+}
+
+@media (max-width: 900px) {
+  .auth-brand { display: none; }
+  .auth-panel { padding: var(--space-xl) var(--space-lg); }
+}

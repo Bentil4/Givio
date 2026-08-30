@@ -1,0 +1,61 @@
+@use '../admin-donations/admin-donations.scss';
+
+.empty-icon.is-clear { color: var(--func-success); }
+
+.conflict-layout {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+}
+
+.conflict-list {
+  flex: none;
+  width: 260px;
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+
+  .section-label { margin-bottom: var(--space-sm); }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+}
+
+.conflict-pick {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: all .18s var(--ease);
+
+  &:hover:not(.is-active) { background: rgba(0, 200, 224, .06); }
+
+  &.is-active {
+    border-color: var(--primary-deep);
+    background: rgba(0, 200, 224, .09);
+  }
+}
+
+.conflict-pick-receipt {
+  font-family: monospace;
+  font-size: 0.68rem;
+  color: var(--data-4);
+}
+
+.conflict-main { flex: 1; min-width: 0; }
+
+@media (max-width: 1100px) {
+  .conflict-layout { flex-direction: column; }
+  .conflict-list { width: 100%; }
+}

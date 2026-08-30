@@ -1,0 +1,203 @@
+<section class="page">
+  <header class="page-head">
+    <div>
+      <h1 class="t-page-title">Users</h1>
+      <p class="t-secondary">
+        Roles are written server-side through an Appwrite function, so a role can never be changed
+        from the browser. Deactivating a user force-expires their sessions on every device.
+      </p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" (click)="openCreate()">
+        <mat-icon>person_add</mat-icon>
+        Create user
+      </button>
+    </div>
+  </header>
+
+  @if (generatedPassword(); as pwd) {
+    <div class="code-note" role="status">
+      <mat-icon>vpn_key</mat-icon>
+      <p class="t-caption">
+        Generated password: <strong>{{ pwd }}</strong> — share it with them
+        directly; it won't be shown again.
+      </p>
+      <button type="button" class="btn-ghost" (click)="dismissGeneratedPassword()">Dismiss</button>
+    </div>
+  }
+
+  @if (loadError(); as err) {
+    <div class="code-note" role="alert">
+      <mat-icon>error_outline</mat-icon>
+      <p class="t-caption">{{ err }}</p>
+    </div>
+  }
+
+  <div class="filters">
+    <div class="filter-search">
+      <mat-icon>search</mat-icon>
+      <input type="search" placeholder="Search name or email"
+             [value]="search()" (input)="setSearch($any($event.target).value)" />
+    </div>
+    <div class="filter-tags">
+      @for (r of roleOptions; track r) {
+        <button type="button" class="filter-tag" [class.active]="roleFilter() === r" (click)="setRoleFilter(r)">
+          {{ r === 'all' ? 'All roles' : roleLabel(r) }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="table-wrap glass">
+      @for (i of skeletons; track i) {
+        <div class="skel-row">
+          <span class="skel skel--md"></span>
+          <span class="skel skel--lg"></span>
+          <span class="skel skel--sm"></span>
+        </div>
+      }
+    </div>
+  } @else if (isEmpty()) {
+    <div class="empty glass">
+      <mat-icon class="empty-icon">group</mat-icon>
+      @if (filtered()) {
+        <p class="t-card-title">No users match</p>
+        <p class="t-caption">Try a different search, or clear the filters.</p>
+        <button type="button" class="btn btn-secondary" (click)="clearFilters()">Clear filters</button>
+      } @else {
+        <p class="t-card-title">No users yet</p>
+        <p class="t-caption">
+          Create an operator so someone can record donations at the desk. Family members don't need
+          accounts — they use the event code instead.
+        </p>
+        <button type="button" class="btn btn-primary" (click)="openCreate()">Create user</button>
+      }
+    </div>
+  } @else {
+    <div class="table-wrap glass">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Email</th>
+            <th scope="col">Role</th>
+            <th scope="col">Status</th>
+            <th scope="col">Registered</th>
+            <th scope="col" class="is-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (u of visible(); track u.id) {
+            <tr>
+              <td>
+                <span class="user-cell">
+                  <span class="user-avatar">{{ u.initials }}</span>
+                  <span class="t-body-em">{{ u.name }}</span>
+                </span>
+              </td>
+              <td class="is-muted">{{ u.email }}</td>
+              <td><span class="tag tag-default">{{ roleLabel(u.role) }}</span></td>
+              <td><span class="tag" [class]="statusChip(u.status)">{{ statusLabel(u.status) }}</span></td>
+              <td class="is-muted">{{ u.registeredAt | date: 'mediumDate' }}</td>
+              <td class="is-actions">
+                <button type="button" class="btn-ghost" (click)="openEdit(u)">Edit</button>
+                @if (canToggle(u)) {
+                  <button type="button" class="btn-ghost"
+                          [class.is-danger]="u.status !== 'deactivated'"
+                          (click)="askToggle(u)">
+                    {{ u.status === 'deactivated' ? 'Reactivate' : 'Deactivate' }}
+                  </button>
+                } @else {
+                  <span class="t-tertiary">That's you</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+@if (creating()) {
+<div class="scrim" (click)="closeCreate()">
+  <form class="dialog glass" [formGroup]="form" (ngSubmit)="save()" (click)="$event.stopPropagation()" novalidate>
+    <header class="dialog-head">
+      <h2 class="t-page-title">{{ editing() ? 'Edit user' : 'Create user' }}</h2>
+      <p class="t-secondary">
+        {{ editing() ? "Role changes still go through the server-side function." : "They'll get an email to set their own password." }}
+      </p>
+    </header>
+
+    @if (formError(); as err) {
+      <p class="field-error" role="alert">{{ err }}</p>
+    }
+
+    <div class="dialog-body">
+      <div class="field">
+        <label class="field-label" for="uName">Full name <span class="req" aria-hidden="true">*</span></label>
+        <input id="uName" class="input" type="text" formControlName="name"
+               placeholder="e.g. Kofi Asare" [class.is-invalid]="invalid('name')" />
+        @if (invalid('name')) { <p class="field-error">Enter their full name.</p> }
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="uEmail">Work email <span class="req" aria-hidden="true">*</span></label>
+        <input id="uEmail" class="input" type="email" formControlName="email"
+               placeholder="name@givio.app" [class.is-invalid]="invalid('email')" />
+        @if (invalid('email')) { <p class="field-error">Enter a valid email address.</p> }
+      </div>
+
+      <div class="field">
+        <span class="field-label">Role <span class="req" aria-hidden="true">*</span></span>
+        <div class="role-cards">
+          @for (card of roleCards; track card.value) {
+            <button type="button" class="role-card"
+                    [class.is-selected]="form.controls.role.value === card.value"
+                    (click)="form.controls.role.setValue(card.value)">
+              <span class="role-radio" aria-hidden="true"></span>
+              <span class="role-body">
+                <span class="t-body-em">{{ card.label }}</span>
+                <span class="t-caption">{{ card.desc }}</span>
+              </span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="code-note">
+        <mat-icon>info</mat-icon>
+        <p class="t-caption">
+          Family members don't need accounts — they use the event code instead.
+        </p>
+      </div>
+    </div>
+
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="closeCreate()">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="busy()">
+        {{ editing() ? 'Save changes' : 'Create user' }}
+      </button>
+    </footer>
+  </form>
+</div>
+}
+
+@if (toggleCopy(); as c) {
+<div class="scrim" (click)="dismissToggle()">
+  <div class="dialog dialog--sm glass" role="dialog" [attr.aria-label]="c.title" (click)="$event.stopPropagation()">
+    <header class="dialog-head">
+      <h2 class="t-page-title">{{ c.title }}</h2>
+    </header>
+    <div class="dialog-body">
+      <p class="t-body confirm-body">{{ c.body }}</p>
+    </div>
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="dismissToggle()">Cancel</button>
+      <button type="button" [class]="c.danger ? 'btn btn-danger' : 'btn btn-primary'"
+              [disabled]="busy()" (click)="confirmToggle()">{{ c.cta }}</button>
+    </footer>
+  </div>
+</div>
+}

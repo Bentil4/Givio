@@ -1,0 +1,72 @@
+<aside class="queue glass" role="dialog" aria-label="Pending donations">
+  <header class="queue-header">
+    <div class="queue-heading">
+      <h2 class="t-page-title">Pending queue</h2>
+      <p class="t-secondary">
+        {{ drafts().length }}
+        {{ drafts().length === 1 ? 'donation' : 'donations' }} stored on this device
+        · {{ totalLabel() }} total
+      </p>
+    </div>
+    <button type="button" class="queue-close" (click)="closed.emit()" aria-label="Close queue">
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  <div class="queue-body">
+    @if (drafts().length === 0) {
+      <div class="queue-empty">
+        <mat-icon class="queue-empty-icon">cloud_done</mat-icon>
+        <p class="t-body-em">Nothing waiting</p>
+        <p class="t-secondary">Every donation on this device has reached the server.</p>
+      </div>
+    } @else {
+      <ul class="queue-list">
+        @for (draft of drafts(); track draft.localId) {
+          <li class="queue-item">
+            <span class="queue-dot" aria-hidden="true"></span>
+            <div class="queue-item-body">
+              <div class="queue-item-top">
+                <span class="t-body-em">{{ draft.donorName }}</span>
+                <span class="queue-amount">{{ amountLabel(draft) }}</span>
+              </div>
+              <p class="t-tertiary queue-meta">
+                {{ labels[draft.donationType] }} · queued {{ queuedAgo(draft) }}
+                @if (draft.attempts && draft.attempts > 0) {
+                  · attempt {{ draft.attempts }} of 3
+                }
+              </p>
+              <div class="queue-actions">
+                <button type="button" class="btn-ghost" (click)="edit.emit(draft)">Edit</button>
+                <button type="button" class="btn-ghost is-danger" (click)="discard.emit(draft)">Discard</button>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+
+      <!-- Stating the retry contract is the whole point of this panel: an operator who knows
+           a failed record is kept and escalated does not re-enter it and create a duplicate. -->
+      <section class="queue-explainer">
+        <h3 class="t-card-title">How syncing works</h3>
+        <p class="t-caption">
+          The moment this device reaches the internet, queued donations upload oldest-first. Each one
+          is retried up to 3 times with a growing delay. If a record still fails, it stays here and an
+          Admin is notified — it is never dropped.
+        </p>
+      </section>
+    }
+  </div>
+
+  <footer class="queue-footer">
+    @if (!online()) {
+      <p class="queue-blocked t-caption">Sync is unavailable while offline</p>
+    }
+    <button
+      type="button"
+      class="btn btn-primary"
+      [disabled]="!online() || syncing() || drafts().length === 0"
+      (click)="syncNow.emit()"
+    >{{ syncing() ? 'Syncing…' : 'Sync now' }}</button>
+  </footer>
+</aside>

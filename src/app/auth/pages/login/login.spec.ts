@@ -37,16 +37,16 @@ describe('Login', () => {
     expect(component).toBeTruthy();
   });
 
-  it('navigates to /admin on successful login with an admin label', async () => {
+  it('navigates to /dashboard on successful login with an admin label', async () => {
     account.deleteSession.mockRejectedValueOnce(new Error('no session'));
     account.createEmailPasswordSession.mockResolvedValueOnce({});
     account.get.mockResolvedValueOnce({ labels: ['admin'] });
 
-    component.loginForm.setValue({ email: 'admin@givio.test', password: 'correct-password' });
-    await component.onSubmit();
+    component.form.setValue({ email: 'admin@givio.test', password: 'correct-password' });
+    await component.submit();
 
     expect(router.navigate).toHaveBeenCalledWith(['/dashboard']);
-    expect(component.errorMessage()).toBeNull();
+    expect(component.serverError()).toBeNull();
   });
 
   it('navigates to /organizer on successful login with an operator label', async () => {
@@ -54,8 +54,8 @@ describe('Login', () => {
     account.createEmailPasswordSession.mockResolvedValueOnce({});
     account.get.mockResolvedValueOnce({ labels: ['operator'] });
 
-    component.loginForm.setValue({ email: 'op@givio.test', password: 'correct-password' });
-    await component.onSubmit();
+    component.form.setValue({ email: 'op@givio.test', password: 'correct-password' });
+    await component.submit();
 
     expect(router.navigate).toHaveBeenCalledWith(['/organizer']);
   });
@@ -64,11 +64,12 @@ describe('Login', () => {
     account.deleteSession.mockRejectedValueOnce(new Error('no session'));
     account.createEmailPasswordSession.mockRejectedValueOnce(new Error('user_invalid_credentials'));
 
-    component.loginForm.setValue({ email: 'nobody@givio.test', password: 'wrong' });
-    await component.onSubmit();
+    component.form.setValue({ email: 'nobody@givio.test', password: 'wrong-password' });
+    await component.submit();
 
-    expect(component.errorMessage()).toBe('Invalid credentials');
+    expect(component.serverError()).toBe('Email or password is incorrect');
     expect(router.navigate).not.toHaveBeenCalled();
+    expect(component.failedAttempts()).toBe(1);
   });
 
   it('logs out and shows a generic error when the session is created but no role label is present', async () => {
@@ -77,11 +78,29 @@ describe('Login', () => {
     account.get.mockResolvedValueOnce({ labels: [] });
     account.deleteSession.mockResolvedValueOnce({}); // the post-login-no-role logout
 
-    component.loginForm.setValue({ email: 'nolabel@givio.test', password: 'correct-password' });
-    await component.onSubmit();
+    component.form.setValue({ email: 'nolabel@givio.test', password: 'correct-password' });
+    await component.submit();
 
-    expect(component.errorMessage()).toBe('Invalid credentials');
+    expect(component.serverError()).toBe('Email or password is incorrect');
     expect(router.navigate).not.toHaveBeenCalled();
     expect(account.deleteSession).toHaveBeenCalledTimes(2);
+  });
+
+  it('locks out sign-in after 5 failed attempts', async () => {
+    account.deleteSession.mockRejectedValue(new Error('no session'));
+    account.createEmailPasswordSession.mockRejectedValue(new Error('user_invalid_credentials'));
+
+    for (let i = 0; i < 5; i++) {
+      component.form.setValue({ email: 'nobody@givio.test', password: 'wrong-password' });
+      await component.submit();
+    }
+
+    expect(component.failedAttempts()).toBe(5);
+    expect(component.locked()).toBe(true);
+
+    // A 6th attempt is a no-op while locked — the mocked session calls are not invoked again.
+    account.createEmailPasswordSession.mockClear();
+    await component.submit();
+    expect(account.createEmailPasswordSession).not.toHaveBeenCalled();
   });
 });

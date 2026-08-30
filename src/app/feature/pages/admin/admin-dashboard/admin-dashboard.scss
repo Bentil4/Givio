@@ -1,53 +1,172 @@
-.admin-dashboard {
-  width: 100%;
-  padding: var(--space-lg);
-}
-
-.dashboard-intro {
+// Uses only the tokens in src/styles.scss and its global .tag / .glass / .t-* classes.
+.page {
+  font-family: var(--font-body);
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  margin-bottom: var(--space-lg);
-  padding: var(--space-lg);
 }
 
-.cards-info {
-  padding: var(--space-lg);
+.page-head {
+  h1 { margin: 0 0 4px; }
+  p { margin: 0; max-width: 68ch; text-wrap: pretty; }
 }
 
-.card-title {
-  font-family: var(--font-heading);
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--primary-black);
-  margin-bottom: var(--space-lg);
-}
-
-.cards {
+// ── Stat grid ─────────────────────────────────────────────────────────
+.stat-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  width: 100%;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
-.card:hover {
-  transform: translateY(-3px);
+.stat-tile {
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
 }
 
-.activity-section {
-  margin-top: var(--space-lg);
-  width: 100%;
+.stat-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--data-4);
+}
+
+.stat-value {
+  margin-top: var(--space-xs);
+  font-family: monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--primary-dark);
+}
+
+.stat-delta {
+  margin-top: 5px;
+  font-size: 0.75rem;
+  color: var(--data-4);
+
+  &.is-muted { color: var(--data-3); }
+}
+
+// ── Panels ────────────────────────────────────────────────────────────
+.panel-row {
   display: flex;
-  gap: var(--space-lg);
-  // padding: var(--space-lg);
+  gap: var(--space-md);
+  align-items: flex-start;
+
+  @media (max-width: 900px) {
+    flex-direction: column;
+  }
 }
 
-.recent {
-  width: 50%;
+.panel {
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 
-.actions-section {
+.panel--events { flex: 1.5; min-width: 0; }
+.panel--feed { flex: 1; min-width: 0; }
+
+.panel-head {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid rgba(26, 107, 122, .09);
+
+  h2 { margin: 0; flex: 1; }
+}
+
+.panel-link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary-deep);
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}
+
+.panel-empty {
+  margin: 0;
+  padding: var(--space-lg);
+  color: var(--data-3);
+
+  a { color: var(--primary-deep); font-weight: 600; }
+}
+
+.panel-body {
+  padding: 0;
+}
+
+.event-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid rgba(26, 107, 122, .07);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .18s var(--ease);
+
+  &:last-child { border-bottom: 0; }
+  &:hover { background: var(--bg-mist); }
+}
+
+.event-main { flex: 1; min-width: 0; }
+
+.event-name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.event-meta { margin-top: 3px; }
+
+.event-total {
+  flex: none;
+  text-align: right;
+
+  .is-mono { font-family: monospace; }
+  .is-strong { font-weight: 700; font-size: 0.95rem; color: var(--primary-dark); }
+}
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--func-success);
+  animation: dashboard-pulse 2s var(--ease) infinite;
+}
+
+@keyframes dashboard-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .35; transform: scale(.8); }
+}
+
+// ── Skeleton ──────────────────────────────────────────────────────────
+.skel-row {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid rgba(26, 107, 122, .07);
+
+  &:last-child { border-bottom: 0; }
+}
+
+.skel {
+  display: block;
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--data-1) 25%, #f4f8fa 50%, var(--data-1) 75%);
+  background-size: 420px 100%;
+  animation: dashboard-shimmer 1.4s linear infinite;
+}
+
+.skel--lg { width: 100%; }
+
+@keyframes dashboard-shimmer {
+  0% { background-position: -420px 0; }
+  100% { background-position: 420px 0; }
 }

@@ -1,0 +1,167 @@
+<section class="page">
+  @if (loading()) {
+    <div class="detail-hero is-loading">
+      <span class="skel skel--lg"></span>
+    </div>
+  } @else if (notFound()) {
+    <div class="empty glass">
+      <mat-icon class="empty-icon">event_busy</mat-icon>
+      <p class="t-card-title">Event not found</p>
+      <p class="t-caption">It may not have synced to this device yet, or the link is wrong.</p>
+      <a class="btn btn-secondary" routerLink="/dashboard/events">Back to events</a>
+    </div>
+  } @else if (event(); as e) {
+    <header class="detail-hero">
+      <div class="detail-hero-main">
+        <div class="detail-hero-title">
+          <h1 class="detail-name">{{ e.name }}</h1>
+          <span class="tag" [class]="chipClass[e.status]">{{ statusLabel() }}</span>
+        </div>
+        <p class="detail-meta">
+          @if (e.venue) { {{ e.venue }} · }{{ e.date }} · {{ e.hostName }}
+        </p>
+      </div>
+
+      <div class="detail-hero-total">
+        <span class="detail-total-label">Raised so far</span>
+        <span class="detail-total-value">{{ totalLabel() }}</span>
+      </div>
+
+      <div class="detail-hero-actions">
+        <a class="btn btn-hero-ghost" [routerLink]="['/dashboard/events', e.id, 'edit']">Edit details</a>
+        @if (!isClosed()) {
+          @if (canPause()) {
+            <button type="button" class="btn btn-hero-ghost" (click)="ask('pause')">Pause giving</button>
+          }
+          @if (canResume()) {
+            <button type="button" class="btn btn-hero-ghost" (click)="ask('resume')">Resume giving</button>
+          }
+          <button type="button" class="btn btn-hero-solid" (click)="ask('close')">Close event</button>
+        }
+      </div>
+    </header>
+
+    <div class="detail-grid">
+      <article class="detail-card glass">
+        <h2 class="t-card-title">Family access code</h2>
+        <p class="t-caption detail-card-intro">
+          Share this with family members only. Regenerating it signs out everyone using the old code.
+        </p>
+
+        @if (hasCode()) {
+          <div class="code-row">
+            <span class="code-value">{{ e.accessCode }}</span>
+            <button type="button" class="btn btn-secondary" (click)="copyCode()">
+              {{ copied() ? 'Copied' : 'Copy' }}
+            </button>
+          </div>
+          <div class="code-foot">
+            <button type="button" class="btn-ghost is-danger" (click)="ask('regenerate')">
+              Regenerate code
+            </button>
+          </div>
+        } @else {
+          <p class="t-secondary code-none">
+            @if (isClosed()) {
+              The code was released when this event closed. Family members can no longer join, but the
+              export stays available.
+            } @else {
+              No code yet — family access codes aren't available in this build yet.
+            }
+          </p>
+        }
+      </article>
+
+      <article class="detail-card glass">
+        <h2 class="t-card-title">Assigned operators</h2>
+
+        @if (isClosed()) {
+          @if (assignedOperators().length === 0) {
+            <p class="t-secondary code-none">No operators were assigned to this event.</p>
+          } @else {
+            <ul class="op-list">
+              @for (op of assignedOperators(); track op.id) {
+                <li class="op-item">
+                  <span class="op-avatar">{{ initialsOf(op.name) }}</span>
+                  <span class="op-body"><span class="t-body-em">{{ op.name }}</span></span>
+                </li>
+              }
+            </ul>
+          }
+        } @else {
+          @if (availableOperators().length === 0) {
+            <p class="t-secondary code-none">
+              No operator accounts exist yet. Create them under Users first.
+            </p>
+          } @else {
+            <div class="op-chips">
+              @for (op of availableOperators(); track op.id) {
+                <button type="button" class="filter-tag" [class.active]="isSelected(op.id)"
+                        (click)="toggleOperator(op.id)">{{ op.name }}</button>
+              }
+            </div>
+          }
+
+          @if (assignError(); as err) {
+            <p class="field-error">{{ err }}</p>
+          }
+
+          <div class="code-foot">
+            @if (assignSaved()) {
+              <span class="t-tertiary">Saved</span>
+            } @else if (assignmentDirty()) {
+              <span class="t-tertiary">Unsaved changes</span>
+            } @else {
+              <span></span>
+            }
+            <div class="op-assign-actions">
+              @if (assignmentDirty()) {
+                <button type="button" class="btn-ghost" [disabled]="assignBusy()" (click)="resetAssignment()">
+                  Reset
+                </button>
+              }
+              <button type="button" class="btn btn-secondary" [disabled]="!assignmentDirty() || assignBusy()"
+                      (click)="saveAssignment()">
+                {{ assignBusy() ? 'Saving…' : 'Save assignment' }}
+              </button>
+            </div>
+          </div>
+        }
+      </article>
+    </div>
+
+    @if (!isClosed()) {
+      <aside class="danger-zone">
+        <div class="danger-copy">
+          <h2 class="t-card-title">Danger zone</h2>
+          <p class="t-caption">
+            Closing the event locks every donation recorded so far, invalidates the family code, and
+            archives the record. It cannot be reopened — only an export remains.
+          </p>
+        </div>
+        <button type="button" class="btn btn-danger-outline" (click)="ask('close')">Close and archive</button>
+      </aside>
+    }
+  }
+</section>
+
+@if (confirmCopy(); as c) {
+<div class="scrim" (click)="dismiss()">
+  <div class="dialog dialog--sm glass" role="dialog" [attr.aria-label]="c.title" (click)="$event.stopPropagation()">
+    <header class="dialog-head">
+      <h2 class="t-page-title">{{ c.title }}</h2>
+    </header>
+    <div class="dialog-body">
+      <p class="t-body confirm-body">{{ c.body }}</p>
+      @if (actionError(); as err) {
+        <p class="field-error">{{ err }}</p>
+      }
+    </div>
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="dismiss()">Cancel</button>
+      <button type="button" [class]="c.danger ? 'btn btn-danger' : 'btn btn-primary'"
+              [disabled]="busy()" (click)="confirm()">{{ c.cta }}</button>
+    </footer>
+  </div>
+</div>
+}

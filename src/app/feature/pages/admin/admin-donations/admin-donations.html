@@ -1,0 +1,244 @@
+<section class="page">
+  <header class="page-head">
+    <div>
+      <h1 class="t-page-title">Donation oversight</h1>
+      <p class="t-secondary">
+        Every record for this event, including donor contact details and the recording operator.
+      </p>
+    </div>
+    <div class="page-head-total">
+      <span class="sub-label">Showing</span>
+      <span class="page-total-value">{{ totalLabel() }}</span>
+      <span class="t-tertiary">{{ visible().length }} records</span>
+    </div>
+  </header>
+
+  <div class="filters">
+    <div class="filter-search">
+      <mat-icon>search</mat-icon>
+      <input
+        type="search"
+        placeholder="Search donor or receipt number"
+        [value]="filters().search"
+        (input)="setSearch($any($event.target).value)"
+      />
+    </div>
+
+    <div class="filter-tags">
+      @for (t of types; track t) {
+        <button
+          type="button"
+          class="filter-tag"
+          [class.active]="filters().type === t"
+          (click)="setType(t)"
+        >{{ t === 'all' ? 'All types' : labels[t] }}</button>
+      }
+    </div>
+
+    @if (operators().length > 0) {
+      <select class="select-field" [value]="filters().operator" (change)="setOperator($any($event.target).value)">
+        <option value="all">All operators</option>
+        @for (op of operators(); track op) {
+          <option [value]="op">{{ op }}</option>
+        }
+      </select>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="table-wrap glass">
+      @for (i of skeletons; track i) {
+        <div class="skel-row">
+          <span class="skel skel--sm"></span>
+          <span class="skel skel--lg"></span>
+          <span class="skel skel--md"></span>
+          <span class="skel skel--sm"></span>
+        </div>
+      }
+    </div>
+  } @else if (isEmpty()) {
+    <div class="empty glass">
+      <mat-icon class="empty-icon">receipt_long</mat-icon>
+      @if (filtered()) {
+        <p class="t-card-title">No records match these filters</p>
+        <p class="t-caption">Try widening the search, or clear the filters to see every donation.</p>
+        <button type="button" class="btn btn-secondary" (click)="clearFilters()">Clear filters</button>
+      } @else {
+        <p class="t-card-title">No donations recorded yet</p>
+        <p class="t-caption">
+          Records appear here the moment an operator saves one at the desk — including donations
+          queued offline, once they sync.
+        </p>
+      }
+    </div>
+  } @else {
+    <div class="table-wrap glass">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Receipt</th>
+            <th scope="col">Donor</th>
+            <th scope="col">Phone</th>
+            <th scope="col" class="is-num">Amount</th>
+            <th scope="col">Type</th>
+            <th scope="col">On behalf of</th>
+            <th scope="col">Recorded by</th>
+            <th scope="col" class="is-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of visible(); track d.id) {
+            <tr>
+              <td class="is-mono">{{ d.receiptNumber }}</td>
+              <td class="t-body-em">{{ d.donorName }}</td>
+              <td class="is-mono is-muted">{{ d.donorPhone || '—' }}</td>
+              <td class="is-num is-mono is-strong">{{ amountLabel(d) }}</td>
+              <td>{{ labels[d.donationType] }}</td>
+              <td class="is-muted">{{ d.onBehalfOf || '—' }}</td>
+              <td class="is-muted">{{ d.recordedBy }}</td>
+              <td class="is-actions">
+                <button type="button" class="btn-ghost" (click)="openEdit(d)">Edit</button>
+                <button type="button" class="btn-ghost is-danger" (click)="openDelete(d)">Delete</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+<!-- ── Edit ────────────────────────────────────────────────────────────── -->
+@if (editing(); as record) {
+<div class="scrim" (click)="closeEdit()">
+  <form class="dialog glass" [formGroup]="editForm" (ngSubmit)="saveEdit()" (click)="$event.stopPropagation()" novalidate>
+    <header class="dialog-head">
+      <h2 class="t-page-title">Edit donation {{ record.receiptNumber }}</h2>
+      <p class="t-secondary">
+        Recorded by {{ record.recordedBy }} at {{ record.recordedAt }}. The family's live total updates
+        the moment you save.
+      </p>
+    </header>
+
+    <div class="dialog-body">
+      <div class="field">
+        <label class="field-label" for="editAmount">Amount (GH₵)</label>
+        <div class="edit-row">
+          <input id="editAmount" class="input input--amount" type="text" inputmode="decimal" formControlName="amount" />
+          @if (originalLabel('amount'); as was) {
+            <span class="was">was {{ was }}</span>
+          }
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="editDonor">Donor name</label>
+        <div class="edit-row">
+          <input id="editDonor" class="input" type="text" formControlName="donorName" />
+          @if (originalLabel('donorName'); as was) {
+            <span class="was">was {{ was }}</span>
+          }
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="editType">Donation type</label>
+        <div class="edit-row">
+          <select id="editType" class="select-field" formControlName="donationType">
+            @for (t of types; track t) {
+              @if (t !== 'all') { <option [value]="t">{{ labels[t] }}</option> }
+            }
+          </select>
+          @if (originalLabel('donationType'); as was) {
+            <span class="was">was {{ was }}</span>
+          }
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="editBehalf">On behalf of</label>
+        <div class="edit-row">
+          <input id="editBehalf" class="input" type="text" formControlName="onBehalfOf" />
+          @if (originalLabel('onBehalfOf'); as was) {
+            <span class="was">was {{ was }}</span>
+          }
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="editReason">
+          Why are you changing this? <span class="req" aria-hidden="true">*</span>
+        </label>
+        <textarea
+          id="editReason"
+          class="input textarea"
+          formControlName="reason"
+          rows="2"
+          placeholder="e.g. Donor called — the transfer was GH₵ 1,500, confirmed against the transaction ID."
+          [class.is-invalid]="invalid('edit', 'reason')"
+        ></textarea>
+        @if (invalid('edit', 'reason')) {
+          <p class="field-error">Say why — this goes in the audit trail.</p>
+        } @else {
+          <p class="t-caption field-note">
+            Stored in the audit trail with your name. It cannot be edited later.
+          </p>
+        }
+      </div>
+    </div>
+
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="closeEdit()">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="busy()">Save correction</button>
+    </footer>
+  </form>
+</div>
+}
+
+<!-- ── Soft delete ─────────────────────────────────────────────────────── -->
+@if (deleting(); as record) {
+<div class="scrim" (click)="closeDelete()">
+  <form class="dialog dialog--sm glass" [formGroup]="deleteForm" (ngSubmit)="confirmDelete()" (click)="$event.stopPropagation()" novalidate>
+    <header class="dialog-head">
+      <h2 class="t-page-title">Remove {{ record.receiptNumber }}?</h2>
+      <p class="t-secondary">
+        {{ record.donorName }} · {{ amountLabel(record) }}
+      </p>
+    </header>
+
+    <div class="dialog-body">
+      <!-- Naming the consequence precisely is what stops an Admin hesitating over a
+           reversible action, or treating an irreversible one casually. -->
+      <div class="delete-note">
+        <mat-icon>info</mat-icon>
+        <p class="t-caption">
+          This hides the record from operators and families and excludes it from every total and
+          export. You can recover it for 30 days. It is never erased.
+        </p>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="delReason">
+          Reason <span class="req" aria-hidden="true">*</span>
+        </label>
+        <textarea
+          id="delReason"
+          class="input textarea"
+          formControlName="reason"
+          rows="2"
+          placeholder="e.g. Duplicate of GVO-0104."
+          [class.is-invalid]="invalid('delete', 'reason')"
+        ></textarea>
+        @if (invalid('delete', 'reason')) {
+          <p class="field-error">Say why — this goes in the audit trail.</p>
+        }
+      </div>
+    </div>
+
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="closeDelete()">Keep it</button>
+      <button type="submit" class="btn btn-danger" [disabled]="busy()">Remove donation</button>
+    </footer>
+  </form>
+</div>
+}

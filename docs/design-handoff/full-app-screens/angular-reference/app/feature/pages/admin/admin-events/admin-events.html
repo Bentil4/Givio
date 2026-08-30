@@ -1,0 +1,157 @@
+<section class="page">
+  <header class="page-head">
+    <div>
+      <h1 class="t-page-title">Events</h1>
+      <p class="t-secondary">
+        An event's status decides everything downstream: paused stops new entries, closed makes the
+        record read-only and releases the family code.
+      </p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" (click)="openCreate()">
+        <mat-icon>add</mat-icon>
+        Create event
+      </button>
+    </div>
+  </header>
+
+  <div class="filters">
+    <div class="filter-tags">
+      @for (s of statuses; track s) {
+        <button type="button" class="filter-tag" [class.active]="statusFilter() === s" (click)="setStatus(s)">
+          {{ s === 'all' ? 'All events' : statusLabel(s) }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="table-wrap glass">
+      @for (i of skeletons; track i) {
+        <div class="skel-row">
+          <span class="skel skel--lg"></span>
+          <span class="skel skel--sm"></span>
+          <span class="skel skel--md"></span>
+        </div>
+      }
+    </div>
+  } @else if (isEmpty()) {
+    <div class="empty glass">
+      <mat-icon class="empty-icon">event</mat-icon>
+      <p class="t-card-title">No events here yet</p>
+      <p class="t-caption">
+        Create an event to assign operators and issue a family access code. Nothing can be recorded
+        until an event is live.
+      </p>
+      <button type="button" class="btn btn-primary" (click)="openCreate()">Create event</button>
+    </div>
+  } @else {
+    <div class="table-wrap glass">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Event</th>
+            <th scope="col">Family code</th>
+            <th scope="col">Status</th>
+            <th scope="col">Operators</th>
+            <th scope="col" class="is-num">Total raised</th>
+            <th scope="col" class="is-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of visible(); track e.id) {
+            <tr>
+              <td>
+                <span class="t-body-em">{{ e.name }}</span>
+                <span class="cell-sub">{{ e.occasion }} · {{ e.eventDate }}@if (e.venue) { · {{ e.venue }} }</span>
+              </td>
+              <td class="is-mono is-muted">{{ codeLabel(e) }}</td>
+              <td><span class="tag" [class]="chipClass[e.status]">{{ statusLabel(e.status) }}</span></td>
+              <td class="is-muted">{{ e.operators.length }} assigned</td>
+              <td class="is-num is-mono is-strong">{{ totalLabel(e) }}</td>
+              <td class="is-actions">
+                <a class="btn-ghost" [routerLink]="['/dashboard/events', e.id]">{{ actionLabel(e) }}</a>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+@if (creating()) {
+<div class="scrim" (click)="closeCreate()">
+  <form class="dialog dialog--lg glass" [formGroup]="form" (ngSubmit)="save()" (click)="$event.stopPropagation()" novalidate>
+    <header class="dialog-head">
+      <h2 class="t-page-title">Create event</h2>
+      <p class="t-secondary">The family access code is generated once you save.</p>
+    </header>
+
+    <div class="dialog-body">
+      <div class="field">
+        <label class="field-label" for="evName">Event name <span class="req" aria-hidden="true">*</span></label>
+        <input id="evName" class="input" type="text" formControlName="name"
+               placeholder="e.g. Odoi Funeral Service" [class.is-invalid]="invalid('name')" />
+        @if (invalid('name')) { <p class="field-error">Give the event a name people will recognise.</p> }
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <span class="field-label">Occasion <span class="req" aria-hidden="true">*</span></span>
+          <div class="segments">
+            <button type="button" class="filter-tag" [class.active]="form.controls.occasion.value === 'funeral'"
+                    (click)="form.controls.occasion.setValue('funeral')">Funeral</button>
+            <button type="button" class="filter-tag" [class.active]="form.controls.occasion.value === 'wedding'"
+                    (click)="form.controls.occasion.setValue('wedding')">Wedding</button>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="evDate">Event date <span class="req" aria-hidden="true">*</span></label>
+          <input id="evDate" class="input" type="date" formControlName="eventDate"
+                 [class.is-invalid]="invalid('eventDate')" />
+          @if (invalid('eventDate')) { <p class="field-error">Pick the date of the service.</p> }
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="evVenue">Venue</label>
+        <input id="evVenue" class="input" type="text" formControlName="venue"
+               placeholder="e.g. Osu Presbyterian Church, Accra" />
+      </div>
+
+      <div class="field">
+        <span class="field-label">Assign operators</span>
+        @if (availableOperators().length === 0) {
+          <p class="t-caption">
+            No operators exist yet. Create them under Users — an event with no operators cannot take
+            donations.
+          </p>
+        } @else {
+          <div class="op-chips">
+            @for (op of availableOperators(); track op.id) {
+              <button type="button" class="filter-tag" [class.active]="isSelected(op.id)"
+                      (click)="toggleOperator(op.id)">{{ op.name }}</button>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Stating the code's privacy contract at the moment of creation: this is the only
+           point where the Admin decides who to share it with. -->
+      <div class="code-note">
+        <mat-icon>vpn_key</mat-icon>
+        <p class="t-caption">
+          The code grants a live, read-only view — no account, no password, and no donor phone
+          numbers. Share it with family members only.
+        </p>
+      </div>
+    </div>
+
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="closeCreate()">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="busy()">Create event</button>
+    </footer>
+  </form>
+</div>
+}

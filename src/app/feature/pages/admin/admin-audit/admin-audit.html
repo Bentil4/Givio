@@ -1,0 +1,83 @@
+<section class="page">
+  <header class="page-head">
+    <div>
+      <h1 class="t-page-title">Audit trail</h1>
+      <p class="t-secondary">
+        Every action that changed a record, who took it, and why. Append-only — these entries cannot
+        be edited or deleted by anyone, including you.
+      </p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-secondary" [disabled]="exporting() || isEmpty()"
+              (click)="exportTrail()">
+        <mat-icon>download</mat-icon>
+        {{ exporting() ? 'Preparing…' : 'Export trail' }}
+      </button>
+    </div>
+  </header>
+
+  <div class="filters">
+    <div class="filter-search">
+      <mat-icon>search</mat-icon>
+      <input type="search" placeholder="Search actions, receipts or reasons"
+             [value]="search()" (input)="setSearch($any($event.target).value)" />
+    </div>
+    <div class="filter-tags">
+      @for (a of actions; track a) {
+        <button type="button" class="filter-tag" [class.active]="actionFilter() === a" (click)="setAction(a)">
+          {{ actionLabel(a) }}
+        </button>
+      }
+    </div>
+    @if (actors().length > 0) {
+      <select class="select-field" [value]="actorFilter()" (change)="setActor($any($event.target).value)">
+        <option value="all">Everyone</option>
+        @for (actor of actors(); track actor) {
+          <option [value]="actor">{{ actor }}</option>
+        }
+      </select>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="trail glass">
+      @for (i of skeletons; track i) {
+        <div class="skel-row">
+          <span class="skel skel--sm"></span>
+          <span class="skel skel--lg"></span>
+          <span class="skel skel--md"></span>
+        </div>
+      }
+    </div>
+  } @else if (isEmpty()) {
+    <div class="empty glass">
+      <mat-icon class="empty-icon">history</mat-icon>
+      @if (filtered()) {
+        <p class="t-card-title">No entries match</p>
+        <p class="t-caption">Try widening the filters — the trail itself is never empty once an event starts.</p>
+        <button type="button" class="btn btn-secondary" (click)="clearFilters()">Clear filters</button>
+      } @else {
+        <p class="t-card-title">Nothing recorded yet</p>
+        <p class="t-caption">
+          The first entry appears as soon as an event is created or a donation is saved.
+        </p>
+      }
+    </div>
+  } @else {
+    <ol class="trail glass">
+      @for (e of visible(); track e.id) {
+        <li class="trail-row">
+          <span class="trail-time">{{ e.timestamp }}</span>
+          <span class="trail-tag" [class]="actionClass(e.action)">{{ actionLabel(e.action) }}</span>
+          <span class="trail-body">
+            <span class="t-body">{{ e.summary }}</span>
+            @if (e.detail) {
+              <span class="t-tertiary trail-detail">{{ e.detail }}</span>
+            }
+          </span>
+          <span class="trail-actor">{{ e.actor }}</span>
+        </li>
+      }
+    </ol>
+  }
+</section>

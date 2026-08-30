@@ -1,0 +1,78 @@
+<section class="select-page">
+  <header class="select-head">
+    <div class="select-head-main">
+      <h1 class="t-page-title">Select an event</h1>
+      <p class="t-secondary">{{ heading() }}. Pick the one you're recording for today.</p>
+    </div>
+    <span class="conn" [class.is-off]="!online()">
+      <span class="conn-dot" aria-hidden="true"></span>
+      {{ online() ? 'Online' : 'Offline' }}
+    </span>
+  </header>
+
+  @if (notice(); as msg) {
+    <div class="notice" role="status">
+      <mat-icon>info</mat-icon>
+      <p class="t-caption">{{ msg }}</p>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="event-list">
+      @for (i of skeletons; track i) {
+        <div class="event-card glass is-skel">
+          <span class="skel skel--line"></span>
+          <span class="skel skel--amount"></span>
+        </div>
+      }
+    </div>
+  } @else if (isEmpty()) {
+    <div class="empty glass">
+      <mat-icon class="empty-icon">event_busy</mat-icon>
+      <p class="t-card-title">Nothing assigned to you yet</p>
+      <p class="t-caption">
+        Only an Admin can assign you to an event. Ask them to add you — then refresh this list.
+      </p>
+      <button type="button" class="btn btn-primary" [disabled]="refreshing()" (click)="refresh()">
+        {{ refreshing() ? 'Refreshing…' : 'Refresh list' }}
+      </button>
+    </div>
+  } @else {
+    <div class="event-list">
+      @for (e of events(); track e.id) {
+        <button type="button" class="event-card glass"
+                [class.is-blocked]="!canOpen(e)"
+                (click)="select(e)">
+          <span class="event-rail" aria-hidden="true"></span>
+
+          <span class="event-body">
+            <span class="event-title">
+              <span class="t-card-title">{{ e.name }}</span>
+              <span class="tag" [class]="chipClass[e.status]">{{ statusLabel(e) }}</span>
+            </span>
+            <span class="t-tertiary">{{ metaLabel(e) }}</span>
+          </span>
+
+          <span class="event-total">
+            <span class="event-total-value">{{ totalLabel(e) }}</span>
+            <span class="t-tertiary">
+              {{ e.donorCount }} {{ e.donorCount === 1 ? 'donor' : 'donors' }}
+            </span>
+          </span>
+
+          <span class="event-cta" [class.is-muted]="!canOpen(e)">{{ ctaLabel(e) }}</span>
+        </button>
+      }
+    </div>
+
+    <aside class="select-note">
+      <p class="t-caption">
+        Not seeing your event? Only an Admin can assign you. Ask them to add you — your list refreshes
+        automatically.
+      </p>
+      <button type="button" class="btn-ghost" [disabled]="refreshing()" (click)="refresh()">
+        {{ refreshing() ? 'Refreshing…' : 'Refresh list' }}
+      </button>
+    </aside>
+  }
+</section>

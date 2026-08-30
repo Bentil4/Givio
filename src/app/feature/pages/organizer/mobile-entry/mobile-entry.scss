@@ -1,0 +1,231 @@
+// Phone-first: a full-height column, not a responsive squeeze of the tablet form.
+.phone {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--bg-white);
+  font-family: var(--font-body);
+}
+
+// ── Header. Pinned so "how much so far?" never needs a navigation. ─────
+.phone-head {
+  flex: none;
+  padding: var(--space-md) var(--space-lg);
+  background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary-dark) 100%);
+  color: var(--bg-white);
+}
+
+.phone-head-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.phone-event {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.phone-conn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent-teal);
+
+  &.is-off { color: var(--func-warning); }
+}
+
+.phone-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  animation: phone-pulse 2s var(--ease) infinite;
+}
+
+@keyframes phone-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .35; transform: scale(.7); }
+}
+
+.phone-total-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin-top: 6px;
+}
+
+.phone-total {
+  font-family: monospace;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--primary-mid);
+}
+
+.phone-total-caption {
+  font-size: 0.68rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .5);
+}
+
+.phone-pending {
+  display: inline-block;
+  margin-top: var(--space-sm);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(245, 158, 11, .22);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #fde68a;
+}
+
+// ── Body ──────────────────────────────────────────────────────────────
+.phone-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+}
+
+.amount-block { display: flex; flex-direction: column; }
+
+.amount-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin-top: 4px;
+}
+
+.amount-prefix {
+  font-family: monospace;
+  font-size: 0.95rem;
+  color: var(--data-4);
+}
+
+.amount-value {
+  font-family: monospace;
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--primary-dark);
+
+  &.is-zero { color: var(--data-3); }
+}
+
+.amount-caret {
+  width: 2px;
+  height: 34px;
+  background: var(--primary-mid);
+  animation: caret-blink 1.1s var(--ease) infinite;
+}
+
+@keyframes caret-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .2; }
+}
+
+.amount-note { margin-top: 4px; }
+
+.name-input {
+  height: 46px;
+  padding: 0 var(--space-md);
+  border: 1.5px solid rgba(26, 107, 122, .15);
+  border-radius: var(--radius-md);
+  background: var(--bg-white);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--primary-dark);
+  outline: none;
+  transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+
+  &::placeholder { color: var(--data-3); }
+
+  &:focus {
+    border-color: var(--primary-deep);
+    box-shadow: 0 0 0 3px rgba(0, 200, 224, .15);
+  }
+}
+
+.type-row {
+  display: flex;
+  gap: 6px;
+}
+
+.type-seg {
+  flex: 1;
+  height: 40px;
+  border: 1.5px solid rgba(26, 107, 122, .2);
+  border-radius: var(--radius-full);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  cursor: pointer;
+  transition: all .18s var(--ease);
+
+  &.is-selected {
+    background: linear-gradient(135deg, var(--primary-deep), var(--primary-dark));
+    border-color: transparent;
+    color: var(--bg-white);
+  }
+}
+
+.phone-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--func-error);
+}
+
+.phone-spacer { flex: 1; min-height: var(--space-sm); }
+
+// ── Keypad. Bottom third, 52px keys — one-handed while standing. ───────
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+}
+
+.key {
+  height: 52px;
+  border: 1.5px solid rgba(26, 107, 122, .10);
+  border-radius: var(--radius-md);
+  background: var(--bg-mist);
+  font-family: monospace;
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: var(--primary-dark);
+  cursor: pointer;
+  transition: background .12s var(--ease);
+
+  &:active { background: rgba(0, 200, 224, .14); }
+  &.is-back { color: var(--data-4); }
+}
+
+.save-btn {
+  height: 54px;
+  margin-top: var(--space-sm);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--primary-deep), var(--primary-dark));
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--bg-white);
+  cursor: pointer;
+  transition: opacity .18s var(--ease);
+
+  &:disabled { opacity: .45; cursor: not-allowed; }
+}
