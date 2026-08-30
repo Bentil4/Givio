@@ -7,7 +7,7 @@
       "name": "set-role-and-permissions",
       "runtime": "node-22",
       "execute": ["users"],
-      "scopes": ["users.write", "users.read"],
+      "scopes": ["users.write", "users.read", "rows.write", "rows.read"],
       "events": [],
       "schedule": "",
       "timeout": 15,

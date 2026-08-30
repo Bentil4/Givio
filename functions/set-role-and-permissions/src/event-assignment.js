@@ -1,4 +1,4 @@
-import { Client, Account, Users, Databases, Permission, Role } from 'node-appwrite';
+import { Client, Account, Users, TablesDB, Permission, Role } from 'node-appwrite';
 import { buildClient, verifyAdminCaller, VALID, invalid, hasValue } from './shared.js';
 
 const ACTIONS = ['assignOperators'];
@@ -74,22 +74,22 @@ async function handleAssignOperators({ DatabasesCtor, adminClient, payload, data
   const databases = new DatabasesCtor(adminClient);
 
   try {
-    await databases.getDocument({ databaseId, collectionId: eventsCollectionId, documentId: eventId });
+    await databases.getRow({ databaseId, tableId: eventsCollectionId, rowId: eventId });
   } catch (err) {
     error(`assignOperators: event ${eventId} not found: ${err.message}`);
     return { status: 404, body: { error: 'Event not found' } };
   }
 
   try {
-    await databases.updateDocument({
+    await databases.updateRow({
       databaseId,
-      collectionId: eventsCollectionId,
-      documentId: eventId,
+      tableId: eventsCollectionId,
+      rowId: eventId,
       data: { assignedUserIds },
       permissions: computeEventPermissions(assignedUserIds),
     });
   } catch (err) {
-    error(`assignOperators: updateDocument failed: ${err.message}`);
+    error(`assignOperators: updateRow failed: ${err.message}`);
     return { status: 502, body: { error: 'Failed to save operator assignment' } };
   }
 
@@ -114,7 +114,7 @@ export async function handleEventAssignmentRequest({
   ClientCtor = Client,
   AccountCtor = Account,
   UsersCtor = Users,
-  DatabasesCtor = Databases,
+  DatabasesCtor = TablesDB,
 }) {
   const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT;
   const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID;

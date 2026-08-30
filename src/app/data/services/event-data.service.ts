@@ -168,10 +168,10 @@ export class EventDataService {
     newValues: unknown;
   }): Promise<void> {
     try {
-      await this.databases.createDocument({
+      await this.databases.createRow({
         databaseId: environment.appwriteDatabaseId,
-        collectionId: environment.auditLogsCollectionId,
-        documentId: ID.unique(),
+        tableId: environment.auditLogsCollectionId,
+        rowId: ID.unique(),
         data: {
           entityType: entry.entityType,
           entityId: entry.entityId,
@@ -197,10 +197,10 @@ export class EventDataService {
   private async trySyncNow(entry: OutboxEntry): Promise<boolean> {
     try {
       if (entry.op === 'create') {
-        await this.databases.createDocument({
+        await this.databases.createRow({
           databaseId: environment.appwriteDatabaseId,
-          collectionId: environment.eventsCollectionId,
-          documentId: entry.entityId,
+          tableId: environment.eventsCollectionId,
+          rowId: entry.entityId,
           data: entry.payload as Record<string, unknown>,
           permissions: [
             Permission.read(Role.label('admin')),
@@ -209,10 +209,10 @@ export class EventDataService {
           ],
         });
       } else {
-        await this.databases.updateDocument({
+        await this.databases.updateRow({
           databaseId: environment.appwriteDatabaseId,
-          collectionId: environment.eventsCollectionId,
-          documentId: entry.entityId,
+          tableId: environment.eventsCollectionId,
+          rowId: entry.entityId,
           data: entry.payload as Record<string, unknown>,
         });
       }
