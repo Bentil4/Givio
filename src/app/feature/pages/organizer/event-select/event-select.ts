@@ -3,6 +3,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
 import { EventService } from '../../../../data/services/event.service';
 import { AuthService } from '../../../../data/services/auth.service';
+import { ConnectivityService } from '../../../../data/services/connectivity.service';
 import { ServiceError } from '../../../../data/services/service-error';
 import type { Event, EventStatus } from '../../../../data/models/event';
 import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
@@ -27,15 +28,14 @@ export class EventSelect implements OnInit {
   private readonly router = inject(Router);
   private readonly eventService = inject(EventService);
   private readonly authService = inject(AuthService);
+  private readonly connectivityService = inject(ConnectivityService);
 
   public readonly loading = signal(true);
   public readonly loadError = signal<string | null>(null);
   public readonly refreshing = signal(false);
   public readonly notice = signal<string | null>(null);
 
-  // Real online/reachability detection doesn't exist anywhere in this app yet (Story 3.5's
-  // SyncEngine owns that judgement) — donation-entry/mobile-entry stub it the same way.
-  public readonly online = signal(true);
+  public readonly online = this.connectivityService.online;
 
   public readonly chipClass = EVENT_STATUS_CHIP;
   public readonly skeletons = Array.from({ length: 3 }, (_, i) => i);

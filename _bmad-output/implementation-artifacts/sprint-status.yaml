@@ -70,11 +70,15 @@ development_status:
 
   epic-3: in-progress
   # 3-1 verified against its 6 ACs (2026-09-06): AC1/AC3/AC6 implemented;
-  # AC2 (offline outbox) core pattern solid; AC4 (phone visibility) correct
-  # server-side but family consumer path unwired; AC5 (online/offline
-  # indicator) MISSING — connectivity is a hardcoded `signal(true)`, never
-  # driven by real detection. Not done until AC5 lands.
-  3-1-record-a-donation-online-or-offline: in-progress
+  # AC2 (offline outbox) core pattern solid, FIFO dequeue correctly deferred
+  # to Story 3.5; AC4 (phone visibility) correct server-side, family
+  # consumer path (family-live.ts) is a separate story's stub. AC5
+  # (online/offline indicator) implemented same day via new
+  # ConnectivityService (navigator.onLine + online/offline listeners),
+  # wired into donation-entry/event-select/mobile-entry/operator-donations.
+  # Status is "review", not "done" — not yet manually verified in a
+  # browser (no browser-automation tool available this session).
+  3-1-record-a-donation-online-or-offline: review
   3-2-donation-list-search-filter-running-total: backlog
   3-3-edit-a-donation-entry: backlog
   3-4-admin-soft-delete-a-donation: backlog

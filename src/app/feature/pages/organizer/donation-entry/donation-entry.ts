@@ -26,6 +26,7 @@ import type { Event, EventStatus } from '../../../../data/models/event';
 import { appDb } from '../../../../data/dexie/app-db';
 import { DonationService } from '../../../../data/services/donation.service';
 import { AuthService } from '../../../../data/services/auth.service';
+import { ConnectivityService } from '../../../../data/services/connectivity.service';
 import { ServiceError } from '../../../../data/services/service-error';
 
 type Phase = 'entry' | 'confirming' | 'saved';
@@ -37,11 +38,12 @@ type Phase = 'entry' | 'confirming' | 'saved';
  * the app twice, at the worst possible moment to be learning anything.
  *
  * Real (Story 3.1): event load (Dexie, by the `event` query param), donation list for this
- * event, and createDonation itself (Dexie + outbox + inline Appwrite push, DonationService).
- * The header's "live total" is this-device-only until Story 3.5's SyncEngine adds a real
- * pull — same limitation EventDataService.listEvents() already carries. `online`/`syncing`/
- * `syncedCount` remain stand-in signals; the connection-banner's syncing/synced states and
- * the pending-queue drawer are Story 3.5's job, not this story's.
+ * event, createDonation itself (Dexie + outbox + inline Appwrite push, DonationService), and
+ * `online` (real navigator.onLine detection, ConnectivityService). The header's "live total"
+ * is this-device-only until Story 3.5's SyncEngine adds a real pull — same limitation
+ * EventDataService.listEvents() already carries. `syncing`/`syncedCount` remain stand-in
+ * signals; the connection-banner's syncing/synced states and the pending-queue drawer are
+ * Story 3.5's job, not this story's.
  */
 @Component({
   selector: 'app-donation-entry',
@@ -54,15 +56,15 @@ export class DonationEntry implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly donationService = inject(DonationService);
   private readonly authService = inject(AuthService);
+  private readonly connectivityService = inject(ConnectivityService);
 
   public readonly event = signal<Event | null>(null);
   public readonly notFound = signal(false);
   public readonly loadError = signal<string | null>(null);
   public readonly donations = this.donationService.donations;
 
-  // Real online/reachability detection doesn't exist anywhere in this app yet (Story 3.5's
-  // SyncEngine owns that judgement) — event-select/mobile-entry stub it the same way.
-  public readonly online = signal(true);
+  public readonly online = this.connectivityService.online;
+  // Story 3.5's SyncEngine owns syncing/pending-count judgement — stand-ins until then.
   public readonly syncing = signal(false);
   public readonly syncedCount = signal(0);
   public readonly pending = signal<readonly DonationDraft[]>([]);
