@@ -1,11 +1,27 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
-import { ConnectionBanner, ConnectionState } from '../../../components/connection-banner/connection-banner';
+import {
+  ConnectionBanner,
+  ConnectionState,
+} from '../../../components/connection-banner/connection-banner';
 import { DonationForm } from '../../../components/donation-form/donation-form';
 import { PendingQueue } from '../../../components/pending-queue/pending-queue';
 import { DonationRow } from '../../../components/donation-row/donation-row';
-import { Donation, DonationDraft, formatCedis, formatCedisShort, totalMinor } from '../../../../data/models/donation';
+import {
+  Donation,
+  DonationDraft,
+  formatCedis,
+  formatCedisShort,
+  totalMinor,
+} from '../../../../data/models/donation';
 import type { Event, EventStatus } from '../../../../data/models/event';
 import { appDb } from '../../../../data/dexie/app-db';
 import { DonationService } from '../../../../data/services/donation.service';
@@ -80,7 +96,9 @@ export class DonationEntry implements OnInit {
 
   /** Offline, the number on screen is by definition stale — so it says so. */
   public readonly totalLabel = computed(() => formatCedisShort(totalMinor(this.donations())));
-  public readonly totalCaption = computed(() => (this.online() ? 'Live total' : 'Last known total'));
+  public readonly totalCaption = computed(() =>
+    this.online() ? 'Live total' : 'Last known total',
+  );
 
   public readonly eventMeta = computed(() => {
     const e = this.event();
@@ -176,6 +194,10 @@ export class DonationEntry implements OnInit {
     this.phase.set('entry');
   }
 
-  public openQueue(): void { this.queueOpen.set(true); }
-  public closeQueue(): void { this.queueOpen.set(false); }
+  public openQueue(): void {
+    this.queueOpen.set(true);
+  }
+  public closeQueue(): void {
+    this.queueOpen.set(false);
+  }
 }
