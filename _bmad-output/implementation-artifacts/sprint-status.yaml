@@ -60,7 +60,12 @@ development_status:
   # event-data.service.ts cover status guards; admin-event-detail.ts has
   # working pause/resume/close + assignOperators wired to the
   # set-role-and-permissions Function (event-assignment.js).
-  2-1-create-edit-events: done
+  # 2-1 reopened (2026-09-07): reported bug — Admin/Operator can't see
+  # events after logging in on a different browser. Root cause:
+  # EventDataService.listEvents() only ever reads local Dexie, never
+  # queries Appwrite. New AC added to Story 2.1 in epics.md requiring a
+  # real permission-scoped server pull on login.
+  2-1-create-edit-events: in-progress
   2-2-event-status-lifecycle: done
   2-3-assign-operators-permission-derivation: done
   # 2-4: only UI scaffolding exists (family-code.ts, family-live.ts) — no
