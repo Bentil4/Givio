@@ -24,11 +24,19 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
 describe('DonationDataService', () => {
   let service: DonationDataService;
   let functions: { createExecution: ReturnType<typeof vi.fn> };
-  let databases: { listRows: ReturnType<typeof vi.fn> };
+  let databases: {
+    listRows: ReturnType<typeof vi.fn>;
+    updateRow: ReturnType<typeof vi.fn>;
+    createRow: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     functions = { createExecution: vi.fn() };
-    databases = { listRows: vi.fn().mockResolvedValue({ total: 0, rows: [] }) };
+    databases = {
+      listRows: vi.fn().mockResolvedValue({ total: 0, rows: [] }),
+      updateRow: vi.fn().mockResolvedValue({}),
+      createRow: vi.fn().mockResolvedValue({}),
+    };
     TestBed.configureTestingModule({
       providers: [
         { provide: FUNCTIONS, useValue: functions },
@@ -279,6 +287,158 @@ describe('DonationDataService', () => {
       expect((await appDb.donations.get(donation.id))?.syncStatus).toBe('synced');
       const pending = (await appDb.outbox.toArray()).filter((e) => e.entityId === donation.id);
       expect(pending).toHaveLength(0);
+    });
+  });
+
+  describe('listAllDonations', () => {
+    it('pulls without an eventId filter', async () => {
+      databases.listRows.mockResolvedValueOnce({
+        total: 1,
+        rows: [
+          {
+            $id: 'any-event',
+            eventId: 'e9',
+            receiptNumber: 'P-3',
+            donorName: 'Esi',
+            amountMinor: 3000,
+            donationType: 'cash',
+            recordedBy: 'op-2',
+            recordedAt: '2026-01-01T00:00:00.000Z',
+            syncStatus: 'synced',
+          },
+        ],
+      });
+
+      const result = await service.listAllDonations();
+
+      expect(result.map((d) => d.id)).toEqual(['any-event']);
+      const queries = databases.listRows.mock.calls[0][0].queries as string[];
+      expect(queries.some((q) => q.includes('eventId'))).toBe(false);
+    });
+  });
+
+  describe('updateDonation', () => {
+    const seed = async (overrides: Partial<import('../models/donation').Donation> = {}) => {
+      const donation = {
+        id: 'd1',
+        eventId: 'e1',
+        receiptNumber: 'P-1',
+        donorName: 'Ama',
+        amountMinor: 5000,
+        donationType: 'cash' as const,
+        recordedBy: 'op-1',
+        recordedAt: '2026-01-01T00:00:00.000Z',
+        syncStatus: 'synced' as const,
+        ...overrides,
+      };
+      await appDb.donations.put(donation);
+      return donation;
+    };
+
+    it('rejects with ServiceError for an unknown id', async () => {
+      await expect(
+        service.updateDonation('missing', { donorName: 'X' }, 'Fixed a typo in the name'),
+      ).rejects.toBeInstanceOf(ServiceError);
+    });
+
+    it('rejects with ServiceError when the donation is deleted', async () => {
+      await seed({ deletedAt: '2026-02-01T00:00:00.000Z' });
+      await expect(
+        service.updateDonation('d1', { donorName: 'X' }, 'Fixed a typo in the name'),
+      ).rejects.toBeInstanceOf(ServiceError);
+    });
+
+    it('writes the merged patch to Dexie, calls updateRow, and writes an audit log', async () => {
+      await seed();
+
+      const updated = await service.updateDonation(
+        'd1',
+        { donorName: 'Ama Serwaa' },
+        'Corrected spelling per donor request',
+      );
+
+      expect(updated.donorName).toBe('Ama Serwaa');
+      expect(updated.updatedAt).toBeTruthy();
+      expect((await appDb.donations.get('d1'))?.donorName).toBe('Ama Serwaa');
+      expect(databases.updateRow).toHaveBeenCalledWith(
+        expect.objectContaining({ rowId: 'd1', data: expect.objectContaining({ donorName: 'Ama Serwaa' }) }),
+      );
+      expect(databases.createRow).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ entityType: 'donation', action: 'edit' }) }),
+      );
+    });
+
+    it('still resolves with the local update when updateRow rejects (offline), and skips the audit log', async () => {
+      await seed();
+      databases.updateRow.mockRejectedValueOnce(new Error('offline'));
+
+      const updated = await service.updateDonation('d1', { donorName: 'Offline Edit' }, 'reason text here');
+
+      expect(updated.donorName).toBe('Offline Edit');
+      expect(databases.createRow).not.toHaveBeenCalled();
+      const pending = (await appDb.outbox.toArray()).filter((e) => e.entityId === 'd1');
+      expect(pending).toHaveLength(1);
+    });
+  });
+
+  describe('softDeleteDonation / recoverDonation', () => {
+    const seed = async (overrides: Partial<import('../models/donation').Donation> = {}) => {
+      const donation = {
+        id: 'd1',
+        eventId: 'e1',
+        receiptNumber: 'P-1',
+        donorName: 'Ama',
+        amountMinor: 5000,
+        donationType: 'cash' as const,
+        recordedBy: 'op-1',
+        recordedAt: '2026-01-01T00:00:00.000Z',
+        syncStatus: 'synced' as const,
+        ...overrides,
+      };
+      await appDb.donations.put(donation);
+      return donation;
+    };
+
+    it('softDeleteDonation sets deletedAt/deletedBy/deletionReason and logs a delete audit entry', async () => {
+      await seed();
+
+      const deleted = await service.softDeleteDonation('d1', 'Duplicate entry, recorded twice');
+
+      expect(deleted.deletedAt).toBeTruthy();
+      expect(deleted.deletedBy).toBe('op-1');
+      expect(deleted.deletionReason).toBe('Duplicate entry, recorded twice');
+      expect(databases.createRow).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ action: 'delete' }) }),
+      );
+    });
+
+    it('softDeleteDonation rejects with ServiceError when already deleted', async () => {
+      await seed({ deletedAt: '2026-02-01T00:00:00.000Z' });
+      await expect(service.softDeleteDonation('d1', 'reason text here')).rejects.toBeInstanceOf(
+        ServiceError,
+      );
+    });
+
+    it('recoverDonation clears deletedAt/deletedBy/deletionReason and logs a recover audit entry', async () => {
+      await seed({
+        deletedAt: '2026-02-01T00:00:00.000Z',
+        deletedBy: 'admin-1',
+        deletionReason: 'Duplicate entry',
+      });
+
+      const recovered = await service.recoverDonation('d1');
+
+      expect(recovered.deletedAt).toBeNull();
+      expect(recovered.deletedBy).toBeUndefined();
+      expect(recovered.deletionReason).toBeUndefined();
+      expect(databases.createRow).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ action: 'recover' }) }),
+      );
+    });
+
+    it('recoverDonation rejects with ServiceError when not deleted', async () => {
+      await seed();
+      await expect(service.recoverDonation('d1')).rejects.toBeInstanceOf(ServiceError);
     });
   });
 });

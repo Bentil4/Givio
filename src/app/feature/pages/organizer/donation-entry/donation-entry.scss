@@ -193,6 +193,13 @@
   border-radius: var(--radius-lg);
 }
 
+.desk-aside-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
 .desk-stats {
   display: flex;
   gap: var(--space-sm);

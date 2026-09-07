@@ -7,7 +7,12 @@ import type { OutboxEntry } from '../dexie/outbox-entry';
 import type { Donation, DonationDraft } from '../models/donation';
 import { AuthService } from './auth.service';
 import { ServiceError } from './service-error';
+import { writeAuditLog } from './audit-log-writer';
 import { environment } from '../../../environments/environment';
+
+type UpdateDonationPatch = Partial<
+  Pick<Donation, 'donorName' | 'amountMinor' | 'donationType' | 'onBehalfOf'>
+>;
 
 /** Mirrors the row shape recordDonation's Function writes (donation-recording.js). */
 function rowToDonation(row: Models.DefaultRow): Donation {
@@ -49,8 +54,20 @@ export class DonationDataService {
    * already has locally (FR-OFF-002).
    */
   async listDonationsForEvent(eventId: string): Promise<Donation[]> {
+    await this.pullDonations(Query.equal('eventId', eventId));
+    return appDb.donations.where('eventId').equals(eventId).toArray();
+  }
+
+  /** Admin-wide, unscoped by event (admin-donations/admin-trash) — Admin's Role.label('admin')
+   *  read permission already covers every donation row, no per-event query needed. */
+  async listAllDonations(): Promise<Donation[]> {
+    await this.pullDonations();
+    return appDb.donations.toArray();
+  }
+
+  private async pullDonations(filterQuery?: string): Promise<void> {
     try {
-      const remoteDonations = await this.fetchAllDonationRows(eventId);
+      const remoteDonations = await this.fetchAllDonationRows(filterQuery);
       const pendingIds = new Set(
         (await appDb.outbox.where('entityType').equals('donation').toArray()).map(
           (e) => e.entityId,
@@ -62,18 +79,17 @@ export class DonationDataService {
         await appDb.donations.put(donation);
       }
     } catch {
-      // Offline or unreachable — fall through to the local read below.
+      // Offline or unreachable — fall through to whatever's already local.
     }
-    return appDb.donations.where('eventId').equals(eventId).toArray();
   }
 
-  private async fetchAllDonationRows(eventId: string): Promise<Donation[]> {
+  private async fetchAllDonationRows(filterQuery?: string): Promise<Donation[]> {
     const PAGE_SIZE = 100;
     const donations: Donation[] = [];
     let cursor: string | undefined;
 
     for (;;) {
-      const queries = [Query.equal('eventId', eventId), Query.limit(PAGE_SIZE)];
+      const queries = filterQuery ? [filterQuery, Query.limit(PAGE_SIZE)] : [Query.limit(PAGE_SIZE)];
       if (cursor) queries.push(Query.cursorAfter(cursor));
 
       const page = await this.databases.listRows<Models.DefaultRow>({
@@ -172,6 +188,160 @@ export class DonationDataService {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Admin-only (enforced by the calling screens' route guards, same as updateEvent): Admin
+   * already holds Permission.update(Role.label('admin')) on every donation row from creation
+   * (computeDonationPermissions, donation-recording.js), so this is a direct client update —
+   * no elevated-trust Function call needed, unlike createDonation.
+   *
+   * NOTE: the live Appwrite `donations` table's schema was set up before this method existed;
+   * if it doesn't yet have an `updatedAt` column, the local edit still saves and shows
+   * immediately (Dexie-first), it just stays stuck `pending` until that column is added.
+   */
+  async updateDonation(id: string, patch: UpdateDonationPatch, reason: string): Promise<Donation> {
+    const current = await appDb.donations.get(id);
+    if (!current) {
+      throw new ServiceError('Donation not found');
+    }
+    if (current.deletedAt) {
+      throw new ServiceError('Cannot edit a deleted donation');
+    }
+
+    const updated: Donation = { ...current, ...patch, updatedAt: new Date().toISOString() };
+
+    try {
+      await appDb.donations.put(updated);
+    } catch (error) {
+      throw new ServiceError('Failed to save donation locally', error);
+    }
+
+    const synced = await this.queueAndSyncUpdate(current, updated);
+    if (synced) {
+      await this.logDonationAudit('edit', current, { ...updated, reason });
+    }
+
+    return updated;
+  }
+
+  async softDeleteDonation(id: string, reason: string): Promise<Donation> {
+    const current = await appDb.donations.get(id);
+    if (!current) {
+      throw new ServiceError('Donation not found');
+    }
+    if (current.deletedAt) {
+      throw new ServiceError('Donation is already deleted');
+    }
+
+    const now = new Date().toISOString();
+    const updated: Donation = {
+      ...current,
+      deletedAt: now,
+      deletedBy: this.authService.currentUser()!.$id,
+      deletionReason: reason,
+      updatedAt: now,
+    };
+
+    try {
+      await appDb.donations.put(updated);
+    } catch (error) {
+      throw new ServiceError('Failed to save donation locally', error);
+    }
+
+    const synced = await this.queueAndSyncUpdate(current, updated);
+    if (synced) {
+      await this.logDonationAudit('delete', current, updated);
+    }
+
+    return updated;
+  }
+
+  async recoverDonation(id: string): Promise<Donation> {
+    const current = await appDb.donations.get(id);
+    if (!current) {
+      throw new ServiceError('Donation not found');
+    }
+    if (!current.deletedAt) {
+      throw new ServiceError('Donation is not deleted');
+    }
+
+    const updated: Donation = {
+      ...current,
+      deletedAt: null,
+      deletedBy: undefined,
+      deletionReason: undefined,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      await appDb.donations.put(updated);
+    } catch (error) {
+      throw new ServiceError('Failed to save donation locally', error);
+    }
+
+    const synced = await this.queueAndSyncUpdate(current, updated);
+    if (synced) {
+      await this.logDonationAudit('recover', current, updated);
+    }
+
+    return updated;
+  }
+
+  private async queueAndSyncUpdate(current: Donation, updated: Donation): Promise<boolean> {
+    const entry: OutboxEntry = {
+      entityType: 'donation',
+      entityId: updated.id,
+      op: 'update',
+      payload: updated,
+      baseUpdatedAt: current.updatedAt,
+      status: 'pending',
+      retries: 0,
+      createdAt: updated.updatedAt!,
+    };
+    entry.localId = await appDb.outbox.add(entry);
+    return this.trySyncUpdate(entry);
+  }
+
+  // Same "never block the caller on a network failure" rule as trySyncNow — this is a plain
+  // client update (see updateDonation's doc comment for why no Function is needed here).
+  private async trySyncUpdate(entry: OutboxEntry): Promise<boolean> {
+    try {
+      await this.databases.updateRow({
+        databaseId: environment.appwriteDatabaseId,
+        tableId: environment.donationsCollectionId,
+        rowId: entry.entityId,
+        data: entry.payload as Record<string, unknown>,
+      });
+      if (entry.localId !== undefined) {
+        await appDb.outbox.delete(entry.localId);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // An audit entry referencing a document not yet in Appwrite would be meaningless, so the
+  // write is skipped whenever the sync above left the outbox entry pending — same rule as
+  // EventDataService.updateEvent.
+  private async logDonationAudit(
+    action: 'edit' | 'delete' | 'recover',
+    previousValues: Donation,
+    newValues: unknown,
+  ): Promise<void> {
+    try {
+      await writeAuditLog(this.databases, {
+        entityType: 'donation',
+        entityId: previousValues.id,
+        action,
+        performedBy: this.authService.currentUser()!.$id,
+        previousValues,
+        newValues,
+      });
+    } catch (error) {
+      console.error(`DonationDataService: failed to write '${action}' audit log`, error);
     }
   }
 }

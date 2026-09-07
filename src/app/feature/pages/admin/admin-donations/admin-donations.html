@@ -3,13 +3,17 @@
     <div>
       <h1 class="t-page-title">Donation oversight</h1>
       <p class="t-secondary">
-        Every record for this event, including donor contact details and the recording operator.
+        Every record {{ filters().eventId ? 'for this event' : 'across every event' }}, including
+        donor contact details and the recording operator.
       </p>
     </div>
-    <div class="page-head-total">
-      <span class="sub-label">Showing</span>
-      <span class="page-total-value">{{ totalLabel() }}</span>
-      <span class="t-tertiary">{{ visible().length }} records</span>
+    <div class="page-head-actions">
+      <div class="page-head-total">
+        <span class="sub-label">Showing</span>
+        <span class="page-total-value">{{ totalLabel() }}</span>
+        <span class="t-tertiary">{{ visible().length }} records</span>
+      </div>
+      <a class="btn btn-secondary" routerLink="/dashboard/donations/deleted">Deleted donations</a>
     </div>
   </header>
 
@@ -185,6 +189,9 @@
           </p>
         }
       </div>
+      @if (saveError(); as err) {
+        <p class="field-error">{{ err }}</p>
+      }
     </div>
 
     <footer class="dialog-foot">
@@ -233,6 +240,9 @@
           <p class="field-error">Say why — this goes in the audit trail.</p>
         }
       </div>
+      @if (deleteError(); as err) {
+        <p class="field-error">{{ err }}</p>
+      }
     </div>
 
     <footer class="dialog-foot">

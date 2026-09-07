@@ -1,6 +1,6 @@
 <section class="op-list-page">
   <header class="op-list-head">
-    <a class="op-back" routerLink="/organizer/entry">
+    <a class="op-back" routerLink="/organizer/entry" [queryParams]="{ event: eventId() }">
       <mat-icon>arrow_back</mat-icon>
       <span>Entry desk</span>
     </a>

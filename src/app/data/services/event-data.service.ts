@@ -7,6 +7,7 @@ import type { OutboxEntry } from '../dexie/outbox-entry';
 import type { Event } from '../models/event';
 import { AuthService } from './auth.service';
 import { ServiceError } from './service-error';
+import { writeAuditLog } from './audit-log-writer';
 import { environment } from '../../../environments/environment';
 
 interface CreateEventInput {
@@ -177,7 +178,7 @@ export class EventDataService {
     // see Story 2.1 Dev Notes for the known gap this leaves until Story 3.5's SyncEngine exists.
     if (synced) {
       try {
-        await this.writeAuditLog({
+        await writeAuditLog(this.databases, {
           entityType: 'event',
           entityId: updated.id,
           action: 'edit',
@@ -222,35 +223,6 @@ export class EventDataService {
     }
 
     return updated;
-  }
-
-  async writeAuditLog(entry: {
-    entityType: 'event';
-    entityId: string;
-    action: 'edit';
-    performedBy: string;
-    previousValues: unknown;
-    newValues: unknown;
-  }): Promise<void> {
-    try {
-      await this.databases.createRow({
-        databaseId: environment.appwriteDatabaseId,
-        tableId: environment.auditLogsCollectionId,
-        rowId: ID.unique(),
-        data: {
-          entityType: entry.entityType,
-          entityId: entry.entityId,
-          action: entry.action,
-          performedBy: entry.performedBy,
-          previousValues: JSON.stringify(entry.previousValues),
-          newValues: JSON.stringify(entry.newValues),
-          timestamp: new Date().toISOString(),
-        },
-        permissions: [Permission.read(Role.label('admin'))],
-      });
-    } catch (error) {
-      throw new ServiceError('Failed to write audit log', error);
-    }
   }
 
   /**

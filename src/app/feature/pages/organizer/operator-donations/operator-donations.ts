@@ -1,8 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Donation, DonationType, DONATION_TYPE_LABELS, formatCedis, formatCedisShort, totalMinor } from '../../../../data/models/donation';
 import { ConnectivityService } from '../../../../data/services/connectivity.service';
+import { DonationService } from '../../../../data/services/donation.service';
+import { AuthService } from '../../../../data/services/auth.service';
+import { appDb } from '../../../../data/dexie/app-db';
 
 type Tab = 'all' | 'mine' | 'pending' | DonationType;
 
@@ -21,15 +24,17 @@ type Tab = 'all' | 'mine' | 'pending' | DonationType;
   styleUrl: './operator-donations.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class OperatorDonations {
+export class OperatorDonations implements OnInit {
+  private readonly route = inject(ActivatedRoute);
   private readonly connectivityService = inject(ConnectivityService);
+  private readonly donationService = inject(DonationService);
+  private readonly authService = inject(AuthService);
 
-  // ── replace with service-backed signals ──────────────────────────────
-  public readonly donations = signal<readonly Donation[]>([]);
+  public readonly donations = this.donationService.donations;
   public readonly loading = signal(true);
   public readonly eventName = signal('');
-  public readonly currentUser = signal('');
-  // ─────────────────────────────────────────────────────────────────────
+  public readonly eventId = signal('');
+  public readonly currentUser = computed(() => this.authService.currentUser()?.$id ?? '');
 
   public readonly online = this.connectivityService.online;
 
@@ -57,6 +62,21 @@ export class OperatorDonations {
 
   private byType(type: DonationType): readonly Donation[] {
     return this.donations().filter((d) => d.donationType === type);
+  }
+
+  async ngOnInit(): Promise<void> {
+    const eventId = this.route.snapshot.queryParamMap.get('event');
+    if (!eventId) {
+      this.loading.set(false);
+      return;
+    }
+
+    this.eventId.set(eventId);
+    const event = await appDb.events.get(eventId);
+    this.eventName.set(event?.name ?? '');
+
+    await this.donationService.loadDonationsForEvent(eventId);
+    this.loading.set(false);
   }
 
   public readonly visible = computed(() => {

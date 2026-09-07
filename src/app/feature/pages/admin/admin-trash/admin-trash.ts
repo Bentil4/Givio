@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { Donation, formatCedis } from '../../../../data/models/donation';
+import { DonationService } from '../../../../data/services/donation.service';
+import { ServiceError } from '../../../../data/services/service-error';
 
 const RECOVERY_WINDOW_DAYS = 30;
 
@@ -19,14 +21,20 @@ const RECOVERY_WINDOW_DAYS = 30;
   styleUrl: './admin-trash.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AdminTrash {
-  // ── replace with service-backed signals ──────────────────────────────
-  public readonly deleted = signal<readonly Donation[]>([]);
+export class AdminTrash implements OnInit {
+  private readonly donationService = inject(DonationService);
+
+  public readonly deleted = computed(() => this.donationService.donations().filter((d) => !!d.deletedAt));
   public readonly loading = signal(true);
-  // ─────────────────────────────────────────────────────────────────────
 
   public readonly recovering = signal<Donation | null>(null);
   public readonly busy = signal(false);
+  public readonly recoverError = signal<string | null>(null);
+
+  async ngOnInit(): Promise<void> {
+    await this.donationService.loadAllDonations();
+    this.loading.set(false);
+  }
 
   public readonly skeletons = Array.from({ length: 3 }, (_, i) => i);
 
@@ -58,10 +66,14 @@ export class AdminTrash {
 
   public async confirmRecover(): Promise<void> {
     this.busy.set(true);
+    this.recoverError.set(null);
     try {
-      // await donationService.recover(this.recovering()!.id);
-      // Recovery is itself an audited action, and the record re-enters every total.
+      // Recovery is itself an audited action (logDonationAudit's 'recover' entry), and the
+      // record re-enters every total the moment DonationService's signal updates.
+      await this.donationService.recoverDonation(this.recovering()!.id);
       this.dismiss();
+    } catch (err) {
+      this.recoverError.set(err instanceof ServiceError ? err.message : 'Failed to recover the donation');
     } finally {
       this.busy.set(false);
     }
