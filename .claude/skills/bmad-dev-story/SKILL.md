@@ -274,6 +274,11 @@ Activation is complete. If `activation_steps_prepend` or `activation_steps_appen
     </check>
 
     <check if="{{current_status}} == 'ready-for-dev' AND story file YAML frontmatter does NOT contain baseline_commit">
+      <action>Derive {{branch_key}} = the leading "N-M" numeric segment of {{story_key}} (e.g., "3-1" from "3-1-record-a-donation-online-or-offline")</action>
+      <action>Derive {{branch_summary}} = the story's first-heading title with the "Story N.M: " prefix stripped (e.g., "Record a donation, online or offline")</action>
+      <action>Spawn the `branch-manager` agent (Task tool) with ticket key {{branch_key}}, ticket summary {{branch_summary}}, issue type "Story"</action>
+      <action if="branch-manager reports DIRTY_TREE">HALT — show the reported git status to the user and ask how to proceed before starting implementation</action>
+      <action if="branch-manager reports EXISTING_BRANCH or NEW_BRANCH">Continue implementation on that branch</action>
       <action>Run `git rev-parse HEAD` to capture current commit into {{baseline_commit}}; if git/version control is unavailable, set {{baseline_commit}} = `NO_VCS`</action>
       <action>If story file YAML frontmatter exists, add `baseline_commit: {{baseline_commit}}` to the frontmatter</action>
       <action>If story file has no YAML frontmatter, create frontmatter at the top containing only `baseline_commit: {{baseline_commit}}`</action>

@@ -1,0 +1,20 @@
+# Team override for bmad-sprint-status.
+# Committed to the repo — applies to every developer on the project.
+
+[workflow]
+
+# Fires when the user exits the dashboard (Step 5 choice 4) or a validate-mode
+# run succeeds (Step 30). Catches stories stuck at "review" without a PR yet —
+# e.g. finished before this automation existed, or dev-story's own on_complete
+# was skipped.
+on_complete = """
+Check development_status for any story at "review". For each one found:
+
+1. Derive its expected branch name the way branch-manager would: `feature/{leading N-M segment of the story key}-{kebab-case story title}`.
+2. Check `git branch --list` and `git branch -r --list` for that story's key. If no matching branch exists, report the story as needing manual git setup (implemented directly on another branch) and move on — never guess or invent a branch.
+3. If a matching branch exists, run `gh pr list --head <branch> --base dev --json url --jq '.[0].url'`. If a PR is already open, skip it.
+4. Otherwise, check out the branch, spawn the `committer` agent (Task tool) if the tree is dirty, then spawn the `pr-publisher` agent (Task tool) to push and open the PR into `dev`.
+5. Report a single summary to the user: what was opened, and why any review-status story was skipped. Never act silently.
+
+Skip this entirely if no story is at "review".
+"""

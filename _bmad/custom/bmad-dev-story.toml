@@ -1,0 +1,19 @@
+# Team override for bmad-dev-story.
+# Committed to the repo — applies to every developer on the project.
+
+[workflow]
+
+# Fires as the final terminal instruction of Step 10, right after a story's
+# implementation is complete and its status has been set to "review".
+on_complete = """
+The story just reached status "review" — implementation is complete. Publish it automatically:
+
+1. Run `git status --porcelain`. If the tree is dirty, spawn the `committer` agent (Task tool) — a final commit (not a checkpoint), staging every file in the story's File List, with a message derived from the story title (e.g. "feat: implement Story {{story_key}} — {{title}}").
+2. Spawn the `pr-publisher` agent (Task tool) to push the branch and open a PR into `dev`. Pass the story key and title as the feature description.
+3. Relay pr-publisher's outcome to the user:
+   - `PR_CREATED: <url>` → tell the user the PR is open and share the link.
+   - `EXISTING_PR: <url>` → tell the user a PR is already open for this story and share the link.
+   - `ENV_FILES_DETECTED` → stop, list the flagged files, and ask the user whether to include them before pushing.
+   - `NOT_A_FEATURE_BRANCH` → this story was implemented directly on dev/main; tell the user and do not push.
+   - `DIRTY_TREE` / `PUSH_FAILED` / `NOTHING_TO_PUSH` → surface the message verbatim and stop; do not retry automatically.
+"""
