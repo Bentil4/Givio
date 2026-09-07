@@ -88,9 +88,16 @@ development_status:
   # Status is "review", not "done" — not yet manually verified in a
   # browser (no browser-automation tool available this session).
   3-1-record-a-donation-online-or-offline: review
-  3-2-donation-list-search-filter-running-total: backlog
-  3-3-edit-a-donation-entry: backlog
-  3-4-admin-soft-delete-a-donation: backlog
+  # 3-2/3-3/3-4 implemented 2026-09-07 as part of a broader "wire every
+  # stubbed feature" effort (see plan at the time: operator-donations,
+  # admin-donations, admin-trash all wired to real DonationDataService
+  # methods, with a shared generalized writeAuditLog). Status "review" —
+  # not yet manually browser-verified, and the live Appwrite `donations`
+  # table may be missing the `updatedAt` column edits/deletes need to
+  # actually sync (falls back to locally-saved-but-pending otherwise).
+  3-2-donation-list-search-filter-running-total: review
+  3-3-edit-a-donation-entry: review
+  3-4-admin-soft-delete-a-donation: review
   3-5-sync-engine-auto-sync-pending-count-conflict-detection: backlog
   3-6-receipt-generation-pdf-provisional-numbering: backlog
   epic-3-retrospective: optional
