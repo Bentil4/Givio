@@ -1,25 +1,93 @@
 import { Injectable, inject } from '@angular/core';
-import { ID } from 'appwrite';
-import { FUNCTIONS } from '../appwrite/client';
+import { ID, Models, Query } from 'appwrite';
+import { DATABASES, FUNCTIONS } from '../appwrite/client';
 import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
 import { appDb } from '../dexie/app-db';
 import type { OutboxEntry } from '../dexie/outbox-entry';
 import type { Donation, DonationDraft } from '../models/donation';
 import { AuthService } from './auth.service';
 import { ServiceError } from './service-error';
+import { environment } from '../../../environments/environment';
+
+/** Mirrors the row shape recordDonation's Function writes (donation-recording.js). */
+function rowToDonation(row: Models.DefaultRow): Donation {
+  return {
+    id: row['$id'],
+    eventId: row['eventId'],
+    receiptNumber: row['receiptNumber'],
+    donorName: row['donorName'],
+    amountMinor: row['amountMinor'] ?? null,
+    donationType: row['donationType'],
+    onBehalfOf: row['onBehalfOf'] ?? undefined,
+    donorPhone: row['donorPhone'] ?? undefined,
+    notes: row['notes'] ?? undefined,
+    recordedBy: row['recordedBy'],
+    recordedAt: row['recordedAt'],
+    deskLabel: row['deskLabel'] ?? undefined,
+    syncStatus: row['syncStatus'] ?? 'synced',
+    deletedAt: row['deletedAt'] ?? null,
+    deletedBy: row['deletedBy'] ?? undefined,
+    deletionReason: row['deletionReason'] ?? undefined,
+  };
+}
 
 @Injectable({ providedIn: 'root' })
 export class DonationDataService {
+  private readonly databases = inject(DATABASES);
   private readonly functions = inject(FUNCTIONS);
   private readonly authService = inject(AuthService);
 
   /**
-   * Local-first, same as EventDataService.listEvents(): only returns donations created or
-   * synced onto this device/browser — there's no server-pull yet (Story 3.5's SyncEngine).
-   * The event's "live total" this feeds is therefore this-device-only until that lands.
+   * Server-pull, same shape as EventDataService.listEvents(): without this, a device that
+   * never itself created/synced a donation for this event would see nothing. Appwrite's own
+   * document permissions (computeDonationPermissions, donation-recording.js) do the scoping —
+   * Admin's Role.label('admin') sees every row, an Operator's Role.user(uid) permission only
+   * exists on rows for events they're assigned to — so no client-side filtering is needed
+   * beyond the eventId query itself.
+   *
+   * Never throws: offline/unreachable just means this device falls back to whatever it
+   * already has locally (FR-OFF-002).
    */
   async listDonationsForEvent(eventId: string): Promise<Donation[]> {
+    try {
+      const remoteDonations = await this.fetchAllDonationRows(eventId);
+      const pendingIds = new Set(
+        (await appDb.outbox.where('entityType').equals('donation').toArray()).map(
+          (e) => e.entityId,
+        ),
+      );
+      for (const donation of remoteDonations) {
+        // An unsynced local create/edit sitting in the outbox wins until it syncs.
+        if (pendingIds.has(donation.id)) continue;
+        await appDb.donations.put(donation);
+      }
+    } catch {
+      // Offline or unreachable — fall through to the local read below.
+    }
     return appDb.donations.where('eventId').equals(eventId).toArray();
+  }
+
+  private async fetchAllDonationRows(eventId: string): Promise<Donation[]> {
+    const PAGE_SIZE = 100;
+    const donations: Donation[] = [];
+    let cursor: string | undefined;
+
+    for (;;) {
+      const queries = [Query.equal('eventId', eventId), Query.limit(PAGE_SIZE)];
+      if (cursor) queries.push(Query.cursorAfter(cursor));
+
+      const page = await this.databases.listRows<Models.DefaultRow>({
+        databaseId: environment.appwriteDatabaseId,
+        tableId: environment.donationsCollectionId,
+        queries,
+      });
+
+      donations.push(...page.rows.map(rowToDonation));
+      if (page.rows.length < PAGE_SIZE) break;
+      cursor = page.rows[page.rows.length - 1].$id;
+    }
+
+    return donations;
   }
 
   async createDonation(draft: DonationDraft): Promise<Donation> {

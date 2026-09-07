@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { DonationDataService } from './donation-data.service';
 import { ServiceError } from './service-error';
 import { AuthService } from './auth.service';
-import { FUNCTIONS } from '../appwrite/client';
+import { DATABASES, FUNCTIONS } from '../appwrite/client';
 import { appDb } from '../dexie/app-db';
 import type { Event } from '../models/event';
 
@@ -24,12 +24,15 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
 describe('DonationDataService', () => {
   let service: DonationDataService;
   let functions: { createExecution: ReturnType<typeof vi.fn> };
+  let databases: { listRows: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     functions = { createExecution: vi.fn() };
+    databases = { listRows: vi.fn().mockResolvedValue({ total: 0, rows: [] }) };
     TestBed.configureTestingModule({
       providers: [
         { provide: FUNCTIONS, useValue: functions },
+        { provide: DATABASES, useValue: databases },
         { provide: AuthService, useValue: { currentUser: () => ({ $id: 'op-1' }) } },
       ],
     });
@@ -75,6 +78,92 @@ describe('DonationDataService', () => {
       const result = await service.listDonationsForEvent('e1');
 
       expect(result.map((d) => d.id)).toEqual(['d1']);
+    });
+
+    it('hydrates Dexie from Appwrite and returns the merged local list', async () => {
+      databases.listRows.mockResolvedValueOnce({
+        total: 1,
+        rows: [
+          {
+            $id: 'remote-1',
+            eventId: 'e1',
+            receiptNumber: 'P-9',
+            donorName: 'Remote Donor',
+            amountMinor: 20000,
+            donationType: 'cash',
+            recordedBy: 'op-2',
+            recordedAt: '2026-01-01T00:00:00.000Z',
+            syncStatus: 'synced',
+          },
+        ],
+      });
+
+      const result = await service.listDonationsForEvent('e1');
+
+      expect(result.map((d) => d.id)).toEqual(['remote-1']);
+      expect(await appDb.donations.get('remote-1')).toMatchObject({ donorName: 'Remote Donor' });
+    });
+
+    it('does not overwrite a donation with an unsynced outbox entry', async () => {
+      await appDb.donations.put({
+        id: 'remote-1',
+        eventId: 'e1',
+        receiptNumber: 'P-9',
+        donorName: 'Local Unsynced Edit',
+        amountMinor: 5000,
+        donationType: 'cash',
+        recordedBy: 'op-1',
+        recordedAt: '2026-01-01T00:00:00.000Z',
+        syncStatus: 'pending',
+      });
+      await appDb.outbox.add({
+        entityType: 'donation',
+        entityId: 'remote-1',
+        op: 'create',
+        payload: {},
+        status: 'pending',
+        retries: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      });
+      databases.listRows.mockResolvedValueOnce({
+        total: 1,
+        rows: [
+          {
+            $id: 'remote-1',
+            eventId: 'e1',
+            receiptNumber: 'P-9',
+            donorName: 'Stale Server Name',
+            amountMinor: 20000,
+            donationType: 'cash',
+            recordedBy: 'op-2',
+            recordedAt: '2026-01-01T00:00:00.000Z',
+            syncStatus: 'synced',
+          },
+        ],
+      });
+
+      const result = await service.listDonationsForEvent('e1');
+
+      expect(result.find((d) => d.id === 'remote-1')?.donorName).toBe('Local Unsynced Edit');
+    });
+
+    it('falls back to the local list when the remote fetch fails', async () => {
+      await appDb.donations.put({
+        id: 'local-only',
+        eventId: 'e1',
+        receiptNumber: 'P-1',
+        donorName: 'Offline Donor',
+        amountMinor: 5000,
+        donationType: 'cash',
+        recordedBy: 'op-1',
+        recordedAt: '2026-01-01T00:00:00.000Z',
+        syncStatus: 'synced',
+      });
+      databases.listRows.mockRejectedValueOnce(new Error('offline'));
+
+      const result = await service.listDonationsForEvent('e1');
+
+      expect(result.map((d) => d.id)).toEqual(['local-only']);
     });
   });
 
