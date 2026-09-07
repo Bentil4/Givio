@@ -134,6 +134,27 @@
   .is-strong { font-weight: 700; font-size: 0.95rem; color: var(--primary-dark); }
 }
 
+.feed-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid rgba(26, 107, 122, .07);
+
+  &:last-child { border-bottom: 0; }
+
+  .is-mono { font-family: monospace; }
+  .is-strong { font-weight: 700; font-size: 0.95rem; color: var(--primary-dark); }
+}
+
+.feed-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .live-dot {
   width: 6px;
   height: 6px;

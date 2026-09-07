@@ -17,6 +17,11 @@ export class DonationService {
     this._donations.set(await this.donationDataService.listAllDonations());
   }
 
+  /** See DonationDataService.subscribeToChanges — the caller decides what to refetch. */
+  async subscribeToChanges(onChange: () => void): Promise<() => void> {
+    return this.donationDataService.subscribeToChanges(onChange);
+  }
+
   async createDonation(draft: DonationDraft): Promise<Donation> {
     const donation = await this.donationDataService.createDonation(draft);
     this._donations.update((donations) => [donation, ...donations]);

@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { DonationDataService } from './donation-data.service';
 import { ServiceError } from './service-error';
 import { AuthService } from './auth.service';
-import { DATABASES, FUNCTIONS } from '../appwrite/client';
+import { DATABASES, FUNCTIONS, REALTIME } from '../appwrite/client';
 import { appDb } from '../dexie/app-db';
 import type { Event } from '../models/event';
 
@@ -29,6 +29,7 @@ describe('DonationDataService', () => {
     updateRow: ReturnType<typeof vi.fn>;
     createRow: ReturnType<typeof vi.fn>;
   };
+  let realtime: { subscribe: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     functions = { createExecution: vi.fn() };
@@ -37,10 +38,12 @@ describe('DonationDataService', () => {
       updateRow: vi.fn().mockResolvedValue({}),
       createRow: vi.fn().mockResolvedValue({}),
     };
+    realtime = { subscribe: vi.fn().mockResolvedValue({ close: vi.fn().mockResolvedValue(undefined) }) };
     TestBed.configureTestingModule({
       providers: [
         { provide: FUNCTIONS, useValue: functions },
         { provide: DATABASES, useValue: databases },
+        { provide: REALTIME, useValue: realtime },
         { provide: AuthService, useValue: { currentUser: () => ({ $id: 'op-1' }) } },
       ],
     });
@@ -457,6 +460,28 @@ describe('DonationDataService', () => {
     it('recoverDonation rejects with ServiceError when not deleted', async () => {
       await seed();
       await expect(service.recoverDonation('d1')).rejects.toBeInstanceOf(ServiceError);
+    });
+  });
+
+  describe('subscribeToChanges', () => {
+    it('subscribes to the donations table and invokes onChange on every event', async () => {
+      const onChange = vi.fn();
+      await service.subscribeToChanges(onChange);
+
+      expect(realtime.subscribe).toHaveBeenCalledTimes(1);
+      const callback = realtime.subscribe.mock.calls[0][1] as () => void;
+      callback();
+      expect(onChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('the returned unsubscribe closes the underlying subscription', async () => {
+      const close = vi.fn().mockResolvedValue(undefined);
+      realtime.subscribe.mockResolvedValueOnce({ close });
+
+      const unsubscribe = await service.subscribeToChanges(() => {});
+      unsubscribe();
+
+      expect(close).toHaveBeenCalledTimes(1);
     });
   });
 });

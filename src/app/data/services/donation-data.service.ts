@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { ID, Models, Query } from 'appwrite';
-import { DATABASES, FUNCTIONS } from '../appwrite/client';
+import { Channel, ID, Models, Query } from 'appwrite';
+import { DATABASES, FUNCTIONS, REALTIME } from '../appwrite/client';
 import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
 import { appDb } from '../dexie/app-db';
 import type { OutboxEntry } from '../dexie/outbox-entry';
@@ -40,7 +40,26 @@ function rowToDonation(row: Models.DefaultRow): Donation {
 export class DonationDataService {
   private readonly databases = inject(DATABASES);
   private readonly functions = inject(FUNCTIONS);
+  private readonly realtime = inject(REALTIME);
   private readonly authService = inject(AuthService);
+
+  /**
+   * First Realtime use in the app (Story 4.1) — resolves the Architecture Spine's Deferred
+   * Realtime item for donations. Fires `onChange` on any create/update/delete anywhere in the
+   * table; the caller decides what to refetch. Admin-dashboard-only by design: Operators
+   * already have their own offline-first flow and a live socket would fight that, not help it.
+   */
+  async subscribeToChanges(onChange: () => void): Promise<() => void> {
+    const subscription = await this.realtime.subscribe(
+      Channel.tablesdb(environment.appwriteDatabaseId)
+        .table(environment.donationsCollectionId)
+        .row(),
+      () => onChange(),
+    );
+    return () => {
+      void subscription.close();
+    };
+  }
 
   /**
    * Server-pull, same shape as EventDataService.listEvents(): without this, a device that

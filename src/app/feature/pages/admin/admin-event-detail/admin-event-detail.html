@@ -31,6 +31,9 @@
         <a class="btn btn-hero-ghost" routerLink="/dashboard/donations" [queryParams]="{ event: e.id }">
           View donations
         </a>
+        <a class="btn btn-hero-ghost" routerLink="/dashboard/reports" [queryParams]="{ event: e.id }">
+          Reports
+        </a>
         <a class="btn btn-hero-ghost" [routerLink]="['/dashboard/events', e.id, 'edit']">Edit details</a>
         @if (!isClosed()) {
           @if (canPause()) {
