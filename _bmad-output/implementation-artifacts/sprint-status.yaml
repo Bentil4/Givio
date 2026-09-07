@@ -103,8 +103,16 @@ development_status:
   epic-3-retrospective: optional
 
   epic-4: in-progress
-  4-1-admin-real-time-dashboard: backlog
-  4-2-admin-excel-export: backlog
+  # 4-1/4-2 implemented 2026-09-07: first Appwrite Realtime use in the app
+  # (DonationDataService.subscribeToChanges, admin-dashboard-only by
+  # design), admin-dashboard stats/live-feed wired to real data. SheetJS
+  # vendored per the AC (src/vendor/sheetjs/, never npm install xlsx),
+  # ReportService.exportDonationsXlsx wired to admin-reports. "Awaiting
+  # sync" stays a placeholder — architecturally can't be known from a
+  # server-only read until Story 3.5 exists. Status "review" — not yet
+  # manually browser-verified (no browser-automation tool this session).
+  4-1-admin-real-time-dashboard: review
+  4-2-admin-excel-export: review
   4-3-family-live-summary: backlog
   4-4-family-excel-export-sanitized: backlog
   # Implemented 2026-09-07: AuditLogDataService/AuditLogService (paginated,
