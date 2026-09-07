@@ -39,7 +39,12 @@
     }
   </div>
 
-  @if (loading()) {
+  @if (loadError(); as err) {
+    <div class="empty glass">
+      <mat-icon class="empty-icon">error_outline</mat-icon>
+      <p class="t-card-title">{{ err }}</p>
+    </div>
+  } @else if (loading()) {
     <div class="trail glass">
       @for (i of skeletons; track i) {
         <div class="skel-row">

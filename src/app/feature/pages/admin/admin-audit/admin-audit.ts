@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { AuditLogService } from '../../../../data/services/audit-log.service';
+import type { AuditLogEntry } from '../../../../data/models/audit-log';
 
 export type AuditAction = 'create' | 'edit' | 'delete' | 'recover' | 'access' | 'assign' | 'security';
 
@@ -12,6 +14,37 @@ export interface AuditEntry {
   /** The supporting detail — a reason, an IP, a device id. */
   readonly detail?: string;
   readonly actor: string;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+/** Maps the real audit_logs row shape into this page's display shape — every mutation writes
+ *  entityType/entityId/previousValues/newValues, not a ready-made sentence, so one gets built
+ *  here from whichever side of the change actually has the identifying field. */
+function toAuditEntry(entry: AuditLogEntry): AuditEntry {
+  const before = asRecord(entry.previousValues);
+  const after = asRecord(entry.newValues);
+  const noun = entry.entityType === 'event' ? 'Event' : 'Donation';
+  const label = (entry.entityType === 'event' ? after['name'] ?? before['name'] : after['receiptNumber'] ?? before['receiptNumber']) ?? '';
+  const verb: Record<AuditLogEntry['action'], string> = {
+    create: 'created',
+    edit: 'edited',
+    delete: 'deleted',
+    recover: 'recovered',
+    assign: 'assigned',
+  };
+  const detail = typeof after['reason'] === 'string' ? after['reason'] : undefined;
+
+  return {
+    id: entry.id,
+    timestamp: entry.timestamp,
+    action: entry.action,
+    summary: `${noun} ${label} ${verb[entry.action]}`.trim(),
+    detail,
+    actor: entry.performedBy,
+  };
 }
 
 /**
@@ -29,16 +62,27 @@ export interface AuditEntry {
   styleUrl: './admin-audit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AdminAudit {
-  // ── replace with service-backed signals ──────────────────────────────
-  public readonly entries = signal<readonly AuditEntry[]>([]);
+export class AdminAudit implements OnInit {
+  private readonly auditLogService = inject(AuditLogService);
+
+  public readonly entries = computed(() => this.auditLogService.entries().map(toAuditEntry));
   public readonly loading = signal(true);
-  public readonly actors = signal<readonly string[]>([]);
-  // ─────────────────────────────────────────────────────────────────────
+  public readonly loadError = signal<string | null>(null);
+  public readonly actors = computed(() => [...new Set(this.entries().map((e) => e.actor))]);
 
   public readonly actionFilter = signal<AuditAction | 'all'>('all');
   public readonly actorFilter = signal<string>('all');
   public readonly search = signal('');
+
+  async ngOnInit(): Promise<void> {
+    try {
+      await this.auditLogService.loadAuditLogs();
+    } catch {
+      this.loadError.set('Failed to load the audit trail.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
   public readonly exporting = signal(false);
 
   public readonly actions: (AuditAction | 'all')[] =

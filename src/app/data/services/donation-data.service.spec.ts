@@ -287,6 +287,24 @@ describe('DonationDataService', () => {
       expect((await appDb.donations.get(donation.id))?.syncStatus).toBe('synced');
       const pending = (await appDb.outbox.toArray()).filter((e) => e.entityId === donation.id);
       expect(pending).toHaveLength(0);
+      expect(databases.createRow).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ entityType: 'donation', action: 'create' }) }),
+      );
+    });
+
+    it('skips the audit log when the create sync is left pending (offline)', async () => {
+      await appDb.events.put(makeEvent());
+      functions.createExecution.mockRejectedValueOnce(new Error('offline'));
+
+      await service.createDonation({
+        localId: 'l1',
+        eventId: 'e1',
+        donorName: 'Ama',
+        amountMinor: 5000,
+        donationType: 'cash',
+      });
+
+      expect(databases.createRow).not.toHaveBeenCalled();
     });
   });
 

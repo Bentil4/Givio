@@ -1,6 +1,6 @@
-import { ID, Permission, Role, type TablesDB } from 'appwrite';
+import { ID, Permission, Role, type Models, type TablesDB } from 'appwrite';
 import { environment } from '../../../environments/environment';
-import type { AuditAction, AuditEntityType } from '../models/audit-log';
+import type { AuditAction, AuditEntityType, AuditLogEntry } from '../models/audit-log';
 import { ServiceError } from './service-error';
 
 export interface WriteAuditLogInput {
@@ -36,5 +36,28 @@ export async function writeAuditLog(databases: TablesDB, entry: WriteAuditLogInp
     });
   } catch (error) {
     throw new ServiceError('Failed to write audit log', error);
+  }
+}
+
+/** previousValues/newValues are stored as JSON strings server-side — parsed back out here. */
+export function rowToAuditLogEntry(row: Models.DefaultRow): AuditLogEntry {
+  return {
+    id: row['$id'],
+    entityType: row['entityType'],
+    entityId: row['entityId'],
+    action: row['action'],
+    performedBy: row['performedBy'],
+    previousValues: safeJsonParse(row['previousValues']),
+    newValues: safeJsonParse(row['newValues']),
+    timestamp: row['timestamp'],
+  };
+}
+
+function safeJsonParse(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
   }
 }

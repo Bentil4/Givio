@@ -149,7 +149,10 @@ export class DonationDataService {
       createdAt: now,
     };
     entry.localId = await appDb.outbox.add(entry);
-    await this.trySyncNow(donation, entry);
+    const synced = await this.trySyncNow(donation, entry);
+    if (synced) {
+      await this.logDonationAudit('create', donation, donation);
+    }
 
     return donation;
   }
@@ -327,7 +330,7 @@ export class DonationDataService {
   // write is skipped whenever the sync above left the outbox entry pending — same rule as
   // EventDataService.updateEvent.
   private async logDonationAudit(
-    action: 'edit' | 'delete' | 'recover',
+    action: 'create' | 'edit' | 'delete' | 'recover',
     previousValues: Donation,
     newValues: unknown,
   ): Promise<void> {
