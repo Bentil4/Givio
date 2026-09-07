@@ -305,7 +305,7 @@ export class DonationDataService {
 
     const synced = await this.queueAndSyncUpdate(current, updated);
     if (synced) {
-      await this.logDonationAudit('recover', current, updated);
+      await this.logDonationAudit('restore', current, updated);
     }
 
     return updated;
@@ -349,7 +349,7 @@ export class DonationDataService {
   // write is skipped whenever the sync above left the outbox entry pending — same rule as
   // EventDataService.updateEvent.
   private async logDonationAudit(
-    action: 'create' | 'edit' | 'delete' | 'recover',
+    action: 'create' | 'edit' | 'delete' | 'restore',
     previousValues: Donation,
     newValues: unknown,
   ): Promise<void> {

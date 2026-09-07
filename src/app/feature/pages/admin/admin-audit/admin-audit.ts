@@ -3,7 +3,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { AuditLogService } from '../../../../data/services/audit-log.service';
 import type { AuditLogEntry } from '../../../../data/models/audit-log';
 
-export type AuditAction = 'create' | 'edit' | 'delete' | 'recover' | 'access' | 'assign' | 'security';
+export type AuditAction = 'create' | 'edit' | 'delete' | 'restore' | 'access' | 'assign' | 'security';
 
 export interface AuditEntry {
   readonly id: string;
@@ -27,13 +27,13 @@ function toAuditEntry(entry: AuditLogEntry): AuditEntry {
   const before = asRecord(entry.previousValues);
   const after = asRecord(entry.newValues);
   const noun = entry.entityType === 'event' ? 'Event' : 'Donation';
-  const label = (entry.entityType === 'event' ? after['name'] ?? before['name'] : after['receiptNumber'] ?? before['receiptNumber']) ?? '';
+  const rawLabel = entry.entityType === 'event' ? after['name'] ?? before['name'] : after['receiptNumber'] ?? before['receiptNumber'];
+  const label = typeof rawLabel === 'string' ? rawLabel : '';
   const verb: Record<AuditLogEntry['action'], string> = {
     create: 'created',
     edit: 'edited',
     delete: 'deleted',
-    recover: 'recovered',
-    assign: 'assigned',
+    restore: 'restored',
   };
   const detail = typeof after['reason'] === 'string' ? after['reason'] : undefined;
 
@@ -86,7 +86,7 @@ export class AdminAudit implements OnInit {
   public readonly exporting = signal(false);
 
   public readonly actions: (AuditAction | 'all')[] =
-    ['all', 'create', 'edit', 'delete', 'recover', 'access', 'assign', 'security'];
+    ['all', 'create', 'edit', 'delete', 'restore', 'access', 'assign', 'security'];
 
   public readonly skeletons = Array.from({ length: 8 }, (_, i) => i);
 
@@ -122,7 +122,7 @@ export class AdminAudit implements OnInit {
       case 'security': return 'is-security';
       case 'delete': return 'is-delete';
       case 'edit': return 'is-edit';
-      case 'recover': return 'is-recover';
+      case 'restore': return 'is-restore';
       default: return 'is-neutral';
     }
   }

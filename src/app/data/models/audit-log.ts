@@ -1,5 +1,6 @@
 export type AuditEntityType = 'event' | 'donation';
-export type AuditAction = 'create' | 'edit' | 'delete' | 'recover' | 'assign';
+/** Mirrors the audit_logs table's actual `action` enum exactly — 'restore', not 'recover'. */
+export type AuditAction = 'create' | 'edit' | 'delete' | 'restore';
 
 /** Mirrors the audit_logs table row shape exactly (previousValues/newValues are stored as
  *  JSON strings server-side — this is the already-parsed client-side shape). */

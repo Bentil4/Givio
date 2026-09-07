@@ -440,7 +440,7 @@ describe('DonationDataService', () => {
       );
     });
 
-    it('recoverDonation clears deletedAt/deletedBy/deletionReason and logs a recover audit entry', async () => {
+    it('recoverDonation clears deletedAt/deletedBy/deletionReason and logs a restore audit entry', async () => {
       await seed({
         deletedAt: '2026-02-01T00:00:00.000Z',
         deletedBy: 'admin-1',
@@ -453,7 +453,7 @@ describe('DonationDataService', () => {
       expect(recovered.deletedBy).toBeUndefined();
       expect(recovered.deletionReason).toBeUndefined();
       expect(databases.createRow).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ action: 'recover' }) }),
+        expect.objectContaining({ data: expect.objectContaining({ action: 'restore' }) }),
       );
     });
 
