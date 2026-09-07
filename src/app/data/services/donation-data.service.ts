@@ -14,6 +14,8 @@ type UpdateDonationPatch = Partial<
   Pick<Donation, 'donorName' | 'amountMinor' | 'donationType' | 'onBehalfOf'>
 >;
 
+type SyncOutcome = 'synced' | 'pending' | 'conflict';
+
 /** Mirrors the row shape recordDonation's Function writes (donation-recording.js). */
 function rowToDonation(row: Models.DefaultRow): Donation {
   return {
@@ -29,6 +31,7 @@ function rowToDonation(row: Models.DefaultRow): Donation {
     recordedBy: row['recordedBy'],
     recordedAt: row['recordedAt'],
     deskLabel: row['deskLabel'] ?? undefined,
+    updatedAt: row['updatedAt'] ?? undefined,
     syncStatus: row['syncStatus'] ?? 'synced',
     deletedAt: row['deletedAt'] ?? null,
     deletedBy: row['deletedBy'] ?? undefined,
@@ -188,6 +191,31 @@ export class DonationDataService {
    * document it creates, only a role it already holds itself. Recording a donation needs both,
    * so it needs the same elevated trust as Story 2.3's assignOperators (AD-9).
    */
+  /**
+   * Called by SyncEngineService to retry a queued entry outside its original create/update/
+   * delete/recover call site — e.g. once connectivity returns. A retried create still gets its
+   * audit entry (previousValues/newValues are just the donation itself, nothing lost by the
+   * delay). A retried update does not: the `reason` string and the pre-edit previousValues
+   * only exist at the original call site, not in the outbox entry, so a background retry
+   * can't reconstruct a meaningful audit entry — same limitation as EventDataService's version
+   * of this method. This is a known, bounded gap, not silently pretended away.
+   */
+  async retryOutboxEntry(entry: OutboxEntry): Promise<SyncOutcome> {
+    if (entry.op === 'create') {
+      const donation = entry.payload as Donation;
+      const synced = await this.trySyncNow(donation, entry);
+      if (synced) {
+        await this.logDonationAudit('create', donation, donation);
+      }
+      return synced ? 'synced' : 'pending';
+    }
+    const outcome = await this.trySyncUpdate(entry);
+    const donation = entry.payload as Donation;
+    donation.syncStatus = outcome;
+    await appDb.donations.put(donation);
+    return outcome;
+  }
+
   private async trySyncNow(donation: Donation, entry: OutboxEntry): Promise<boolean> {
     try {
       await invokeAdminFunction(this.functions, 'recordDonation', 'Failed to save donation', {
@@ -232,7 +260,12 @@ export class DonationDataService {
       throw new ServiceError('Cannot edit a deleted donation');
     }
 
-    const updated: Donation = { ...current, ...patch, updatedAt: new Date().toISOString() };
+    const updated: Donation = {
+      ...current,
+      ...patch,
+      updatedAt: new Date().toISOString(),
+      syncStatus: 'pending',
+    };
 
     try {
       await appDb.donations.put(updated);
@@ -240,8 +273,8 @@ export class DonationDataService {
       throw new ServiceError('Failed to save donation locally', error);
     }
 
-    const synced = await this.queueAndSyncUpdate(current, updated);
-    if (synced) {
+    const outcome = await this.queueAndSyncUpdate(current, updated);
+    if (outcome === 'synced') {
       await this.logDonationAudit('edit', current, { ...updated, reason });
     }
 
@@ -264,6 +297,7 @@ export class DonationDataService {
       deletedBy: this.authService.currentUser()!.$id,
       deletionReason: reason,
       updatedAt: now,
+      syncStatus: 'pending',
     };
 
     try {
@@ -272,8 +306,8 @@ export class DonationDataService {
       throw new ServiceError('Failed to save donation locally', error);
     }
 
-    const synced = await this.queueAndSyncUpdate(current, updated);
-    if (synced) {
+    const outcome = await this.queueAndSyncUpdate(current, updated);
+    if (outcome === 'synced') {
       await this.logDonationAudit('delete', current, updated);
     }
 
@@ -295,6 +329,7 @@ export class DonationDataService {
       deletedBy: undefined,
       deletionReason: undefined,
       updatedAt: new Date().toISOString(),
+      syncStatus: 'pending',
     };
 
     try {
@@ -303,15 +338,15 @@ export class DonationDataService {
       throw new ServiceError('Failed to save donation locally', error);
     }
 
-    const synced = await this.queueAndSyncUpdate(current, updated);
-    if (synced) {
+    const outcome = await this.queueAndSyncUpdate(current, updated);
+    if (outcome === 'synced') {
       await this.logDonationAudit('restore', current, updated);
     }
 
     return updated;
   }
 
-  private async queueAndSyncUpdate(current: Donation, updated: Donation): Promise<boolean> {
+  private async queueAndSyncUpdate(current: Donation, updated: Donation): Promise<SyncOutcome> {
     const entry: OutboxEntry = {
       entityType: 'donation',
       entityId: updated.id,
@@ -323,13 +358,31 @@ export class DonationDataService {
       createdAt: updated.updatedAt!,
     };
     entry.localId = await appDb.outbox.add(entry);
-    return this.trySyncUpdate(entry);
+    const outcome = await this.trySyncUpdate(entry);
+    updated.syncStatus = outcome;
+    await appDb.donations.put(updated);
+    return outcome;
   }
 
-  // Same "never block the caller on a network failure" rule as trySyncNow — this is a plain
-  // client update (see updateDonation's doc comment for why no Function is needed here).
-  private async trySyncUpdate(entry: OutboxEntry): Promise<boolean> {
+  /**
+   * Same "never block the caller on a network failure" rule as trySyncNow — this is a plain
+   * client update (see updateDonation's doc comment for why no Function is needed here) — with
+   * one addition: before applying it, checks the row's current `updatedAt` against this edit's
+   * `baseUpdatedAt` (AD-3). A mismatch means somebody else's change landed first — the server
+   * row is left untouched and the conflict goes to Admin instead of silently overwriting it.
+   */
+  private async trySyncUpdate(entry: OutboxEntry): Promise<SyncOutcome> {
     try {
+      const currentRow = await this.databases.getRow<Models.DefaultRow>({
+        databaseId: environment.appwriteDatabaseId,
+        tableId: environment.donationsCollectionId,
+        rowId: entry.entityId,
+      });
+
+      if ((currentRow['updatedAt'] ?? null) !== (entry.baseUpdatedAt ?? null)) {
+        return this.fileConflict(entry, rowToDonation(currentRow));
+      }
+
       await this.databases.updateRow({
         databaseId: environment.appwriteDatabaseId,
         tableId: environment.donationsCollectionId,
@@ -339,10 +392,38 @@ export class DonationDataService {
       if (entry.localId !== undefined) {
         await appDb.outbox.delete(entry.localId);
       }
-      return true;
+      return 'synced';
     } catch {
-      return false;
+      return 'pending';
     }
+  }
+
+  /**
+   * Files the losing version to donation_conflicts via the Function (AD-9 — same elevated-
+   * trust need as recordDonation: this device's own session can't grant the admin-only
+   * read/update permissions that row needs). The outbox entry is cleared either way: once a
+   * conflict is on record, blindly retrying the same stale update would just conflict again.
+   */
+  private async fileConflict(entry: OutboxEntry, serverVersion: Donation): Promise<SyncOutcome> {
+    const localVersion = entry.payload as Donation;
+    try {
+      await invokeAdminFunction(this.functions, 'recordConflict', 'Failed to record sync conflict', {
+        receiptNumber: localVersion.receiptNumber,
+        eventId: localVersion.eventId,
+        localVersion,
+        serverVersion,
+      });
+    } catch (error) {
+      // Couldn't reach the Function to file it — leave the outbox entry in place so the next
+      // drain re-checks and retries recordConflict, rather than silently discarding the edit.
+      console.error('DonationDataService: failed to record sync conflict', error);
+      return 'pending';
+    }
+
+    if (entry.localId !== undefined) {
+      await appDb.outbox.delete(entry.localId);
+    }
+    return 'conflict';
   }
 
   // An audit entry referencing a document not yet in Appwrite would be meaningless, so the

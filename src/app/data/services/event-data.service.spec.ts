@@ -300,4 +300,45 @@ describe('EventDataService', () => {
       expect((await appDb.events.get('active-3'))?.assignedUserIds).toEqual([]);
     });
   });
+
+  describe('retryOutboxEntry', () => {
+    it('retries a create entry and reports success', async () => {
+      databases.createRow.mockResolvedValueOnce({});
+      const entry = {
+        localId: 1,
+        entityType: 'event' as const,
+        entityId: 'e1',
+        op: 'create' as const,
+        payload: { id: 'e1', name: 'Ama & Kojo' },
+        status: 'pending' as const,
+        retries: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      const synced = await service.retryOutboxEntry(entry);
+
+      expect(synced).toBe(true);
+      expect(databases.createRow).toHaveBeenCalledWith(
+        expect.objectContaining({ rowId: 'e1' }),
+      );
+    });
+
+    it('reports failure without throwing when the retry itself fails', async () => {
+      databases.updateRow.mockRejectedValueOnce(new Error('offline'));
+      const entry = {
+        localId: 2,
+        entityType: 'event' as const,
+        entityId: 'e1',
+        op: 'update' as const,
+        payload: { id: 'e1', name: 'Renamed' },
+        status: 'pending' as const,
+        retries: 1,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      const synced = await service.retryOutboxEntry(entry);
+
+      expect(synced).toBe(false);
+    });
+  });
 });

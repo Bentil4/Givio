@@ -28,6 +28,7 @@ describe('DonationDataService', () => {
     listRows: ReturnType<typeof vi.fn>;
     updateRow: ReturnType<typeof vi.fn>;
     createRow: ReturnType<typeof vi.fn>;
+    getRow: ReturnType<typeof vi.fn>;
   };
   let realtime: { subscribe: ReturnType<typeof vi.fn> };
 
@@ -37,6 +38,9 @@ describe('DonationDataService', () => {
       listRows: vi.fn().mockResolvedValue({ total: 0, rows: [] }),
       updateRow: vi.fn().mockResolvedValue({}),
       createRow: vi.fn().mockResolvedValue({}),
+      // No `updatedAt` (undefined -> null) matches a freshly-seeded donation's own baseUpdatedAt
+      // (also undefined -> null) by default — individual conflict tests override this.
+      getRow: vi.fn().mockResolvedValue({}),
     };
     realtime = { subscribe: vi.fn().mockResolvedValue({ close: vi.fn().mockResolvedValue(undefined) }) };
     TestBed.configureTestingModule({
@@ -402,6 +406,85 @@ describe('DonationDataService', () => {
     });
   });
 
+  describe('conflict detection (AD-3)', () => {
+    const seed = async (overrides: Partial<import('../models/donation').Donation> = {}) => {
+      const donation = {
+        id: 'd1',
+        eventId: 'e1',
+        receiptNumber: 'P-1',
+        donorName: 'Ama',
+        amountMinor: 5000,
+        donationType: 'cash' as const,
+        recordedBy: 'op-1',
+        recordedAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-02-01T00:00:00.000Z',
+        syncStatus: 'synced' as const,
+        ...overrides,
+      };
+      await appDb.donations.put(donation);
+      return donation;
+    };
+
+    it('applies the update normally when the server row\'s updatedAt still matches baseUpdatedAt', async () => {
+      await seed();
+      databases.getRow.mockResolvedValueOnce({ updatedAt: '2026-02-01T00:00:00.000Z' });
+
+      const updated = await service.updateDonation('d1', { donorName: 'Ama Serwaa' }, 'Spelling');
+
+      expect(updated.syncStatus).toBe('synced');
+      expect(databases.updateRow).toHaveBeenCalled();
+      expect(functions.createExecution).not.toHaveBeenCalled();
+    });
+
+    it('files a conflict via the Function instead of overwriting when updatedAt has moved on', async () => {
+      await seed();
+      databases.getRow.mockResolvedValueOnce({
+        $id: 'd1',
+        eventId: 'e1',
+        receiptNumber: 'P-1',
+        donorName: 'Ama (someone else\'s edit)',
+        recordedBy: 'op-1',
+        recordedAt: '2026-01-01T00:00:00.000Z',
+        syncStatus: 'synced',
+        updatedAt: '2026-02-02T00:00:00.000Z', // moved on since this edit's baseUpdatedAt
+      });
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 200,
+        responseBody: JSON.stringify({ success: true, conflictId: 'conflict-1' }),
+      });
+
+      const updated = await service.updateDonation('d1', { donorName: 'Ama Serwaa' }, 'Spelling');
+
+      expect(updated.syncStatus).toBe('conflict');
+      expect((await appDb.donations.get('d1'))?.syncStatus).toBe('conflict');
+      expect(databases.updateRow).not.toHaveBeenCalled();
+      expect(functions.createExecution).toHaveBeenCalledWith(
+        expect.objectContaining({ body: expect.stringContaining('"action":"recordConflict"') }),
+      );
+      const body = JSON.parse(functions.createExecution.mock.calls[0][0].body);
+      expect(body.receiptNumber).toBe('P-1');
+      expect(body.localVersion.donorName).toBe('Ama Serwaa');
+      expect(body.serverVersion.donorName).toBe('Ama (someone else\'s edit)');
+      // The conflict is on record — no audit log for an edit that was never actually applied.
+      expect(databases.createRow).not.toHaveBeenCalled();
+      // Filed successfully — nothing left to retry.
+      const pending = (await appDb.outbox.toArray()).filter((e) => e.entityId === 'd1');
+      expect(pending).toHaveLength(0);
+    });
+
+    it('leaves the outbox entry pending when the conflict cannot even be filed (offline)', async () => {
+      await seed();
+      databases.getRow.mockResolvedValueOnce({ updatedAt: '2026-02-02T00:00:00.000Z' });
+      functions.createExecution.mockRejectedValueOnce(new Error('offline'));
+
+      const updated = await service.updateDonation('d1', { donorName: 'Ama Serwaa' }, 'Spelling');
+
+      expect(updated.syncStatus).toBe('pending');
+      const pending = (await appDb.outbox.toArray()).filter((e) => e.entityId === 'd1');
+      expect(pending).toHaveLength(1);
+    });
+  });
+
   describe('softDeleteDonation / recoverDonation', () => {
     const seed = async (overrides: Partial<import('../models/donation').Donation> = {}) => {
       const donation = {
@@ -482,6 +565,66 @@ describe('DonationDataService', () => {
       unsubscribe();
 
       expect(close).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('retryOutboxEntry', () => {
+    const donation = {
+      id: 'd1',
+      eventId: 'e1',
+      receiptNumber: 'P-1',
+      donorName: 'Ama',
+      amountMinor: 5000,
+      donationType: 'cash' as const,
+      recordedBy: 'op-1',
+      recordedAt: '2026-01-01T00:00:00.000Z',
+      syncStatus: 'pending' as const,
+    };
+
+    it('retries a create entry, writes an audit log on success, and reports synced', async () => {
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 200,
+        responseBody: JSON.stringify({ success: true }),
+      });
+      const entry = {
+        localId: 1,
+        entityType: 'donation' as const,
+        entityId: 'd1',
+        op: 'create' as const,
+        payload: donation,
+        status: 'pending' as const,
+        retries: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      const outcome = await service.retryOutboxEntry(entry);
+
+      expect(outcome).toBe('synced');
+      expect(databases.createRow).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ action: 'create' }) }),
+      );
+    });
+
+    it('retries an update entry via the same conflict-aware path, without an audit log', async () => {
+      await appDb.donations.put(donation);
+      databases.getRow.mockResolvedValueOnce({});
+      const entry = {
+        localId: 2,
+        entityType: 'donation' as const,
+        entityId: 'd1',
+        op: 'update' as const,
+        payload: { ...donation, donorName: 'Ama Serwaa' },
+        status: 'pending' as const,
+        retries: 1,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      const outcome = await service.retryOutboxEntry(entry);
+
+      expect(outcome).toBe('synced');
+      expect((await appDb.donations.get('d1'))?.donorName).toBe('Ama Serwaa');
+      expect((await appDb.donations.get('d1'))?.syncStatus).toBe('synced');
+      expect(databases.createRow).not.toHaveBeenCalled();
     });
   });
 });

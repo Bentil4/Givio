@@ -226,10 +226,22 @@ export class EventDataService {
   }
 
   /**
-   * Stand-in for the not-yet-built SyncEngine (Story 3.5): attempts the real Appwrite write
-   * immediately inline. Never throws — a network failure must not block the caller from having
-   * their locally-saved Event. Returns whether the sync actually reached Appwrite, since
-   * updateEvent() uses that to decide whether an audit log entry is meaningful yet.
+   * Called by SyncEngineService to retry a queued entry outside its original create/update
+   * call site — e.g. once connectivity returns. No audit log here: an edit's previousValues
+   * and the reason a donation's equivalent gives (not applicable to events, but the same
+   * limits apply) aren't preserved in the outbox entry itself, only at the original call site,
+   * so a background retry can't reconstruct a meaningful audit entry the way the inline path
+   * can. A real fix needs the outbox to carry that context too — out of scope for this pass.
+   */
+  async retryOutboxEntry(entry: OutboxEntry): Promise<boolean> {
+    return this.trySyncNow(entry);
+  }
+
+  /**
+   * Attempts the real Appwrite write immediately inline. Never throws — a network failure
+   * must not block the caller from having their locally-saved Event. Returns whether the sync
+   * actually reached Appwrite, since updateEvent() uses that to decide whether an audit log
+   * entry is meaningful yet.
    */
   private async trySyncNow(entry: OutboxEntry): Promise<boolean> {
     try {

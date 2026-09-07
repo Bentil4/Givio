@@ -1,7 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { ConflictResolver } from '../../../components/conflict-resolver/conflict-resolver';
 import { ConflictPair, ConflictResolution, formatCedis } from '../../../../data/models/donation';
+import { ConflictService } from '../../../../data/services/conflict.service';
+import { ServiceError } from '../../../../data/services/service-error';
 
 /**
  * The conflict queue. Wraps ConflictResolver with the list, the running count, and the
@@ -18,14 +20,26 @@ import { ConflictPair, ConflictResolution, formatCedis } from '../../../../data/
   styleUrl: './admin-conflicts.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AdminConflicts {
-  // ── replace with service-backed signals ──────────────────────────────
-  public readonly conflicts = signal<readonly ConflictPair[]>([]);
+export class AdminConflicts implements OnInit {
+  private readonly conflictService = inject(ConflictService);
+
+  public readonly conflicts = this.conflictService.conflicts;
   public readonly loading = signal(true);
-  // ─────────────────────────────────────────────────────────────────────
+  public readonly loadError = signal<string | null>(null);
 
   public readonly activeIndex = signal(0);
   public readonly busy = signal(false);
+  public readonly resolveError = signal<string | null>(null);
+
+  async ngOnInit(): Promise<void> {
+    try {
+      await this.conflictService.loadConflicts();
+    } catch {
+      this.loadError.set('Failed to load sync conflicts.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
 
   public readonly active = computed(() => this.conflicts()[this.activeIndex()] ?? null);
   public readonly isEmpty = computed(() => !this.loading() && this.conflicts().length === 0);
@@ -55,13 +69,16 @@ export class AdminConflicts {
 
   public async resolve(resolution: ConflictResolution): Promise<void> {
     this.busy.set(true);
+    this.resolveError.set(null);
     try {
-      // await donationService.resolveConflict(this.active()!.receiptNumber, resolution);
+      await this.conflictService.resolveConflict(this.active()!.receiptNumber, resolution);
       // Whichever version loses is archived in the audit trail, not discarded.
       const remaining = this.conflicts().length - 1;
       if (this.activeIndex() >= remaining && remaining > 0) {
         this.activeIndex.set(remaining - 1);
       }
+    } catch (err) {
+      this.resolveError.set(err instanceof ServiceError ? err.message : 'Failed to resolve the conflict');
     } finally {
       this.busy.set(false);
     }
