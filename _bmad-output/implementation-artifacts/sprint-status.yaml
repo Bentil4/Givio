@@ -100,15 +100,20 @@ development_status:
   3-4-admin-soft-delete-a-donation: review
   # Implemented 2026-09-07: conflict detection (DonationDataService compares
   # baseUpdatedAt vs the row's current updatedAt before an update applies),
-  # new recordConflict/resolveConflict Function actions (conflict-resolution.js
-  # — written + tested, NOT yet deployed, needs explicit go-ahead), donation_
-  # conflicts table + Function env var created via Appwrite MCP,
+  # new recordConflict/resolveConflict Function actions (conflict-resolution.js),
+  # donation_conflicts table + Function env var created via Appwrite MCP,
   # SyncEngineService (pendingCount/syncing, auto-drain on reconnect, manual
   # "Sync now"), admin-conflicts/ConflictResolver wired to real data.
+  # Deployed via the Appwrite MCP server (discovered mid-deploy: the Function
+  # is GitHub VCS-connected with providerBranches unrestricted, so a manual
+  # MCP upload got stuck "waiting" — pushed this branch instead, VCS auto-
+  # built it in 17s, then explicitly activated that deployment; smoke-tested
+  # via a live execution — 401 Unauthenticated as expected, confirming the
+  # new code is actually live and routing correctly).
   # Known gap: a retried (background-synced) update can't write a full audit
   # entry — previousValues/reason only exist at the original call site.
-  # Status "review" — Function not deployed yet, and not manually browser-
-  # verified (no browser-automation tool this session).
+  # Status "review" — deployed and smoke-tested, but not manually browser-
+  # verified end-to-end (no browser-automation tool this session).
   3-5-sync-engine-auto-sync-pending-count-conflict-detection: review
   3-6-receipt-generation-pdf-provisional-numbering: backlog
   epic-3-retrospective: optional
