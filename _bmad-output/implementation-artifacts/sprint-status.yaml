@@ -98,7 +98,18 @@ development_status:
   3-2-donation-list-search-filter-running-total: review
   3-3-edit-a-donation-entry: review
   3-4-admin-soft-delete-a-donation: review
-  3-5-sync-engine-auto-sync-pending-count-conflict-detection: backlog
+  # Implemented 2026-09-07: conflict detection (DonationDataService compares
+  # baseUpdatedAt vs the row's current updatedAt before an update applies),
+  # new recordConflict/resolveConflict Function actions (conflict-resolution.js
+  # — written + tested, NOT yet deployed, needs explicit go-ahead), donation_
+  # conflicts table + Function env var created via Appwrite MCP,
+  # SyncEngineService (pendingCount/syncing, auto-drain on reconnect, manual
+  # "Sync now"), admin-conflicts/ConflictResolver wired to real data.
+  # Known gap: a retried (background-synced) update can't write a full audit
+  # entry — previousValues/reason only exist at the original call site.
+  # Status "review" — Function not deployed yet, and not manually browser-
+  # verified (no browser-automation tool this session).
+  3-5-sync-engine-auto-sync-pending-count-conflict-detection: review
   3-6-receipt-generation-pdf-provisional-numbering: backlog
   epic-3-retrospective: optional
 
