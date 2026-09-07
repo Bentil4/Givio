@@ -7,11 +7,15 @@ import { appDb } from '../dexie/app-db';
 
 describe('EventDataService', () => {
   let service: EventDataService;
-  let databases: { createRow: ReturnType<typeof vi.fn>; updateRow: ReturnType<typeof vi.fn> };
+  let databases: {
+    createRow: ReturnType<typeof vi.fn>;
+    updateRow: ReturnType<typeof vi.fn>;
+    listRows: ReturnType<typeof vi.fn>;
+  };
   let functions: { createExecution: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
-    databases = { createRow: vi.fn(), updateRow: vi.fn() };
+    databases = { createRow: vi.fn(), updateRow: vi.fn(), listRows: vi.fn() };
     functions = { createExecution: vi.fn() };
     TestBed.configureTestingModule({
       providers: [
@@ -152,6 +156,88 @@ describe('EventDataService', () => {
       databases.updateRow.mockRejectedValueOnce(new Error('offline'));
       await service.updateEvent('active-2', { name: 'Pending Update' });
       expect(databases.createRow).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('listEvents', () => {
+    const makeRow = (overrides: Record<string, unknown> = {}) => ({
+      $id: 'remote-1',
+      name: 'Remote Event',
+      type: 'wedding',
+      date: '2026-03-01',
+      hostName: 'Host',
+      status: 'active',
+      assignedUserIds: ['op-1'],
+      createdBy: 'admin-1',
+      nextReceiptSeq: 0,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      ...overrides,
+    });
+
+    it('hydrates Dexie from Appwrite and returns the merged local list', async () => {
+      databases.listRows.mockResolvedValueOnce({ total: 1, rows: [makeRow()] });
+
+      const events = await service.listEvents();
+
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ id: 'remote-1', name: 'Remote Event' });
+      expect(await appDb.events.get('remote-1')).toMatchObject({ name: 'Remote Event' });
+    });
+
+    it('does not overwrite an event with an unsynced outbox entry', async () => {
+      await appDb.events.put({
+        id: 'remote-1',
+        name: 'Local Unsynced Edit',
+        type: 'wedding',
+        date: '2026-03-01',
+        hostName: 'Host',
+        status: 'active',
+        assignedUserIds: ['op-1'],
+        createdBy: 'admin-1',
+        nextReceiptSeq: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-02-01T00:00:00.000Z',
+      });
+      await appDb.outbox.add({
+        entityType: 'event',
+        entityId: 'remote-1',
+        op: 'update',
+        payload: {},
+        status: 'pending',
+        retries: 0,
+        createdAt: '2026-02-01T00:00:00.000Z',
+      });
+      databases.listRows.mockResolvedValueOnce({
+        total: 1,
+        rows: [makeRow({ name: 'Stale Server Name' })],
+      });
+
+      const events = await service.listEvents();
+
+      expect(events.find((e) => e.id === 'remote-1')?.name).toBe('Local Unsynced Edit');
+    });
+
+    it('falls back to the local list when the remote fetch fails', async () => {
+      await appDb.events.put({
+        id: 'local-only',
+        name: 'Offline Local Event',
+        type: 'funeral',
+        date: '2026-01-01',
+        hostName: 'Host',
+        status: 'active',
+        assignedUserIds: [],
+        createdBy: 'admin-1',
+        nextReceiptSeq: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+      databases.listRows.mockRejectedValueOnce(new Error('offline'));
+
+      const events = await service.listEvents();
+
+      expect(events).toHaveLength(1);
+      expect(events[0].id).toBe('local-only');
     });
   });
 

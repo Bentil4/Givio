@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { ID, Permission, Role } from 'appwrite';
+import { ID, Models, Permission, Query, Role } from 'appwrite';
 import { DATABASES, FUNCTIONS } from '../appwrite/client';
 import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
 import { appDb } from '../dexie/app-db';
@@ -23,6 +23,27 @@ type UpdateEventPatch = Partial<
   Pick<Event, 'name' | 'date' | 'hostName' | 'venue' | 'description' | 'notes'>
 >;
 
+/** The row's `$id` is authoritative — it's what Function/outbox writes actually key on. */
+function rowToEvent(row: Models.DefaultRow): Event {
+  return {
+    id: row['$id'],
+    name: row['name'],
+    type: row['type'],
+    date: row['date'],
+    hostName: row['hostName'],
+    venue: row['venue'] ?? undefined,
+    description: row['description'] ?? undefined,
+    notes: row['notes'] ?? undefined,
+    status: row['status'],
+    accessCode: row['accessCode'] ?? undefined,
+    assignedUserIds: row['assignedUserIds'] ?? [],
+    createdBy: row['createdBy'],
+    nextReceiptSeq: row['nextReceiptSeq'],
+    createdAt: row['createdAt'],
+    updatedAt: row['updatedAt'],
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class EventDataService {
   private readonly databases = inject(DATABASES);
@@ -30,11 +51,55 @@ export class EventDataService {
   private readonly authService = inject(AuthService);
 
   /**
-   * Local-first, same as the rest of this service until Story 3.5/Epic 4's Realtime work
-   * lands a real server-pull: only returns events created or edited on this device/browser.
+   * Server-pull (Story 2.1's added AC, FR-DEV-003): without this, a device that never itself
+   * created/synced an event would see nothing, no matter the caller's role. Appwrite's own
+   * document permissions do the scoping — Admin's Role.label('admin') sees every row, an
+   * Operator's Role.user(uid) permission only exists on rows where the assignOperators
+   * Function put them in assignedUserIds — so no client-side filtering is needed here.
+   *
+   * Never throws: offline/unreachable just means this device falls back to whatever it
+   * already has locally (FR-OFF-002), same "never block the caller" rule as trySyncNow.
    */
   async listEvents(): Promise<Event[]> {
+    try {
+      const remoteEvents = await this.fetchAllEventRows();
+      const pendingIds = new Set(
+        (await appDb.outbox.where('entityType').equals('event').toArray()).map((e) => e.entityId),
+      );
+      for (const event of remoteEvents) {
+        // An unsynced local create/edit sitting in the outbox wins until it syncs — otherwise
+        // this pull would stomp it with the stale (or, for a still-unsynced create, nonexistent)
+        // server version.
+        if (pendingIds.has(event.id)) continue;
+        await appDb.events.put(event);
+      }
+    } catch {
+      // Offline or unreachable — fall through to the local read below.
+    }
     return appDb.events.toArray();
+  }
+
+  private async fetchAllEventRows(): Promise<Event[]> {
+    const PAGE_SIZE = 100;
+    const events: Event[] = [];
+    let cursor: string | undefined;
+
+    for (;;) {
+      const queries = [Query.limit(PAGE_SIZE)];
+      if (cursor) queries.push(Query.cursorAfter(cursor));
+
+      const page = await this.databases.listRows<Models.DefaultRow>({
+        databaseId: environment.appwriteDatabaseId,
+        tableId: environment.eventsCollectionId,
+        queries,
+      });
+
+      events.push(...page.rows.map(rowToEvent));
+      if (page.rows.length < PAGE_SIZE) break;
+      cursor = page.rows[page.rows.length - 1].$id;
+    }
+
+    return events;
   }
 
   async createEvent(input: CreateEventInput): Promise<Event> {

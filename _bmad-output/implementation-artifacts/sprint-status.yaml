@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-07-26
-last_updated: 2026-08-30-story-3.1-in-progress
+last_updated: 2026-09-06-reconciled-against-code
 project: givio
 project_key: NOKEY
 tracking_system: file-system
@@ -56,14 +56,38 @@ development_status:
   epic-1-retrospective: optional
 
   epic-2: in-progress
-  2-1-create-edit-events: in-progress
-  2-2-event-status-lifecycle: backlog
-  2-3-assign-operators-permission-derivation: backlog
+  # 2-1/2-2/2-3 verified implemented in code (2026-09-06): edit-event.ts +
+  # event-data.service.ts cover status guards; admin-event-detail.ts has
+  # working pause/resume/close + assignOperators wired to the
+  # set-role-and-permissions Function (event-assignment.js).
+  # 2-1 reopened (2026-09-07): reported bug — Admin/Operator can't see
+  # events after logging in on a different browser. Root cause:
+  # EventDataService.listEvents() only ever read local Dexie, never
+  # queried Appwrite. New AC added to Story 2.1 in epics.md; fix
+  # implemented same day (paginated listRows pull, permission-scoped,
+  # skips events with a pending outbox entry, falls back to local read
+  # offline) with unit tests. Status is "review", not "done" — not yet
+  # manually verified logging into two actual different browsers (no
+  # browser-automation tool available this session).
+  2-1-create-edit-events: review
+  2-2-event-status-lifecycle: done
+  2-3-assign-operators-permission-derivation: done
+  # 2-4: only UI scaffolding exists (family-code.ts, family-live.ts) — no
+  # real access-code validation or data-fetching wired up yet.
   2-4-family-access-code-event-code-login: backlog
   epic-2-retrospective: optional
 
   epic-3: in-progress
-  3-1-record-a-donation-online-or-offline: in-progress
+  # 3-1 verified against its 6 ACs (2026-09-06): AC1/AC3/AC6 implemented;
+  # AC2 (offline outbox) core pattern solid, FIFO dequeue correctly deferred
+  # to Story 3.5; AC4 (phone visibility) correct server-side, family
+  # consumer path (family-live.ts) is a separate story's stub. AC5
+  # (online/offline indicator) implemented same day via new
+  # ConnectivityService (navigator.onLine + online/offline listeners),
+  # wired into donation-entry/event-select/mobile-entry/operator-donations.
+  # Status is "review", not "done" — not yet manually verified in a
+  # browser (no browser-automation tool available this session).
+  3-1-record-a-donation-online-or-offline: review
   3-2-donation-list-search-filter-running-total: backlog
   3-3-edit-a-donation-entry: backlog
   3-4-admin-soft-delete-a-donation: backlog

@@ -343,6 +343,11 @@ So that I can set up each event's basic record before donation-taking begins.
 **When** I edit any of its fields via `edit-event`
 **Then** the change is saved and a record is written to the `audit_logs` collection (entityType `event`, before/after values, my Admin ID, timestamp) — the Viewer UI for this log ships in Epic 4, but the write path starts here (FR-EVT-003)
 
+**Given** an Admin or an assigned Operator logs in on a device/browser that has never locally created or synced a given event
+**When** their event list loads
+**Then** `EventDataService.listEvents()` queries Appwrite's `events` table — scoped automatically by Appwrite's own document permissions (Admin sees all events, an Operator sees only events where they're in `assignedUserIds`, per Story 2.3/AD-2) — and hydrates Dexie with the results, rather than only ever returning what this device itself previously wrote (FR-DEV-003)
+**And** this query runs on login, not only once at first app install, so an event created or assigned on another device becomes visible without a fresh install
+
 ### Story 2.2: Event Status Lifecycle
 
 As an Admin,
@@ -567,6 +572,10 @@ So that I always see the true current state without refreshing or asking anyone.
 **Given** I am viewing an event's dashboard
 **When** any assigned Operator adds a donation from any device
 **Then** the total, per-type breakdown, and donation list update automatically via an Appwrite Realtime subscription — no page reload, no polling (FR-RPT-001, resolves the Architecture Spine's Deferred Realtime item, and upgrades Story 3.2's own-device total to a true cross-device live total, FR-DON-005)
+
+**Given** the dashboard opens on a device that has never locally created or synced this event's donations
+**When** the page loads, before any Realtime event has fired
+**Then** an initial list query against Appwrite's `donations` table for this event establishes the current total/breakdown/list first — the Realtime subscription only applies deltas on top of that baseline, it does not substitute for it
 
 **Given** the dashboard
 **When** displayed

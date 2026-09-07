@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { DonationDraft, DonationType, DONATION_TYPE_LABELS, formatCedisShort } from '../../../../data/models/donation';
+import { ConnectivityService } from '../../../../data/services/connectivity.service';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'] as const;
 
@@ -26,14 +27,17 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'] as 
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MobileEntry {
+  private readonly connectivityService = inject(ConnectivityService);
+
   // ── replace with service-backed signals ──────────────────────────────
   public readonly eventId = signal('');
   public readonly eventName = signal('');
   public readonly eventTotalMinor = signal(0);
-  public readonly online = signal(true);
   public readonly pendingCount = signal(0);
   public readonly busy = signal(false);
   // ─────────────────────────────────────────────────────────────────────
+
+  public readonly online = this.connectivityService.online;
 
   public readonly donorName = signal('');
   public readonly amountText = signal('');

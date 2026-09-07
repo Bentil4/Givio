@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { Donation, DonationType, DONATION_TYPE_LABELS, formatCedis, formatCedisShort, totalMinor } from '../../../../data/models/donation';
+import { ConnectivityService } from '../../../../data/services/connectivity.service';
 
 type Tab = 'all' | 'mine' | 'pending' | DonationType;
 
@@ -21,13 +22,16 @@ type Tab = 'all' | 'mine' | 'pending' | DonationType;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OperatorDonations {
+  private readonly connectivityService = inject(ConnectivityService);
+
   // ── replace with service-backed signals ──────────────────────────────
   public readonly donations = signal<readonly Donation[]>([]);
   public readonly loading = signal(true);
   public readonly eventName = signal('');
   public readonly currentUser = signal('');
-  public readonly online = signal(true);
   // ─────────────────────────────────────────────────────────────────────
+
+  public readonly online = this.connectivityService.online;
 
   public readonly tab = signal<Tab>('mine');
   public readonly search = signal('');
