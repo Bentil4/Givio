@@ -102,12 +102,18 @@ development_status:
   3-6-receipt-generation-pdf-provisional-numbering: backlog
   epic-3-retrospective: optional
 
-  epic-4: backlog
+  epic-4: in-progress
   4-1-admin-real-time-dashboard: backlog
   4-2-admin-excel-export: backlog
   4-3-family-live-summary: backlog
   4-4-family-excel-export-sanitized: backlog
-  4-5-audit-log-viewer: backlog
+  # Implemented 2026-09-07: AuditLogDataService/AuditLogService (paginated,
+  # admin-only read against audit_logs, no Dexie/offline path — a live
+  # server view by design) wired into admin-audit.ts. Also fixed a gap the
+  # AC itself surfaced: DonationDataService.createDonation now writes a
+  # 'create' audit entry too (previously only edit/delete/recover did).
+  # Status "review" — not yet manually browser-verified.
+  4-5-audit-log-viewer: review
   epic-4-retrospective: optional
 
   epic-5: backlog
