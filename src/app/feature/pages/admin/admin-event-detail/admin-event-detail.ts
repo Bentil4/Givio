@@ -65,7 +65,7 @@ export class AdminEventDetail implements OnInit {
   public readonly chipClass = EVENT_STATUS_CHIP;
 
   /** Donation totals need Epic 3's Donation collection, which doesn't exist yet. */
-  public readonly totalLabel = computed(() => '—');
+  public readonly totalLabel = computed(() => 'GH₵ 0.00');
 
   public readonly statusLabel = computed(() => {
     const s = this.event()?.status;
