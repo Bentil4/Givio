@@ -9,7 +9,7 @@ import type { Event } from '../../../../data/models/event';
 import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
 import type { AdminUser } from '../../../../data/models/admin-user';
 
-type Confirmable = 'pause' | 'resume' | 'close' | 'regenerate' | null;
+type Confirmable = 'pause' | 'resume' | 'close' | 'generate' | 'regenerate' | null;
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -112,6 +112,14 @@ export class AdminEventDetail implements OnInit {
           cta: 'Close and archive',
           danger: true,
         };
+      case 'generate':
+        return {
+          title: 'Generate a family access code?',
+          body: 'Family members will use this code to view a live, read-only summary of the giving — '
+            + 'no account needed. You can share it as soon as it\'s generated.',
+          cta: 'Generate code',
+          danger: false,
+        };
       case 'regenerate':
         return {
           title: 'Regenerate the family code?',
@@ -205,7 +213,7 @@ export class AdminEventDetail implements OnInit {
     const event = this.event();
     if (!event) return;
 
-    if (action !== 'regenerate') {
+    if (action !== 'generate' && action !== 'regenerate') {
       // Pause/resume/close need Story 2.2's event-status-lifecycle service, which doesn't
       // exist yet — see this component's doc comment.
       this.actionError.set('This action isn’t available yet in this build.');
