@@ -56,10 +56,21 @@ development_status:
   epic-1-retrospective: optional
 
   epic-2: in-progress
-  # 2-1/2-2/2-3 verified implemented in code (2026-09-06): edit-event.ts +
+  # 2-1/2-3 verified implemented in code (2026-09-06): edit-event.ts +
   # event-data.service.ts cover status guards; admin-event-detail.ts has
-  # working pause/resume/close + assignOperators wired to the
-  # set-role-and-permissions Function (event-assignment.js).
+  # assignOperators wired to the set-role-and-permissions Function
+  # (event-assignment.js).
+  # 2-2 correction (2026-09-08): this was marked "done" above on
+  # 2026-09-06 with a claim that pause/resume/close were "working" —
+  # that was inaccurate. admin-event-detail.ts's confirm() only ever had
+  # a single stub covering all four actions ("This action isn't
+  # available yet in this build"); Phase 5 (2026-09-08) wired
+  # 'regenerate' for real (Story 2.4) but deliberately left
+  # pause/resume/close untouched, since no event-status-lifecycle
+  # service exists anywhere in the codebase — only read-only computed
+  # guards (canPause/canResume/isClosed) derived from event.status.
+  # Reopened to backlog; the read-only guards belong to 2-1/2-3, not
+  # this story.
   # 2-1 reopened (2026-09-07): reported bug — Admin/Operator can't see
   # events after logging in on a different browser. Root cause:
   # EventDataService.listEvents() only ever read local Dexie, never
@@ -70,7 +81,7 @@ development_status:
   # manually verified logging into two actual different browsers (no
   # browser-automation tool available this session).
   2-1-create-edit-events: review
-  2-2-event-status-lifecycle: done
+  2-2-event-status-lifecycle: backlog
   2-3-assign-operators-permission-derivation: done
   # 2-4 implemented 2026-09-08: new Function actions generateAccessCode
   # (Admin-only, plaintext code stored on Event.accessCode — deliberate
