@@ -84,9 +84,15 @@ development_status:
   # has no session, so the platform itself was rejecting the call before
   # ever reaching our code. family-code.ts's peek()/submit() wired to
   # FamilyAccessService; admin-event-detail.ts's "regenerate" action
-  # wired to EventService.regenerateAccessCode. Status "review" — not
-  # yet manually browser-verified (no browser-automation tool this
-  # session).
+  # wired to EventService.regenerateAccessCode. Deployed via the Appwrite
+  # MCP server (push branch, VCS auto-build, explicit activate — same
+  # flow as Story 3.5); smoke-tested via live executions: resolveAccessCode
+  # with a bogus code returned 404 "Code not recognised" (not a platform-
+  # level rejection, confirming the public path truly runs), and
+  # generateAccessCode with no auth returned 401, confirming the
+  # execute:any platform change didn't loosen the Function's own
+  # per-action admin check. Status "review" — not yet manually browser-
+  # verified (no browser-automation tool this session).
   2-4-family-access-code-event-code-login: review
   epic-2-retrospective: optional
 
