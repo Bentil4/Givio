@@ -104,6 +104,11 @@ development_status:
   # (online/offline indicator) implemented same day via new
   # ConnectivityService (navigator.onLine + online/offline listeners),
   # wired into donation-entry/event-select/mobile-entry/operator-donations.
+  # mobile-entry.ts itself (the phone-sized keypad form factor of this
+  # same AC) fully wired 2026-09-08: event load by the `event` query
+  # param, DonationService.createDonation, SyncEngineService-backed
+  # pending count — same real data path as donation-entry.ts, just the
+  # alternate ergonomic for roaming collectors.
   # Status is "review", not "done" — not yet manually verified in a
   # browser (no browser-automation tool available this session).
   3-1-record-a-donation-online-or-offline: review
