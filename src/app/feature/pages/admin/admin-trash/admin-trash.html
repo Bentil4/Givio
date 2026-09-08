@@ -92,6 +92,9 @@
           <p class="t-caption">{{ d.deletionReason }}</p>
         </div>
       }
+      @if (recoverError(); as err) {
+        <p class="field-error">{{ err }}</p>
+      }
     </div>
     <footer class="dialog-foot">
       <button type="button" class="btn btn-secondary" (click)="dismiss()">Cancel</button>

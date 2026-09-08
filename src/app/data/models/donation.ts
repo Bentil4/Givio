@@ -23,6 +23,8 @@ export interface Donation {
   readonly recordedBy: string;
   readonly recordedAt: string;
   readonly deskLabel?: string;
+  /** Set only once the donation has been edited — absence means "never edited". */
+  updatedAt?: string;
   syncStatus: SyncStatus;
   /** Soft delete. Excluded from every total and export while set. */
   deletedAt?: string | null;

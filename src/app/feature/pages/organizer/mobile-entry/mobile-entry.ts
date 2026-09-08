@@ -1,7 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { DonationDraft, DonationType, DONATION_TYPE_LABELS, formatCedisShort } from '../../../../data/models/donation';
+import { ActivatedRoute } from '@angular/router';
+import { Donation, DonationDraft, DonationType, formatCedisShort, totalMinor } from '../../../../data/models/donation';
+import type { Event } from '../../../../data/models/event';
+import { appDb } from '../../../../data/dexie/app-db';
 import { ConnectivityService } from '../../../../data/services/connectivity.service';
+import { DonationService } from '../../../../data/services/donation.service';
+import { SyncEngineService } from '../../../../data/services/sync-engine.service';
+import { ServiceError } from '../../../../data/services/service-error';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'] as const;
 
@@ -18,6 +24,10 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'] as 
  *   - 52px keys and a 54px save target — usable while standing, one-handed, in a crowd.
  *   - The live event total stays pinned in the header, because "how much so far?" is the
  *     question a collector is asked constantly and should never leave the form to answer.
+ *
+ * Same real wiring as donation-entry.ts (event load by the `event` query param,
+ * DonationService.createDonation, ConnectivityService, SyncEngineService for the pending
+ * count) — just the phone-sized keypad UI instead of the full desk form.
  */
 @Component({
   selector: 'app-mobile-entry',
@@ -26,18 +36,26 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'] as 
   styleUrl: './mobile-entry.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MobileEntry {
+export class MobileEntry implements OnInit {
+  private readonly route = inject(ActivatedRoute);
   private readonly connectivityService = inject(ConnectivityService);
+  private readonly donationService = inject(DonationService);
+  private readonly syncEngine = inject(SyncEngineService);
 
-  // ── replace with service-backed signals ──────────────────────────────
-  public readonly eventId = signal('');
-  public readonly eventName = signal('');
-  public readonly eventTotalMinor = signal(0);
-  public readonly pendingCount = signal(0);
+  public readonly event = signal<Event | null>(null);
+  public readonly notFound = signal(false);
   public readonly busy = signal(false);
-  // ─────────────────────────────────────────────────────────────────────
 
   public readonly online = this.connectivityService.online;
+  public readonly syncing = this.syncEngine.syncing;
+  public readonly pendingCount = signal(0);
+
+  public readonly eventId = computed(() => this.event()?.id ?? '');
+  public readonly eventName = computed(() => {
+    if (this.notFound()) return 'Event not found';
+    return this.event()?.name ?? 'Loading event…';
+  });
+  public readonly eventTotalMinor = computed(() => totalMinor(this.donationService.donations()));
 
   public readonly donorName = signal('');
   public readonly amountText = signal('');
@@ -69,7 +87,7 @@ export class MobileEntry {
   private readonly nameValid = computed(() => this.donorName().trim().length >= 2);
 
   public readonly canSave = computed(() =>
-    this.nameValid() && this.amountValid() && !this.busy(),
+    this.nameValid() && this.amountValid() && !this.busy() && !!this.eventId(),
   );
 
   public readonly hint = computed(() => {
@@ -82,6 +100,55 @@ export class MobileEntry {
   public readonly saveLabel = computed(() =>
     this.online() ? 'Save donation' : 'Save to this device',
   );
+
+  public readonly saveError = signal<string | null>(null);
+
+  constructor() {
+    // Mirrors donation-entry.ts: once a drain finishes, re-read this event's pending
+    // donation-create outbox entries \u2014 some of them may have just synced.
+    effect(() => {
+      if (this.syncing()) return;
+      void this.refreshPending();
+    });
+  }
+
+  async ngOnInit(): Promise<void> {
+    const eventId = this.route.snapshot.queryParamMap.get('event');
+    if (!eventId) {
+      this.notFound.set(true);
+      return;
+    }
+
+    const event = await appDb.events.get(eventId);
+    if (!event) {
+      this.notFound.set(true);
+      return;
+    }
+
+    this.event.set(event);
+    await this.refreshPending();
+
+    try {
+      await this.donationService.loadDonationsForEvent(eventId);
+    } catch {
+      // The header total is a nice-to-have here \u2014 a failed pull just leaves it at whatever
+      // this device already had cached, same as donation-entry.ts's own fallback.
+    }
+  }
+
+  private async refreshPending(): Promise<void> {
+    const eventId = this.eventId();
+    if (!eventId) {
+      this.pendingCount.set(0);
+      return;
+    }
+    const count = await appDb.outbox
+      .where('entityType')
+      .equals('donation')
+      .filter((e) => e.op === 'create' && (e.payload as Donation).eventId === eventId)
+      .count();
+    this.pendingCount.set(count);
+  }
 
   public keyLabel(key: string): string { return key === 'back' ? '\u232B' : key; }
 
@@ -125,9 +192,15 @@ export class MobileEntry {
     if (!draft) return;
 
     this.busy.set(true);
+    this.saveError.set(null);
     try {
-      // this.online() ? await donationService.create(draft) : await offlineQueue.enqueue(draft);
+      // DonationService.createDonation handles both cases itself (Dexie + outbox, with an
+      // inline sync attempt when online) — there's no separate offline path to branch on here.
+      await this.donationService.createDonation(draft);
+      await this.refreshPending();
       this.reset();
+    } catch (err) {
+      this.saveError.set(err instanceof ServiceError ? err.message : 'Failed to save donation');
     } finally {
       this.busy.set(false);
     }

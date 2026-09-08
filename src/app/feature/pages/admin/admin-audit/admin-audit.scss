@@ -42,7 +42,7 @@
 
   &.is-neutral { background: var(--bg-mist); color: var(--data-4); }
   &.is-edit { background: rgba(0, 200, 224, .14); color: var(--primary-dark); }
-  &.is-recover { background: rgba(34, 197, 94, .14); color: #15803d; }
+  &.is-restore { background: rgba(34, 197, 94, .14); color: #15803d; }
   &.is-delete { background: rgba(245, 158, 11, .14); color: #92400e; }
   &.is-security { background: rgba(239, 68, 68, .12); color: var(--func-error); }
 }

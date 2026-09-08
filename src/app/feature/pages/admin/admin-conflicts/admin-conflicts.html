@@ -18,7 +18,12 @@
     }
   </header>
 
-  @if (loading()) {
+  @if (loadError(); as err) {
+    <div class="empty glass">
+      <mat-icon class="empty-icon">error_outline</mat-icon>
+      <p class="t-card-title">{{ err }}</p>
+    </div>
+  } @else if (loading()) {
     <div class="table-wrap glass">
       @for (i of [0, 1]; track i) {
         <div class="skel-row">
@@ -58,6 +63,9 @@
       }
 
       <div class="conflict-main">
+        @if (resolveError(); as err) {
+          <p class="field-error">{{ err }}</p>
+        }
         @if (active(); as c) {
           <app-conflict-resolver [conflict]="c" [busy]="busy()" (resolved)="resolve($event)" />
         }

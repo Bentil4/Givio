@@ -9,7 +9,7 @@ import type { Event } from '../../../../data/models/event';
 import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
 import type { AdminUser } from '../../../../data/models/admin-user';
 
-type Confirmable = 'pause' | 'resume' | 'close' | 'regenerate' | null;
+type Confirmable = 'pause' | 'resume' | 'close' | 'generate' | 'regenerate' | null;
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -27,11 +27,12 @@ function sameIds(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
  * Loading and the "Edit details" link are real (Dexie, the same source edit-event.ts reads
  * from). Operator assignment is real (Story 2.3 — EventService.assignOperators, backed by
  * the set-role-and-permissions Function's assignOperators action, which recomputes the
- * Event document's Appwrite permissions per AD-2). Pause / resume / close / regenerate are
- * still NOT wired to anything — this repo has no event-status-lifecycle service (Story 2.2)
- * or family-access-code generation (Story 2.4) yet. Confirming one of those surfaces an
- * honest "not built yet" message rather than silently no-op'ing or faking success. The UI is
- * kept (not deleted) because it's the intended shape once those stories land — see
+ * Event document's Appwrite permissions per AD-2). Regenerate is real too (Story 2.4 —
+ * EventService.regenerateAccessCode, backed by the same Function's generateAccessCode
+ * action). Pause / resume / close are still NOT wired to anything — this repo has no
+ * event-status-lifecycle service (Story 2.2) yet. Confirming one of those surfaces an honest
+ * "not built yet" message rather than silently no-op'ing or faking success. The UI is kept
+ * (not deleted) because it's the intended shape once that story lands — see
  * docs/design-handoff/INTEGRATION-STATUS.md.
  */
 @Component({
@@ -64,7 +65,7 @@ export class AdminEventDetail implements OnInit {
   public readonly chipClass = EVENT_STATUS_CHIP;
 
   /** Donation totals need Epic 3's Donation collection, which doesn't exist yet. */
-  public readonly totalLabel = computed(() => '—');
+  public readonly totalLabel = computed(() => 'GH₵ 0.00');
 
   public readonly statusLabel = computed(() => {
     const s = this.event()?.status;
@@ -110,6 +111,14 @@ export class AdminEventDetail implements OnInit {
             + 'the record. It cannot be reopened — only an export remains.',
           cta: 'Close and archive',
           danger: true,
+        };
+      case 'generate':
+        return {
+          title: 'Generate a family access code?',
+          body: 'Family members will use this code to view a live, read-only summary of the giving — '
+            + 'no account needed. You can share it as soon as it\'s generated.',
+          cta: 'Generate code',
+          danger: false,
         };
       case 'regenerate':
         return {
@@ -200,9 +209,28 @@ export class AdminEventDetail implements OnInit {
   public dismiss(): void { this.confirming.set(null); }
 
   public async confirm(): Promise<void> {
-    // No status-lifecycle or access-code service exists yet (Stories 2.2/2.4) — see this
-    // component's doc comment.
-    this.actionError.set('This action isn’t available yet in this build.');
+    const action = this.confirming();
+    const event = this.event();
+    if (!event) return;
+
+    if (action !== 'generate' && action !== 'regenerate') {
+      // Pause/resume/close need Story 2.2's event-status-lifecycle service, which doesn't
+      // exist yet — see this component's doc comment.
+      this.actionError.set('This action isn’t available yet in this build.');
+      return;
+    }
+
+    this.busy.set(true);
+    this.actionError.set(null);
+    try {
+      const updated = await this.eventService.regenerateAccessCode(event.id);
+      this.event.set(updated);
+      this.confirming.set(null);
+    } catch (err) {
+      this.actionError.set(err instanceof ServiceError ? err.message : 'Failed to regenerate the family code');
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   public async copyCode(): Promise<void> {

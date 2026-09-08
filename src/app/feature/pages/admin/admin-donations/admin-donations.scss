@@ -17,6 +17,13 @@
   p { margin: 0; max-width: 68ch; text-wrap: pretty; }
 }
 
+.page-head-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
 .page-head-total {
   flex: none;
   text-align: right;

@@ -7,6 +7,7 @@ import type { OutboxEntry } from '../dexie/outbox-entry';
 import type { Event } from '../models/event';
 import { AuthService } from './auth.service';
 import { ServiceError } from './service-error';
+import { writeAuditLog } from './audit-log-writer';
 import { environment } from '../../../environments/environment';
 
 interface CreateEventInput {
@@ -177,7 +178,7 @@ export class EventDataService {
     // see Story 2.1 Dev Notes for the known gap this leaves until Story 3.5's SyncEngine exists.
     if (synced) {
       try {
-        await this.writeAuditLog({
+        await writeAuditLog(this.databases, {
           entityType: 'event',
           entityId: updated.id,
           action: 'edit',
@@ -224,40 +225,50 @@ export class EventDataService {
     return updated;
   }
 
-  async writeAuditLog(entry: {
-    entityType: 'event';
-    entityId: string;
-    action: 'edit';
-    performedBy: string;
-    previousValues: unknown;
-    newValues: unknown;
-  }): Promise<void> {
-    try {
-      await this.databases.createRow({
-        databaseId: environment.appwriteDatabaseId,
-        tableId: environment.auditLogsCollectionId,
-        rowId: ID.unique(),
-        data: {
-          entityType: entry.entityType,
-          entityId: entry.entityId,
-          action: entry.action,
-          performedBy: entry.performedBy,
-          previousValues: JSON.stringify(entry.previousValues),
-          newValues: JSON.stringify(entry.newValues),
-          timestamp: new Date().toISOString(),
-        },
-        permissions: [Permission.read(Role.label('admin'))],
-      });
-    } catch (error) {
-      throw new ServiceError('Failed to write audit log', error);
-    }
+  /**
+   * Called by SyncEngineService to retry a queued entry outside its original create/update
+   * call site — e.g. once connectivity returns. No audit log here: an edit's previousValues
+   * and the reason a donation's equivalent gives (not applicable to events, but the same
+   * limits apply) aren't preserved in the outbox entry itself, only at the original call site,
+   * so a background retry can't reconstruct a meaningful audit entry the way the inline path
+   * can. A real fix needs the outbox to carry that context too — out of scope for this pass.
+   */
+  async retryOutboxEntry(entry: OutboxEntry): Promise<boolean> {
+    return this.trySyncNow(entry);
   }
 
   /**
-   * Stand-in for the not-yet-built SyncEngine (Story 3.5): attempts the real Appwrite write
-   * immediately inline. Never throws — a network failure must not block the caller from having
-   * their locally-saved Event. Returns whether the sync actually reached Appwrite, since
-   * updateEvent() uses that to decide whether an audit log entry is meaningful yet.
+   * Online-only, same reasoning as assignOperators: the code itself is generated and written
+   * server-side (Story 2.4), so there's nothing meaningful to queue offline.
+   */
+  async regenerateAccessCode(eventId: string): Promise<Event> {
+    const current = await appDb.events.get(eventId);
+    if (!current) {
+      throw new ServiceError('Event not found');
+    }
+
+    const { accessCode } = await invokeAdminFunction<{ accessCode: string }>(
+      this.functions,
+      'generateAccessCode',
+      'Failed to regenerate the family code',
+      { eventId },
+    );
+
+    const updated: Event = { ...current, accessCode, updatedAt: new Date().toISOString() };
+    try {
+      await appDb.events.put(updated);
+    } catch (error) {
+      console.error('EventDataService.regenerateAccessCode: failed to update local cache', error);
+    }
+
+    return updated;
+  }
+
+  /**
+   * Attempts the real Appwrite write immediately inline. Never throws — a network failure
+   * must not block the caller from having their locally-saved Event. Returns whether the sync
+   * actually reached Appwrite, since updateEvent() uses that to decide whether an audit log
+   * entry is meaningful yet.
    */
   private async trySyncNow(entry: OutboxEntry): Promise<boolean> {
     try {

@@ -56,10 +56,21 @@ development_status:
   epic-1-retrospective: optional
 
   epic-2: in-progress
-  # 2-1/2-2/2-3 verified implemented in code (2026-09-06): edit-event.ts +
+  # 2-1/2-3 verified implemented in code (2026-09-06): edit-event.ts +
   # event-data.service.ts cover status guards; admin-event-detail.ts has
-  # working pause/resume/close + assignOperators wired to the
-  # set-role-and-permissions Function (event-assignment.js).
+  # assignOperators wired to the set-role-and-permissions Function
+  # (event-assignment.js).
+  # 2-2 correction (2026-09-08): this was marked "done" above on
+  # 2026-09-06 with a claim that pause/resume/close were "working" —
+  # that was inaccurate. admin-event-detail.ts's confirm() only ever had
+  # a single stub covering all four actions ("This action isn't
+  # available yet in this build"); Phase 5 (2026-09-08) wired
+  # 'regenerate' for real (Story 2.4) but deliberately left
+  # pause/resume/close untouched, since no event-status-lifecycle
+  # service exists anywhere in the codebase — only read-only computed
+  # guards (canPause/canResume/isClosed) derived from event.status.
+  # Reopened to backlog; the read-only guards belong to 2-1/2-3, not
+  # this story.
   # 2-1 reopened (2026-09-07): reported bug — Admin/Operator can't see
   # events after logging in on a different browser. Root cause:
   # EventDataService.listEvents() only ever read local Dexie, never
@@ -70,11 +81,35 @@ development_status:
   # manually verified logging into two actual different browsers (no
   # browser-automation tool available this session).
   2-1-create-edit-events: review
-  2-2-event-status-lifecycle: done
+  2-2-event-status-lifecycle: backlog
   2-3-assign-operators-permission-derivation: done
-  # 2-4: only UI scaffolding exists (family-code.ts, family-live.ts) — no
-  # real access-code validation or data-fetching wired up yet.
-  2-4-family-access-code-event-code-login: backlog
+  # 2-4 implemented 2026-09-08: new Function actions generateAccessCode
+  # (Admin-only, plaintext code stored on Event.accessCode — deliberate
+  # deviation from the architecture doc's "hashed" wording, since
+  # admin-event-detail.ts's copyCode() needs to re-read the code anytime
+  # and Admin+assigned-Operators already hold row read access) and
+  # resolveAccessCode (the one genuinely public, unauthenticated action
+  # in the whole Function — a Family Member has no account, AD-10).
+  # Had to open the Function's own `execute` permission from
+  # ["users"] to ["users", "any"] via the Appwrite MCP server — Family
+  # has no session, so the platform itself was rejecting the call before
+  # ever reaching our code. family-code.ts's peek()/submit() wired to
+  # FamilyAccessService; admin-event-detail.ts's "regenerate" action
+  # wired to EventService.regenerateAccessCode. Deployed via the Appwrite
+  # MCP server (push branch, VCS auto-build, explicit activate — same
+  # flow as Story 3.5); smoke-tested via live executions: resolveAccessCode
+  # with a bogus code returned 404 "Code not recognised" (not a platform-
+  # level rejection, confirming the public path truly runs), and
+  # generateAccessCode with no auth returned 401, confirming the
+  # execute:any platform change didn't loosen the Function's own
+  # per-action admin check.
+  # Manually browser-verified 2026-09-08: Admin generated a code from
+  # admin-event-detail.ts ("Quansah Funeral"), the code and Copy button
+  # both worked; a fresh code was then entered at /family and resolved
+  # correctly (verified server-side too — the live event row's current
+  # accessCode round-tripped through resolveAccessCode and matched what
+  # the Admin UI displayed). Status: done.
+  2-4-family-access-code-event-code-login: done
   epic-2-retrospective: optional
 
   epic-3: in-progress
@@ -85,22 +120,78 @@ development_status:
   # (online/offline indicator) implemented same day via new
   # ConnectivityService (navigator.onLine + online/offline listeners),
   # wired into donation-entry/event-select/mobile-entry/operator-donations.
+  # mobile-entry.ts itself (the phone-sized keypad form factor of this
+  # same AC) fully wired 2026-09-08: event load by the `event` query
+  # param, DonationService.createDonation, SyncEngineService-backed
+  # pending count — same real data path as donation-entry.ts, just the
+  # alternate ergonomic for roaming collectors.
   # Status is "review", not "done" — not yet manually verified in a
   # browser (no browser-automation tool available this session).
   3-1-record-a-donation-online-or-offline: review
-  3-2-donation-list-search-filter-running-total: backlog
-  3-3-edit-a-donation-entry: backlog
-  3-4-admin-soft-delete-a-donation: backlog
-  3-5-sync-engine-auto-sync-pending-count-conflict-detection: backlog
+  # 3-2/3-3/3-4 implemented 2026-09-07 as part of a broader "wire every
+  # stubbed feature" effort (see plan at the time: operator-donations,
+  # admin-donations, admin-trash all wired to real DonationDataService
+  # methods, with a shared generalized writeAuditLog). Status "review" —
+  # not yet manually browser-verified, and the live Appwrite `donations`
+  # table may be missing the `updatedAt` column edits/deletes need to
+  # actually sync (falls back to locally-saved-but-pending otherwise).
+  3-2-donation-list-search-filter-running-total: review
+  3-3-edit-a-donation-entry: review
+  3-4-admin-soft-delete-a-donation: review
+  # Implemented 2026-09-07: conflict detection (DonationDataService compares
+  # baseUpdatedAt vs the row's current updatedAt before an update applies),
+  # new recordConflict/resolveConflict Function actions (conflict-resolution.js),
+  # donation_conflicts table + Function env var created via Appwrite MCP,
+  # SyncEngineService (pendingCount/syncing, auto-drain on reconnect, manual
+  # "Sync now"), admin-conflicts/ConflictResolver wired to real data.
+  # Deployed via the Appwrite MCP server (discovered mid-deploy: the Function
+  # is GitHub VCS-connected with providerBranches unrestricted, so a manual
+  # MCP upload got stuck "waiting" — pushed this branch instead, VCS auto-
+  # built it in 17s, then explicitly activated that deployment; smoke-tested
+  # via a live execution — 401 Unauthenticated as expected, confirming the
+  # new code is actually live and routing correctly).
+  # Known gap: a retried (background-synced) update can't write a full audit
+  # entry — previousValues/reason only exist at the original call site.
+  # Status "review" — deployed and smoke-tested, but not manually browser-
+  # verified end-to-end (no browser-automation tool this session).
+  3-5-sync-engine-auto-sync-pending-count-conflict-detection: review
   3-6-receipt-generation-pdf-provisional-numbering: backlog
   epic-3-retrospective: optional
 
-  epic-4: backlog
-  4-1-admin-real-time-dashboard: backlog
-  4-2-admin-excel-export: backlog
-  4-3-family-live-summary: backlog
-  4-4-family-excel-export-sanitized: backlog
-  4-5-audit-log-viewer: backlog
+  epic-4: in-progress
+  # 4-1/4-2 implemented 2026-09-07: first Appwrite Realtime use in the app
+  # (DonationDataService.subscribeToChanges, admin-dashboard-only by
+  # design), admin-dashboard stats/live-feed wired to real data. SheetJS
+  # vendored per the AC (src/vendor/sheetjs/, never npm install xlsx),
+  # ReportService.exportDonationsXlsx wired to admin-reports. "Awaiting
+  # sync" stays a placeholder — architecturally can't be known from a
+  # server-only read until Story 3.5 exists. Status "review" — not yet
+  # manually browser-verified (no browser-automation tool this session).
+  4-1-admin-real-time-dashboard: review
+  4-2-admin-excel-export: review
+  # 4-3/4-4 implemented 2026-09-08 alongside 2-4: family-live.ts now
+  # reads real (sanitized) event+donation data via resolveAccessCode,
+  # polling every 15s rather than a Realtime subscription — Family has
+  # no Appwrite session to subscribe with (AD-10), stated as the
+  # pragmatic v1, not a silent gap.
+  # 4-3 manually browser-verified 2026-09-08: entered a live access code
+  # at /family, landed on the live summary showing the real donation
+  # (Solomon Quansah, GH₵200.00 cash, on behalf of Francisca) with no
+  # donorPhone/recordedBy/notes present. Status: done.
+  4-3-family-live-summary: done
+  # 4-4's export button is wired to ReportService.exportDonationsXlsx(...,
+  # { sanitized: true }) built in Phase 3 for exactly this reuse, but the
+  # download itself hasn't been manually exercised yet — only 2-4/4-3's
+  # generate/resolve path was. Status stays "review" until the .xlsx
+  # download is actually checked in a browser.
+  4-4-family-excel-export-sanitized: review
+  # Implemented 2026-09-07: AuditLogDataService/AuditLogService (paginated,
+  # admin-only read against audit_logs, no Dexie/offline path — a live
+  # server view by design) wired into admin-audit.ts. Also fixed a gap the
+  # AC itself surfaced: DonationDataService.createDonation now writes a
+  # 'create' audit entry too (previously only edit/delete/recover did).
+  # Status "review" — not yet manually browser-verified.
+  4-5-audit-log-viewer: review
   epic-4-retrospective: optional
 
   epic-5: backlog

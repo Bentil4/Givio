@@ -9,6 +9,7 @@ export const environment: {
   eventsCollectionId: string;
   auditLogsCollectionId: string;
   donationsCollectionId: string;
+  donationConflictsCollectionId: string;
 } = {
   appwriteEndpoint: 'https://fra.cloud.appwrite.io/v1',
   appwriteProjectId: 'YOUR_APPWRITE_PROJECT_ID',
@@ -23,5 +24,7 @@ export const environment: {
   // Console → Databases → your database → Tables → audit_logs → $id.
   auditLogsCollectionId: 'YOUR_AUDIT_LOGS_TABLE_ID',
   // Console → Databases → your database → Tables → donations → $id.
-  donationsCollectionId: 'YOUR_DONATIONS_TABLE_ID'
+  donationsCollectionId: 'YOUR_DONATIONS_TABLE_ID',
+  // Console → Databases → your database → Tables → donation_conflicts → $id.
+  donationConflictsCollectionId: 'YOUR_DONATION_CONFLICTS_TABLE_ID'
 };

@@ -23,11 +23,17 @@
       </div>
 
       <div class="detail-hero-total">
-        <span class="detail-total-label">Raised so far</span>
-        <span class="detail-total-value">{{ totalLabel() }}</span>
+        <p class="detail-total-label">Raised so far</p>
+        <output class="detail-total-value">{{ totalLabel() }}</output>
       </div>
 
       <div class="detail-hero-actions">
+        <a class="btn btn-hero-ghost" routerLink="/dashboard/donations" [queryParams]="{ event: e.id }">
+          View donations
+        </a>
+        <a class="btn btn-hero-ghost" routerLink="/dashboard/reports" [queryParams]="{ event: e.id }">
+          Reports
+        </a>
         <a class="btn btn-hero-ghost" [routerLink]="['/dashboard/events', e.id, 'edit']">Edit details</a>
         @if (!isClosed()) {
           @if (canPause()) {
@@ -60,15 +66,18 @@
               Regenerate code
             </button>
           </div>
+        } @else if (isClosed()) {
+          <p class="t-secondary code-none">
+            The code was released when this event closed. Family members can no longer join, but the
+            export stays available.
+          </p>
         } @else {
           <p class="t-secondary code-none">
-            @if (isClosed()) {
-              The code was released when this event closed. Family members can no longer join, but the
-              export stays available.
-            } @else {
-              No code yet — family access codes aren't available in this build yet.
-            }
+            No code yet. Generate one to let family members view a live, read-only summary.
           </p>
+          <button type="button" class="btn btn-primary" (click)="ask('generate')">
+            Generate code
+          </button>
         }
       </article>
 

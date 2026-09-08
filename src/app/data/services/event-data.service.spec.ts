@@ -300,4 +300,107 @@ describe('EventDataService', () => {
       expect((await appDb.events.get('active-3'))?.assignedUserIds).toEqual([]);
     });
   });
+
+  describe('regenerateAccessCode', () => {
+    it('rejects with ServiceError for an unknown id, without calling the Function', async () => {
+      await expect(service.regenerateAccessCode('missing')).rejects.toBeInstanceOf(ServiceError);
+      expect(functions.createExecution).not.toHaveBeenCalled();
+    });
+
+    it('calls the generateAccessCode Function action and writes the new code to Dexie on success', async () => {
+      await appDb.events.put({
+        id: 'active-1',
+        name: 'Original Name',
+        type: 'wedding',
+        date: '2026-01-01',
+        hostName: 'Host',
+        status: 'active',
+        accessCode: 'OLDCODE1',
+        assignedUserIds: [],
+        createdBy: 'admin-1',
+        nextReceiptSeq: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 200,
+        responseBody: JSON.stringify({ success: true, accessCode: 'NEWCODE1' }),
+      });
+
+      const updated = await service.regenerateAccessCode('active-1');
+
+      expect(updated.accessCode).toBe('NEWCODE1');
+      expect((await appDb.events.get('active-1'))?.accessCode).toBe('NEWCODE1');
+      expect(functions.createExecution).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: JSON.stringify({ action: 'generateAccessCode', eventId: 'active-1' }),
+        }),
+      );
+    });
+
+    it('throws ServiceError and leaves Dexie untouched when the Function rejects the request', async () => {
+      await appDb.events.put({
+        id: 'active-3',
+        name: 'Original Name',
+        type: 'wedding',
+        date: '2026-01-01',
+        hostName: 'Host',
+        status: 'active',
+        accessCode: 'OLDCODE1',
+        assignedUserIds: [],
+        createdBy: 'admin-1',
+        nextReceiptSeq: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 502,
+        responseBody: JSON.stringify({ error: 'Failed to generate a unique code, try again' }),
+      });
+
+      await expect(service.regenerateAccessCode('active-3')).rejects.toBeInstanceOf(ServiceError);
+      expect((await appDb.events.get('active-3'))?.accessCode).toBe('OLDCODE1');
+    });
+  });
+
+  describe('retryOutboxEntry', () => {
+    it('retries a create entry and reports success', async () => {
+      databases.createRow.mockResolvedValueOnce({});
+      const entry = {
+        localId: 1,
+        entityType: 'event' as const,
+        entityId: 'e1',
+        op: 'create' as const,
+        payload: { id: 'e1', name: 'Ama & Kojo' },
+        status: 'pending' as const,
+        retries: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      const synced = await service.retryOutboxEntry(entry);
+
+      expect(synced).toBe(true);
+      expect(databases.createRow).toHaveBeenCalledWith(
+        expect.objectContaining({ rowId: 'e1' }),
+      );
+    });
+
+    it('reports failure without throwing when the retry itself fails', async () => {
+      databases.updateRow.mockRejectedValueOnce(new Error('offline'));
+      const entry = {
+        localId: 2,
+        entityType: 'event' as const,
+        entityId: 'e1',
+        op: 'update' as const,
+        payload: { id: 'e1', name: 'Renamed' },
+        status: 'pending' as const,
+        retries: 1,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      const synced = await service.retryOutboxEntry(entry);
+
+      expect(synced).toBe(false);
+    });
+  });
 });

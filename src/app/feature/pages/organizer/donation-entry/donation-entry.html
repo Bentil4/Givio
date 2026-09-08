@@ -121,7 +121,14 @@
     </div>
 
     <aside class="desk-aside glass">
-      <h2 class="section-label">Recorded by you</h2>
+      <div class="desk-aside-head">
+        <h2 class="section-label">Recorded by you</h2>
+        @if (event()) {
+          <a class="t-caption" routerLink="/organizer/donations" [queryParams]="{ event: event()!.id }">
+            View all
+          </a>
+        }
+      </div>
       <div class="desk-stats">
         <div class="desk-stat">
           <span class="desk-stat-value">{{ myCount() }}</span>
@@ -153,6 +160,7 @@
       [online]="online()"
       [syncing]="syncing()"
       (closed)="closeQueue()"
+      (syncNow)="syncNow()"
     />
   }
 </section>

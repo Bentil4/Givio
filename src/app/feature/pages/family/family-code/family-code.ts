@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
+import { FamilyAccessService } from '../../../../data/services/family-access.service';
+import { formatCedisShort, totalMinor } from '../../../../data/models/donation';
 
 const CODE_LENGTH = 8;
 const MAX_TRIES = 5;
@@ -27,6 +29,7 @@ type CodeError = 'not-found' | 'paused' | 'closed' | 'cooldown' | null;
 })
 export class FamilyCode {
   private readonly router = inject(Router);
+  private readonly familyAccessService = inject(FamilyAccessService);
 
   public readonly code = signal('');
   public readonly checking = signal(false);
@@ -101,10 +104,21 @@ export class FamilyCode {
     else this.recognisedEvent.set(null);
   }
 
-  /** A read-only lookup that returns the event name only — never any donation data. */
+  /**
+   * A read-only lookup that returns the event name only — never any donation data. The
+   * Function only has one public action, so this discards the donations it also returns
+   * rather than displaying them here.
+   */
   private async peek(): Promise<void> {
-    // const found = await eventService.peekByCode(this.code());
-    // this.recognisedEvent.set(found?.name ?? null);
+    const code = this.code();
+    try {
+      const result = await this.familyAccessService.resolveByCode(code);
+      if (this.code() !== code) return; // stale — the user kept typing
+      this.recognisedEvent.set(result.event.name);
+    } catch {
+      if (this.code() !== code) return;
+      this.recognisedEvent.set(null);
+    }
   }
 
   public async submit(): Promise<void> {
@@ -114,9 +128,14 @@ export class FamilyCode {
     this.error.set(null);
 
     try {
-      // const event = await eventService.byCode(this.code());
-      // if (event.status === 'paused') { this.error.set('paused'); return; }
-      // this.router.navigate(['/family', this.code()]);
+      const result = await this.familyAccessService.resolveByCode(this.code());
+      if (result.event.status === 'paused') {
+        this.lastKnownTotal.set(formatCedisShort(totalMinor(result.donations)));
+        this.error.set('paused');
+        return;
+      }
+      this.tries.set(0);
+      void this.router.navigate(['/family', this.code()]);
     } catch {
       const tries = this.tries() + 1;
       this.tries.set(tries);

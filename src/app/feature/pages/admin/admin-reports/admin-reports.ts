@@ -1,6 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { ActivatedRoute } from '@angular/router';
 import { Donation, DonationType, DONATION_TYPE_LABELS, formatCedis, formatCedisShort, totalMinor } from '../../../../data/models/donation';
+import { DonationService } from '../../../../data/services/donation.service';
+import { ReportService } from '../../../../data/services/report.service';
+import { appDb } from '../../../../data/dexie/app-db';
 
 interface TypeSlice {
   type: DonationType;
@@ -34,16 +38,31 @@ interface HourBar {
   styleUrl: './admin-reports.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AdminReports {
-  // ── replace with service-backed signals ──────────────────────────────
-  public readonly donations = signal<readonly Donation[]>([]);
+export class AdminReports implements OnInit {
+  private readonly route = inject(ActivatedRoute);
+  private readonly donationService = inject(DonationService);
+  private readonly reportService = inject(ReportService);
+
+  public readonly donations = this.donationService.donations;
   public readonly eventName = signal('');
   public readonly dateRange = signal('');
   public readonly loading = signal(true);
-  public readonly conflictCount = signal(0);
-  // ─────────────────────────────────────────────────────────────────────
+
+  public readonly conflictCount = computed(
+    () => this.donations().filter((d) => !d.deletedAt && d.syncStatus === 'conflict').length,
+  );
 
   public readonly exporting = signal(false);
+
+  async ngOnInit(): Promise<void> {
+    const eventId = this.route.snapshot.queryParamMap.get('event');
+    if (eventId) {
+      const event = await appDb.events.get(eventId);
+      this.eventName.set(event?.name ?? '');
+      await this.donationService.loadDonationsForEvent(eventId);
+    }
+    this.loading.set(false);
+  }
 
   public readonly isEmpty = computed(() => !this.loading() && this.donations().length === 0);
 
@@ -158,8 +177,7 @@ export class AdminReports {
   public async exportXlsx(): Promise<void> {
     this.exporting.set(true);
     try {
-      // await reportService.exportXlsx({ eventId, range });
-      // One sheet: the event summary at the top, every column, a totals row at the bottom.
+      this.reportService.exportDonationsXlsx(this.eventName() || 'Event', this.donations());
     } finally {
       this.exporting.set(false);
     }

@@ -1,8 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { inject } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Donation, DonationType, DONATION_TYPE_LABELS, formatCedis, totalMinor } from '../../../../data/models/donation';
+import { DonationService } from '../../../../data/services/donation.service';
+import { ServiceError } from '../../../../data/services/service-error';
 
 interface Filters {
   eventId: string | null;
@@ -23,24 +26,26 @@ interface Filters {
  */
 @Component({
   selector: 'app-admin-donations',
-  imports: [MatIconModule, ReactiveFormsModule],
+  imports: [MatIconModule, ReactiveFormsModule, RouterLink],
   templateUrl: './admin-donations.html',
   styleUrl: './admin-donations.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AdminDonations {
+export class AdminDonations implements OnInit {
   private readonly fb = inject(FormBuilder);
+  private readonly route = inject(ActivatedRoute);
+  private readonly donationService = inject(DonationService);
 
-  // ── replace with service-backed signals ──────────────────────────────
-  public readonly donations = signal<readonly Donation[]>([]);
+  public readonly donations = this.donationService.donations;
   public readonly loading = signal(true);
-  public readonly operators = signal<readonly string[]>([]);
-  // ─────────────────────────────────────────────────────────────────────
+  public readonly operators = computed(() => [...new Set(this.donations().map((d) => d.recordedBy))]);
 
   public readonly filters = signal<Filters>({ eventId: null, type: 'all', operator: 'all', search: '' });
   public readonly editing = signal<Donation | null>(null);
   public readonly deleting = signal<Donation | null>(null);
   public readonly busy = signal(false);
+  public readonly saveError = signal<string | null>(null);
+  public readonly deleteError = signal<string | null>(null);
 
   public readonly types: (DonationType | 'all')[] = ['all', 'cash', 'mobile_money', 'in_kind'];
   public readonly labels = DONATION_TYPE_LABELS;
@@ -58,11 +63,23 @@ export class AdminDonations {
     reason: ['', [Validators.required, Validators.minLength(10)]],
   });
 
+  async ngOnInit(): Promise<void> {
+    const eventId = this.route.snapshot.queryParamMap.get('event');
+    if (eventId) {
+      this.filters.update((f) => ({ ...f, eventId }));
+      await this.donationService.loadDonationsForEvent(eventId);
+    } else {
+      await this.donationService.loadAllDonations();
+    }
+    this.loading.set(false);
+  }
+
   public readonly visible = computed(() => {
     const f = this.filters();
     const needle = f.search.trim().toLowerCase();
     return this.donations().filter((d) => {
       if (d.deletedAt) return false;
+      if (f.eventId && d.eventId !== f.eventId) return false;
       if (f.type !== 'all' && d.donationType !== f.type) return false;
       if (f.operator !== 'all' && d.recordedBy !== f.operator) return false;
       if (needle) {
@@ -134,9 +151,22 @@ export class AdminDonations {
   public async saveEdit(): Promise<void> {
     if (this.editForm.invalid) { this.editForm.markAllAsTouched(); return; }
     this.busy.set(true);
+    this.saveError.set(null);
     try {
-      // await donationService.update(this.editing()!.id, patch, v.reason);
+      const v = this.editForm.getRawValue();
+      await this.donationService.updateDonation(
+        this.editing()!.id,
+        {
+          donorName: v.donorName,
+          amountMinor: v.amount ? Math.round(parseFloat(v.amount) * 100) : null,
+          donationType: v.donationType,
+          onBehalfOf: v.onBehalfOf || undefined,
+        },
+        v.reason,
+      );
       this.closeEdit();
+    } catch (err) {
+      this.saveError.set(err instanceof ServiceError ? err.message : 'Failed to save the correction');
     } finally {
       this.busy.set(false);
     }
@@ -152,9 +182,15 @@ export class AdminDonations {
   public async confirmDelete(): Promise<void> {
     if (this.deleteForm.invalid) { this.deleteForm.markAllAsTouched(); return; }
     this.busy.set(true);
+    this.deleteError.set(null);
     try {
-      // await donationService.softDelete(this.deleting()!.id, this.deleteForm.getRawValue().reason);
+      await this.donationService.softDeleteDonation(
+        this.deleting()!.id,
+        this.deleteForm.getRawValue().reason,
+      );
       this.closeDelete();
+    } catch (err) {
+      this.deleteError.set(err instanceof ServiceError ? err.message : 'Failed to remove the donation');
     } finally {
       this.busy.set(false);
     }

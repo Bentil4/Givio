@@ -55,6 +55,8 @@
 
 .conflict-main { flex: 1; min-width: 0; }
 
+.field-error { margin: 0 0 var(--space-sm); font-size: 0.75rem; color: var(--func-error); }
+
 @media (max-width: 1100px) {
   .conflict-layout { flex-direction: column; }
   .conflict-list { width: 100%; }
