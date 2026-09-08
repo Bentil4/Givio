@@ -238,6 +238,33 @@ export class EventDataService {
   }
 
   /**
+   * Online-only, same reasoning as assignOperators: the code itself is generated and written
+   * server-side (Story 2.4), so there's nothing meaningful to queue offline.
+   */
+  async regenerateAccessCode(eventId: string): Promise<Event> {
+    const current = await appDb.events.get(eventId);
+    if (!current) {
+      throw new ServiceError('Event not found');
+    }
+
+    const { accessCode } = await invokeAdminFunction<{ accessCode: string }>(
+      this.functions,
+      'generateAccessCode',
+      'Failed to regenerate the family code',
+      { eventId },
+    );
+
+    const updated: Event = { ...current, accessCode, updatedAt: new Date().toISOString() };
+    try {
+      await appDb.events.put(updated);
+    } catch (error) {
+      console.error('EventDataService.regenerateAccessCode: failed to update local cache', error);
+    }
+
+    return updated;
+  }
+
+  /**
    * Attempts the real Appwrite write immediately inline. Never throws — a network failure
    * must not block the caller from having their locally-saved Event. Returns whether the sync
    * actually reached Appwrite, since updateEvent() uses that to decide whether an audit log

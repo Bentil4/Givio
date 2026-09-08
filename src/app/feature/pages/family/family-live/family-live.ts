@@ -1,8 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DonationRow } from '../../../components/donation-row/donation-row';
 import { Donation, DonationType, formatCedis, formatCedisShort, totalMinor } from '../../../../data/models/donation';
-import { DonationEvent } from '../../../../data/models/donation-event';
+import type { FamilyEventSummary } from '../../../../data/models/family-access';
+import { FamilyAccessService } from '../../../../data/services/family-access.service';
+import { ReportService } from '../../../../data/services/report.service';
 
 interface Slice {
   type: DonationType;
@@ -11,30 +14,43 @@ interface Slice {
   percent: number;
 }
 
+const POLL_INTERVAL_MS = 15_000;
+
 /**
  * The family's read-only live view, reached with an event code and no account.
  *
  * Two rules govern this screen and both are enforced on the server, not here:
  *   1. the payload contains no donorPhone, no recordedBy and no internal notes;
- *   2. the Realtime subscription is scoped to this one event id.
+ *   2. resolveAccessCode's own lookup is scoped to the one event the code belongs to.
  * A client-side filter would put the phone numbers in the DOM of a page shared over
  * WhatsApp to a hundred relatives.
+ *
+ * There's no Appwrite session here (Family has no account, AD-10), so no Realtime
+ * subscription is possible — this polls on an interval instead. Stated explicitly as the
+ * pragmatic v1, not a silent gap: Story 4.3's AC doesn't require sub-second updates, and a
+ * 15s poll is far cheaper than holding a socket open on a borrowed phone's data plan.
  */
 @Component({
   selector: 'app-family-live',
-  imports: [MatIconModule, DonationRow],
+  imports: [MatIconModule, DonationRow, RouterLink],
   templateUrl: './family-live.html',
   styleUrl: './family-live.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class FamilyLive {
-  // ── replace with service-backed signals ──────────────────────────────
-  public readonly event = signal<DonationEvent | null>(null);
+export class FamilyLive implements OnInit, OnDestroy {
+  private readonly route = inject(ActivatedRoute);
+  private readonly familyAccessService = inject(FamilyAccessService);
+  private readonly reportService = inject(ReportService);
+
+  private code = '';
+  private pollHandle: ReturnType<typeof setInterval> | undefined;
+
+  public readonly event = signal<FamilyEventSummary | null>(null);
   public readonly donations = signal<readonly Donation[]>([]);
   public readonly loading = signal(true);
   public readonly connected = signal(true);
+  public readonly notFound = signal(false);
   public readonly lastUpdated = signal<string>('just now');
-  // ─────────────────────────────────────────────────────────────────────
 
   public readonly exportOpen = signal(false);
 
@@ -76,6 +92,51 @@ export class FamilyLive {
     { label: 'Recorded by · internal notes', included: false },
   ];
 
+  async ngOnInit(): Promise<void> {
+    this.code = this.route.snapshot.paramMap.get('code') ?? '';
+    if (!this.code) {
+      this.notFound.set(true);
+      this.loading.set(false);
+      return;
+    }
+
+    await this.refresh();
+    this.loading.set(false);
+
+    if (!this.notFound()) {
+      this.pollHandle = setInterval(() => void this.refresh(), POLL_INTERVAL_MS);
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollHandle !== undefined) clearInterval(this.pollHandle);
+  }
+
+  private async refresh(): Promise<void> {
+    try {
+      const result = await this.familyAccessService.resolveByCode(this.code);
+      this.event.set(result.event);
+      this.donations.set(result.donations);
+      this.connected.set(true);
+      this.lastUpdated.set('just now');
+    } catch {
+      // A poll failure (network blip, code revoked mid-session) shouldn't blank out an
+      // already-loaded summary — surface it as "Reconnecting…" instead, unless this was the
+      // very first load, in which case there's nothing to fall back to.
+      if (this.event() === null) {
+        this.notFound.set(true);
+      } else {
+        this.connected.set(false);
+      }
+    }
+  }
+
   public openExport(): void { this.exportOpen.set(true); }
   public closeExport(): void { this.exportOpen.set(false); }
+
+  public downloadExport(): void {
+    const eventName = this.event()?.name ?? 'Event';
+    this.reportService.exportDonationsXlsx(eventName, this.donations(), { sanitized: true });
+    this.exportOpen.set(false);
+  }
 }

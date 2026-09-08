@@ -1,3 +1,13 @@
+@if (notFound()) {
+<section class="family">
+  <div class="family-empty glass">
+    <mat-icon class="family-empty-icon">error_outline</mat-icon>
+    <p class="t-card-title">That code did not work</p>
+    <p class="t-caption">Check the code with whoever shared it and try again.</p>
+    <a class="btn btn-secondary" routerLink="/family">Enter a code</a>
+  </div>
+</section>
+} @else {
 <section class="family">
   <header class="family-header">
     <div class="family-header-top">
@@ -14,7 +24,7 @@
       <div class="skel skel--total"></div>
     } @else {
       <h1 class="family-title">{{ event()?.name }}</h1>
-      <p class="family-venue">{{ event()?.venue }} · {{ event()?.eventDate }}</p>
+      <p class="family-venue">{{ event()?.venue }} · {{ event()?.date }}</p>
 
       <div class="family-total">
         <span class="family-total-label">Received so far</span>
@@ -77,6 +87,7 @@
     </div>
   }
 </section>
+}
 
 @if (exportOpen()) {
 <div class="sheet-scrim" (click)="closeExport()">
@@ -109,7 +120,7 @@
       {{ donorCount() }} rows · summary row included
     </p>
 
-    <button type="button" class="btn btn-primary sheet-cta">Download .xlsx</button>
+    <button type="button" class="btn btn-primary sheet-cta" (click)="downloadExport()">Download .xlsx</button>
     <button type="button" class="btn-ghost sheet-dismiss" (click)="closeExport()">Not now</button>
   </div>
 </div>

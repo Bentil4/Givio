@@ -33,4 +33,10 @@ export class EventService {
     this._events.update((events) => events.map((e) => (e.id === eventId ? event : e)));
     return event;
   }
+
+  async regenerateAccessCode(eventId: string): Promise<Event> {
+    const event = await this.eventDataService.regenerateAccessCode(eventId);
+    this._events.update((events) => events.map((e) => (e.id === eventId ? event : e)));
+    return event;
+  }
 }
