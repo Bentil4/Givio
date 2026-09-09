@@ -25,6 +25,7 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
 async function setup(options: {
   event?: Event | null;
   regenerateAccessCode?: ReturnType<typeof vi.fn>;
+  setEventStatus?: ReturnType<typeof vi.fn>;
 }) {
   const { event = makeEvent() } = options;
   await appDb.events.clear();
@@ -33,12 +34,13 @@ async function setup(options: {
   }
 
   const regenerateAccessCode = options.regenerateAccessCode ?? vi.fn();
+  const setEventStatus = options.setEventStatus ?? vi.fn();
 
   await TestBed.configureTestingModule({
     imports: [AdminEventDetail],
     providers: [
       provideRouter([]),
-      { provide: EventService, useValue: { regenerateAccessCode } },
+      { provide: EventService, useValue: { regenerateAccessCode, setEventStatus } },
       { provide: UserService, useValue: { listUsers: vi.fn().mockResolvedValue([]) } },
       {
         provide: ActivatedRoute,
@@ -51,7 +53,7 @@ async function setup(options: {
   const component = fixture.componentInstance;
   await component.ngOnInit();
   fixture.detectChanges();
-  return { fixture, component, regenerateAccessCode };
+  return { fixture, component, regenerateAccessCode, setEventStatus };
 }
 
 describe('AdminEventDetail', () => {
@@ -100,10 +102,61 @@ describe('AdminEventDetail', () => {
     expect(component.confirming()).toBe('generate');
   });
 
-  it('pause/resume/close remain an honest "not available yet" stub', async () => {
-    const { component } = await setup({});
+  it('"pause" calls EventService.setEventStatus with "paused" and stores the returned event', async () => {
+    const setEventStatus = vi.fn().mockResolvedValueOnce(makeEvent({ status: 'paused' }));
+    const { component } = await setup({ event: makeEvent({ status: 'active' }), setEventStatus });
+
     component.ask('pause');
     await component.confirm();
-    expect(component.actionError()).toContain('available yet');
+
+    expect(setEventStatus).toHaveBeenCalledWith('e1', 'paused');
+    expect(component.event()?.status).toBe('paused');
+    expect(component.confirming()).toBeNull();
+  });
+
+  it('"resume" calls EventService.setEventStatus with "active"', async () => {
+    const setEventStatus = vi.fn().mockResolvedValueOnce(makeEvent({ status: 'active' }));
+    const { component } = await setup({ event: makeEvent({ status: 'paused' }), setEventStatus });
+
+    component.ask('resume');
+    await component.confirm();
+
+    expect(setEventStatus).toHaveBeenCalledWith('e1', 'active');
+    expect(component.event()?.status).toBe('active');
+  });
+
+  it('"close" calls EventService.setEventStatus with "closed"', async () => {
+    const setEventStatus = vi.fn().mockResolvedValueOnce(makeEvent({ status: 'closed' }));
+    const { component } = await setup({ event: makeEvent({ status: 'active' }), setEventStatus });
+
+    component.ask('close');
+    await component.confirm();
+
+    expect(setEventStatus).toHaveBeenCalledWith('e1', 'closed');
+    expect(component.event()?.status).toBe('closed');
+    expect(component.isClosed()).toBe(true);
+  });
+
+  it('"reopen" calls EventService.setEventStatus with "active" for a closed event', async () => {
+    const setEventStatus = vi.fn().mockResolvedValueOnce(makeEvent({ status: 'active' }));
+    const { component } = await setup({ event: makeEvent({ status: 'closed' }), setEventStatus });
+
+    component.ask('reopen');
+    await component.confirm();
+
+    expect(setEventStatus).toHaveBeenCalledWith('e1', 'active');
+    expect(component.event()?.status).toBe('active');
+    expect(component.isClosed()).toBe(false);
+  });
+
+  it('surfaces a ServiceError from a failed status change and keeps the dialog open', async () => {
+    const setEventStatus = vi.fn().mockRejectedValueOnce(new ServiceError('Cannot change status from closed to paused'));
+    const { component } = await setup({ event: makeEvent({ status: 'closed' }), setEventStatus });
+
+    component.ask('pause');
+    await component.confirm();
+
+    expect(component.actionError()).toContain('Cannot change status');
+    expect(component.confirming()).toBe('pause');
   });
 });
