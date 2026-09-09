@@ -90,7 +90,14 @@
 }
 
 @if (exportOpen()) {
-<div class="sheet-scrim" (click)="closeExport()">
+<!-- The backdrop's click-to-dismiss is a mouse/touch-only convenience, not a real control — per
+     the WAI-ARIA APG Dialog pattern, it deliberately isn't part of the focus/tab order.
+     (keydown.escape) is the actual required keyboard equivalent (WCAG 2.1.1). -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="sheet-scrim" (click)="closeExport()" (keydown.escape)="closeExport()">
+  <!-- This click only stops the backdrop's dismiss-click from bubbling up — it's not itself a
+       keyboard-operable control, so there's no keyboard equivalent to add. -->
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
   <div class="sheet glass" role="dialog" aria-label="Export the donor list" (click)="$event.stopPropagation()">
     <span class="sheet-grip" aria-hidden="true"></span>
     <h2 class="t-page-title">Export the donor list</h2>

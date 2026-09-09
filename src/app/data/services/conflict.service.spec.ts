@@ -13,6 +13,7 @@ const makeDonation = (overrides: Partial<Donation> = {}): Donation => ({
   recordedBy: 'op-1',
   recordedAt: '2026-01-01T00:00:00.000Z',
   syncStatus: 'conflict',
+  ...overrides,
 });
 
 const makePair = (overrides: Partial<ConflictPair> = {}): ConflictPair => ({

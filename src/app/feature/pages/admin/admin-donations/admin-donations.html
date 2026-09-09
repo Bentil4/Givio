@@ -114,7 +114,14 @@
 
 <!-- ── Edit ────────────────────────────────────────────────────────────── -->
 @if (editing(); as record) {
-<div class="scrim" (click)="closeEdit()">
+<!-- The backdrop's click-to-dismiss is a mouse/touch-only convenience, not a real control — per
+     the WAI-ARIA APG Dialog pattern, it deliberately isn't part of the focus/tab order.
+     (keydown.escape) is the actual required keyboard equivalent (WCAG 2.1.1). -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="closeEdit()" (keydown.escape)="closeEdit()">
+  <!-- This click only stops the backdrop's dismiss-click from bubbling up — it's not itself a
+       keyboard-operable control, so there's no keyboard equivalent to add. -->
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
   <form class="dialog glass" [formGroup]="editForm" (ngSubmit)="saveEdit()" (click)="$event.stopPropagation()" novalidate>
     <header class="dialog-head">
       <h2 class="t-page-title">Edit donation {{ record.receiptNumber }}</h2>
@@ -204,7 +211,14 @@
 
 <!-- ── Soft delete ─────────────────────────────────────────────────────── -->
 @if (deleting(); as record) {
-<div class="scrim" (click)="closeDelete()">
+<!-- The backdrop's click-to-dismiss is a mouse/touch-only convenience, not a real control — per
+     the WAI-ARIA APG Dialog pattern, it deliberately isn't part of the focus/tab order.
+     (keydown.escape) is the actual required keyboard equivalent (WCAG 2.1.1). -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="closeDelete()" (keydown.escape)="closeDelete()">
+  <!-- This click only stops the backdrop's dismiss-click from bubbling up — it's not itself a
+       keyboard-operable control, so there's no keyboard equivalent to add. -->
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
   <form class="dialog dialog--sm glass" [formGroup]="deleteForm" (ngSubmit)="confirmDelete()" (click)="$event.stopPropagation()" novalidate>
     <header class="dialog-head">
       <h2 class="t-page-title">Remove {{ record.receiptNumber }}?</h2>

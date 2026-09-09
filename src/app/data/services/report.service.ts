@@ -1,5 +1,4 @@
 import { InjectionToken, Injectable, inject } from '@angular/core';
-// eslint-disable-next-line @typescript-eslint/naming-convention
 import * as sheetjs from '../../../vendor/sheetjs/xlsx.mjs';
 import { DONATION_TYPE_LABELS, totalMinor, type Donation } from '../models/donation';
 
