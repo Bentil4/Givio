@@ -238,7 +238,10 @@ development_status:
   # the receipt's Amount row. Verified beyond the mocked unit tests: generated a real (non-
   # mocked) PDF with the embedded font and confirmed via the raw PDF bytes that its ToUnicode
   # CMap correctly contains the 0x20b5 codepoint mapping.
-  3-6-receipt-generation-pdf-provisional-numbering: review
+  # Manually browser-verified 2026-09-09: PDF receipt generated and downloaded correctly,
+  # including the Ghana Cedi sign fix above (confirmed rendering as "GH₵ 400.00", not the
+  # earlier "GH µ" corruption). Status: done.
+  3-6-receipt-generation-pdf-provisional-numbering: done
   epic-3-retrospective: optional
 
   epic-4: in-progress
