@@ -43,4 +43,24 @@ describe('OrganizerLayout', () => {
 
     expect(router.navigate).toHaveBeenCalledWith(['/login']);
   });
+
+  describe('mobile nav drawer (Story 5.1)', () => {
+    it('toggleMobileNav flips isMobileNavOpen', () => {
+      expect(component.isMobileNavOpen()).toBe(false);
+
+      component.toggleMobileNav();
+      expect(component.isMobileNavOpen()).toBe(true);
+
+      component.toggleMobileNav();
+      expect(component.isMobileNavOpen()).toBe(false);
+    });
+
+    it('closeMobileNav always sets isMobileNavOpen to false', () => {
+      component.toggleMobileNav();
+      expect(component.isMobileNavOpen()).toBe(true);
+
+      component.closeMobileNav();
+      expect(component.isMobileNavOpen()).toBe(false);
+    });
+  });
 });

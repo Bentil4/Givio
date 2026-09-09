@@ -9,6 +9,7 @@
 .form-row {
   display: flex;
   align-items: center;
+  min-height: 44px; /* Story 5.1: touch target minimum — the whole row is the click target */
   gap: var(--space-sm);
   font-size: 0.88rem;
   color: var(--primary-dark);

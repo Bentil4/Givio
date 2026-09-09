@@ -16,7 +16,10 @@
   display: flex;
   gap: var(--space-md);
 
-  > .field { flex: 1; }
+  /* Story 5.1: flex items default to min-width:auto, which lets a native <input>'s intrinsic
+     min-width force this row wider than its container at narrow viewports — min-width:0 lets
+     them actually shrink to fit. */
+  > .field { flex: 1; min-width: 0; }
 }
 
 .field-label {
@@ -49,7 +52,8 @@
   border: 1.5px solid rgba(26, 107, 122, .15);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
-  font-size: 0.85rem;
+  /* 1rem (16px), not 0.85rem: iOS Safari auto-zooms on focus for inputs under 16px. */
+  font-size: 1rem;
   color: var(--primary-dark);
   outline: none;
   transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
@@ -67,7 +71,7 @@
   }
 }
 
-.input--lg { height: 48px; font-size: 0.95rem; }
+.input--lg { height: 48px; font-size: 1.05rem; }
 
 .textarea {
   height: auto;

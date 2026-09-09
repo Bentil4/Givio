@@ -29,8 +29,8 @@
 
 .queue-close {
   flex: none;
-  width: 32px;
-  height: 32px;
+  width: 44px; /* Story 5.1: touch target minimum */
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;

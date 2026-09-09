@@ -103,6 +103,7 @@
 
 .amount-line {
   display: flex;
+  flex-wrap: wrap; /* Story 5.1: a large amount falls back to wrapping, never clipping/hiding */
   align-items: baseline;
   gap: var(--space-sm);
   margin-top: 4px;
@@ -116,7 +117,10 @@
 
 .amount-value {
   font-family: monospace;
-  font-size: 2.5rem;
+  /* Story 5.1: a fixed 2.5rem risks overflowing a 360px viewport once the digit count grows
+     (e.g. GH₵100,000.00) — clamp() shrinks it on narrower screens instead of clipping a real
+     money amount, which must stay fully visible and correct. */
+  font-size: clamp(1.8rem, 9vw, 2.5rem);
   font-weight: 700;
   letter-spacing: -.02em;
   color: var(--primary-dark);
@@ -145,7 +149,8 @@
   border-radius: var(--radius-md);
   background: var(--bg-white);
   font-family: var(--font-body);
-  font-size: 0.95rem;
+  /* 1rem (16px), not 0.95rem: iOS Safari auto-zooms on focus for inputs under 16px. */
+  font-size: 1rem;
   color: var(--primary-dark);
   outline: none;
   transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
@@ -165,7 +170,7 @@
 
 .type-seg {
   flex: 1;
-  height: 40px;
+  height: 44px; /* Story 5.1: touch target minimum */
   border: 1.5px solid rgba(26, 107, 122, .2);
   border-radius: var(--radius-full);
   background: transparent;

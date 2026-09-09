@@ -1,9 +1,22 @@
 <main class="admin-layout">
+  <!-- Story 5.1: only visible below the mobile breakpoint (sidebar.scss) — opens the sidebar
+       as an off-canvas drawer instead of the always-visible desktop column. -->
+  <button
+    type="button"
+    class="mobile-nav-toggle"
+    (click)="toggleMobileNav()"
+    [attr.aria-expanded]="isMobileNavOpen()"
+    aria-label="Open navigation menu"
+  >
+    <mat-icon>menu</mat-icon>
+  </button>
   <app-sidebar
     [navItems]="navItems"
     [userProfile]="userProfile"
     [collapsed]="isSidebarCollapsed()"
+    [mobileOpen]="isMobileNavOpen()"
     (toggleCollapsed)="toggleSidebar()"
+    (dismissMobile)="closeMobileNav()"
     (logout)="onLogout()"
   />
   <div class="main-content">

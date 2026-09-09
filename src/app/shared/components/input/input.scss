@@ -32,12 +32,15 @@
 
 .input-field {
   width: 100%;
+  min-height: 44px; /* Story 5.1: touch target minimum */
   padding: 12px 16px 12px 40px;
   background: var(--bg-white);
   border: 1.5px solid var(--data-1);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
-  font-size: 0.9rem;
+  /* 16px, not 0.9rem (14.4px): iOS Safari auto-zooms on focus for inputs under 16px,
+     breaking Story 5.1's "usable without needing to zoom" AC. */
+  font-size: 1rem;
   color: var(--primary-dark);
   outline: none;
   transition:
