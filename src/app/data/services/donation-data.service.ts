@@ -5,10 +5,17 @@ import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
 import { appDb } from '../dexie/app-db';
 import type { OutboxEntry } from '../dexie/outbox-entry';
 import type { Donation, DonationDraft } from '../models/donation';
+import type { Event } from '../models/event';
+import { eventShortCode, provisionalReceiptNumber } from '../models/receipt-numbering';
 import { AuthService } from './auth.service';
 import { ServiceError } from './service-error';
 import { writeAuditLog } from './audit-log-writer';
 import { environment } from '../../../environments/environment';
+
+interface RecordDonationResult {
+  success: true;
+  donation: { receiptNumber: string };
+}
 
 type UpdateDonationPatch = Partial<
   Pick<Donation, 'donorName' | 'amountMinor' | 'donationType' | 'onBehalfOf'>
@@ -141,9 +148,10 @@ export class DonationDataService {
     const donation: Donation = {
       id: ID.unique(),
       eventId: draft.eventId,
-      // Full provisional-then-final receipt numbering (AD-8) is Story 3.6's scope — this is
-      // just a placeholder satisfying the (required) field until that story assigns real ones.
-      receiptNumber: `P-${Date.now().toString(36).toUpperCase()}`,
+      // Provisional (AD-8/Story 3.6): the receipt prints instantly, online or offline, without
+      // waiting on a network round-trip. trySyncNow below overwrites this with the Function's
+      // canonical number the moment the row actually reaches Appwrite.
+      receiptNumber: await this.nextProvisionalReceiptNumber(event),
       donorName: draft.donorName,
       amountMinor: draft.amountMinor,
       donationType: draft.donationType,
@@ -216,23 +224,47 @@ export class DonationDataService {
     return outcome;
   }
 
+  /**
+   * A device-local count of this event's still-provisional receipts (Story 3.6/AD-8) — every
+   * donation whose number already got finalized by trySyncNow below no longer matches this
+   * prefix, so the count is always "how many provisional slots are currently in use for this
+   * event on this device," not a monotonic lifetime total. That's exactly what's needed: two
+   * offline donations recorded back-to-back on the same device must never share a provisional
+   * number, but a retired one is safe to reuse once its donation has synced.
+   */
+  private async nextProvisionalReceiptNumber(event: Event): Promise<string> {
+    const prefix = `${eventShortCode(event)}-P`;
+    const existing = await appDb.donations.where('eventId').equals(event.id).toArray();
+    const sequence = existing.filter((d) => d.receiptNumber.startsWith(prefix)).length + 1;
+    return provisionalReceiptNumber(event, sequence);
+  }
+
   private async trySyncNow(donation: Donation, entry: OutboxEntry): Promise<boolean> {
     try {
-      await invokeAdminFunction(this.functions, 'recordDonation', 'Failed to save donation', {
-        donationId: donation.id,
-        eventId: donation.eventId,
-        receiptNumber: donation.receiptNumber,
-        donorName: donation.donorName,
-        amountMinor: donation.amountMinor,
-        donationType: donation.donationType,
-        onBehalfOf: donation.onBehalfOf,
-        donorPhone: donation.donorPhone,
-        notes: donation.notes,
-        recordedAt: donation.recordedAt,
-      });
+      const result = await invokeAdminFunction<RecordDonationResult>(
+        this.functions,
+        'recordDonation',
+        'Failed to save donation',
+        {
+          donationId: donation.id,
+          eventId: donation.eventId,
+          receiptNumber: donation.receiptNumber,
+          donorName: donation.donorName,
+          amountMinor: donation.amountMinor,
+          donationType: donation.donationType,
+          onBehalfOf: donation.onBehalfOf,
+          donorPhone: donation.donorPhone,
+          notes: donation.notes,
+          recordedAt: donation.recordedAt,
+        },
+      );
       if (entry.localId !== undefined) {
         await appDb.outbox.delete(entry.localId);
       }
+      // The Function assigns the canonical sequential number the moment this row actually
+      // reaches Appwrite (AD-8) — nothing already printed needs reprinting, only this stored
+      // value changes.
+      donation.receiptNumber = result.donation.receiptNumber;
       donation.syncStatus = 'synced';
       await appDb.donations.put(donation);
       return true;

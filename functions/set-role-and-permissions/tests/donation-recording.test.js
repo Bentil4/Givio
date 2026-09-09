@@ -41,6 +41,7 @@ function fakeContext({ body, headers = {}, getAccount, tablesDB = {} }) {
   class TablesDBCtor {
     getRow = record('getRow', tablesDB);
     createRow = record('createRow', tablesDB);
+    incrementRowColumn = record('incrementRowColumn', tablesDB);
   }
 
   const res = {
@@ -238,7 +239,8 @@ test(
       headers: ADMIN_HEADERS,
       getAccount: asAdmin,
       tablesDB: {
-        getRow: async () => ({ $id: 'e1', status: 'active', assignedUserIds: ['op-1'] }),
+        getRow: async () => ({ $id: 'e1', type: 'wedding', status: 'active', assignedUserIds: ['op-1'] }),
+        incrementRowColumn: async () => ({ nextReceiptSeq: 1 }),
         createRow: async () => ({ $id: 'd1' }),
       },
     });
@@ -251,14 +253,15 @@ test(
 );
 
 test(
-  'on success, writes the donation verbatim (receiptNumber unchanged) with admin+assigned-operator read permissions',
+  'on success, assigns the canonical receipt number (event short code + atomic nextReceiptSeq), not the client-sent provisional one',
   withEnv(async () => {
     const { ctx, calls } = fakeContext({
       body: BASE_PAYLOAD,
       headers: OPERATOR_HEADERS,
       getAccount: asOperator('op-1'),
       tablesDB: {
-        getRow: async () => ({ $id: 'e1', status: 'active', assignedUserIds: ['op-1', 'op-2'] }),
+        getRow: async () => ({ $id: 'e1', type: 'wedding', status: 'active', assignedUserIds: ['op-1', 'op-2'] }),
+        incrementRowColumn: async () => ({ nextReceiptSeq: 7 }),
         createRow: async () => ({ $id: 'd1' }),
       },
     });
@@ -266,12 +269,42 @@ test(
     const result = await handleDonationRecordingRequest(ctx);
 
     assert.equal(result.status, 200);
+    const [increment] = calls.incrementRowColumn[0];
+    assert.equal(increment.databaseId, 'db-1');
+    assert.equal(increment.tableId, 'events-1');
+    assert.equal(increment.rowId, 'e1');
+    assert.equal(increment.column, 'nextReceiptSeq');
+    assert.equal(increment.value, 1);
+
     const [create] = calls.createRow[0];
     assert.equal(create.rowId, 'd1');
-    assert.equal(create.data.receiptNumber, 'P-1');
+    assert.equal(create.data.receiptNumber, 'WEDE1-7');
+    assert.notEqual(create.data.receiptNumber, BASE_PAYLOAD.receiptNumber);
     assert.equal(create.data.recordedBy, 'op-1');
     assert.equal(create.data.syncStatus, 'synced');
     assert.equal(create.permissions.length, 5); // 3 admin + 2 operator
+  }),
+);
+
+test(
+  'returns a structured 502, not a throw, when the atomic nextReceiptSeq increment fails',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: BASE_PAYLOAD,
+      headers: OPERATOR_HEADERS,
+      getAccount: asOperator('op-1'),
+      tablesDB: {
+        getRow: async () => ({ $id: 'e1', type: 'wedding', status: 'active', assignedUserIds: ['op-1'] }),
+        incrementRowColumn: async () => {
+          throw new Error('boom');
+        },
+      },
+    });
+
+    const result = await handleDonationRecordingRequest(ctx);
+
+    assert.equal(result.status, 502);
+    assert.equal(calls.createRow, undefined);
   }),
 );
 
@@ -283,7 +316,8 @@ test(
       headers: OPERATOR_HEADERS,
       getAccount: asOperator('op-1'),
       tablesDB: {
-        getRow: async () => ({ $id: 'e1', status: 'active', assignedUserIds: ['op-1'] }),
+        getRow: async () => ({ $id: 'e1', type: 'wedding', status: 'active', assignedUserIds: ['op-1'] }),
+        incrementRowColumn: async () => ({ nextReceiptSeq: 1 }),
         createRow: async () => {
           throw new Error('boom');
         },

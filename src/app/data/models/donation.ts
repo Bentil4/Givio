@@ -11,7 +11,14 @@ export type SyncStatus = 'synced' | 'pending' | 'retrying' | 'conflict' | 'faile
 export interface Donation {
   readonly id: string;
   readonly eventId: string;
-  readonly receiptNumber: string;
+  /**
+   * NOT readonly (AD-8): starts as a client-assigned provisional number
+   * (`{eventShortCode}-P{n}`) and is overwritten with the canonical sequential number the
+   * Function assigns via the Event's atomic `nextReceiptSeq` counter the moment the donation
+   * actually reaches Appwrite — whether that's inline at creation or a later synced retry.
+   * Nothing already printed needs reprinting; only this stored value changes.
+   */
+  receiptNumber: string;
   donorName: string;
   /** Minor units (pesewas). Null only when donationType is 'in_kind'. */
   amountMinor: number | null;

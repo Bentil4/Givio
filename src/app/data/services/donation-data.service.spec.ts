@@ -209,11 +209,11 @@ describe('DonationDataService', () => {
       ).rejects.toBeInstanceOf(ServiceError);
     });
 
-    it('writes to Dexie, assigns a provisional receipt number, and calls the recordDonation Function', async () => {
+    it('assigns a provisional receipt number up front, and adopts the Function\'s canonical number once synced', async () => {
       await appDb.events.put(makeEvent());
       functions.createExecution.mockResolvedValueOnce({
         responseStatusCode: 200,
-        responseBody: JSON.stringify({ success: true }),
+        responseBody: JSON.stringify({ success: true, donation: { receiptNumber: 'WEDE1-1' } }),
       });
 
       const donation = await service.createDonation({
@@ -224,7 +224,6 @@ describe('DonationDataService', () => {
         donationType: 'cash',
       });
 
-      expect(donation.receiptNumber).toMatch(/^P-/);
       expect(donation.recordedBy).toBe('op-1');
       expect(await appDb.donations.get(donation.id)).toMatchObject({ donorName: 'Ama' });
       expect(functions.createExecution).toHaveBeenCalledWith(
@@ -235,7 +234,35 @@ describe('DonationDataService', () => {
       const body = JSON.parse(functions.createExecution.mock.calls[0][0].body);
       expect(body.donationId).toBe(donation.id);
       expect(body.eventId).toBe('e1');
-      expect(body.receiptNumber).toBe(donation.receiptNumber);
+      // The provisional number sent up (what the Function saw before assigning canonical).
+      expect(body.receiptNumber).toMatch(/-P1$/);
+      // The local record ends up carrying the Function's canonical number, not the provisional one.
+      expect(donation.receiptNumber).toBe('WEDE1-1');
+      expect((await appDb.donations.get(donation.id))?.receiptNumber).toBe('WEDE1-1');
+    });
+
+    it('generates a distinct provisional number for each still-pending donation on the same event', async () => {
+      await appDb.events.put(makeEvent());
+      functions.createExecution.mockRejectedValue(new Error('offline'));
+
+      const first = await service.createDonation({
+        localId: 'l1',
+        eventId: 'e1',
+        donorName: 'Ama',
+        amountMinor: 5000,
+        donationType: 'cash',
+      });
+      const second = await service.createDonation({
+        localId: 'l2',
+        eventId: 'e1',
+        donorName: 'Kofi',
+        amountMinor: 2000,
+        donationType: 'cash',
+      });
+
+      expect(first.receiptNumber).toMatch(/-P1$/);
+      expect(second.receiptNumber).toMatch(/-P2$/);
+      expect(first.receiptNumber).not.toBe(second.receiptNumber);
     });
 
     it('still resolves with the created Donation when the Function call fails (offline path)', async () => {
@@ -280,7 +307,7 @@ describe('DonationDataService', () => {
       await appDb.events.put(makeEvent());
       functions.createExecution.mockResolvedValueOnce({
         responseStatusCode: 200,
-        responseBody: JSON.stringify({ success: true }),
+        responseBody: JSON.stringify({ success: true, donation: { receiptNumber: 'WEDE1-1' } }),
       });
 
       const donation = await service.createDonation({
@@ -584,7 +611,7 @@ describe('DonationDataService', () => {
     it('retries a create entry, writes an audit log on success, and reports synced', async () => {
       functions.createExecution.mockResolvedValueOnce({
         responseStatusCode: 200,
-        responseBody: JSON.stringify({ success: true }),
+        responseBody: JSON.stringify({ success: true, donation: { receiptNumber: 'WEDE1-1' } }),
       });
       const entry = {
         localId: 1,

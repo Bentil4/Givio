@@ -38,6 +38,7 @@
     "@tailwindcss/postcss": "^4.3.3",
     "appwrite": "^23.0.0",
     "dexie": "^4.3.0",
+    "jspdf": "^4.2.1",
     "postcss": "^8.5.23",
     "primeicons": "^7.0.0",
     "primeng": "^21.1.9",

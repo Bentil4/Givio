@@ -26,6 +26,18 @@ function validatePayload(action, payload) {
 }
 
 /**
+ * AD-8's "event short code". Duplicated from
+ * src/app/data/models/receipt-numbering.ts's eventShortCode (no shared module system between
+ * this Function and the Angular app) — keep both in sync by hand, the same convention
+ * shared.js's VALID_ROLES comment documents for auth.service.ts.
+ */
+function eventShortCode(event) {
+  const prefix = event.type === 'wedding' ? 'WED' : 'FUN';
+  const suffix = (event.id ?? '').replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase();
+  return `${prefix}${suffix}`;
+}
+
+/**
  * Same permission shape as event-assignment.js's computeEventPermissions (AD-2): Admin full
  * CRUD via the Label, each of the event's assigned Operators gets read-only access to the
  * Donation.
@@ -45,9 +57,13 @@ function computeDonationPermissions(assignedUserIds) {
  * document it creates — only a role it already holds — so unlike EventDataService.createEvent
  * (which only ever grants `Role.label('admin')`, a role the creating Admin already has), this
  * write must go through the Function the same way Story 2.3's assignOperators does. The
- * `receiptNumber` is generated client-side (AD-4/AD-8: the offline write already has one before
- * this call ever happens) and used verbatim here, never regenerated, so the local Dexie copy
- * and the synced Appwrite row never disagree on it.
+ * `receiptNumber` arrives client-generated and provisional (AD-4: the offline write already has
+ * one before this call ever happens) but is NOT used verbatim (Story 3.6/AD-8) — this Function
+ * is the sole assigner of the canonical sequential number, via an atomic increment of the
+ * Event's own `nextReceiptSeq` column. That's true whether this call happens inline moments
+ * after creation (online) or much later as a queued retry (was offline) — either way, the
+ * client's local record is updated to the value this response returns, and nothing already
+ * printed needs reprinting, only the stored number changes.
  */
 async function handleRecordDonation({
   TablesDBCtor,
@@ -62,7 +78,6 @@ async function handleRecordDonation({
   const {
     donationId,
     eventId,
-    receiptNumber,
     donorName,
     amountMinor,
     donationType,
@@ -90,6 +105,21 @@ async function handleRecordDonation({
     return { status: 400, body: { error: 'Cannot record a donation against a paused or closed event' } };
   }
 
+  let updatedEvent;
+  try {
+    updatedEvent = await tablesDB.incrementRowColumn({
+      databaseId,
+      tableId: eventsTableId,
+      rowId: eventId,
+      column: 'nextReceiptSeq',
+      value: 1,
+    });
+  } catch (err) {
+    error(`recordDonation: failed to increment nextReceiptSeq for event ${eventId}: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to assign a receipt number' } };
+  }
+  const canonicalReceiptNumber = `${eventShortCode({ id: eventId, type: event.type })}-${updatedEvent.nextReceiptSeq}`;
+
   try {
     const row = await tablesDB.createRow({
       databaseId,
@@ -98,7 +128,7 @@ async function handleRecordDonation({
       data: {
         id: donationId,
         eventId,
-        receiptNumber,
+        receiptNumber: canonicalReceiptNumber,
         donorName,
         amountMinor: amountMinor ?? null,
         donationType,
@@ -189,7 +219,10 @@ export async function handleDonationRecordingRequest({
   }
 
   if (result.status === 200) {
-    log(`${action} succeeded (by ${caller.$id}): donation ${payload.donationId}`);
+    log(
+      `${action} succeeded (by ${caller.$id}): donation ${payload.donationId}, ` +
+        `receipt ${result.body.donation.receiptNumber} (was provisional ${payload.receiptNumber})`,
+    );
   }
   return res.json(result.body, result.status);
 }

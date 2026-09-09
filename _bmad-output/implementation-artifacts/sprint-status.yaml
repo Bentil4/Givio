@@ -187,7 +187,41 @@ development_status:
   # Status "review" — deployed and smoke-tested, but not manually browser-
   # verified end-to-end (no browser-automation tool this session).
   3-5-sync-engine-auto-sync-pending-count-conflict-detection: review
-  3-6-receipt-generation-pdf-provisional-numbering: backlog
+  # 3-6 implemented 2026-09-09: added a receipt-numbering scheme (AD-8) split across the client
+  # and the Function. Client (src/app/data/models/receipt-numbering.ts): eventShortCode()
+  # (type prefix + last 4 alnum chars of the event id) + provisionalReceiptNumber(), used by
+  # DonationDataService.createDonation to assign a real `{shortCode}-P{n}` number up front
+  # (replacing the old `P-${Date.now()...}` placeholder) — `n` is a device-local count of this
+  # event's still-provisional receipts, so two offline donations on the same device never
+  # collide, and a retired (already-synced) slot is safe to reuse. Server
+  # (donation-recording.js): the Function is now the sole assigner of the canonical number —
+  # atomically increments the Event's own `nextReceiptSeq` column (tablesDB.incrementRowColumn)
+  # and writes `{eventShortCode}-{seq}` into the Donation row, ignoring the client-sent
+  # provisional value for the actual write. DonationDataService.trySyncNow reads the Function's
+  # response and overwrites the local record's receiptNumber with that canonical value —
+  # nothing already printed needs reprinting, only the stored value changes, whether the sync
+  # happens inline (online) or later via SyncEngineService's retry (was offline). The
+  # eventShortCode logic is duplicated by hand between the TS model and the plain-JS Function
+  # (no shared module system between the two deployments), same convention as shared.js's
+  # VALID_ROLES/auth.service.ts note.
+  # New ReceiptService (src/app/data/services/receipt.service.ts) generates the print-ready A5
+  # PDF client-side via jsPDF (npm-installed per the architecture doc, not vendored like
+  # SheetJS) — Event Name (prominent) + Type, a dividing line, a "PROVISIONAL" marker whenever
+  # syncStatus isn't yet 'synced', Donor/Amount/Type/On-Behalf-Of/Date-Time/Receipt No/Operator
+  # rows, and a thank-you message. downloadReceipt() saves as
+  # `Receipt_[EventName]_[ReceiptNo].pdf`; printReceipt() opens the same PDF in a new tab with
+  # autoPrint() set, no server round-trip either way. Wired into donation-entry.ts's 'saved'
+  # phase, whose "Print receipt"/"Download PDF" buttons had been sitting unwired since Story 3.1.
+  # Known gap (out of scope for this story): mobile-entry.ts has no post-save confirmation
+  # screen at all (it resets immediately for the next donor, by design — see its own doc
+  # comment), so this form factor has no receipt UI yet. The donation itself still gets a
+  # correct receiptNumber either way (that path is shared), only the print/download affordance
+  # is desk-only for now.
+  # Status "review" — 40 new/updated tests (17 Function, 23 Angular, all passing; 89/89 Function
+  # suite, 206/207 Angular suite with the one failure being the pre-existing unrelated
+  # app.spec.ts boilerplate test) and `tsc --noEmit` clean. Not yet deployed to Appwrite or
+  # manually browser-verified (no browser-automation tool this session).
+  3-6-receipt-generation-pdf-provisional-numbering: review
   epic-3-retrospective: optional
 
   epic-4: in-progress
