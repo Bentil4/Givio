@@ -588,7 +588,7 @@ describe('DonationDataService', () => {
       const close = vi.fn().mockResolvedValue(undefined);
       realtime.subscribe.mockResolvedValueOnce({ close });
 
-      const unsubscribe = await service.subscribeToChanges(() => {});
+      const unsubscribe = await service.subscribeToChanges(vi.fn());
       unsubscribe();
 
       expect(close).toHaveBeenCalledTimes(1);

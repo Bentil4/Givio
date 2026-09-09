@@ -95,8 +95,15 @@ export class AdminEvents implements OnInit {
     }
   }
 
-  /** Donation totals need Epic 3's Donation collection, which doesn't exist yet. */
-  public totalLabel(_e: Event): string {
+  /**
+   * Still a stub: per-event donation totals need a per-event aggregate query, which no service
+   * in this list view currently loads (DonationDataService exists post-Epic 3, but wiring a
+   * real total here means fetching every event's donations up front just for this column —
+   * out of scope for this pass). Takes the event so the template call site and a future real
+   * implementation's signature don't need to change together.
+   */
+  public totalLabel(event: Event): string {
+    void event;
     return '—';
   }
 

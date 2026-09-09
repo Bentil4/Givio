@@ -157,7 +157,14 @@
 </section>
 
 @if (confirmCopy(); as c) {
-<div class="scrim" (click)="dismiss()">
+<!-- The backdrop's click-to-dismiss is a mouse/touch-only convenience, not a real control — per
+     the WAI-ARIA APG Dialog pattern, it deliberately isn't part of the focus/tab order.
+     (keydown.escape) is the actual required keyboard equivalent (WCAG 2.1.1). -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="dismiss()" (keydown.escape)="dismiss()">
+  <!-- This click only stops the backdrop's dismiss-click from bubbling up — it's not itself a
+       keyboard-operable control, so there's no keyboard equivalent to add. -->
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
   <div class="dialog dialog--sm glass" role="dialog" [attr.aria-label]="c.title" (click)="$event.stopPropagation()">
     <header class="dialog-head">
       <h2 class="t-page-title">{{ c.title }}</h2>
