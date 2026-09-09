@@ -19,6 +19,8 @@ vi.mock('jspdf', () => ({
     this['save'] = vi.fn().mockReturnThis();
     this['autoPrint'] = vi.fn().mockReturnThis();
     this['output'] = vi.fn().mockReturnValue(new URL('blob:mock-url'));
+    this['addFileToVFS'] = vi.fn().mockReturnThis();
+    this['addFont'] = vi.fn().mockReturnThis();
   }),
 }));
 
@@ -51,7 +53,10 @@ const makeDonation = (overrides: Partial<Donation> = {}): Donation => ({
 });
 
 function latestDoc() {
-  const instance = vi.mocked(jsPDF).mock.instances.at(-1) as unknown as Record<string, ReturnType<typeof vi.fn>>;
+  const instance = vi.mocked(jsPDF).mock.instances.at(-1) as unknown as Record<
+    string,
+    ReturnType<typeof vi.fn>
+  >;
   if (!instance) throw new Error('jsPDF was never constructed');
   return instance;
 }
@@ -113,10 +118,29 @@ describe('ReceiptService', () => {
     });
 
     it('includes the "Donated On Behalf Of" row only when present', () => {
-      service.downloadReceipt(makeDonation({ onBehalfOf: 'Francisca' }), makeEvent(), 'Efua Mensah');
+      service.downloadReceipt(
+        makeDonation({ onBehalfOf: 'Francisca' }),
+        makeEvent(),
+        'Efua Mensah',
+      );
 
       const calls = latestDoc()['text'].mock.calls;
       expect(calls.some((call: unknown[]) => call[0] === 'Donated On Behalf Of')).toBe(true);
+    });
+
+    it('formats the amount with the real ₵ sign, rendered via the embedded DejaVu Sans font', () => {
+      service.downloadReceipt(makeDonation({ amountMinor: 40000 }), makeEvent(), 'Efua Mensah');
+
+      const doc = latestDoc();
+      const textCalls = doc['text'].mock.calls;
+      const setFontCalls = doc['setFont'].mock.calls;
+
+      // The amount is rendered with the real ₵ sign (not a plain-ASCII substitute)...
+      expect(textCalls.some((call: unknown[]) => call[0] === 'GH₵ 400.00')).toBe(true);
+      // ...which only renders correctly because the Unicode font is registered and selected.
+      expect(doc['addFileToVFS']).toHaveBeenCalledWith('DejaVuSans.ttf', expect.any(String));
+      expect(doc['addFont']).toHaveBeenCalledWith('DejaVuSans.ttf', 'DejaVuSans', 'normal');
+      expect(setFontCalls.some((call: unknown[]) => call[0] === 'DejaVuSans')).toBe(true);
     });
   });
 

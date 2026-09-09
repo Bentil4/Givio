@@ -1,11 +1,23 @@
 import { Injectable } from '@angular/core';
 import { jsPDF } from 'jspdf';
+import { DEJAVU_SANS_TTF_BASE64 } from '../../../vendor/fonts/dejavu-sans.font';
 import { DONATION_TYPE_LABELS, formatCedis, type Donation } from '../models/donation';
 import type { Event } from '../models/event';
 
 const PAGE_FORMAT = 'a5';
 const MARGIN = 14;
 const THANK_YOU_MESSAGE = 'Thank you for your generous giving.';
+
+/**
+ * jsPDF's standard fonts (Helvetica etc.) use WinAnsiEncoding, which doesn't include the Ghana
+ * Cedi sign (₵, U+20B5) — jsPDF doesn't reject the character, it silently mis-renders it as
+ * garbage ("GH µ 400.00" instead of "GH₵ 400.00"; µ is ₵'s low byte under WinAnsi). DejaVu Sans
+ * (vendored, src/vendor/fonts/) covers the full Currency Symbols block, so it's registered here
+ * and used specifically for the one row that needs it (the Amount value) — see this file's
+ * VFS filename below for both call sites that must stay in sync.
+ */
+const CEDI_FONT_FILE = 'DejaVuSans.ttf';
+const CEDI_FONT_NAME = 'DejaVuSans';
 
 function safeFilenamePart(value: string): string {
   return value.replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'Receipt';
@@ -40,6 +52,8 @@ export class ReceiptService {
   /** A5, per FR-REC-002 — small enough to hand-carry, large enough to stay legible when printed. */
   private buildDoc(donation: Donation, event: Event, operatorName: string): jsPDF {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: PAGE_FORMAT });
+    doc.addFileToVFS(CEDI_FONT_FILE, DEJAVU_SANS_TTF_BASE64);
+    doc.addFont(CEDI_FONT_FILE, CEDI_FONT_NAME, 'normal');
     const pageWidth = doc.internal.pageSize.getWidth();
     const center = pageWidth / 2;
     let y = MARGIN;
@@ -63,16 +77,20 @@ export class ReceiptService {
       doc.setFont('helvetica', 'bolditalic');
       doc.setFontSize(9);
       doc.setTextColor(180, 60, 0);
-      doc.text('PROVISIONAL — number will update once this record syncs', center, y, { align: 'center' });
+      doc.text('PROVISIONAL — number will update once this record syncs', center, y, {
+        align: 'center',
+      });
       doc.setTextColor(0, 0, 0);
       y += 7;
     }
 
-    const rows: [string, string][] = [
+    // The third element marks the Amount row's value as needing the embedded Unicode font
+    // (the ₵ sign) rather than Helvetica.
+    const rows: [string, string, boolean?][] = [
       ['Receipt No.', donation.receiptNumber],
       ['Date & Time', new Date(donation.recordedAt).toLocaleString('en-GH')],
       ['Donor', donation.donorName],
-      ['Amount', formatCedis(donation.amountMinor)],
+      ['Amount', formatCedis(donation.amountMinor), true],
       ['Type', DONATION_TYPE_LABELS[donation.donationType]],
     ];
     if (donation.onBehalfOf) {
@@ -81,10 +99,10 @@ export class ReceiptService {
     rows.push(['Recorded By', operatorName]);
 
     doc.setFontSize(11);
-    for (const [label, value] of rows) {
+    for (const [label, value, needsCediFont] of rows) {
       doc.setFont('helvetica', 'bold');
       doc.text(label, MARGIN, y);
-      doc.setFont('helvetica', 'normal');
+      doc.setFont(needsCediFont ? CEDI_FONT_NAME : 'helvetica', 'normal');
       doc.text(value, pageWidth - MARGIN, y, { align: 'right' });
       y += 7;
     }
