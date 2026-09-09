@@ -111,11 +111,9 @@ development_status:
   # this feature branch. Smoke-tested via a live execution: an unauthenticated setEventStatus
   # call returned 401 "Unauthenticated", confirming the new deployment is live and routing
   # through verifyAdminCaller before ever reaching the handler.
-  # Status "review" — Function unit tests (21 new, 88/88 passing) and Angular unit tests (25
-  # new/updated across event-data.service, event.service, admin-event-detail, all passing) are
-  # in place, and the Function is deployed and smoke-tested live. Not yet manually
-  # browser-verified end-to-end (no browser-automation tool this session).
-  2-2-event-status-lifecycle: review
+  # Manually browser-verified 2026-09-09: pause/resume/close/reopen all exercised end to end
+  # against the live deployment. Status: done.
+  2-2-event-status-lifecycle: done
   2-3-assign-operators-permission-derivation: done
   # 2-4 implemented 2026-09-08: new Function actions generateAccessCode
   # (Admin-only, plaintext code stored on Event.accessCode — deliberate
