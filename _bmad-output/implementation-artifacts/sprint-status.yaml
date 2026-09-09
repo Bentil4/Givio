@@ -105,10 +105,16 @@ development_status:
   # correctly (DonationDataService.createDonation's status check + donation-recording.js's
   # server-side check both already exist and are unaffected by this story), just without the
   # friendlier pre-emptive UI message.
+  # Deployed via the Appwrite MCP server same-day (same flow as Stories 2.4/3.5): pushed this
+  # branch, VCS auto-built deployment 6aa1171fe09780fdb8fd in 19s, then explicitly activated it
+  # (functions_update_function_deployment) since the Function's providerBranch is 'dev', not
+  # this feature branch. Smoke-tested via a live execution: an unauthenticated setEventStatus
+  # call returned 401 "Unauthenticated", confirming the new deployment is live and routing
+  # through verifyAdminCaller before ever reaching the handler.
   # Status "review" — Function unit tests (21 new, 88/88 passing) and Angular unit tests (25
   # new/updated across event-data.service, event.service, admin-event-detail, all passing) are
-  # in place; the Function change is not yet deployed to Appwrite nor manually browser-verified
-  # (no browser-automation tool this session).
+  # in place, and the Function is deployed and smoke-tested live. Not yet manually
+  # browser-verified end-to-end (no browser-automation tool this session).
   2-2-event-status-lifecycle: review
   2-3-assign-operators-permission-derivation: done
   # 2-4 implemented 2026-09-08: new Function actions generateAccessCode
