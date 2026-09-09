@@ -76,7 +76,7 @@ export function formatCedisShort(amountMinor: number): string {
 
 /** GH₵ 500.00 — always 2dp. For receipts, rows and confirmations. */
 export function formatCedis(amountMinor: number | null): string {
-  if (amountMinor === null) return '\u2014';
+  if (amountMinor === null) return 'GH\u20B5 0.00';
   return 'GH\u20B5 ' + (amountMinor / 100).toLocaleString('en-GH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
