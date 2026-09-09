@@ -30,6 +30,7 @@ import { DonationService } from '../../../../data/services/donation.service';
 import { AuthService } from '../../../../data/services/auth.service';
 import { ConnectivityService } from '../../../../data/services/connectivity.service';
 import { SyncEngineService } from '../../../../data/services/sync-engine.service';
+import { ReceiptService } from '../../../../data/services/receipt.service';
 import { ServiceError } from '../../../../data/services/service-error';
 
 /** A queued donation-create outbox entry, shaped for the PendingQueue drawer. */
@@ -64,7 +65,11 @@ type Phase = 'entry' | 'confirming' | 'saved';
  * EventDataService.listEvents() already carries. `syncing`/`pending`/`syncedCount` are now
  * real too (Story 3.5, SyncEngineService): pending is this event's own donation-create outbox
  * entries, refreshed after every save and whenever a drain finishes; syncedCount is a
- * transient "just synced N" count for the connection banner, self-clearing after 5s.
+ * transient "just synced N" count for the connection banner, self-clearing after 5s. The
+ * 'saved' phase's Print/Download actions are real too (Story 3.6, ReceiptService): a
+ * client-generated jsPDF receipt built from `lastSaved` exactly as it was returned — carrying
+ * an AD-8 provisional receiptNumber offline, or the Function's canonical one online — with no
+ * server round-trip either way.
  */
 @Component({
   selector: 'app-donation-entry',
@@ -79,6 +84,7 @@ export class DonationEntry implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly connectivityService = inject(ConnectivityService);
   private readonly syncEngine = inject(SyncEngineService);
+  private readonly receiptService = inject(ReceiptService);
 
   public readonly event = signal<Event | null>(null);
   public readonly notFound = signal(false);
@@ -249,6 +255,29 @@ export class DonationEntry implements OnInit {
     this.draft.set(null);
     this.lastSaved.set(null);
     this.phase.set('entry');
+  }
+
+  /**
+   * Story 3.6: client-generated, fully offline-capable (no server round-trip) — works from the
+   * `lastSaved` donation exactly as saved, whether its `receiptNumber` is still an AD-8
+   * provisional number (offline) or already the Function's canonical one (online).
+   */
+  public downloadReceipt(): void {
+    const donation = this.lastSaved();
+    const event = this.event();
+    if (!donation || !event) return;
+    this.receiptService.downloadReceipt(donation, event, this.operatorName());
+  }
+
+  public printReceipt(): void {
+    const donation = this.lastSaved();
+    const event = this.event();
+    if (!donation || !event) return;
+    this.receiptService.printReceipt(donation, event, this.operatorName());
+  }
+
+  private operatorName(): string {
+    return this.authService.currentUser()?.name ?? 'Operator';
   }
 
   public openQueue(): void {

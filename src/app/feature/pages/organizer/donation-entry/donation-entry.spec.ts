@@ -5,6 +5,7 @@ import { DonationEntry } from './donation-entry';
 import { appDb } from '../../../../data/dexie/app-db';
 import { DonationService } from '../../../../data/services/donation.service';
 import { AuthService } from '../../../../data/services/auth.service';
+import { ReceiptService } from '../../../../data/services/receipt.service';
 import type { Event } from '../../../../data/models/event';
 import type { Donation } from '../../../../data/models/donation';
 
@@ -41,6 +42,7 @@ async function setup(options: {
   donations?: Donation[];
   queryEventId?: string | null;
   createDonation?: ReturnType<typeof vi.fn>;
+  receiptService?: { downloadReceipt: ReturnType<typeof vi.fn>; printReceipt: ReturnType<typeof vi.fn> };
 }) {
   const { event = makeEvent(), donations = [], queryEventId = 'e1' } = options;
   await appDb.events.clear();
@@ -50,6 +52,7 @@ async function setup(options: {
 
   const loadDonationsForEvent = vi.fn().mockResolvedValue(undefined);
   const createDonation = options.createDonation ?? vi.fn();
+  const receiptService = options.receiptService ?? { downloadReceipt: vi.fn(), printReceipt: vi.fn() };
 
   await TestBed.configureTestingModule({
     imports: [DonationEntry],
@@ -63,7 +66,8 @@ async function setup(options: {
           createDonation,
         },
       },
-      { provide: AuthService, useValue: { currentUser: () => ({ $id: 'op-1' }) } },
+      { provide: AuthService, useValue: { currentUser: () => ({ $id: 'op-1', name: 'Efua Mensah' }) } },
+      { provide: ReceiptService, useValue: receiptService },
       {
         provide: ActivatedRoute,
         useValue: { snapshot: { queryParamMap: { get: () => queryEventId } } },
@@ -75,7 +79,7 @@ async function setup(options: {
   const component = fixture.componentInstance;
   await component.ngOnInit();
   fixture.detectChanges();
-  return { fixture, component, loadDonationsForEvent, createDonation };
+  return { fixture, component, loadDonationsForEvent, createDonation, receiptService };
 }
 
 describe('DonationEntry', () => {
@@ -159,5 +163,62 @@ describe('DonationEntry', () => {
 
     expect(component.phase()).toBe('confirming');
     expect(component.saveError()).toContain('paused or closed');
+  });
+
+  describe('receipts (Story 3.6)', () => {
+    it('downloadReceipt delegates to ReceiptService with the last-saved donation, the event, and the operator name', async () => {
+      const createDonation = vi.fn().mockResolvedValueOnce(makeDonation({ receiptNumber: 'WEDE1-1' }));
+      const receiptService = { downloadReceipt: vi.fn(), printReceipt: vi.fn() };
+      const { component } = await setup({ createDonation, receiptService });
+      component.draft.set({
+        localId: 'l1',
+        eventId: 'e1',
+        donorName: 'Ama',
+        amountMinor: 5000,
+        donationType: 'cash',
+      });
+      await component.confirm();
+
+      component.downloadReceipt();
+
+      expect(receiptService.downloadReceipt).toHaveBeenCalledWith(
+        expect.objectContaining({ receiptNumber: 'WEDE1-1' }),
+        expect.objectContaining({ id: 'e1' }),
+        'Efua Mensah',
+      );
+    });
+
+    it('printReceipt delegates to ReceiptService the same way', async () => {
+      const createDonation = vi.fn().mockResolvedValueOnce(makeDonation());
+      const receiptService = { downloadReceipt: vi.fn(), printReceipt: vi.fn() };
+      const { component } = await setup({ createDonation, receiptService });
+      component.draft.set({
+        localId: 'l1',
+        eventId: 'e1',
+        donorName: 'Ama',
+        amountMinor: 5000,
+        donationType: 'cash',
+      });
+      await component.confirm();
+
+      component.printReceipt();
+
+      expect(receiptService.printReceipt).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'd1' }),
+        expect.objectContaining({ id: 'e1' }),
+        'Efua Mensah',
+      );
+    });
+
+    it('does nothing before a donation has been saved', async () => {
+      const receiptService = { downloadReceipt: vi.fn(), printReceipt: vi.fn() };
+      const { component } = await setup({ receiptService });
+
+      component.downloadReceipt();
+      component.printReceipt();
+
+      expect(receiptService.downloadReceipt).not.toHaveBeenCalled();
+      expect(receiptService.printReceipt).not.toHaveBeenCalled();
+    });
   });
 });
