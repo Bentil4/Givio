@@ -238,6 +238,47 @@ export class EventDataService {
   }
 
   /**
+   * Online-only, same reasoning as assignOperators/regenerateAccessCode: the transition is
+   * validated and written server-side (Story 2.2's setEventStatus Function action), including
+   * reopening a Closed event — a transition updateEvent()'s own "Cannot edit a closed event"
+   * guard would otherwise block, since that guard is about protecting a closed event's other
+   * fields from casual edits, not the status field itself.
+   */
+  async setEventStatus(eventId: string, status: Event['status']): Promise<Event> {
+    const current = await appDb.events.get(eventId);
+    if (!current) {
+      throw new ServiceError('Event not found');
+    }
+
+    await invokeAdminFunction(this.functions, 'setEventStatus', 'Failed to change the event status', {
+      eventId,
+      status,
+    });
+
+    const updated: Event = { ...current, status, updatedAt: new Date().toISOString() };
+    try {
+      await appDb.events.put(updated);
+    } catch (error) {
+      console.error('EventDataService.setEventStatus: failed to update local cache', error);
+    }
+
+    try {
+      await writeAuditLog(this.databases, {
+        entityType: 'event',
+        entityId: eventId,
+        action: 'edit',
+        performedBy: this.authService.currentUser()!.$id,
+        previousValues: { status: current.status },
+        newValues: { status },
+      });
+    } catch (error) {
+      console.error('EventDataService.setEventStatus: failed to write audit log', error);
+    }
+
+    return updated;
+  }
+
+  /**
    * Online-only, same reasoning as assignOperators: the code itself is generated and written
    * server-side (Story 2.4), so there's nothing meaningful to queue offline.
    */

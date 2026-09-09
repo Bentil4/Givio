@@ -24,10 +24,16 @@ describe('EventService', () => {
     createEvent: ReturnType<typeof vi.fn>;
     updateEvent: ReturnType<typeof vi.fn>;
     assignOperators: ReturnType<typeof vi.fn>;
+    setEventStatus: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
-    eventDataService = { createEvent: vi.fn(), updateEvent: vi.fn(), assignOperators: vi.fn() };
+    eventDataService = {
+      createEvent: vi.fn(),
+      updateEvent: vi.fn(),
+      assignOperators: vi.fn(),
+      setEventStatus: vi.fn(),
+    };
     TestBed.configureTestingModule({
       providers: [{ provide: EventDataService, useValue: eventDataService }],
     });
@@ -77,5 +83,20 @@ describe('EventService', () => {
     expect(result).toEqual(assigned);
     expect(service.events()).toEqual([assigned]);
     expect(eventDataService.assignOperators).toHaveBeenCalledWith('e1', ['op-1']);
+  });
+
+  it('setEventStatus delegates to EventDataService and replaces the event by id', async () => {
+    const original = makeEvent();
+    eventDataService.createEvent.mockResolvedValueOnce(original);
+    await service.createEvent({ name: 'Original', type: 'wedding', date: '2026-01-01', hostName: 'Host' });
+
+    const paused = makeEvent({ status: 'paused' });
+    eventDataService.setEventStatus.mockResolvedValueOnce(paused);
+
+    const result = await service.setEventStatus('e1', 'paused');
+
+    expect(result).toEqual(paused);
+    expect(service.events()).toEqual([paused]);
+    expect(eventDataService.setEventStatus).toHaveBeenCalledWith('e1', 'paused');
   });
 });

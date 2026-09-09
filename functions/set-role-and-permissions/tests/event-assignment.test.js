@@ -318,3 +318,168 @@ test(
     assert.equal(result.status, 502);
   }),
 );
+
+test(
+  'setEventStatus rejects a verified non-admin caller with 403',
+  withEnv(async () => {
+    const { ctx } = fakeContext({
+      body: { action: 'setEventStatus', eventId: 'e1', status: 'paused' },
+      headers: { 'x-appwrite-user-jwt': 'operator-jwt' },
+      getAccount: async () => ({ $id: 'op-1', labels: ['operator'] }),
+    });
+
+    const result = await handleEventAssignmentRequest(ctx);
+
+    assert.equal(result.status, 403);
+  }),
+);
+
+test(
+  'setEventStatus rejects a missing eventId with 400',
+  withEnv(async () => {
+    const { ctx } = fakeContext({
+      body: { action: 'setEventStatus', status: 'paused' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+    });
+
+    const result = await handleEventAssignmentRequest(ctx);
+
+    assert.equal(result.status, 400);
+  }),
+);
+
+test(
+  'setEventStatus rejects an invalid status value with 400',
+  withEnv(async () => {
+    const { ctx } = fakeContext({
+      body: { action: 'setEventStatus', eventId: 'e1', status: 'archived' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+    });
+
+    const result = await handleEventAssignmentRequest(ctx);
+
+    assert.equal(result.status, 400);
+  }),
+);
+
+test(
+  'setEventStatus does not run the operator-roster check — a missing assignedUserIds must not throw',
+  withEnv(async () => {
+    const { ctx } = fakeContext({
+      body: { action: 'setEventStatus', eventId: 'e1', status: 'paused' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: {
+        getRow: async () => ({ $id: 'e1', status: 'active' }),
+        updateRow: async () => ({ $id: 'e1', status: 'paused' }),
+      },
+    });
+
+    const result = await handleEventAssignmentRequest(ctx);
+
+    assert.equal(result.status, 200);
+  }),
+);
+
+test(
+  'setEventStatus returns 404 when the event does not exist',
+  withEnv(async () => {
+    const { ctx } = fakeContext({
+      body: { action: 'setEventStatus', eventId: 'missing-event', status: 'paused' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: {
+        getRow: async () => {
+          throw new Error('row_not_found');
+        },
+      },
+    });
+
+    const result = await handleEventAssignmentRequest(ctx);
+
+    assert.equal(result.status, 404);
+  }),
+);
+
+test(
+  'setEventStatus rejects a no-op transition to the same status with 400',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: { action: 'setEventStatus', eventId: 'e1', status: 'active' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: {
+        getRow: async () => ({ $id: 'e1', status: 'active' }),
+      },
+    });
+
+    const result = await handleEventAssignmentRequest(ctx);
+
+    assert.equal(result.status, 400);
+    assert.equal(calls.updateRow, undefined);
+  }),
+);
+
+test(
+  'setEventStatus rejects closed -> paused — a closed event can only be reopened to active',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: { action: 'setEventStatus', eventId: 'e1', status: 'paused' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: {
+        getRow: async () => ({ $id: 'e1', status: 'closed' }),
+      },
+    });
+
+    const result = await handleEventAssignmentRequest(ctx);
+
+    assert.equal(result.status, 400);
+    assert.equal(calls.updateRow, undefined);
+  }),
+);
+
+test(
+  'setEventStatus allows reopening a closed event back to active',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: { action: 'setEventStatus', eventId: 'e1', status: 'active' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: {
+        getRow: async () => ({ $id: 'e1', status: 'closed' }),
+        updateRow: async () => ({ $id: 'e1', status: 'active' }),
+      },
+    });
+
+    const result = await handleEventAssignmentRequest(ctx);
+
+    assert.equal(result.status, 200);
+    assert.deepEqual(result.body, { success: true, eventId: 'e1', status: 'active' });
+    const [update] = calls.updateRow[0];
+    assert.deepEqual(update.data, { status: 'active' });
+  }),
+);
+
+test(
+  'setEventStatus returns a structured 502, not a throw, when updateRow fails',
+  withEnv(async () => {
+    const { ctx } = fakeContext({
+      body: { action: 'setEventStatus', eventId: 'e1', status: 'paused' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: {
+        getRow: async () => ({ $id: 'e1', status: 'active' }),
+        updateRow: async () => {
+          throw new Error('boom');
+        },
+      },
+    });
+
+    const result = await handleEventAssignmentRequest(ctx);
+
+    assert.equal(result.status, 502);
+  }),
+);

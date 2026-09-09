@@ -1,7 +1,17 @@
 import { Client, Account, Users, TablesDB, Permission, Role } from 'node-appwrite';
 import { buildClient, verifyAdminCaller, VALID, invalid, hasValue } from './shared.js';
 
-const ACTIONS = ['assignOperators'];
+const ACTIONS = ['assignOperators', 'setEventStatus'];
+
+const EVENT_STATUSES = ['active', 'paused', 'closed'];
+
+// Story 2.2: pause/resume/close are the forward transitions; a Closed event can only be
+// reopened back to Active, never straight to Paused — the Admin must resume it first.
+const ALLOWED_TRANSITIONS = {
+  active: ['paused', 'closed'],
+  paused: ['active', 'closed'],
+  closed: ['active'],
+};
 
 function isStringArray(value) {
   return Array.isArray(value) && value.every((v) => typeof v === 'string' && v.length > 0);
@@ -14,6 +24,15 @@ const PAYLOAD_VALIDATORS = {
     }
     if (!isStringArray(assignedUserIds)) {
       return invalid('Request must include assignedUserIds as an array of user IDs (may be empty)');
+    }
+    return VALID;
+  },
+  setEventStatus: ({ eventId, status }) => {
+    if (!hasValue(eventId)) {
+      return invalid('Request must include eventId');
+    }
+    if (!EVENT_STATUSES.includes(status)) {
+      return invalid(`Request must include status as one of: ${EVENT_STATUSES.join(', ')}`);
     }
     return VALID;
   },
@@ -101,11 +120,55 @@ async function handleAssignOperators({ DatabasesCtor, adminClient, payload, data
 }
 
 /**
+ * Story 2.2: the sole writer of Event.status. Routed through this Function (rather than a
+ * direct client updateRow, which the Admin's own row permissions would otherwise allow) so
+ * every transition is validated server-side against ALLOWED_TRANSITIONS in one place —
+ * donation-recording.js already treats `status !== 'active'` as a trust-sensitive gate, so the
+ * field itself is treated as trust-sensitive too, not just cosmetic.
+ */
+async function handleSetEventStatus({ DatabasesCtor, payload, adminClient, databaseId, eventsCollectionId, error }) {
+  const { eventId, status } = payload;
+  const databases = new DatabasesCtor(adminClient);
+
+  let current;
+  try {
+    current = await databases.getRow({ databaseId, tableId: eventsCollectionId, rowId: eventId });
+  } catch (err) {
+    error(`setEventStatus: event ${eventId} not found: ${err.message}`);
+    return { status: 404, body: { error: 'Event not found' } };
+  }
+
+  const from = current.status;
+  if (from === status) {
+    return { status: 400, body: { error: `Event is already ${status}` } };
+  }
+  if (!(ALLOWED_TRANSITIONS[from] ?? []).includes(status)) {
+    return { status: 400, body: { error: `Cannot change status from ${from} to ${status}` } };
+  }
+
+  try {
+    await databases.updateRow({
+      databaseId,
+      tableId: eventsCollectionId,
+      rowId: eventId,
+      data: { status },
+    });
+  } catch (err) {
+    error(`setEventStatus: updateRow failed: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to save the status change' } };
+  }
+
+  return { status: 200, body: { success: true, eventId, status } };
+}
+
+/**
  * Extends the same trusted Function (AD-9) to also be the sole writer of
  * Event.assignedUserIds and the Appwrite document permissions derived from it (AD-2,
  * Story 2.3) — Databases document permissions can only be set with a server API key, never
  * from the client SDK, which is why this can't just be an EventDataService.updateEvent()
- * call.
+ * call. Also the sole writer of Event.status (Story 2.2) — see handleSetEventStatus's doc
+ * comment for why that field is routed here too, despite the Admin's own row permissions
+ * technically allowing a direct client write.
  *
  * ClientCtor/AccountCtor/UsersCtor/DatabasesCtor are injectable so tests can substitute
  * fakes without module-mocking node-appwrite.
@@ -168,20 +231,34 @@ export async function handleEventAssignmentRequest({
 
   const adminClient = buildClient(ClientCtor, endpoint, projectId).setKey(dynamicKey);
 
-  const operatorCheck = await rejectNonOperatorIds({
-    UsersCtor,
-    adminClient,
-    assignedUserIds: payload.assignedUserIds,
-    error,
-  });
-  if (!operatorCheck.valid) {
-    return res.json(operatorCheck.body, 400);
+  // Only assignOperators touches assignedUserIds — running this check for setEventStatus
+  // would loop over an undefined assignedUserIds and throw before ever reaching its handler.
+  if (action === 'assignOperators') {
+    const operatorCheck = await rejectNonOperatorIds({
+      UsersCtor,
+      adminClient,
+      assignedUserIds: payload.assignedUserIds,
+      error,
+    });
+    if (!operatorCheck.valid) {
+      return res.json(operatorCheck.body, 400);
+    }
   }
 
   let result;
   switch (action) {
     case 'assignOperators':
       result = await handleAssignOperators({
+        DatabasesCtor,
+        adminClient,
+        payload,
+        databaseId,
+        eventsCollectionId,
+        error,
+      });
+      break;
+    case 'setEventStatus':
+      result = await handleSetEventStatus({
         DatabasesCtor,
         adminClient,
         payload,

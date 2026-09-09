@@ -39,4 +39,10 @@ export class EventService {
     this._events.update((events) => events.map((e) => (e.id === eventId ? event : e)));
     return event;
   }
+
+  async setEventStatus(eventId: string, status: Event['status']): Promise<Event> {
+    const event = await this.eventDataService.setEventStatus(eventId, status);
+    this._events.update((events) => events.map((e) => (e.id === eventId ? event : e)));
+    return event;
+  }
 }

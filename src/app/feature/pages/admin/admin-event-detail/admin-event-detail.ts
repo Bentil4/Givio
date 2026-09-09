@@ -5,11 +5,23 @@ import { appDb } from '../../../../data/dexie/app-db';
 import { EventService } from '../../../../data/services/event.service';
 import { UserService } from '../../../../data/services/user.service';
 import { ServiceError } from '../../../../data/services/service-error';
-import type { Event } from '../../../../data/models/event';
+import type { Event, EventStatus } from '../../../../data/models/event';
 import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
 import type { AdminUser } from '../../../../data/models/admin-user';
 
-type Confirmable = 'pause' | 'resume' | 'close' | 'generate' | 'regenerate' | null;
+type Confirmable = 'pause' | 'resume' | 'close' | 'reopen' | 'generate' | 'regenerate' | null;
+type StatusAction = 'pause' | 'resume' | 'close' | 'reopen';
+
+const STATUS_FOR_ACTION: Record<StatusAction, EventStatus> = {
+  pause: 'paused',
+  resume: 'active',
+  close: 'closed',
+  reopen: 'active',
+};
+
+function isStatusAction(action: Confirmable): action is StatusAction {
+  return action === 'pause' || action === 'resume' || action === 'close' || action === 'reopen';
+}
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -22,18 +34,16 @@ function sameIds(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
 }
 
 /**
- * One event: its code, its operator roster, and its irreversible actions.
+ * One event: its code, its operator roster, and its status lifecycle.
  *
  * Loading and the "Edit details" link are real (Dexie, the same source edit-event.ts reads
  * from). Operator assignment is real (Story 2.3 — EventService.assignOperators, backed by
  * the set-role-and-permissions Function's assignOperators action, which recomputes the
- * Event document's Appwrite permissions per AD-2). Regenerate is real too (Story 2.4 —
+ * Event document's Appwrite permissions per AD-2). Generate/regenerate is real (Story 2.4 —
  * EventService.regenerateAccessCode, backed by the same Function's generateAccessCode
- * action). Pause / resume / close are still NOT wired to anything — this repo has no
- * event-status-lifecycle service (Story 2.2) yet. Confirming one of those surfaces an honest
- * "not built yet" message rather than silently no-op'ing or faking success. The UI is kept
- * (not deleted) because it's the intended shape once that story lands — see
- * docs/design-handoff/INTEGRATION-STATUS.md.
+ * action). Pause/resume/close/reopen are real too (Story 2.2 — EventService.setEventStatus,
+ * backed by the same Function's setEventStatus action, which validates the transition
+ * server-side before writing Event.status).
  */
 @Component({
   selector: 'app-admin-event-detail',
@@ -106,11 +116,18 @@ export class AdminEventDetail implements OnInit {
         };
       case 'close':
         return {
-          title: 'Close and archive this event?',
-          body: 'This locks all donations recorded so far, invalidates the family code, and archives '
-            + 'the record. It cannot be reopened — only an export remains.',
-          cta: 'Close and archive',
+          title: 'Close this event?',
+          body: 'New donations will be blocked until you reopen it. All historical records stay '
+            + 'fully accessible, and family members keep their read-only access.',
+          cta: 'Close event',
           danger: true,
+        };
+      case 'reopen':
+        return {
+          title: 'Reopen this event?',
+          body: 'Its status returns to Active and Operators can record donations again immediately.',
+          cta: 'Reopen event',
+          danger: false,
         };
       case 'generate':
         return {
@@ -211,23 +228,21 @@ export class AdminEventDetail implements OnInit {
   public async confirm(): Promise<void> {
     const action = this.confirming();
     const event = this.event();
-    if (!event) return;
-
-    if (action !== 'generate' && action !== 'regenerate') {
-      // Pause/resume/close need Story 2.2's event-status-lifecycle service, which doesn't
-      // exist yet — see this component's doc comment.
-      this.actionError.set('This action isn’t available yet in this build.');
-      return;
-    }
+    if (!event || !action) return;
 
     this.busy.set(true);
     this.actionError.set(null);
     try {
-      const updated = await this.eventService.regenerateAccessCode(event.id);
+      const updated = isStatusAction(action)
+        ? await this.eventService.setEventStatus(event.id, STATUS_FOR_ACTION[action])
+        : await this.eventService.regenerateAccessCode(event.id);
       this.event.set(updated);
       this.confirming.set(null);
     } catch (err) {
-      this.actionError.set(err instanceof ServiceError ? err.message : 'Failed to regenerate the family code');
+      const fallback = isStatusAction(action)
+        ? 'Failed to change the event status'
+        : 'Failed to regenerate the family code';
+      this.actionError.set(err instanceof ServiceError ? err.message : fallback);
     } finally {
       this.busy.set(false);
     }

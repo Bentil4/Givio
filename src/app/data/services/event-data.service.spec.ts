@@ -363,6 +363,101 @@ describe('EventDataService', () => {
     });
   });
 
+  describe('setEventStatus', () => {
+    it('rejects with ServiceError for an unknown id, without calling the Function', async () => {
+      await expect(service.setEventStatus('missing', 'paused')).rejects.toBeInstanceOf(ServiceError);
+      expect(functions.createExecution).not.toHaveBeenCalled();
+    });
+
+    it('calls the setEventStatus Function action, writes status to Dexie, and writes an audit log', async () => {
+      await appDb.events.put({
+        id: 'active-1',
+        name: 'Original Name',
+        type: 'wedding',
+        date: '2026-01-01',
+        hostName: 'Host',
+        status: 'active',
+        assignedUserIds: [],
+        createdBy: 'admin-1',
+        nextReceiptSeq: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 200,
+        responseBody: JSON.stringify({ success: true, eventId: 'active-1', status: 'paused' }),
+      });
+      databases.createRow.mockResolvedValueOnce({});
+
+      const updated = await service.setEventStatus('active-1', 'paused');
+
+      expect(updated.status).toBe('paused');
+      expect((await appDb.events.get('active-1'))?.status).toBe('paused');
+      expect(functions.createExecution).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: JSON.stringify({ action: 'setEventStatus', eventId: 'active-1', status: 'paused' }),
+        }),
+      );
+      expect(databases.createRow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            entityType: 'event',
+            entityId: 'active-1',
+            action: 'edit',
+          }),
+        }),
+      );
+    });
+
+    it('reopens a closed event back to active', async () => {
+      await appDb.events.put({
+        id: 'closed-1',
+        name: 'Closed Event',
+        type: 'wedding',
+        date: '2026-01-01',
+        hostName: 'Host',
+        status: 'closed',
+        assignedUserIds: [],
+        createdBy: 'admin-1',
+        nextReceiptSeq: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 200,
+        responseBody: JSON.stringify({ success: true, eventId: 'closed-1', status: 'active' }),
+      });
+      databases.createRow.mockResolvedValueOnce({});
+
+      const updated = await service.setEventStatus('closed-1', 'active');
+
+      expect(updated.status).toBe('active');
+    });
+
+    it('throws ServiceError and leaves Dexie untouched when the Function rejects the request', async () => {
+      await appDb.events.put({
+        id: 'active-3',
+        name: 'Original Name',
+        type: 'wedding',
+        date: '2026-01-01',
+        hostName: 'Host',
+        status: 'active',
+        assignedUserIds: [],
+        createdBy: 'admin-1',
+        nextReceiptSeq: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 400,
+        responseBody: JSON.stringify({ error: 'Cannot change status from active to active' }),
+      });
+
+      await expect(service.setEventStatus('active-3', 'active')).rejects.toBeInstanceOf(ServiceError);
+      expect((await appDb.events.get('active-3'))?.status).toBe('active');
+    });
+  });
+
   describe('retryOutboxEntry', () => {
     it('retries a create entry and reports success', async () => {
       databases.createRow.mockResolvedValueOnce({});

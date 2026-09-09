@@ -35,7 +35,9 @@
           Reports
         </a>
         <a class="btn btn-hero-ghost" [routerLink]="['/dashboard/events', e.id, 'edit']">Edit details</a>
-        @if (!isClosed()) {
+        @if (isClosed()) {
+          <button type="button" class="btn btn-hero-solid" (click)="ask('reopen')">Reopen event</button>
+        } @else {
           @if (canPause()) {
             <button type="button" class="btn btn-hero-ghost" (click)="ask('pause')">Pause giving</button>
           }
@@ -144,11 +146,11 @@
         <div class="danger-copy">
           <h2 class="t-card-title">Danger zone</h2>
           <p class="t-caption">
-            Closing the event locks every donation recorded so far, invalidates the family code, and
-            archives the record. It cannot be reopened — only an export remains.
+            Closing the event blocks new donations from being recorded. All historical records stay
+            fully accessible, and you can reopen the event again later if needed.
           </p>
         </div>
-        <button type="button" class="btn btn-danger-outline" (click)="ask('close')">Close and archive</button>
+        <button type="button" class="btn btn-danger-outline" (click)="ask('close')">Close event</button>
       </aside>
     }
   }

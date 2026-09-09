@@ -81,7 +81,35 @@ development_status:
   # manually verified logging into two actual different browsers (no
   # browser-automation tool available this session).
   2-1-create-edit-events: review
-  2-2-event-status-lifecycle: backlog
+  # 2-2 implemented 2026-09-09: new Function action setEventStatus (event-assignment.js,
+  # admin-only via verifyAdminCaller) validates transitions against ALLOWED_TRANSITIONS
+  # (active<->paused, either->closed, closed->active only — a closed event can't skip
+  # straight to paused, it must be reopened first) before writing Event.status. Guarded the
+  # existing rejectNonOperatorIds check to only run for the assignOperators action, since it
+  # previously ran unconditionally and would have thrown on setEventStatus's payload (no
+  # assignedUserIds field). EventDataService.setEventStatus follows the regenerateAccessCode
+  # pattern (online-only, no outbox — the transition is server-validated, nothing meaningful
+  # to queue offline) and writes an audit log entry (action: 'edit', previousValues/newValues
+  # capturing the status change) the same way updateEvent() does, satisfying the AC's "status
+  # change is logged". admin-event-detail.ts's confirm() stub is gone — pause/resume/close/
+  # reopen all call EventService.setEventStatus with the right target status; added a
+  # 'reopen' action + button (shown in place of pause/resume/close when isClosed()) since the
+  # AC explicitly requires reopening a Closed event, which the pre-existing UI copy
+  # ("cannot be reopened — only an export remains") directly contradicted — that copy (in both
+  # the confirm dialog and the Danger Zone aside) has been corrected to describe what the
+  # Function actually does: closing blocks new donations but leaves history and the family
+  # code untouched, and can be reopened later.
+  # Known gap (out of scope for this story, belongs to Story 3.1's mobile form factor):
+  # mobile-entry.ts has no client-side canRecord/blocked guard or status-aware messaging like
+  # donation-entry.ts does — a paused/closed submission from mobile-entry still gets rejected
+  # correctly (DonationDataService.createDonation's status check + donation-recording.js's
+  # server-side check both already exist and are unaffected by this story), just without the
+  # friendlier pre-emptive UI message.
+  # Status "review" — Function unit tests (21 new, 88/88 passing) and Angular unit tests (25
+  # new/updated across event-data.service, event.service, admin-event-detail, all passing) are
+  # in place; the Function change is not yet deployed to Appwrite nor manually browser-verified
+  # (no browser-automation tool this session).
+  2-2-event-status-lifecycle: review
   2-3-assign-operators-permission-derivation: done
   # 2-4 implemented 2026-09-08: new Function actions generateAccessCode
   # (Admin-only, plaintext code stored on Event.accessCode — deliberate
