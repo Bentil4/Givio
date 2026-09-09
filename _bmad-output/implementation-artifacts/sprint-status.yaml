@@ -228,6 +228,16 @@ development_status:
   # app.spec.ts boilerplate test), `tsc --noEmit` clean, and the Function is deployed and
   # smoke-tested live. Not yet manually browser-verified end-to-end (no browser-automation tool
   # this session).
+  # Follow-up fix 2026-09-09 (post-merge, found during manual browser verification): the
+  # printed/downloaded receipt showed "GH µ 400.00" instead of "GH₵ 400.00" — jsPDF's standard
+  # fonts (Helvetica) use WinAnsiEncoding, which doesn't cover the Ghana Cedi sign (U+20B5);
+  # jsPDF doesn't reject the character, it silently mis-renders it (₵'s low byte happens to be
+  # "µ" in WinAnsi). Fixed by vendoring DejaVu Sans (src/vendor/fonts/ — static TTF, confirmed
+  # via `fc-query`'s charset output to cover the full Currency Symbols block before vendoring)
+  # and registering it in ReceiptService via jsPDF's addFileToVFS/addFont, used specifically for
+  # the receipt's Amount row. Verified beyond the mocked unit tests: generated a real (non-
+  # mocked) PDF with the embedded font and confirmed via the raw PDF bytes that its ToUnicode
+  # CMap correctly contains the 0x20b5 codepoint mapping.
   3-6-receipt-generation-pdf-provisional-numbering: review
   epic-3-retrospective: optional
 
