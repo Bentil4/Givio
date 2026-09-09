@@ -81,7 +81,7 @@
   </div>
 
   <div class="form-actions">
-    <button type="submit" class="btn-save" [disabled]="busy()">
+    <button type="submit" class="btn btn-primary" [disabled]="busy()">
       @if (offline()) {
         <span>Save to this device</span>
         <span class="btn-qualifier">will sync later</span>
@@ -89,6 +89,6 @@
         <span>Save donation</span>
       }
     </button>
-    <button type="button" class="btn-clear" (click)="clear()" [disabled]="busy()">Clear</button>
+    <button type="button" class="btn btn-secondary" (click)="clear()" [disabled]="busy()">Clear</button>
   </div>
 </form>

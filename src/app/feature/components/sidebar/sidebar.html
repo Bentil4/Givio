@@ -1,4 +1,19 @@
-<aside class="sidebar" [class.collapsed]="collapsed()">
+@if (mobileOpen()) {
+  <!-- Mouse/touch-only dismiss convenience — the real keyboard equivalent (Escape, WCAG 2.1.1)
+       is bound on the drawer itself below, since focus lives inside it while open. -->
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+  <div class="sidebar-scrim" (click)="dismissMobile.emit()"></div>
+}
+<!-- The Escape handler relies on bubbling from whatever nav link/button inside the drawer
+     currently has focus (WCAG 2.1.1) — the drawer element itself doesn't need to be a tab
+     stop, so it's deliberately not focusable. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<aside
+  class="sidebar"
+  [class.collapsed]="collapsed()"
+  [class.mobile-open]="mobileOpen()"
+  (keydown.escape)="dismissMobile.emit()"
+>
   <header class="sidebar-header">
     <img
       src="assets/images/Givio-logo.png"
@@ -36,6 +51,7 @@
             class="nav-link"
             [matTooltip]="collapsed() ? item.name : ''"
             matTooltipPosition="right"
+            (click)="dismissMobile.emit()"
           >
             <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
             <span class="nav-label">{{ item.name }}</span>

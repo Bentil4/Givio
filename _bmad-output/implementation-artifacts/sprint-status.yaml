@@ -280,8 +280,57 @@ development_status:
   4-5-audit-log-viewer: review
   epic-4-retrospective: optional
 
-  epic-5: backlog
-  5-1-responsive-layout-across-all-screens: backlog
+  epic-5: in-progress
+  # Implemented 2026-09-09. Scoped via a code survey first (not a blind sweep) — found the
+  # "final check, not first time" framing in this story's AC was optimistic: real gaps existed,
+  # not just a sign-off pass.
+  # Touch targets / iOS zoom (AC2/AC3): raised the shared .btn/app-input/select/radio/toggle/
+  # checkbox components and several page-local controls (donation-form .input/.input--lg,
+  # admin-donations .input/.filter-search, mobile-entry .type-seg, sidebar .collapse-toggle/
+  # .nav-link/.logout-button, connection-banner .banner-action, pending-queue .queue-close,
+  # filter-tags .filter-tag) to a 44px minimum; bumped every native text-input font-size found
+  # under 16px (app-input, select, donation-form, admin-donations, mobile-entry .name-input) to
+  # prevent iOS Safari's auto-zoom-on-focus.
+  # Mobile nav (AC1): admin-layout/organizer-layout had NO responsive strategy at all — the
+  # 240px sidebar just squeezed page content into an unusably narrow column below ~720px. Added
+  # a hamburger toggle + off-canvas drawer to Sidebar (mobileOpen input/dismissMobile output,
+  # accessible via a real (keydown.escape) handler per WCAG 2.1.1, same justified
+  # eslint-disable-next-line pattern as the modal-scrim fix from the CI/lint cleanup) plus
+  # wiring in both layouts. The desktop icon-only collapse feature is untouched/independent —
+  # CSS resets it inside the mobile breakpoint since that trade-off doesn't apply to an overlay.
+  # Table overflow (AC1): admin-users/admin-trash/admin-events all reuse admin-donations' table
+  # markup but — being separate Angular components — never actually got its scoped .table-wrap/
+  # .table CSS (including the overflow-x:auto the fix depends on). Promoted the whole block to
+  # global styles.scss, single source of truth now.
+  # Systematic audit (AC1): 27 component stylesheets had zero @media queries. Delegated a
+  # thorough read of the .scss+.html pairs to background agents to separate genuine overflow/
+  # touch-target risk from files that just happen to already be fluid; fixed every confirmed
+  # finding: donation-form's .field-row (no min-width:0, native inputs' intrinsic width can't
+  # shrink) and its .btn-save/.btn-clear (referenced but never defined anywhere — silently
+  # unstyled, sub-20px buttons; switched to the real .btn/.btn-primary/.btn-secondary classes,
+  # restoring what the file's own comment already claimed was true), admin-donations' .page-head
+  # (no flex-wrap, title+total+actions row overflows ~344px vs ~312px available at 360px) and
+  # its .field-row (same min-width:0 gap, and — since admin-events/admin-trash/admin-users/
+  # admin-event-detail/edit-event all `@use` admin-donations.scss directly — this one fix
+  # propagates to all five consuming screens for free), mobile-entry's .amount-value (fixed
+  # 2.5rem risks overflowing 360px for a real 5-6-digit amount; switched to a clamp() that
+  # shrinks instead of clipping an actual money value), checkbox/filter-tags (same missing
+  # min-height:44px .form-row pattern as radio/toggle, plus filter-tags needed flex-wrap so a
+  # long tag row doesn't force page-level horizontal overflow).
+  # Explicitly NOT touched: `page-titles` component (zero remaining overflow issues found
+  # elsewhere are worth noting this one is dead code — confirmed via grep, unreferenced by any
+  # route or template, not one of the 26 real screens — fixing its responsive layout would be
+  # wasted effort since no user can ever reach it).
+  # Known limitation of this pass: no browser-automation tool was available this session, so
+  # the AC's own actual verification methods — resizing a real viewport from 360px to 1920px
+  # and checking for horizontal scrolling, and running an actual Lighthouse/AXE audit against
+  # live rendered pages — could not be executed here. Everything above is a code-level fix
+  # verified via `tsc`/`ng build`/`ng lint`/the full test suite (all green except the one
+  # pre-existing unrelated app.spec.ts failure), not a substitute for that manual pass.
+  # Status "review" — real, verified code fixes landed; this story cannot honestly move to
+  # "done" until a human actually resizes the app across that width range on real screens
+  # (including touch devices) and runs the AXE/Lighthouse sweep the AC calls for.
+  5-1-responsive-layout-across-all-screens: review
   5-2-installable-pwa: backlog
   5-3-multi-device-concurrent-operators: backlog
   epic-5-retrospective: optional

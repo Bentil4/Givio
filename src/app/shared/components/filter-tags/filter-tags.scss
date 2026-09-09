@@ -1,9 +1,13 @@
 .filter-tags {
   display: flex;
+  flex-wrap: wrap; /* Story 5.1: without this, many tags force horizontal page overflow at 360px */
   gap: var(--space-sm);
 }
 
 .filter-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px; /* Story 5.1: touch target minimum */
   font-family: var(--font-body);
   font-size: 0.8rem;
   font-weight: 500;

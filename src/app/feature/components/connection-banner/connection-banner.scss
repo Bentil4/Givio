@@ -62,7 +62,10 @@
 
 .banner-action {
   flex: none;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px; /* Story 5.1: touch target minimum */
+  padding: 8px 4px;
   border: 0;
   background: none;
   font: inherit;

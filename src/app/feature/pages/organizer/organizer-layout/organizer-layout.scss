@@ -8,3 +8,28 @@
   min-width: 0;
   overflow-y: auto;
 }
+
+.mobile-nav-toggle {
+  display: none;
+}
+
+/* Story 5.1: matches the breakpoint sidebar.scss's off-canvas drawer switches on at. */
+@media (max-width: 720px) {
+  .mobile-nav-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    width: 44px;
+    height: 44px;
+    z-index: 1001;
+    border: none;
+    border-radius: var(--radius-full);
+    background-color: var(--bg-white);
+    color: var(--primary-black);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+  }
+}
