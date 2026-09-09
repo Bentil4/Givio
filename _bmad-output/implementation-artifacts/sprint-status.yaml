@@ -217,10 +217,17 @@ development_status:
   # comment), so this form factor has no receipt UI yet. The donation itself still gets a
   # correct receiptNumber either way (that path is shared), only the print/download affordance
   # is desk-only for now.
+  # Deployed via the Appwrite MCP server same-day (same flow as Stories 2.2/2.4/3.5): pushed
+  # this branch, VCS auto-built deployment 6aa1292302b989d312f6 in 22s, then explicitly
+  # activated it. Smoke-tested via a live execution: an unauthenticated recordDonation call
+  # returned 401 "Unauthenticated" with the execution's deploymentId matching the new build,
+  # confirming it's live and routing through verifyCaller before ever reaching the new atomic
+  # nextReceiptSeq increment.
   # Status "review" — 40 new/updated tests (17 Function, 23 Angular, all passing; 89/89 Function
   # suite, 206/207 Angular suite with the one failure being the pre-existing unrelated
-  # app.spec.ts boilerplate test) and `tsc --noEmit` clean. Not yet deployed to Appwrite or
-  # manually browser-verified (no browser-automation tool this session).
+  # app.spec.ts boilerplate test), `tsc --noEmit` clean, and the Function is deployed and
+  # smoke-tested live. Not yet manually browser-verified end-to-end (no browser-automation tool
+  # this session).
   3-6-receipt-generation-pdf-provisional-numbering: review
   epic-3-retrospective: optional
 
