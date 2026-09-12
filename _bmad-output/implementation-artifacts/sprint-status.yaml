@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-07-26
-last_updated: 2026-09-06-reconciled-against-code
+last_updated: 2026-09-12-story-5-2-installable-pwa
 project: givio
 project_key: NOKEY
 tracking_system: file-system
@@ -331,6 +331,33 @@ development_status:
   # "done" until a human actually resizes the app across that width range on real screens
   # (including touch devices) and runs the AXE/Lighthouse sweep the AC calls for.
   5-1-responsive-layout-across-all-screens: review
-  5-2-installable-pwa: backlog
+  # Implemented 2026-09-12: fixed the literal duplicated provideServiceWorker(...) call in
+  # app.config.ts (AC2) and a matching duplicated <link rel="manifest"> tag in index.html found
+  # during the same sweep. Added iOS install support to index.html (apple-touch-icon,
+  # apple-mobile-web-app-capable/-status-bar-style/-title meta tags — Android already worked via
+  # the existing manifest+icons) and theme_color/background_color/description to
+  # manifest.webmanifest (theme_color matches the app's existing --primary-deep brand token,
+  # #1a6b7a, not a guessed color). ngsw-config.json's dataGroups (AC3) target
+  # https://fra.cloud.appwrite.io/v1/tablesdb/** (confirmed against the installed Appwrite SDK's
+  # source, not assumed — TablesDB's apiPath is /tablesdb/{databaseId}/tables/{tableId}/rows)
+  # with a "freshness" strategy (network-first, 5s timeout, falls back to cache) rather than
+  # "performance" (cache-first) — chosen because Epic 3's outbox/conflict-detection design
+  # already treats server state as authoritative, and the app's own services
+  # (EventDataService/DonationDataService) already do their own network-then-Dexie-fallback; a
+  # cache-first SW strategy would risk serving stale rows over that logic. POST calls
+  # (Function executions, e.g. recordDonation) aren't under this URL pattern so they're
+  # unaffected.
+  # Icons and manifest.webmanifest's icon list already existed pre-story (not part of this
+  # change) — only the fields above were added/fixed.
+  # Known gap: no Lighthouse CLI is installed in this repo, and no browser-automation tool was
+  # available this session, so the AC's actual verification methods — installing on a real
+  # Android/iOS device and running a Lighthouse PWA audit for the ≥90 score — could not be
+  # executed here. `tsc --noEmit`, `ng build --configuration production` (one pre-existing,
+  # unrelated CSS-budget build error on admin-event-detail.scss confirmed present on dev before
+  # this branch), `ng lint` (clean), and the full test suite (216/217 passing, the one failure
+  # being the same pre-existing unrelated app.spec.ts boilerplate test noted in prior stories)
+  # all pass. Status "review" — cannot honestly move to "done" until a human installs the app on
+  # a real device and runs the Lighthouse audit.
+  5-2-installable-pwa: review
   5-3-multi-device-concurrent-operators: backlog
   epic-5-retrospective: optional
