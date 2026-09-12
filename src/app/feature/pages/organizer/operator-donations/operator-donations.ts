@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Donation, DonationType, DONATION_TYPE_LABELS, formatCedis, formatCedisShort, totalMinor } from '../../../../data/models/donation';
@@ -16,6 +16,13 @@ type Tab = 'all' | 'mine' | 'pending' | DonationType;
  *
  * Deliberately NOT the admin table: no donor phone column, and the "Mine" tab is the default
  * because the question an operator actually has is "did my last entry save?".
+ *
+ * Realtime (Story 5.3): "All desks" is exactly the "my event list" AC 5.3.2 describes — a
+ * desk's whole reason for existing is other Operators recording against the same event, so it
+ * subscribes the same way admin-dashboard does (Story 4.1) and just re-runs
+ * loadDonationsForEvent on any change. Safe to also refresh this device's own pending entries
+ * because pullDonations (inside loadDonationsForEvent) already skips any row with a pending
+ * outbox entry — a live push here can never clobber a not-yet-synced local write.
  */
 @Component({
   selector: 'app-operator-donations',
@@ -24,11 +31,12 @@ type Tab = 'all' | 'mine' | 'pending' | DonationType;
   styleUrl: './operator-donations.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class OperatorDonations implements OnInit {
+export class OperatorDonations implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly connectivityService = inject(ConnectivityService);
   private readonly donationService = inject(DonationService);
   private readonly authService = inject(AuthService);
+  private unsubscribeRealtime: (() => void) | null = null;
 
   public readonly donations = this.donationService.donations;
   public readonly loading = signal(true);
@@ -77,6 +85,14 @@ export class OperatorDonations implements OnInit {
 
     await this.donationService.loadDonationsForEvent(eventId);
     this.loading.set(false);
+
+    this.unsubscribeRealtime = await this.donationService.subscribeToChanges(() => {
+      void this.donationService.loadDonationsForEvent(eventId);
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.unsubscribeRealtime?.();
   }
 
   public readonly visible = computed(() => {

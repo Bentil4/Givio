@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-07-26
-last_updated: 2026-09-06-reconciled-against-code
+last_updated: 2026-09-12-story-5-3-multi-device-concurrent-operators
 project: givio
 project_key: NOKEY
 tracking_system: file-system
@@ -332,5 +332,52 @@ development_status:
   # (including touch devices) and runs the AXE/Lighthouse sweep the AC calls for.
   5-1-responsive-layout-across-all-screens: review
   5-2-installable-pwa: backlog
-  5-3-multi-device-concurrent-operators: backlog
+  # Scoped 2026-09-12 via a code survey (not a blind implementation pass) against all 3 ACs:
+  # AC1 (no data race, entries isolated by recording Operator's user ID) and AC3 (one Operator on
+  # two devices, no conflict) were both already satisfied by prior stories, not new work:
+  # - donation-recording.js's recordedBy is stamped server-side from the JWT-verified caller
+  #   (verifyCaller/shared.js), never trusted from the client payload — concurrent Operators
+  #   writing distinct donation rows are isolated by construction.
+  # - The one genuinely shared resource, Event.nextReceiptSeq, already goes through Appwrite's
+  #   native atomic incrementRowColumn (Story 3.6/AD-8), not app-level read-modify-write.
+  # - auth.service.ts's login()/updateSession() both scope to `sessionId: 'current'` (this
+  #   device's session only); idle-timeout state is localStorage-backed, inherently per-device.
+  #   Appwrite's native multi-session-per-user model plus this app's per-device local state
+  #   already gives two-devices-one-Operator with no conflict — nothing here assumes a single
+  #   active session.
+  # AC1's "tested under load" had a real gap though: every existing donation-recording.test.js
+  # test calls the handler once — none actually ran calls concurrently. Added one
+  # (functions/set-role-and-permissions/tests/donation-recording.test.js): 10 simulated Operators
+  # call handleDonationRecordingRequest via Promise.all (not sequential awaits) against a shared
+  # fake TablesDB (one events map, one donations map — modeling 10+ real Operators against the
+  # same live event), asserting all 10 receipt numbers are unique and each donation's
+  # recordedBy/donorName matches its own caller, not another concurrent one's. This proves the
+  # handler carries no shared mutable state across concurrent invocations, which is what the
+  # app-level code actually has to get right — real cross-request atomicity is Appwrite's
+  # documented server-side guarantee, not something this test (or the handler) can substitute
+  # for.
+  # AC2 ("another Operator's entry... pushes it to my event list without a page refresh") was a
+  # genuine gap, not a already-solved concern: Story 4.1's DonationDataService.subscribeToChanges
+  # was wired admin-dashboard-only "by design", with a doc comment reasoning a live socket would
+  # fight Operators' offline-first flow. That reasoning doesn't actually hold for
+  # operator-donations.ts's "All desks" tab — the literal "event list" an Operator watches for
+  # other desks' entries at the same live event — because every refetch already goes through
+  # loadDonationsForEvent, which (via pullDonations) already skips any row with a pending outbox
+  # entry. A live push therefore can never clobber a not-yet-synced local write. Wired
+  # operator-donations.ts to the same subscribeToChanges primitive admin-dashboard already uses
+  # (subscribe in ngOnInit after the initial load, refetch loadDonationsForEvent(eventId) on any
+  # change, unsubscribe in ngOnDestroy) and corrected the now-stale "admin-dashboard-only by
+  # design" doc comment on subscribeToChanges itself.
+  # No new spec file for operator-donations.ts (it had none before this story) — matches this
+  # codebase's existing depth of coverage for this exact pattern (admin-dashboard.spec.ts is
+  # itself only a creation smoke test, not a behavioral test of its own Realtime wiring).
+  # `tsc --noEmit`, `ng lint`, the full Angular suite (216/217, same one pre-existing unrelated
+  # app.spec.ts failure as every prior story), and the full Function suite (90/90, including the
+  # new concurrency test) all pass.
+  # Status "review" — the code-level guarantees above are verified, but AC1's "tested under
+  # load" and AC2's "no page refresh" ultimately describe a live, multi-device scenario (10+ real
+  # devices hitting a live Appwrite project simultaneously) that no tool available this session
+  # can actually exercise. Cannot honestly move to "done" until a human runs that live multi-
+  # device test.
+  5-3-multi-device-concurrent-operators: review
   epic-5-retrospective: optional
