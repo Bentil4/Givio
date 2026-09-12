@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { Donation, formatCedis } from '../../../../data/models/donation';
+import { Donation } from '../../../../data/models/donation';
+import { formatCedis } from '../../../../utils/donation.util';
 import { DonationService } from '../../../../data/services/donation.service';
-import { ServiceError } from '../../../../data/services/service-error';
+import { ServiceError } from '../../../../core/services/service-error';
 
 const RECOVERY_WINDOW_DAYS = 30;
 

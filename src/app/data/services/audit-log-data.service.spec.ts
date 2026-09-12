@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { AuditLogDataService } from './audit-log-data.service';
-import { DATABASES } from '../appwrite/client';
+import { DATABASES } from '../../core/appwrite/client';
 
 describe('AuditLogDataService', () => {
   let service: AuditLogDataService;

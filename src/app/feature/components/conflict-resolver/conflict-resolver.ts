@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { ConflictPair, ConflictResolution, Donation, DONATION_TYPE_LABELS, formatCedis } from '../../../data/models/donation';
+import { ConflictPair, ConflictResolution, Donation, DONATION_TYPE_LABELS } from '../../../data/models/donation';
+import { formatCedis } from '../../../utils/donation.util';
 
 interface ComparisonRow {
   label: string;

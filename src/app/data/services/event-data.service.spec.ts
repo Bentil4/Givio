@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { EventDataService } from './event-data.service';
-import { ServiceError } from './service-error';
+import { ServiceError } from '../../core/services/service-error';
 import { AuthService } from './auth.service';
-import { DATABASES, FUNCTIONS } from '../appwrite/client';
+import { DATABASES, FUNCTIONS } from '../../core/appwrite/client';
 import { appDb } from '../dexie/app-db';
 
 describe('EventDataService', () => {

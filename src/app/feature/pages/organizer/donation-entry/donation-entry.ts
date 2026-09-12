@@ -19,19 +19,17 @@ import { DonationRow } from '../../../components/donation-row/donation-row';
 import {
   Donation,
   DonationDraft,
-  formatCedis,
-  formatCedisShort,
-  totalMinor,
 } from '../../../../data/models/donation';
+import { formatCedis, formatCedisShort, totalMinor } from '../../../../utils/donation.util';
 import type { Event, EventStatus } from '../../../../data/models/event';
 import { appDb } from '../../../../data/dexie/app-db';
-import type { OutboxEntry } from '../../../../data/dexie/outbox-entry';
+import type { OutboxEntry } from '../../../../data/models/outbox-entry';
 import { DonationService } from '../../../../data/services/donation.service';
 import { AuthService } from '../../../../data/services/auth.service';
-import { ConnectivityService } from '../../../../data/services/connectivity.service';
+import { ConnectivityService } from '../../../../core/services/connectivity.service';
 import { SyncEngineService } from '../../../../data/services/sync-engine.service';
 import { ReceiptService } from '../../../../data/services/receipt.service';
-import { ServiceError } from '../../../../data/services/service-error';
+import { ServiceError } from '../../../../core/services/service-error';
 
 /** A queued donation-create outbox entry, shaped for the PendingQueue drawer. */
 function draftFromOutboxEntry(entry: OutboxEntry): DonationDraft {

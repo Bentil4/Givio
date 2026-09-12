@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AppwriteException, Models } from 'appwrite';
-import { ACCOUNT } from '../appwrite/client';
+import { ACCOUNT } from '../../core/appwrite/client';
 import type { Role } from '../models/role';
 
 export type { Role };

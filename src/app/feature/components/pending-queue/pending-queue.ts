@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { DonationDraft, DONATION_TYPE_LABELS, formatCedis } from '../../../data/models/donation';
+import { DonationDraft, DONATION_TYPE_LABELS } from '../../../data/models/donation';
+import { formatCedis } from '../../../utils/donation.util';
 
 /**
  * The queued-offline drawer. Everything an operator has recorded without a connection is

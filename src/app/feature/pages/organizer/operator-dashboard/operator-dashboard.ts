@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { RouterLink } from '@angular/router';
 import { EventService } from '../../../../data/services/event.service';
 import { AuthService } from '../../../../data/services/auth.service';
-import { ServiceError } from '../../../../data/services/service-error';
+import { ServiceError } from '../../../../core/services/service-error';
 import type { Event, EventStatus } from '../../../../data/models/event';
 import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
 

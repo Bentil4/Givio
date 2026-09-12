@@ -1,12 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { ID, Models, Permission, Query, Role } from 'appwrite';
-import { DATABASES, FUNCTIONS } from '../appwrite/client';
+import { DATABASES, FUNCTIONS } from '../../core/appwrite/client';
 import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
 import { appDb } from '../dexie/app-db';
-import type { OutboxEntry } from '../dexie/outbox-entry';
+import type { OutboxEntry } from '../models/outbox-entry';
 import type { Event } from '../models/event';
 import { AuthService } from './auth.service';
-import { ServiceError } from './service-error';
+import { ServiceError } from '../../core/services/service-error';
 import { writeAuditLog } from './audit-log-writer';
 import { environment } from '../../../environments/environment';
 

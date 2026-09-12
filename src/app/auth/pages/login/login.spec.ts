@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { ACCOUNT } from '../../../data/appwrite/client';
+import { ACCOUNT } from '../../../core/appwrite/client';
 
 import { Login } from './login';
 

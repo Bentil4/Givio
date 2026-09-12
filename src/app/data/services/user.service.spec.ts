@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { UserService } from './user.service';
-import { ServiceError } from './service-error';
-import { FUNCTIONS } from '../appwrite/client';
+import { ServiceError } from '../../core/services/service-error';
+import { FUNCTIONS } from '../../core/appwrite/client';
 
 describe('UserService', () => {
   let service: UserService;

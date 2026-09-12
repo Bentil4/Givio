@@ -1,7 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import type { Event } from '../models/event';
 import type { Donation } from '../models/donation';
-import type { OutboxEntry } from './outbox-entry';
+import type { OutboxEntry } from '../models/outbox-entry';
 
 export class AppDb extends Dexie {
   events!: Table<Event, string>;

@@ -4,7 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { EventService } from '../../../../data/services/event.service';
 import { UserService } from '../../../../data/services/user.service';
-import { ServiceError } from '../../../../data/services/service-error';
+import { ServiceError } from '../../../../core/services/service-error';
 import type { Event, EventStatus, EventType } from '../../../../data/models/event';
 import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
 import type { AdminUser } from '../../../../data/models/admin-user';

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { Donation, DONATION_TYPE_LABELS, formatCedis } from '../../../data/models/donation';
+import { Donation, DONATION_TYPE_LABELS } from '../../../data/models/donation';
+import { formatCedis } from '../../../utils/donation.util';
 
 /**
  * One row of the donor list. Shared by the family live view and the operator's own list.

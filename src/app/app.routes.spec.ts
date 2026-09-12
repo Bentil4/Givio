@@ -1,5 +1,5 @@
 import { routes } from './app.routes';
-import { sessionExpiryGuard } from './auth/guards/role.guard';
+import { sessionExpiryGuard } from './core/guards/role.guard';
 
 describe('app.routes', () => {
   // Angular's default runGuardsAndResolvers does not re-run a parent route's canActivate

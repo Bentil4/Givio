@@ -148,7 +148,7 @@ describe('DonationEntry', () => {
   });
 
   it('confirm() surfaces a ServiceError instead of silently succeeding', async () => {
-    const { ServiceError } = await import('../../../../data/services/service-error');
+    const { ServiceError } = await import('../../../../core/services/service-error');
     const createDonation = vi.fn().mockRejectedValueOnce(new ServiceError('Cannot record a donation against a paused or closed event'));
     const { component } = await setup({ createDonation });
 

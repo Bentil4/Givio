@@ -4,7 +4,7 @@ import { ActivatedRoute, provideRouter } from '@angular/router';
 import { MobileEntry } from './mobile-entry';
 import { appDb } from '../../../../data/dexie/app-db';
 import { DonationService } from '../../../../data/services/donation.service';
-import { ServiceError } from '../../../../data/services/service-error';
+import { ServiceError } from '../../../../core/services/service-error';
 import type { Event } from '../../../../data/models/event';
 import type { Donation } from '../../../../data/models/donation';
 

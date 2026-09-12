@@ -1,7 +1,7 @@
 import { ID, Permission, Role, type Models, type TablesDB } from 'appwrite';
 import { environment } from '../../../environments/environment';
 import type { AuditAction, AuditEntityType, AuditLogEntry } from '../models/audit-log';
-import { ServiceError } from './service-error';
+import { ServiceError } from '../../core/services/service-error';
 
 export interface WriteAuditLogInput {
   entityType: AuditEntityType;

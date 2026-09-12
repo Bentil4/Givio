@@ -3,8 +3,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
 import { EventService } from '../../../../data/services/event.service';
 import { AuthService } from '../../../../data/services/auth.service';
-import { ConnectivityService } from '../../../../data/services/connectivity.service';
-import { ServiceError } from '../../../../data/services/service-error';
+import { ConnectivityService } from '../../../../core/services/connectivity.service';
+import { ServiceError } from '../../../../core/services/service-error';
 import type { Event, EventStatus } from '../../../../data/models/event';
 import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
 

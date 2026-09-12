@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { FUNCTIONS } from '../appwrite/client';
+import { FUNCTIONS } from '../../core/appwrite/client';
 import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
 import type { Donation } from '../models/donation';
 import type { FamilyEventSummary } from '../models/family-access';

@@ -1,9 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { Models, Query } from 'appwrite';
-import { DATABASES, FUNCTIONS } from '../appwrite/client';
+import { DATABASES, FUNCTIONS } from '../../core/appwrite/client';
 import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
 import { appDb } from '../dexie/app-db';
-import { ServiceError } from './service-error';
+import { ServiceError } from '../../core/services/service-error';
 import type { ConflictPair, ConflictResolution, Donation } from '../models/donation';
 import { environment } from '../../../environments/environment';
 

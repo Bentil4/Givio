@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ConflictDataService } from './conflict-data.service';
-import { ServiceError } from './service-error';
-import { DATABASES, FUNCTIONS } from '../appwrite/client';
+import { ServiceError } from '../../core/services/service-error';
+import { DATABASES, FUNCTIONS } from '../../core/appwrite/client';
 import { appDb } from '../dexie/app-db';
 
 const LOCAL_DONATION = { id: 'd1', eventId: 'e1', receiptNumber: 'P-1', donorName: 'Ama (local)' };

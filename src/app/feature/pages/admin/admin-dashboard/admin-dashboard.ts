@@ -2,11 +2,11 @@ import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject
 import { RouterLink } from '@angular/router';
 import { EventService } from '../../../../data/services/event.service';
 import { DonationService } from '../../../../data/services/donation.service';
-import { ServiceError } from '../../../../data/services/service-error';
+import { ServiceError } from '../../../../core/services/service-error';
 import type { Event, EventStatus } from '../../../../data/models/event';
 import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
 import type { Donation } from '../../../../data/models/donation';
-import { formatCedis, formatCedisShort, totalMinor } from '../../../../data/models/donation';
+import { formatCedis, formatCedisShort, totalMinor } from '../../../../utils/donation.util';
 
 /**
  * Admin overview — "every live event, the running totals, and anything needing attention"

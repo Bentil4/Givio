@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { appDb } from '../../../../data/dexie/app-db';
 import { EventService } from '../../../../data/services/event.service';
-import { ServiceError } from '../../../../data/services/service-error';
+import { ServiceError } from '../../../../core/services/service-error';
 import type { Event } from '../../../../data/models/event';
 
 @Component({

@@ -2,8 +2,10 @@ import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DonationRow } from '../../../components/donation-row/donation-row';
-import { Donation, DonationType, formatCedis, formatCedisShort, totalMinor } from '../../../../data/models/donation';
-import type { FamilyEventSummary } from '../../../../data/models/family-access';
+import { Donation, DonationType } from '../../../../data/models/donation';
+import { formatCedis, formatCedisShort, totalMinor } from '../../../../utils/donation.util';
+import { base64UrlDecode } from '../../../../utils/base64-url.util';
+import { FAMILY_CODE_LENGTH, type FamilyEventSummary } from '../../../../data/models/family-access';
 import { FamilyAccessService } from '../../../../data/services/family-access.service';
 import { ReportService } from '../../../../data/services/report.service';
 
@@ -93,7 +95,13 @@ export class FamilyLive implements OnInit, OnDestroy {
   ];
 
   async ngOnInit(): Promise<void> {
-    this.code = this.route.snapshot.paramMap.get('code') ?? '';
+    const param = this.route.snapshot.paramMap.get('code') ?? '';
+    // A raw code is always exactly FAMILY_CODE_LENGTH chars; its base64url encoding never is
+    // (an 8-byte input always encodes to 11 chars) — so length alone reliably tells a legacy,
+    // pre-encoding shared link apart from an encoded one. Falling back to base64UrlDecode's own
+    // null on a malformed param would be ambiguous here: every character valid in a code is
+    // also valid base64url, so a raw code would "successfully" decode to the wrong value.
+    this.code = param.length === FAMILY_CODE_LENGTH ? param : (base64UrlDecode(param) ?? param);
     if (!this.code) {
       this.notFound.set(true);
       this.loading.set(false);
