@@ -309,6 +309,66 @@ test(
 );
 
 test(
+  // Story 5.3 AC1 ("10+ concurrent Operators... no data race conditions... isolated by the
+  // recording Operator's user ID"): every prior test in this file calls the handler once.
+  // This one actually runs many calls concurrently (Promise.all, not sequential awaits) against
+  // a SHARED fake TablesDB — a single events map and a single donations map, exactly like 10+
+  // Operators hitting the same live event — to prove the handler carries no shared mutable
+  // state across concurrent invocations (all per-call locals) and that Appwrite's
+  // incrementRowColumn is what the code actually depends on for uniqueness, not something the
+  // handler itself has to (and could get wrong) coordinate.
+  '10 concurrent operators recording against the same event get unique receipt numbers and correct per-caller attribution',
+  withEnv(async () => {
+    const OPERATOR_COUNT = 10;
+    const event = { $id: 'e1', type: 'wedding', status: 'active', assignedUserIds: Array.from({ length: OPERATOR_COUNT }, (_, i) => `op-${i}`) };
+    const donations = new Map();
+    let nextReceiptSeq = 0;
+
+    const sharedTablesDB = {
+      getRow: async () => event,
+      // A synchronous read-increment-write (no internal await) models Appwrite's real atomic
+      // increment: in single-threaded Node, nothing can interleave between the read and the
+      // write of a local variable, so this is a faithful stand-in for the server-side guarantee
+      // the handler relies on.
+      incrementRowColumn: async () => {
+        nextReceiptSeq += 1;
+        return { ...event, nextReceiptSeq };
+      },
+      createRow: async ({ rowId, data }) => {
+        donations.set(rowId, data);
+        return { $id: rowId, ...data };
+      },
+    };
+
+    const results = await Promise.all(
+      Array.from({ length: OPERATOR_COUNT }, (_, i) => {
+        const { ctx } = fakeContext({
+          body: { ...BASE_PAYLOAD, donationId: `d${i}`, donorName: `Donor ${i}` },
+          headers: { 'x-appwrite-user-jwt': `op-${i}-jwt`, 'x-appwrite-key': 'dynamic-key' },
+          getAccount: asOperator(`op-${i}`),
+          tablesDB: sharedTablesDB,
+        });
+        return handleDonationRecordingRequest(ctx);
+      }),
+    );
+
+    for (const result of results) {
+      assert.equal(result.status, 200);
+    }
+
+    assert.equal(donations.size, OPERATOR_COUNT);
+    const receiptNumbers = [...donations.values()].map((d) => d.receiptNumber);
+    assert.equal(new Set(receiptNumbers).size, OPERATOR_COUNT, 'every receipt number must be unique');
+
+    for (let i = 0; i < OPERATOR_COUNT; i++) {
+      const donation = donations.get(`d${i}`);
+      assert.equal(donation.recordedBy, `op-${i}`, `donation d${i} must be attributed to its own caller, not another concurrent one`);
+      assert.equal(donation.donorName, `Donor ${i}`, `donation d${i} must keep its own payload, not another concurrent one's`);
+    }
+  }),
+);
+
+test(
   'returns a structured 502, not a throw, when createRow fails',
   withEnv(async () => {
     const { ctx } = fakeContext({

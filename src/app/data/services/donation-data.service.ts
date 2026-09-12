@@ -56,8 +56,10 @@ export class DonationDataService {
   /**
    * First Realtime use in the app (Story 4.1) — resolves the Architecture Spine's Deferred
    * Realtime item for donations. Fires `onChange` on any create/update/delete anywhere in the
-   * table; the caller decides what to refetch. Admin-dashboard-only by design: Operators
-   * already have their own offline-first flow and a live socket would fight that, not help it.
+   * table; the caller decides what to refetch. Also used by operator-donations.ts (Story 5.3) —
+   * safe alongside the offline-first flow because every caller refetches through
+   * loadDonationsForEvent/loadAllDonations, which already skip any row with a pending outbox
+   * entry, so a live push can never clobber a not-yet-synced local write.
    */
   async subscribeToChanges(onChange: () => void): Promise<() => void> {
     const subscription = await this.realtime.subscribe(
