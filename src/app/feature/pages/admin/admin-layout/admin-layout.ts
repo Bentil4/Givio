@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
-import { INavbarItem, IUserProfile } from '../../../../auth/model/user.model';
+import { INavbarItem, IUserProfile } from '../../../../data/models/user.model';
 import { Sidebar } from '../../../components/sidebar/sidebar';
 import { AuthService } from '../../../../data/services/auth.service';
 

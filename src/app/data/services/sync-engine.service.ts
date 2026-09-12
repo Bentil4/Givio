@@ -1,6 +1,6 @@
 import { Injectable, effect, inject, signal } from '@angular/core';
 import { appDb } from '../dexie/app-db';
-import { ConnectivityService } from './connectivity.service';
+import { ConnectivityService } from '../../core/services/connectivity.service';
 import { EventDataService } from './event-data.service';
 import { DonationDataService } from './donation-data.service';
 

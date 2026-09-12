@@ -1,6 +1,7 @@
 import { InjectionToken, Injectable, inject } from '@angular/core';
 import * as sheetjs from '../../../vendor/sheetjs/xlsx.mjs';
-import { DONATION_TYPE_LABELS, totalMinor, type Donation } from '../models/donation';
+import { DONATION_TYPE_LABELS, type Donation } from '../models/donation';
+import { totalMinor } from '../../utils/donation.util';
 
 export interface ExportOptions {
   /** Family export (Story 4.4): drops Phone and Recorded By — never shown outside Admin/Operator. */

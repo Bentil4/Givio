@@ -1,4 +1,4 @@
-import type { Event } from './event';
+import type { Event } from '../data/models/event';
 
 /**
  * AD-8's "event short code" — a stable, deterministic prefix derived purely from fields the

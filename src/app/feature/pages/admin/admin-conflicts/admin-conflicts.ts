@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { ConflictResolver } from '../../../components/conflict-resolver/conflict-resolver';
-import { ConflictPair, ConflictResolution, formatCedis } from '../../../../data/models/donation';
+import { ConflictPair, ConflictResolution } from '../../../../data/models/donation';
+import { formatCedis } from '../../../../utils/donation.util';
 import { ConflictService } from '../../../../data/services/conflict.service';
-import { ServiceError } from '../../../../data/services/service-error';
+import { ServiceError } from '../../../../core/services/service-error';
 
 /**
  * The conflict queue. Wraps ConflictResolver with the list, the running count, and the

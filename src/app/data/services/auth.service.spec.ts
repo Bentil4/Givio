@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { AppwriteException } from 'appwrite';
 import { AuthService } from './auth.service';
-import { ACCOUNT } from '../appwrite/client';
+import { ACCOUNT } from '../../core/appwrite/client';
 
 describe('AuthService', () => {
   let store: AuthService;

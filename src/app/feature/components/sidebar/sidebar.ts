@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { INavbarItem, IUserProfile } from '../../../auth/model/user.model';
+import { INavbarItem, IUserProfile } from '../../../data/models/user.model';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatBadgeModule } from '@angular/material/badge';

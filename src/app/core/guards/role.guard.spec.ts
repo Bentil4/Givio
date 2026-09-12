@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { UrlTree } from '@angular/router';
-import { ACCOUNT } from '../../data/appwrite/client';
+import { ACCOUNT } from '../appwrite/client';
 import { AuthService } from '../../data/services/auth.service';
 import {
   authGuard,

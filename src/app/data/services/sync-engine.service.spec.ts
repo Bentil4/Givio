@@ -1,11 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { SyncEngineService } from './sync-engine.service';
-import { ConnectivityService } from './connectivity.service';
+import { ConnectivityService } from '../../core/services/connectivity.service';
 import { EventDataService } from './event-data.service';
 import { DonationDataService } from './donation-data.service';
 import { appDb } from '../dexie/app-db';
-import type { OutboxEntry } from '../dexie/outbox-entry';
+import type { OutboxEntry } from '../models/outbox-entry';
 
 describe('SyncEngineService', () => {
   let online: ReturnType<typeof signal<boolean>>;

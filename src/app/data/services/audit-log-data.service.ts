@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Models, Query } from 'appwrite';
-import { DATABASES } from '../appwrite/client';
+import { DATABASES } from '../../core/appwrite/client';
 import { rowToAuditLogEntry } from './audit-log-writer';
 import type { AuditLogEntry } from '../models/audit-log';
 import { environment } from '../../../environments/environment';

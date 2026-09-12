@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
-import { Donation, DonationDraft, DonationType, formatCedisShort, totalMinor } from '../../../../data/models/donation';
+import { Donation, DonationDraft, DonationType } from '../../../../data/models/donation';
+import { formatCedisShort, totalMinor } from '../../../../utils/donation.util';
 import type { Event } from '../../../../data/models/event';
 import { appDb } from '../../../../data/dexie/app-db';
-import { ConnectivityService } from '../../../../data/services/connectivity.service';
+import { ConnectivityService } from '../../../../core/services/connectivity.service';
 import { DonationService } from '../../../../data/services/donation.service';
 import { SyncEngineService } from '../../../../data/services/sync-engine.service';
-import { ServiceError } from '../../../../data/services/service-error';
+import { ServiceError } from '../../../../core/services/service-error';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'] as const;
 

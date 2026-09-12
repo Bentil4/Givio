@@ -1,5 +1,5 @@
 import { Functions } from 'appwrite';
-import { ServiceError } from '../services/service-error';
+import { ServiceError } from '../../core/services/service-error';
 import { environment } from '../../../environments/environment';
 
 interface FunctionErrorBody {

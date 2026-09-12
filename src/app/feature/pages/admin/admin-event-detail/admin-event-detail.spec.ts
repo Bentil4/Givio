@@ -4,7 +4,7 @@ import { AdminEventDetail } from './admin-event-detail';
 import { appDb } from '../../../../data/dexie/app-db';
 import { EventService } from '../../../../data/services/event.service';
 import { UserService } from '../../../../data/services/user.service';
-import { ServiceError } from '../../../../data/services/service-error';
+import { ServiceError } from '../../../../core/services/service-error';
 import type { Event } from '../../../../data/models/event';
 
 const makeEvent = (overrides: Partial<Event> = {}): Event => ({

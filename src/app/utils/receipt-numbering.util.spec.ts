@@ -1,4 +1,4 @@
-import { eventShortCode, provisionalReceiptNumber } from './receipt-numbering';
+import { eventShortCode, provisionalReceiptNumber } from './receipt-numbering.util';
 
 describe('eventShortCode', () => {
   it('prefixes a wedding with WED', () => {

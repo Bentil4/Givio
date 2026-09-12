@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { jsPDF } from 'jspdf';
 import { DEJAVU_SANS_TTF_BASE64 } from '../../../vendor/fonts/dejavu-sans.font';
-import { DONATION_TYPE_LABELS, formatCedis, type Donation } from '../models/donation';
+import { DONATION_TYPE_LABELS, type Donation } from '../models/donation';
+import { formatCedis } from '../../utils/donation.util';
 import type { Event } from '../models/event';
 
 const PAGE_FORMAT = 'a5';

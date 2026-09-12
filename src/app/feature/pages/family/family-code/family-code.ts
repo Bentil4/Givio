@@ -2,9 +2,11 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
 import { FamilyAccessService } from '../../../../data/services/family-access.service';
-import { formatCedisShort, totalMinor } from '../../../../data/models/donation';
+import { FAMILY_CODE_LENGTH } from '../../../../data/models/family-access';
+import { formatCedisShort, totalMinor } from '../../../../utils/donation.util';
+import { base64UrlEncode } from '../../../../utils/base64-url.util';
 
-const CODE_LENGTH = 8;
+const CODE_LENGTH = FAMILY_CODE_LENGTH;
 const MAX_TRIES = 5;
 const COOLDOWN_MINUTES = 10;
 
@@ -135,7 +137,7 @@ export class FamilyCode {
         return;
       }
       this.tries.set(0);
-      void this.router.navigate(['/family', this.code()]);
+      void this.router.navigate(['/family', base64UrlEncode(this.code())]);
     } catch {
       const tries = this.tries() + 1;
       this.tries.set(tries);

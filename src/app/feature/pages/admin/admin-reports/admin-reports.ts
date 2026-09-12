@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
-import { DonationType, DONATION_TYPE_LABELS, formatCedis, formatCedisShort, totalMinor } from '../../../../data/models/donation';
+import { DonationType, DONATION_TYPE_LABELS } from '../../../../data/models/donation';
+import { formatCedis, formatCedisShort, totalMinor } from '../../../../utils/donation.util';
 import { DonationService } from '../../../../data/services/donation.service';
 import { ReportService } from '../../../../data/services/report.service';
 import { appDb } from '../../../../data/dexie/app-db';

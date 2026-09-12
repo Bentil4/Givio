@@ -4,7 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../../data/services/auth.service';
 import { UserService } from '../../../../data/services/user.service';
-import { ServiceError } from '../../../../data/services/service-error';
+import { ServiceError } from '../../../../core/services/service-error';
 import type { AdminUser } from '../../../../data/models/admin-user';
 import type { Role } from '../../../../data/models/role';
 

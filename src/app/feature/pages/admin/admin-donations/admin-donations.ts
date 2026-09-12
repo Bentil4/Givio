@@ -3,9 +3,10 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { Donation, DonationType, DONATION_TYPE_LABELS, formatCedis, totalMinor } from '../../../../data/models/donation';
+import { Donation, DonationType, DONATION_TYPE_LABELS } from '../../../../data/models/donation';
+import { formatCedis, totalMinor } from '../../../../utils/donation.util';
 import { DonationService } from '../../../../data/services/donation.service';
-import { ServiceError } from '../../../../data/services/service-error';
+import { ServiceError } from '../../../../core/services/service-error';
 
 interface Filters {
   eventId: string | null;

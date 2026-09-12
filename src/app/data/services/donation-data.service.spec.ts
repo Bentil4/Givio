@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { DonationDataService } from './donation-data.service';
-import { ServiceError } from './service-error';
+import { ServiceError } from '../../core/services/service-error';
 import { AuthService } from './auth.service';
-import { DATABASES, FUNCTIONS, REALTIME } from '../appwrite/client';
+import { DATABASES, FUNCTIONS, REALTIME } from '../../core/appwrite/client';
 import { appDb } from '../dexie/app-db';
 import type { Event } from '../models/event';
 

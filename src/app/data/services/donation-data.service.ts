@@ -1,14 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { Channel, ID, Models, Query } from 'appwrite';
-import { DATABASES, FUNCTIONS, REALTIME } from '../appwrite/client';
+import { DATABASES, FUNCTIONS, REALTIME } from '../../core/appwrite/client';
 import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
 import { appDb } from '../dexie/app-db';
-import type { OutboxEntry } from '../dexie/outbox-entry';
+import type { OutboxEntry } from '../models/outbox-entry';
 import type { Donation, DonationDraft } from '../models/donation';
 import type { Event } from '../models/event';
-import { eventShortCode, provisionalReceiptNumber } from '../models/receipt-numbering';
+import { eventShortCode, provisionalReceiptNumber } from '../../utils/receipt-numbering.util';
 import { AuthService } from './auth.service';
-import { ServiceError } from './service-error';
+import { ServiceError } from '../../core/services/service-error';
 import { writeAuditLog } from './audit-log-writer';
 import { environment } from '../../../environments/environment';
 
