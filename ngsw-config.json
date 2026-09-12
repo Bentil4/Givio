@@ -26,5 +26,19 @@
         ]
       }
     }
+  ],
+  "dataGroups": [
+    {
+      "name": "appwrite-tablesdb-reads",
+      "urls": [
+        "https://fra.cloud.appwrite.io/v1/tablesdb/**"
+      ],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "maxSize": 100,
+        "maxAge": "1d",
+        "timeout": "5s"
+      }
+    }
   ]
 }
