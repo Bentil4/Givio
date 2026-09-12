@@ -1,9 +1,12 @@
 {
   "name": "givio",
   "short_name": "givio",
+  "description": "Record and track donations at events, online or offline.",
   "display": "standalone",
   "scope": "./",
   "start_url": "./",
+  "theme_color": "#1a6b7a",
+  "background_color": "#ffffff",
   "icons": [
     {
       "src": "icons/icon-72x72.png",
