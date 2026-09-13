@@ -155,6 +155,25 @@
   flex-shrink: 0;
 }
 
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  min-height: 44px; /* Story 5.1: touch target minimum */
+  gap: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--primary-black);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s var(--ease);
+
+  &:hover {
+    background-color: var(--bg-mist);
+  }
+}
+
 .logout-button {
   display: flex;
   align-items: center;

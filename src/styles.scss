@@ -78,9 +78,9 @@ html {
 }
 
 body {
-  // Default the application to a light color theme. This can be changed to
-  // `dark` to enable the dark color theme, or to `light dark` to defer to the
-  // user's system settings.
+  // Light is the fallback color-scheme; the dark-theme-tokens mixin below overrides it
+  // (system preference, then ThemeService's explicit data-theme choice) at higher
+  // selector specificity, so it wins regardless of source order.
   color-scheme: light;
 
   // Set a default background, font and text colors for the application using
@@ -152,6 +152,58 @@ body {
 
   /* Transitions */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Dark theme ──────────────────────────────────────────
+   Not a literal inversion: each token keeps the ROLE it plays in light mode (e.g.
+   --primary-dark is "the ink color" everywhere, --data-4 is "the more prominent of the two
+   muted-text shades"), re-picked for a dark ground instead of algorithmically inverted.
+   System preference by default; an explicit ThemeService.toggle() (data-theme attribute)
+   wins over it either way — see core/services/theme.service.ts. */
+@mixin dark-theme-tokens {
+  color-scheme: dark;
+
+  --primary-deep: #2a92a6;
+  --primary-mid: #33d6ea;
+  --primary-dark: #8fd8e8;
+  --primary-black: #dce6ea;
+  --primary-deep-cyan: #38b6d9;
+  --color-danger: #ff5252;
+
+  --bg-white: #16292f;
+  --bg-light: #0e1e24;
+  --bg-mist: #1e3840;
+  --bg-frost: #24424c;
+
+  --func-success: #4ade80;
+  --func-error: #f87171;
+  --func-warning: #fbbf24;
+  --func-info: #60a5fa;
+
+  --accent-sky: #6cd4ee;
+  --accent-teal: #2de0bd;
+
+  --data-1: #17262b;
+  --data-2: #223840;
+  --data-3: #6e8891;
+  --data-4: #9fb8c0;
+
+  --glass-bg: rgba(22, 41, 47, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* Followed only until an explicit choice exists — see ThemeService.readInitialTheme(). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    @include dark-theme-tokens;
+  }
+}
+
+/* Explicit choice, made via the sidebar's theme toggle — wins over system preference in
+   both directions (also covers data-theme="dark" while the OS itself is set to light). */
+:root[data-theme='dark'] {
+  @include dark-theme-tokens;
 }
 
 // The universal box-sizing/margin/padding reset used to live here as a plain,

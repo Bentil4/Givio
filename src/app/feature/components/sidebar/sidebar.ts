@@ -4,6 +4,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import type { Theme } from '../../../core/services/theme.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -19,7 +20,9 @@ export class Sidebar {
   /** Story 5.1: below the mobile breakpoint, the sidebar is an off-canvas drawer instead of an
    *  always-visible column — independent of `collapsed`, which is a desktop-only preference. */
   public mobileOpen = input<boolean>(false);
+  public theme = input<Theme>('light');
   public toggleCollapsed = output<void>();
   public dismissMobile = output<void>();
+  public toggleTheme = output<void>();
   public logout = output<void>();
 }
