@@ -39,16 +39,16 @@
   cursor: pointer;
   transition: all .18s var(--ease);
 
-  &:hover:not(.is-active) { background: rgba(0, 200, 224, .06); }
+  &:hover:not(.is-active) { background: rgba(10, 88, 102, .06); }
 
   &.is-active {
     border-color: var(--primary-deep);
-    background: rgba(0, 200, 224, .09);
+    background: rgba(10, 88, 102, .09);
   }
 }
 
 .conflict-pick-receipt {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
   color: var(--data-4);
 }

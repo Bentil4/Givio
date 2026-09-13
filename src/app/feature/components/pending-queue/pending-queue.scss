@@ -17,7 +17,7 @@
   align-items: flex-start;
   gap: var(--space-md);
   padding: var(--space-lg);
-  border-bottom: 1.5px solid rgba(26, 107, 122, .12);
+  border-bottom: 1.5px solid rgba(15, 122, 140, .12);
 }
 
 .queue-heading {
@@ -41,7 +41,7 @@
   cursor: pointer;
   transition: all .18s var(--ease);
 
-  &:hover { background: rgba(26, 107, 122, .08); color: var(--primary-dark); }
+  &:hover { background: rgba(15, 122, 140, .08); color: var(--primary-dark); }
 }
 
 .queue-body {
@@ -100,7 +100,7 @@
 
 .queue-amount {
   flex: none;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--primary-dark);
@@ -120,7 +120,7 @@
 .queue-explainer {
   margin-top: var(--space-lg);
   padding: var(--space-md);
-  border: 1.5px solid rgba(26, 107, 122, .12);
+  border: 1.5px solid rgba(15, 122, 140, .12);
   border-radius: var(--radius-md);
   background: var(--bg-mist);
 
@@ -133,7 +133,7 @@
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
-  border-top: 1.5px solid rgba(26, 107, 122, .12);
+  border-top: 1.5px solid rgba(15, 122, 140, .12);
 }
 
 .queue-blocked {

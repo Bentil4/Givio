@@ -22,7 +22,7 @@
   display: flex;
   flex-direction: column;
   padding: var(--space-lg);
-  border: 1.5px solid rgba(26, 107, 122, .15);
+  border: 1.5px solid rgba(15, 122, 140, .15);
   border-radius: var(--radius-lg);
   background: var(--bg-white);
 
@@ -31,7 +31,7 @@
   &.is-server {
     border-width: 2px;
     border-color: var(--primary-deep);
-    box-shadow: 0 4px 16px rgba(26, 107, 122, .12);
+    box-shadow: 0 4px 16px rgba(15, 122, 140, .12);
   }
 
   .btn { margin-top: var(--space-md); width: 100%; }
@@ -43,7 +43,7 @@
   justify-content: space-between;
   gap: var(--space-sm);
   padding-bottom: var(--space-md);
-  border-bottom: 1.5px solid rgba(26, 107, 122, .09);
+  border-bottom: 1.5px solid rgba(15, 122, 140, .09);
 
   h3 { margin: 0 0 3px; }
   p { margin: 0; }
@@ -68,7 +68,7 @@
 
   // Only the fields that actually differ are highlighted, so the eye lands on the decision.
   &.is-diff dd {
-    font-family: monospace;
+    font-family: var(--font-mono);
     font-weight: 700;
     color: var(--primary-deep);
   }
@@ -80,7 +80,7 @@
   gap: var(--space-md);
   margin-top: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border: 1.5px solid rgba(26, 107, 122, .12);
+  border: 1.5px solid rgba(15, 122, 140, .12);
   border-radius: var(--radius-md);
   background: var(--bg-white);
 }

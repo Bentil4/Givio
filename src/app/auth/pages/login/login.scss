@@ -75,7 +75,7 @@
 }
 
 .brand-stat-value {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1.35rem;
   font-weight: 700;
   color: var(--primary-mid);
@@ -178,14 +178,14 @@
 
 .input, .password-wrap {
   height: 44px;
-  border: 1.5px solid rgba(26, 107, 122, .15);
+  border: 1.5px solid rgba(15, 122, 140, .15);
   border-radius: var(--radius-md);
   background: var(--bg-white);
   transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
 
   &:focus, &:focus-within {
     border-color: var(--primary-deep);
-    box-shadow: 0 0 0 3px rgba(0, 200, 224, .15);
+    box-shadow: 0 0 0 3px rgba(10, 88, 102, .15);
   }
 
   &.is-invalid {
@@ -254,7 +254,7 @@
     content: '';
     flex: 1;
     height: 1px;
-    background: rgba(26, 107, 122, .12);
+    background: rgba(15, 122, 140, .12);
   }
 }
 
@@ -291,7 +291,7 @@
   border: 2px solid rgba(245, 158, 11, .35);
   border-radius: var(--radius-full);
   background: rgba(245, 158, 11, .10);
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1.2rem;
   font-weight: 700;
   color: #92400e;

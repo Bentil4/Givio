@@ -48,7 +48,7 @@
   height: 44px;
   padding: 0 var(--space-md);
   background: var(--glass-bg);
-  border: 1.5px solid rgba(26, 107, 122, .15);
+  border: 1.5px solid rgba(15, 122, 140, .15);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
   /* 1rem (16px), not 0.85rem: iOS Safari auto-zooms on focus for inputs under 16px. */
@@ -61,7 +61,7 @@
 
   &:focus {
     border-color: var(--primary-deep);
-    box-shadow: 0 0 0 3px rgba(0, 200, 224, .15);
+    box-shadow: 0 0 0 3px rgba(10, 88, 102, .15);
   }
 
   &.is-invalid {
@@ -89,12 +89,12 @@
   height: 64px;
   padding: 0 var(--space-md);
   background: var(--glass-bg);
-  border: 1.5px solid rgba(26, 107, 122, .15);
+  border: 1.5px solid rgba(15, 122, 140, .15);
   border-radius: var(--radius-md);
 
   &:focus-within {
     border-color: var(--primary-deep);
-    box-shadow: 0 0 0 3px rgba(0, 200, 224, .15);
+    box-shadow: 0 0 0 3px rgba(10, 88, 102, .15);
   }
 
   &.is-invalid {
@@ -104,7 +104,7 @@
 }
 
 .amount-prefix {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.9rem;
   color: var(--data-4);
 }
@@ -115,7 +115,7 @@
   border: 0;
   outline: none;
   background: none;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1.9rem;
   font-weight: 700;
   color: var(--primary-dark);
@@ -129,7 +129,7 @@
 .segment {
   flex: 1;
   height: 46px;
-  border: 1.5px solid rgba(26, 107, 122, .2);
+  border: 1.5px solid rgba(15, 122, 140, .2);
   border-radius: var(--radius-full);
   background: transparent;
   font-family: var(--font-body);
@@ -140,7 +140,7 @@
   transition: all .18s var(--ease);
 
   &:hover:not(.is-selected) {
-    background: rgba(0, 200, 224, .08);
+    background: rgba(10, 88, 102, .08);
     border-color: var(--primary-deep);
   }
 
@@ -148,7 +148,7 @@
     background: linear-gradient(135deg, var(--primary-deep), var(--primary-dark));
     border-color: transparent;
     color: var(--bg-white);
-    box-shadow: 0 3px 12px rgba(26, 107, 122, .3);
+    box-shadow: 0 3px 12px rgba(15, 122, 140, .3);
   }
 }
 

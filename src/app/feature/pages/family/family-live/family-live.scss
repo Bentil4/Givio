@@ -81,7 +81,7 @@
 .family-total-value {
   display: block;
   margin-top: 4px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 2.4rem;
   font-weight: 700;
   line-height: 1.15;
@@ -101,7 +101,7 @@
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
   margin-top: var(--space-md);
-  border: 1.5px solid rgba(26, 107, 122, .12);
+  border: 1.5px solid rgba(15, 122, 140, .12);
   border-radius: var(--radius-md);
   background: var(--bg-white);
 }
@@ -126,7 +126,7 @@
 
 .slice-value {
   display: block;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--primary-dark);
@@ -180,7 +180,7 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md);
-  border: 1.5px solid rgba(26, 107, 122, .10);
+  border: 1.5px solid rgba(15, 122, 140, .10);
   border-radius: var(--radius-md);
   background: var(--bg-white);
 }
@@ -212,7 +212,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: rgba(13, 74, 90, .45);
+  background: rgba(18, 38, 43, .45);
   z-index: 50;
 }
 
@@ -238,7 +238,7 @@
 .sheet-intro { margin: 6px 0 var(--space-md); line-height: 1.6; text-wrap: pretty; }
 
 .sheet-cols {
-  border: 1.5px solid rgba(26, 107, 122, .12);
+  border: 1.5px solid rgba(15, 122, 140, .12);
   border-radius: var(--radius-md);
   overflow: hidden;
 
@@ -246,7 +246,7 @@
     margin: 0;
     padding: 11px var(--space-md);
     background: var(--bg-mist);
-    border-bottom: 1.5px solid rgba(26, 107, 122, .10);
+    border-bottom: 1.5px solid rgba(15, 122, 140, .10);
   }
 
   ul { list-style: none; margin: 0; padding: 6px 0; }

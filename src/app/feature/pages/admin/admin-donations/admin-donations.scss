@@ -35,7 +35,7 @@
 
 .page-total-value {
   display: block;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1.35rem;
   font-weight: 700;
   color: var(--primary-deep);
@@ -62,14 +62,14 @@
   gap: var(--space-sm);
   height: 44px; /* Story 5.1: touch target minimum */
   padding: 0 var(--space-md);
-  border: 1.5px solid rgba(26, 107, 122, .15);
+  border: 1.5px solid rgba(15, 122, 140, .15);
   border-radius: var(--radius-full);
   background: var(--bg-white);
   min-width: 260px;
 
   &:focus-within {
     border-color: var(--primary-deep);
-    box-shadow: 0 0 0 3px rgba(0, 200, 224, .15);
+    box-shadow: 0 0 0 3px rgba(10, 88, 102, .15);
   }
 
   mat-icon { flex: none; color: var(--data-3); font-size: 18px; width: 18px; height: 18px; }
@@ -120,7 +120,7 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md);
-  border-bottom: 1px solid rgba(26, 107, 122, .07);
+  border-bottom: 1px solid rgba(15, 122, 140, .07);
 
   &:last-child { border-bottom: 0; }
 }
@@ -150,7 +150,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-lg);
-  background: rgba(13, 74, 90, .45);
+  background: rgba(18, 38, 43, .45);
   z-index: 50;
 }
 
@@ -175,8 +175,8 @@
 
 .dialog-body {
   padding: var(--space-md) var(--space-lg);
-  border-top: 1.5px solid rgba(26, 107, 122, .10);
-  border-bottom: 1.5px solid rgba(26, 107, 122, .10);
+  border-top: 1.5px solid rgba(15, 122, 140, .10);
+  border-bottom: 1.5px solid rgba(15, 122, 140, .10);
   background: var(--bg-mist);
   display: flex;
   flex-direction: column;
@@ -217,7 +217,7 @@
 .input {
   height: 44px; /* Story 5.1: touch target minimum */
   padding: 0 var(--space-md);
-  border: 1.5px solid rgba(26, 107, 122, .15);
+  border: 1.5px solid rgba(15, 122, 140, .15);
   border-radius: var(--radius-md);
   background: var(--bg-white);
   font-family: var(--font-body);
@@ -231,7 +231,7 @@
 
   &:focus {
     border-color: var(--primary-deep);
-    box-shadow: 0 0 0 3px rgba(0, 200, 224, .15);
+    box-shadow: 0 0 0 3px rgba(10, 88, 102, .15);
   }
 
   &.is-invalid {
@@ -242,7 +242,7 @@
 
 .input--amount {
   height: 52px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1.25rem;
   font-weight: 700;
 }

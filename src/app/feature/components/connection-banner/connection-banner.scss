@@ -17,8 +17,8 @@
 }
 
 .banner--syncing {
-  background: rgba(0, 200, 224, .08);
-  border-color: rgba(26, 107, 122, .25);
+  background: rgba(10, 88, 102, .08);
+  border-color: rgba(15, 122, 140, .25);
   color: var(--primary-dark);
 }
 
@@ -55,7 +55,7 @@
 
 .banner-count {
   flex: none;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.8rem;
   font-weight: 700;
 }

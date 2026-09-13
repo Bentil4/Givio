@@ -28,11 +28,11 @@
 .btn-primary {
   background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary-dark) 100%);
   color: #fff;
-  box-shadow: 0 4px 16px rgba(26, 107, 122, 0.35);
+  box-shadow: 0 4px 16px rgba(15, 122, 140, 0.35);
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(26, 107, 122, 0.45);
+    box-shadow: 0 8px 24px rgba(15, 122, 140, 0.45);
   }
   &:active {
     transform: translateY(0);
@@ -42,11 +42,11 @@
 .btn-secondary {
   background: transparent;
   color: var(--primary-dark);
-  border: 2px solid rgba(26, 107, 122, 0.35);
+  border: 2px solid rgba(15, 122, 140, 0.35);
 
   &:hover {
     border-color: var(--primary-deep);
-    background: rgba(0, 200, 224, 0.06);
+    background: rgba(10, 88, 102, 0.06);
     transform: translateY(-1px);
   }
 }
