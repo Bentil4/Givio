@@ -42,7 +42,9 @@
 
   // Same self-reference issue as --color-danger above: --font-display/--font-body already
   // exist under those exact names, so literal values are duplicated here instead of var().
-  --font-display: 'Syne', sans-serif;
+  // Both resolve to the same face on purpose — hierarchy comes from size/weight on one
+  // typeface, not a second display font (see :root below).
+  --font-display: 'DM Sans', sans-serif;
   --font-body: 'DM Sans', sans-serif;
 
   --spacing-xs: var(--space-xs);
@@ -126,8 +128,9 @@ body {
   --data-3: #8aaab5;
   --data-4: #4a6b78;
 
-  /* Typography */
-  --font-display: 'Syne', sans-serif;
+  /* Typography — one face for both roles; hierarchy comes from size/weight (see .logo,
+     .badge, .section-label etc. below), not a second display font. */
+  --font-display: 'DM Sans', sans-serif;
   --font-body: 'DM Sans', sans-serif;
 
   /* Spacing */
@@ -144,11 +147,13 @@ body {
   --radius-lg: 20px;
   --radius-full: 9999px;
 
-  /* Glass */
-  --glass-bg: rgba(255, 255, 255, 0.55);
-  --glass-border: rgba(255, 255, 255, 0.75);
-  --glass-shadow: 0 8px 32px rgba(26, 107, 122, 0.1);
-  --glass-blur: blur(18px);
+  /* Surface — solid, not translucent: an opaque card/field fill with a quiet teal-tinted
+     border and a soft ink shadow, replacing the old backdrop-blur glass treatment. Token
+     names kept as --glass-* to avoid renaming every consumer; the effect is deliberately
+     no longer glass. */
+  --glass-bg: var(--bg-white);
+  --glass-border: rgba(26, 107, 122, 0.14);
+  --glass-shadow: 0 1px 2px rgba(13, 30, 35, 0.05), 0 6px 16px rgba(13, 30, 35, 0.05);
 
   /* Transitions */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -188,9 +193,10 @@ body {
   --data-3: #6e8891;
   --data-4: #9fb8c0;
 
-  --glass-bg: rgba(22, 41, 47, 0.55);
+  /* Solid surface fill, not translucent — see the light-mode comment above --glass-bg. */
+  --glass-bg: var(--bg-white);
   --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 16px rgba(0, 0, 0, 0.3);
 }
 
 /* Followed only until an explicit choice exists — see ThemeService.readInitialTheme(). */
@@ -244,11 +250,9 @@ body {
   padding: 0 var(--space-lg) var(--space-2xl);
 }
 
-/* ── Glass Mixin ─────────────────────────────────────── */
+/* ── Surface ────────────────────────────────────────── */
 .glass {
   background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
   border: 1.5px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
 }
@@ -262,8 +266,7 @@ body {
 .logo {
   font-family: var(--font-display);
   font-size: 2.4rem;
-  font-weight: 800;
-  font-style: italic;
+  font-weight: 700;
   color: var(--primary-dark);
   letter-spacing: -0.03em;
 }
@@ -272,7 +275,6 @@ body {
   font-family: var(--font-display);
   font-size: 0.85rem;
   font-weight: 700;
-  font-style: italic;
   padding: 6px 20px;
   border: 2px solid var(--primary-dark);
   border-radius: var(--radius-full);
@@ -285,7 +287,6 @@ body {
   font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 700;
-  font-style: italic;
   color: var(--primary-deep);
   letter-spacing: 0.01em;
   margin-bottom: var(--space-md);
@@ -297,7 +298,6 @@ body {
   font-family: var(--font-body);
   font-size: 0.7rem;
   font-weight: 400;
-  font-style: italic;
   color: var(--data-4);
   margin-bottom: var(--space-sm);
   letter-spacing: 0.03em;
@@ -334,7 +334,6 @@ section {
   padding: 6px 14px;
   border-radius: var(--radius-full);
   background: var(--glass-bg);
-  backdrop-filter: blur(10px);
   border: 1.5px solid rgba(26, 107, 122, 0.18);
   color: var(--primary-dark);
   cursor: default;
@@ -720,7 +719,6 @@ section {
   width: 100%;
   padding: 12px 40px 12px 16px;
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
   border: 1.5px solid rgba(26, 107, 122, 0.15);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
