@@ -83,7 +83,7 @@
   <!-- This click only stops the backdrop's dismiss-click from bubbling up — it's not itself a
        keyboard-operable control, so there's no keyboard equivalent to add. -->
   <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
-  <div class="dialog dialog--sm glass" role="dialog" aria-label="Recover donation" (click)="$event.stopPropagation()">
+  <div class="dialog dialog--sm glass glass-thick" role="dialog" aria-label="Recover donation" (click)="$event.stopPropagation()">
     <header class="dialog-head">
       <h2 class="t-page-title">Recover {{ d.receiptNumber }}?</h2>
       <p class="t-secondary">{{ d.donorName }} · {{ amountLabel(d) }}</p>

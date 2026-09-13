@@ -7,6 +7,7 @@
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+  padding: 0 var(--space-lg) var(--space-2xl);
 }
 
 .mobile-nav-toggle {
@@ -27,7 +28,9 @@
     z-index: 1001;
     border: none;
     border-radius: var(--radius-full);
-    background-color: var(--bg-white);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     color: var(--primary-black);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     cursor: pointer;

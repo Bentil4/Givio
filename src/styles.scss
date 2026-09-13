@@ -55,10 +55,11 @@
   --spacing-2xl: var(--space-2xl);
 
   // Same self-reference issue again: --radius-sm/md/lg/full already exist under those exact
-  // names (Tailwind's own --radius-* namespace), so literal values are duplicated here.
+  // names (Tailwind's own --radius-* namespace), so literal values are duplicated here. Kept
+  // in sync by hand with :root's radius tokens below (Liquid Glass's rounder scale).
   --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
+  --radius-md: 16px;
+  --radius-lg: 28px;
   --radius-full: 9999px;
 
   --ease-brand: var(--ease);
@@ -140,7 +141,8 @@ body {
   /* Data Colors — a neutral ink-teal scale for secondary/tertiary text and muted fills. */
   --data-1: #eef2f3;
   --data-2: #c3d3d6; /* --border-strong */
-  --data-3: #5f7a83; /* --text-tertiary — #8aa3ab only reached 2.66:1 on white; darkened to 4.57:1 */
+  --data-3: #5a747d; /* --text-tertiary — darkened again (from #5f7a83) so it still clears 4.5:1
+    when composited over a translucent glass panel, not just solid white */
   --data-4: #56707a; /* --text-secondary */
 
   /* Numeric figures (amounts, receipt numbers, codes) get a monospace face with tabular
@@ -161,19 +163,29 @@ body {
   --space-xl: 40px;
   --space-2xl: 64px;
 
-  /* Radius */
+  /* Radius — larger, rounder "squircle-ish" scale to match Apple's Liquid Glass surfaces. */
   --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
+  --radius-md: 16px;
+  --radius-lg: 28px;
   --radius-full: 9999px;
 
-  /* Surface — solid, not translucent: an opaque card/field fill with a quiet teal-tinted
-     border and a soft ink shadow, replacing the old backdrop-blur glass treatment. Token
-     names kept as --glass-* to avoid renaming every consumer; the effect is deliberately
-     no longer glass. */
-  --glass-bg: var(--bg-white);
-  --glass-border: rgba(15, 122, 140, 0.14);
-  --glass-shadow: 0 1px 2px rgba(13, 30, 35, 0.05), 0 6px 16px rgba(13, 30, 35, 0.05);
+  /* Liquid Glass material — translucent, blurred, saturated. The saturate() boost alongside
+     blur() is what actually reads as "glass" rather than a flat translucent overlay; skipping
+     it is the most common reason a DIY glass effect looks dull. --glass-bg-thick is a more
+     opaque variant for modals/sheets, which need to stay legible over whatever's behind them,
+     matching Apple's own distinction between its Regular and Thick materials.
+     --glass-border-top is the specular highlight — applied only to border-top, simulating a
+     light source catching the top edge of the glass pane. */
+  --glass-blur: 24px;
+  --glass-saturate: 1.6;
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-thick: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-border-top: rgba(255, 255, 255, 0.95);
+  --glass-shadow:
+    0 1px 1px rgba(18, 38, 43, 0.05),
+    0 8px 24px rgba(18, 38, 43, 0.1),
+    0 24px 48px rgba(18, 38, 43, 0.08);
 
   /* Transitions */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -218,10 +230,21 @@ body {
   --data-3: #7d99a1; /* --text-tertiary (dark) — lightened to clear 4.5:1 on the dark card bg */
   --data-4: #9db3ba; /* --text-secondary (dark) */
 
-  /* Solid surface fill, not translucent — see the light-mode comment above --glass-bg. */
-  --glass-bg: var(--bg-white);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 16px rgba(0, 0, 0, 0.3);
+  /* Liquid Glass material (dark) — same translucent/blur/saturate treatment as light mode,
+     re-picked for a dark ground: a lower saturate() boost (dark surfaces don't need as much
+     vibrancy push to read as "glass"), and the specular highlight is a subtle bright edge
+     rather than light mode's near-white one. See the light-mode comment above for the full
+     rationale. */
+  --glass-blur: 24px;
+  --glass-saturate: 1.3;
+  --glass-bg: rgba(22, 41, 47, 0.55);
+  --glass-bg-thick: rgba(22, 41, 47, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-border-top: rgba(255, 255, 255, 0.22);
+  --glass-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.25),
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 24px 48px rgba(0, 0, 0, 0.3);
 }
 
 /* Followed only until an explicit choice exists — see ThemeService.readInitialTheme(). */
@@ -270,7 +293,6 @@ body {
 
 /* ── Layout ─────────────────────────────────────────── */
 .page {
-  // max-width: 1100px;
   margin: 0 auto;
   padding: 0 var(--space-lg) var(--space-2xl);
 }
@@ -278,8 +300,19 @@ body {
 /* ── Surface ────────────────────────────────────────── */
 .glass {
   background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border: 1.5px solid var(--glass-border);
+  /* The specular highlight — border-top-color alone, not border-color — is what makes a flat
+     translucent panel actually read as a pane of glass catching light from above. */
+  border-top-color: var(--glass-border-top);
   box-shadow: var(--glass-shadow);
+}
+
+/* Modals/sheets need to stay legible over whatever's behind them — Apple's own distinction
+   between Regular and Thick material. Apply alongside .glass, e.g. class="glass glass-thick". */
+.glass-thick {
+  background: var(--glass-bg-thick);
 }
 
 /* ── Header ─────────────────────────────────────────── */
@@ -359,6 +392,8 @@ section {
   padding: 6px 14px;
   border-radius: var(--radius-full);
   background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border: 1.5px solid rgba(15, 122, 140, 0.18);
   color: var(--primary-dark);
   cursor: default;
@@ -750,6 +785,8 @@ section {
   width: 100%;
   padding: 12px 40px 12px 16px;
   background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border: 1.5px solid rgba(15, 122, 140, 0.15);
   border-radius: var(--radius-md);
   font-family: var(--font-body);

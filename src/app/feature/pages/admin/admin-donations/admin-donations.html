@@ -122,7 +122,7 @@
   <!-- This click only stops the backdrop's dismiss-click from bubbling up — it's not itself a
        keyboard-operable control, so there's no keyboard equivalent to add. -->
   <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
-  <form class="dialog glass" [formGroup]="editForm" (ngSubmit)="saveEdit()" (click)="$event.stopPropagation()" novalidate>
+  <form class="dialog glass glass-thick" [formGroup]="editForm" (ngSubmit)="saveEdit()" (click)="$event.stopPropagation()" novalidate>
     <header class="dialog-head">
       <h2 class="t-page-title">Edit donation {{ record.receiptNumber }}</h2>
       <p class="t-secondary">
@@ -219,7 +219,7 @@
   <!-- This click only stops the backdrop's dismiss-click from bubbling up — it's not itself a
        keyboard-operable control, so there's no keyboard equivalent to add. -->
   <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
-  <form class="dialog dialog--sm glass" [formGroup]="deleteForm" (ngSubmit)="confirmDelete()" (click)="$event.stopPropagation()" novalidate>
+  <form class="dialog dialog--sm glass glass-thick" [formGroup]="deleteForm" (ngSubmit)="confirmDelete()" (click)="$event.stopPropagation()" novalidate>
     <header class="dialog-head">
       <h2 class="t-page-title">Remove {{ record.receiptNumber }}?</h2>
       <p class="t-secondary">

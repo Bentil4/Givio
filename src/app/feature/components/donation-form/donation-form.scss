@@ -48,6 +48,8 @@
   height: 44px;
   padding: 0 var(--space-md);
   background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border: 1.5px solid rgba(15, 122, 140, .15);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
@@ -89,6 +91,8 @@
   height: 64px;
   padding: 0 var(--space-md);
   background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border: 1.5px solid rgba(15, 122, 140, .15);
   border-radius: var(--radius-md);
 

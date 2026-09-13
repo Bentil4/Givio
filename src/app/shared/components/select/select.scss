@@ -18,6 +18,8 @@
   min-height: 44px; /* Story 5.1: touch target minimum */
   padding: 12px 40px 12px 16px;
   background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border: 1.5px solid rgba(15, 122, 140, 0.15);
   border-radius: var(--radius-md);
   font-family: var(--font-body);

@@ -6,8 +6,13 @@
   position: sticky;
   top: 0;
   flex-shrink: 0;
-  background-color: var(--bg-white);
-  border-right: 1px solid var(--bg-frost);
+  /* Liquid Glass: the nav rail is exactly the kind of chrome Apple's own system applies this
+     material to first — a floating surface with content scrolling behind it, not a data
+     surface where blur would fight legibility. */
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border-right: 1px solid var(--glass-border);
   transition: width 0.25s var(--ease);
   overflow-x: hidden;
   
