@@ -33,7 +33,7 @@
       <select class="select-field" [value]="actorFilter()" (change)="setActor($any($event.target).value)">
         <option value="all">Everyone</option>
         @for (actor of actors(); track actor) {
-          <option [value]="actor">{{ actor }}</option>
+          <option [value]="actor">{{ actorName(actor) }}</option>
         }
       </select>
     }
@@ -72,7 +72,7 @@
     <ol class="trail glass">
       @for (e of visible(); track e.id) {
         <li class="trail-row">
-          <span class="trail-time">{{ e.timestamp }}</span>
+          <span class="trail-time">{{ e.timestamp | date:'MMM d, y, h:mm a' }}</span>
           <span class="trail-tag" [class]="actionClass(e.action)">{{ actionLabel(e.action) }}</span>
           <span class="trail-body">
             <span class="t-body">{{ e.summary }}</span>
@@ -80,7 +80,7 @@
               <span class="t-tertiary trail-detail">{{ e.detail }}</span>
             }
           </span>
-          <span class="trail-actor">{{ e.actor }}</span>
+          <span class="trail-actor">{{ actorName(e.actor) }}</span>
         </li>
       }
     </ol>

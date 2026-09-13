@@ -81,7 +81,7 @@
           <div class="feed-row">
             <div class="feed-main">
               <span class="t-body-em">{{ d.donorName }}</span>
-              <span class="t-tertiary">{{ d.recordedAt }}</span>
+              <span class="t-tertiary">{{ d.recordedAt | date:'MMM d, y, h:mm a' }}</span>
             </div>
             <span class="is-mono is-strong">{{ feedAmountLabel(d) }}</span>
           </div>

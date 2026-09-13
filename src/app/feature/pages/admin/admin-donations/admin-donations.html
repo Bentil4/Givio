@@ -43,7 +43,7 @@
       <select class="select-field" [value]="filters().operator" (change)="setOperator($any($event.target).value)">
         <option value="all">All operators</option>
         @for (op of operators(); track op) {
-          <option [value]="op">{{ op }}</option>
+          <option [value]="op">{{ userName(op) }}</option>
         }
       </select>
     }
@@ -99,7 +99,7 @@
               <td class="is-num is-mono is-strong">{{ amountLabel(d) }}</td>
               <td>{{ labels[d.donationType] }}</td>
               <td class="is-muted">{{ d.onBehalfOf || '—' }}</td>
-              <td class="is-muted">{{ d.recordedBy }}</td>
+              <td class="is-muted">{{ userName(d.recordedBy) }}</td>
               <td class="is-actions">
                 <button type="button" class="btn-ghost" (click)="openEdit(d)">Edit</button>
                 <button type="button" class="btn-ghost is-danger" (click)="openDelete(d)">Delete</button>
@@ -126,8 +126,8 @@
     <header class="dialog-head">
       <h2 class="t-page-title">Edit donation {{ record.receiptNumber }}</h2>
       <p class="t-secondary">
-        Recorded by {{ record.recordedBy }} at {{ record.recordedAt }}. The family's live total updates
-        the moment you save.
+        Recorded by {{ userName(record.recordedBy) }} at {{ record.recordedAt | date:'MMM d, y, h:mm a' }}.
+        The family's live total updates the moment you save.
       </p>
     </header>
 

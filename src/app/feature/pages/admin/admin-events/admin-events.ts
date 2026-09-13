@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { EventService } from '../../../../data/services/event.service';
 import { UserService } from '../../../../data/services/user.service';
@@ -26,7 +27,7 @@ import type { AdminUser } from '../../../../data/models/admin-user';
  */
 @Component({
   selector: 'app-admin-events',
-  imports: [MatIconModule, ReactiveFormsModule, RouterLink],
+  imports: [MatIconModule, ReactiveFormsModule, RouterLink, DatePipe],
   templateUrl: './admin-events.html',
   styleUrl: './admin-events.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

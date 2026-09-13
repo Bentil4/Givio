@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { Donation, DONATION_TYPE_LABELS } from '../../../data/models/donation';
 import { formatCedis } from '../../../utils/donation.util';
 
@@ -11,6 +12,7 @@ import { formatCedis } from '../../../utils/donation.util';
  */
 @Component({
   selector: 'app-donation-row',
+  imports: [DatePipe],
   templateUrl: './donation-row.html',
   styleUrl: './donation-row.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -70,7 +70,7 @@
             <tr>
               <td>
                 <span class="t-body-em">{{ e.name }}</span>
-                <span class="cell-sub">{{ e.type }} · {{ e.date }}@if (e.venue) { · {{ e.venue }} }</span>
+                <span class="cell-sub">{{ e.type }} · {{ e.date | date:'mediumDate':'UTC' }}@if (e.venue) { · {{ e.venue }} }</span>
               </td>
               <td class="is-mono is-muted">{{ codeLabel(e) }}</td>
               <td><span class="tag" [class]="chipClass[e.status]">{{ statusLabel(e.status) }}</span></td>

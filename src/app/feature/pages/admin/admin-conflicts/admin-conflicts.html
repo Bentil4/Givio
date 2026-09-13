@@ -67,7 +67,7 @@
           <p class="field-error">{{ err }}</p>
         }
         @if (active(); as c) {
-          <app-conflict-resolver [conflict]="c" [busy]="busy()" (resolved)="resolve($event)" />
+          <app-conflict-resolver [conflict]="c" [busy]="busy()" [users]="usersById()" (resolved)="resolve($event)" />
         }
       </div>
     </div>

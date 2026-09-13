@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Donation, DonationType, DONATION_TYPE_LABELS } from '../../../../data/models/donation';
 import { formatCedis, formatCedisShort, totalMinor } from '../../../../utils/donation.util';
@@ -27,7 +28,7 @@ type Tab = 'all' | 'mine' | 'pending' | DonationType;
  */
 @Component({
   selector: 'app-operator-donations',
-  imports: [MatIconModule, RouterLink],
+  imports: [MatIconModule, RouterLink, DatePipe],
   templateUrl: './operator-donations.html',
   styleUrl: './operator-donations.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

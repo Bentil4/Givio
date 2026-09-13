@@ -24,7 +24,7 @@
       <div class="skel skel--total"></div>
     } @else {
       <h1 class="family-title">{{ event()?.name }}</h1>
-      <p class="family-venue">{{ event()?.venue }} · {{ event()?.date }}</p>
+      <p class="family-venue">{{ event()?.venue }} · {{ event()?.date | date:'mediumDate':'UTC' }}</p>
 
       <div class="family-total">
         <span class="family-total-label">Received so far</span>

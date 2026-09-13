@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DonationRow } from '../../../components/donation-row/donation-row';
 import { Donation, DonationType } from '../../../../data/models/donation';
@@ -34,7 +35,7 @@ const POLL_INTERVAL_MS = 15_000;
  */
 @Component({
   selector: 'app-family-live',
-  imports: [MatIconModule, DonationRow, RouterLink],
+  imports: [MatIconModule, DonationRow, RouterLink, DatePipe],
   templateUrl: './family-live.html',
   styleUrl: './family-live.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
