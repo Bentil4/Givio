@@ -18,7 +18,7 @@
 
   &.is-pending {
     border-style: dashed;
-    border-color: rgba(245, 158, 11, .40);
+    border-color: rgba(180, 83, 9, .40);
   }
 }
 
@@ -52,6 +52,7 @@
 .row-value {
   display: block;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--primary-dark);

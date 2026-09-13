@@ -20,7 +20,8 @@
   // NOTE: the existing token is itself named `--color-danger` (matches Tailwind's own
   // `--color-*` namespace) — referencing it via var() here would be a circular/invalid
   // self-reference, so the literal value is duplicated from :root's --color-danger below.
-  --color-danger: #ef0b0b;
+  // Kept in sync by hand — currently DMS's --action-destructive-bg (red.500).
+  --color-danger: #c2352e;
 
   --color-bg-white: var(--bg-white);
   --color-bg-light: var(--bg-light);
@@ -44,8 +45,8 @@
   // exist under those exact names, so literal values are duplicated here instead of var().
   // Both resolve to the same face on purpose — hierarchy comes from size/weight on one
   // typeface, not a second display font (see :root below).
-  --font-display: 'DM Sans', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
+  --font-display: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
+  --font-body: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
 
   --spacing-xs: var(--space-xs);
   --spacing-sm: var(--space-sm);
@@ -56,10 +57,10 @@
 
   // Same self-reference issue again: --radius-sm/md/lg/full already exist under those exact
   // names (Tailwind's own --radius-* namespace), so literal values are duplicated here. Kept
-  // in sync by hand with :root's radius tokens below (Liquid Glass's rounder scale).
-  --radius-sm: 6px;
-  --radius-md: 16px;
-  --radius-lg: 28px;
+  // in sync by hand with :root's radius tokens below (DMS's tighter scale).
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
   --radius-full: 9999px;
 
   --ease-brand: var(--ease);
@@ -99,63 +100,127 @@ body {
 }
 /* You can add global styles to this file, and also import other style files */
 :root {
-  /* Primary Colors — retuned to a restrained, desaturated ink-teal palette (Design System v1):
-     one accent color used deliberately, not spread across chrome; a near-black ink for text
-     instead of a saturated dark teal. Token NAMES kept as-is to avoid renaming ~40 consumer
-     files — only the values changed. */
-  --primary-deep: #0f7a8c; /* --accent */
-  --primary-mid: #0a5866; /* --accent-strong (hover/active depth, not a second bright hue) */
-  --primary-dark: #12262b; /* --text-primary */
-  --primary-black: #3d5a63; /* secondary nav/icon text — between text-primary and text-secondary */
-  --primary-deep-cyan: #0a5866; /* a distinguishing highlight, same depth as --accent-strong */
-  --color-danger: #dc2626; /* aligned with --func-error below */
+  /* ============================================================================
+     DMS Design Tokens — three-layer architecture (Primitive -> Semantic ->
+     Component), per dms-design-tokens.md. Primitives are never consumed
+     directly by component CSS; only the semantic layer is. The app's existing
+     token NAMES (--primary-deep, --data-4, --func-success, etc.) are kept as
+     aliases onto the new semantic layer below them, so none of the ~40
+     consumer files needed to change — only what those names resolve to did.
+     Spacing is deliberately untouched — see --space-* further down, values
+     unchanged from before this refactor.
+     ============================================================================ */
 
-  /* Background Colors */
-  --bg-white: #ffffff;
-  --bg-light: #f5f8f9; /* --surface-sunken */
-  --bg-mist: #eef2f3;
-  --bg-frost: #dee7e9; /* --border */
+  /* ---- 1. Primitive palette (do not consume directly) ---- */
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f7f8fa;
+  --color-neutral-100: #eef0f3;
+  --color-neutral-300: #c9ced6;
+  --color-neutral-500: #7a828e; /* kept exactly as spec'd for non-text use (icons, borders) —
+    used directly as TEXT it only reaches 3.88:1 on white, so --text-secondary below uses a
+    separately darkened value instead, not this primitive. */
+  --color-neutral-700: #3c4450;
+  --color-neutral-900: #12151a;
+  --color-brand-500: #1f5fbf;
+  --color-brand-700: #164a99;
+  --color-green-500: #1d8a4e;
+  --color-green-100: #e4f5ec;
+  --color-amber-500: #b5790c;
+  --color-amber-100: #fbf0da;
+  --color-red-500: #c2352e;
+  --color-red-100: #fbe7e6;
+  --color-blue-500: #2a72d6;
+  --color-blue-100: #e7f0fc;
 
-  /* Functional Colors */
-  --func-success: #15803d; /* #1f9d55 only reached 3.49:1 on white — darkened to clear AA's 4.5:1 */
-  --func-error: #dc2626;
-  --func-warning: #b45309;
-  --func-info: #2563eb;
+  /* ---- 2. Semantic tokens (what component CSS actually consumes) ---- */
+  --bg-canvas: var(--color-neutral-50);
+  --bg-surface: var(--color-neutral-0);
+  --bg-surface-raised: var(--color-neutral-0); /* + elevation-2, see below */
+  --border-default: var(--color-neutral-300);
+  --border-focus: var(--color-brand-500);
+  --text-primary: var(--color-neutral-900);
+  /* #5b636d, not the raw neutral.500 primitive above — corrected so actual TEXT clears AA's
+     4.5:1 (verified: 6.09:1 on white, 5.51:1 on canvas; the raw primitive only reaches 3.88:1). */
+  --text-secondary: #5b636d;
+  /* Not in the source spec (it only defines two text tiers) — this app's existing components
+     rely on three (primary/secondary/tertiary). Derived and AA-verified: 4.99:1 on white,
+     4.70:1 on canvas. */
+  --text-tertiary: #677080;
+  --text-disabled: var(--color-neutral-300);
+  --text-on-brand: var(--color-neutral-0);
 
-  /* Soft (low-alpha) backgrounds paired with the functional colors above — for tags/toasts
-     that need to stay legible against BOTH the light and dark page background, unlike the
-     old hardcoded rgba()+hex pairs they replace (those never adapted to dark mode: a dark
-     green/red/blue foreground on a barely-tinted background is unreadable once the page
-     itself turns dark). */
-  --func-success-soft: rgba(21, 128, 61, 0.14);
-  --func-error-soft: rgba(220, 38, 38, 0.12);
-  --func-warning-soft: rgba(180, 83, 9, 0.14);
-  --func-info-soft: rgba(37, 99, 235, 0.12);
+  /* Action */
+  --action-primary-bg: var(--color-brand-500);
+  --action-primary-bg-hover: var(--color-brand-700);
+  --action-primary-fg: var(--color-neutral-0);
+  --action-secondary-border: var(--color-neutral-300);
+  --action-destructive-bg: var(--color-red-500);
 
-  /* Accent Colors — accent-teal collapses onto the single accent (one accent color, not two);
-     accent-sky (a categorical color for the "in-kind" donation type, not brand chrome) is
-     desaturated to fit the same restrained mood instead of eliminated outright. */
-  --accent-sky: #6b96a8;
-  --accent-teal: #0f7a8c;
+  /* Status — the only five status colors anywhere in the app, per the source spec's own
+     explicit rule ("resist adding more"). Text colors on the -100 tints are the spec's own
+     given darkened values (already AA-verified in the source doc); the bare -500 shades are
+     NOT used as text on a light tint anywhere (green.500/amber.500 raw only reach 4.38:1/
+     3.68:1 on white — real gaps in the source spec's own "-500 always hits 4.5:1" claim,
+     which is why the darkened -on-tint values exist and are what's actually wired up below). */
+  --status-verified-bg: var(--color-green-100);
+  --status-verified-fg: #12603a;
+  --status-pending-bg: var(--color-amber-100);
+  --status-pending-fg: #8c5c09;
+  --status-flagged-bg: var(--color-red-100);
+  --status-flagged-fg: #8f2a25;
+  --status-reversed-bg: var(--color-neutral-100);
+  --status-reversed-fg: var(--color-neutral-700);
+  --status-info-bg: var(--color-blue-100);
+  --status-info-fg: #1d57a6;
 
-  /* Data Colors — a neutral ink-teal scale for secondary/tertiary text and muted fills. */
-  --data-1: #eef2f3;
-  --data-2: #c3d3d6; /* --border-strong */
-  --data-3: #5a747d; /* --text-tertiary — darkened again (from #5f7a83) so it still clears 4.5:1
-    when composited over a translucent glass panel, not just solid white */
-  --data-4: #56707a; /* --text-secondary */
+  /* ---- Legacy token names, aliased onto the semantic layer above (Component layer) ----
+     Every one of these already existed and is referenced throughout the app; only their
+     VALUES change here, so no consumer file needed to be touched. */
+  --primary-deep: var(--action-primary-bg);
+  --primary-mid: var(--action-primary-bg-hover);
+  --primary-dark: var(--text-primary);
+  --primary-black: var(--text-secondary);
+  --primary-deep-cyan: var(--action-primary-bg-hover);
+  --color-danger: var(--action-destructive-bg);
 
-  /* Numeric figures (amounts, receipt numbers, codes) get a monospace face with tabular
-     numerals — a real legibility win on money, not decoration. See index.html for the
-     Google Fonts <link>. */
-  --font-mono: 'DM Mono', monospace;
+  --bg-white: var(--bg-surface);
+  --bg-light: var(--bg-canvas);
+  --bg-mist: var(--color-neutral-100);
+  --bg-frost: var(--border-default);
 
-  /* Typography — one face for both roles; hierarchy comes from size/weight (see .logo,
-     .badge, .section-label etc. below), not a second display font. */
-  --font-display: 'DM Sans', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
+  --func-success: var(--status-verified-fg);
+  --func-error: var(--status-flagged-fg);
+  --func-warning: var(--status-pending-fg);
+  --func-info: var(--status-info-fg);
+  --func-success-soft: var(--status-verified-bg);
+  --func-error-soft: var(--status-flagged-bg);
+  --func-warning-soft: var(--status-pending-bg);
+  --func-info-soft: var(--status-info-bg);
 
-  /* Spacing */
+  /* Categorical (not semantic-status) colors — e.g. the "in-kind" donation-type legend dot.
+     Kept as its own hue since it isn't one of the five status colors above and never needs to
+     mean "success/error/etc." — just visually distinct. */
+  --accent-sky: #5a7fa8;
+  --accent-teal: var(--action-primary-bg);
+
+  --data-1: var(--color-neutral-100);
+  --data-2: var(--color-neutral-300);
+  --data-3: var(--text-tertiary);
+  --data-4: var(--text-secondary);
+
+  /* ---- Typography ----
+     One humanist sans for all UI text (Inter — see index.html's <link>, IBM Plex Sans/
+     system-ui fallback for anywhere Inter fails to load). Numeric figures (amounts, receipt
+     numbers, codes) get the SAME family with tabular numerals forced on, not a separate
+     monospace face — misaligned digits erode trust on a ledger fast, but a second typeface
+     isn't needed to fix that. --font-mono is kept only because ~35 call sites across the app
+     already reference it; it now resolves to the base font, paired everywhere it's used with
+     `font-variant-numeric: tabular-nums`. */
+  --font-body: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
+  --font-display: var(--font-body); /* one face for both roles — hierarchy comes from size/weight */
+  --font-mono: var(--font-body);
+
+  /* Spacing — UNCHANGED by this refactor. */
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
@@ -163,32 +228,62 @@ body {
   --space-xl: 40px;
   --space-2xl: 64px;
 
-  /* Radius — larger, rounder "squircle-ish" scale to match Apple's Liquid Glass surfaces. */
-  --radius-sm: 6px;
-  --radius-md: 16px;
-  --radius-lg: 28px;
+  /* ---- Radius ----
+     sm/md/full exactly as spec'd; the spec has no explicit "lg" tier (used by this app's
+     bigger panels/dialogs) — 14px is a reasoned middle step between md(8px) and a pill,
+     consistent with the tighter, more reserved scale the spec's sm/md values imply versus
+     this app's previous, rounder "squircle" one. */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
   --radius-full: 9999px;
 
-  /* Liquid Glass material — translucent, blurred, saturated. The saturate() boost alongside
-     blur() is what actually reads as "glass" rather than a flat translucent overlay; skipping
-     it is the most common reason a DIY glass effect looks dull. --glass-bg-thick is a more
-     opaque variant for modals/sheets, which need to stay legible over whatever's behind them,
-     matching Apple's own distinction between its Regular and Thick materials.
-     --glass-border-top is the specular highlight — applied only to border-top, simulating a
-     light source catching the top edge of the glass pane. */
-  --glass-blur: 24px;
-  --glass-saturate: 1.6;
-  --glass-bg: rgba(255, 255, 255, 0.55);
-  --glass-bg-thick: rgba(255, 255, 255, 0.75);
-  --glass-border: rgba(255, 255, 255, 0.5);
-  --glass-border-top: rgba(255, 255, 255, 0.95);
-  --glass-shadow:
-    0 1px 1px rgba(18, 38, 43, 0.05),
-    0 8px 24px rgba(18, 38, 43, 0.1),
-    0 24px 48px rgba(18, 38, 43, 0.08);
+  /* ---- Elevation (solid surfaces — cards, tables, dropdowns, modals) ---- */
+  --elevation-1: 0 1px 2px rgba(18, 21, 26, 0.06); /* table rows, list items */
+  --elevation-2: 0 4px 12px rgba(18, 21, 26, 0.1); /* cards, dropdowns */
+  --elevation-3: 0 12px 32px rgba(18, 21, 26, 0.16); /* modals */
 
-  /* Transitions */
-  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  /* ---- Border ---- */
+  --border-width-default: 1px;
+  --border-width-focus: 2px;
+
+  /* ---- Motion ----
+     Kept minimal and quick — a finance-adjacent tool, not a marketing site. --ease already
+     existed and is referenced everywhere; repointed to the new standard curve below rather
+     than renamed. */
+  --motion-duration-fast: 120ms;
+  --motion-duration-default: 200ms;
+  --motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease: var(--motion-easing-standard);
+
+  /* ---- Glass / Material (Apple-style; see dms-design-tokens.md section 7) ----
+     Used ONLY for floating chrome — the nav rail, the mobile nav-toggle FAB, and
+     modal/dialog sheets — never for the ledger, KPI numbers, or status badges, which all
+     stay on solid --bg-surface + elevation so figures stay legible regardless of what's
+     scrolling underneath. See .glass/.glass-thick below for how that split is actually
+     enforced without needing any template changes. */
+  --material-ultrathin-bg: rgba(255, 255, 255, 0.55);
+  --material-ultrathin-blur: 20px;
+  --material-thin-bg: rgba(255, 255, 255, 0.68);
+  --material-thin-blur: 30px;
+  --material-regular-bg: rgba(255, 255, 255, 0.78);
+  --material-regular-blur: 40px;
+  --material-thick-bg: rgba(255, 255, 255, 0.88);
+  --material-thick-blur: 50px;
+  --material-chrome-bg: rgba(246, 246, 248, 0.94); /* near-opaque, no blur — toolbars sitting
+    directly over data tables, and the @supports fallback when backdrop-filter is unsupported */
+  --glass-saturate: 1.8; /* 180%, per spec */
+  --glass-border: rgba(255, 255, 255, 0.6); /* top-edge highlight */
+  --glass-shadow: 0 8px 30px rgba(18, 21, 26, 0.12);
+
+  /* Legacy glass token names — aliased onto the material tiers above. .glass itself is
+     redefined to be SOLID (see the .glass rule further down) since almost everywhere it's
+     applied is a data panel, not chrome; --glass-bg/-bg-thick still exist for the few
+     genuine chrome surfaces (sidebar, FAB, dialogs) that reference them directly. */
+  --glass-blur: var(--material-regular-blur);
+  --glass-bg: var(--material-regular-bg);
+  --glass-bg-thick: var(--material-thick-bg);
+  --glass-border-top: var(--glass-border);
 }
 
 /* ── Dark theme ──────────────────────────────────────────
@@ -200,51 +295,103 @@ body {
 @mixin dark-theme-tokens {
   color-scheme: dark;
 
-  --primary-deep: #39bdd2; /* --accent (dark) */
-  --primary-mid: #6ad2e3; /* --accent-strong (dark) */
-  --primary-dark: #eaf2f3; /* --text-primary (dark) */
-  --primary-black: #9db3ba; /* secondary nav/icon text (dark) */
-  --primary-deep-cyan: #6ad2e3;
-  --color-danger: #f2685f;
+  /* The source spec gives no dark-mode values at all for section 1 — everything below is
+     this app's own derivation, each token re-picked for a dark ground while keeping the ROLE
+     it plays in light mode (not an algorithmic inversion), and AA-verified the same way the
+     light-mode corrections above were. */
+  --color-neutral-0: #0b0d0f; /* darkest — the "canvas" ground in dark mode */
+  --color-neutral-50: #121417; /* app canvas */
+  --color-neutral-100: #1b1e22; /* raised surface fill */
+  --color-neutral-300: #2a2f36; /* border/divider */
+  --color-neutral-500: #838c97; /* kept close to its light-mode counterpart's role */
+  --color-neutral-700: #c9ced6;
+  --color-neutral-900: #f3f4f6; /* headings/emphasis — near-white, not pure white */
+  --color-brand-500: #4c8ce0;
+  --color-brand-700: #6ea3ea; /* dark-mode "hover" brightens rather than darkens */
+  --color-green-500: #2fae6b;
+  --color-green-100: #16241c;
+  --color-amber-500: #d99a1f;
+  --color-amber-100: #2a2110;
+  --color-red-500: #d9534a;
+  --color-red-100: #2b1716;
+  --color-blue-500: #4f8fe0;
+  --color-blue-100: #141f2e;
 
-  --bg-white: #16292f;
-  --bg-light: #0d1b1f; /* --surface-sunken (dark) */
-  --bg-mist: #1c3239; /* --surface-raised (dark) */
-  --bg-frost: #24424c; /* --border (dark) */
+  --bg-canvas: var(--color-neutral-50);
+  --bg-surface: var(--color-neutral-100); /* a dark canvas needs a LIGHTER surface to read as
+    "raised", the same relationship light mode has (canvas is slightly darker than surface) */
+  --bg-surface-raised: #22262b;
+  --border-default: var(--color-neutral-300);
+  --border-focus: var(--color-brand-500);
+  --text-primary: var(--color-neutral-900);
+  --text-secondary: #a7afb9; /* AA-verified: 7.55:1 on the dark surface */
+  --text-tertiary: #88919c; /* AA-verified: 5.24:1 on the dark surface */
+  --text-disabled: var(--color-neutral-300);
+  --text-on-brand: #0b0d0f; /* dark text reads better on the lighter dark-mode brand blue
+    than white would */
 
-  --func-success: #34d17a;
-  --func-error: #f2685f;
-  --func-warning: #f2a33d;
-  --func-info: #5b9bf7;
+  --action-primary-bg: var(--color-brand-500);
+  --action-primary-bg-hover: var(--color-brand-700);
+  --action-primary-fg: var(--text-on-brand);
+  --action-secondary-border: var(--color-neutral-300);
+  --action-destructive-bg: var(--color-red-500);
 
-  --func-success-soft: rgba(52, 209, 122, 0.14);
-  --func-error-soft: rgba(242, 104, 95, 0.14);
-  --func-warning-soft: rgba(242, 163, 61, 0.14);
-  --func-info-soft: rgba(91, 155, 247, 0.14);
+  --status-verified-bg: var(--color-green-100);
+  --status-verified-fg: #5fc98a;
+  --status-pending-bg: var(--color-amber-100);
+  --status-pending-fg: #f0b429;
+  --status-flagged-bg: var(--color-red-100);
+  --status-flagged-fg: #f0827d;
+  --status-reversed-bg: var(--color-neutral-100);
+  --status-reversed-fg: var(--color-neutral-700);
+  --status-info-bg: var(--color-blue-100);
+  --status-info-fg: #7fb0f0;
 
-  --accent-sky: #7fa8b8;
-  --accent-teal: #39bdd2;
+  --primary-deep: var(--action-primary-bg);
+  --primary-mid: var(--action-primary-bg-hover);
+  --primary-dark: var(--text-primary);
+  --primary-black: var(--text-secondary);
+  --primary-deep-cyan: var(--action-primary-bg-hover);
+  --color-danger: var(--action-destructive-bg);
 
-  --data-1: #0d1b1f;
-  --data-2: #24424c; /* --border-strong (dark) */
-  --data-3: #7d99a1; /* --text-tertiary (dark) — lightened to clear 4.5:1 on the dark card bg */
-  --data-4: #9db3ba; /* --text-secondary (dark) */
+  --bg-white: var(--bg-surface);
+  --bg-light: var(--bg-canvas);
+  --bg-mist: var(--bg-surface-raised);
+  --bg-frost: var(--border-default);
 
-  /* Liquid Glass material (dark) — same translucent/blur/saturate treatment as light mode,
-     re-picked for a dark ground: a lower saturate() boost (dark surfaces don't need as much
-     vibrancy push to read as "glass"), and the specular highlight is a subtle bright edge
-     rather than light mode's near-white one. See the light-mode comment above for the full
-     rationale. */
-  --glass-blur: 24px;
-  --glass-saturate: 1.3;
-  --glass-bg: rgba(22, 41, 47, 0.55);
-  --glass-bg-thick: rgba(22, 41, 47, 0.8);
-  --glass-border: rgba(255, 255, 255, 0.06);
-  --glass-border-top: rgba(255, 255, 255, 0.22);
-  --glass-shadow:
-    0 1px 1px rgba(0, 0, 0, 0.25),
-    0 8px 24px rgba(0, 0, 0, 0.4),
-    0 24px 48px rgba(0, 0, 0, 0.3);
+  --func-success: var(--status-verified-fg);
+  --func-error: var(--status-flagged-fg);
+  --func-warning: var(--status-pending-fg);
+  --func-info: var(--status-info-fg);
+  --func-success-soft: var(--status-verified-bg);
+  --func-error-soft: var(--status-flagged-bg);
+  --func-warning-soft: var(--status-pending-bg);
+  --func-info-soft: var(--status-info-bg);
+
+  --accent-sky: #7d9dbd;
+  --accent-teal: var(--action-primary-bg);
+
+  --data-1: var(--color-neutral-100);
+  --data-2: var(--color-neutral-300);
+  --data-3: var(--text-tertiary);
+  --data-4: var(--text-secondary);
+
+  /* Glass / Material (dark) — same tiers as light mode, re-picked for a dark ground: a dark,
+     not light, translucent fill, and a much dimmer specular highlight (there's far less "shine"
+     to catch on a dark surface). See the light-mode comment above --material-ultrathin-bg for
+     the full rationale on why these exist and where they're actually used. */
+  --material-ultrathin-bg: rgba(28, 28, 30, 0.45);
+  --material-thin-bg: rgba(28, 28, 30, 0.6);
+  --material-regular-bg: rgba(28, 28, 30, 0.72);
+  --material-thick-bg: rgba(28, 28, 30, 0.85);
+  --material-chrome-bg: rgba(22, 22, 24, 0.94);
+  --glass-saturate: 1.8;
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+
+  --glass-bg: var(--material-regular-bg);
+  --glass-bg-thick: var(--material-thick-bg);
+  --glass-border-top: var(--glass-border);
 }
 
 /* Followed only until an explicit choice exists — see ThemeService.readInitialTheme(). */
@@ -298,21 +445,37 @@ body {
 }
 
 /* ── Surface ────────────────────────────────────────── */
+/* Solid, not glass: everywhere .glass is actually applied in this app (tables, dashboards,
+   forms, panels) is the ledger/KPI content the source spec explicitly says never sits on
+   glass — figures need to stay legible regardless of what's scrolling underneath. Token name
+   kept as-is (~18 templates already use class="... glass") so no template changes were
+   needed; only what the class itself renders as changed. */
 .glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  border: 1.5px solid var(--glass-border);
-  /* The specular highlight — border-top-color alone, not border-color — is what makes a flat
-     translucent panel actually read as a pane of glass catching light from above. */
-  border-top-color: var(--glass-border-top);
+  background: var(--bg-surface);
+  border: var(--border-width-default) solid var(--border-default);
+  box-shadow: var(--elevation-2);
+}
+
+/* The exception: modal/dialog sheets ARE genuine floating chrome per the source spec ("modals,
+   bottom sheets" -> thick material), so .glass-thick re-applies the real translucent material
+   on top of .glass's now-solid rule above — same specificity, later in the stylesheet, so it
+   wins for every property it sets. Every dialog in the app already carries both classes
+   (class="dialog ... glass glass-thick"), so this needed no template changes either. */
+.glass-thick {
+  background: var(--material-thick-bg);
+  backdrop-filter: blur(var(--material-thick-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--material-thick-blur)) saturate(var(--glass-saturate));
+  border: var(--border-width-default) solid var(--glass-border);
+  border-top-color: var(--glass-border);
   box-shadow: var(--glass-shadow);
 }
 
-/* Modals/sheets need to stay legible over whatever's behind them — Apple's own distinction
-   between Regular and Thick material. Apply alongside .glass, e.g. class="glass glass-thick". */
-.glass-thick {
-  background: var(--glass-bg-thick);
+/* Fallback for browsers/OS configurations without backdrop-filter support, so chrome never
+   silently becomes unreadable — falls back to the near-opaque, no-blur chrome material. */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-thick {
+    background: var(--material-chrome-bg);
+  }
 }
 
 /* ── Header ─────────────────────────────────────────── */
@@ -391,9 +554,7 @@ section {
   font-weight: 400;
   padding: 6px 14px;
   border-radius: var(--radius-full);
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  background: var(--bg-surface); /* solid, not glass — a content pill, not floating chrome */
   border: 1.5px solid rgba(15, 122, 140, 0.18);
   color: var(--primary-dark);
   cursor: default;
@@ -631,6 +792,7 @@ section {
 }
 .table .is-mono {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.75rem;
 }
 .table .is-strong {
@@ -784,9 +946,7 @@ section {
 .select-field {
   width: 100%;
   padding: 12px 40px 12px 16px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  background: var(--bg-surface); /* solid, not glass — a form control, not floating chrome */
   border: 1.5px solid rgba(15, 122, 140, 0.15);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
@@ -871,14 +1031,14 @@ section {
   border-radius: var(--radius-md);
   object-fit: cover;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #c5dfe6, #9abfc8);
+  background: #9abfc8; /* flat fill, not a gradient */
   overflow: hidden;
 }
 .card-thumb-placeholder {
   width: 64px;
   height: 64px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #c5dfe6 0%, #9abfc8 100%);
+  background: #9abfc8; /* flat fill, not a gradient */
   flex-shrink: 0;
   position: relative;
   overflow: hidden;
@@ -916,6 +1076,7 @@ section {
 }
 .token-table td:first-child {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.75rem;
   color: var(--primary-deep);
 }

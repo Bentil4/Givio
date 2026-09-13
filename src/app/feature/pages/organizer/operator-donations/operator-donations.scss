@@ -45,6 +45,7 @@
 .op-total-value {
   display: block;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--primary-deep);
@@ -54,12 +55,12 @@
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md);
-  border: 1.5px solid rgba(245, 158, 11, .28);
+  border: 1.5px solid rgba(180, 83, 9, .28);
   border-radius: var(--radius-md);
-  background: rgba(245, 158, 11, .08);
+  background: rgba(180, 83, 9, .08);
 
   mat-icon { flex: none; color: var(--func-warning); font-size: 18px; width: 18px; height: 18px; }
-  p { margin: 0; color: #92400e; line-height: 1.55; text-wrap: pretty; }
+  p { margin: 0; color: var(--func-warning); line-height: 1.55; text-wrap: pretty; }
 }
 
 .op-controls {
@@ -72,6 +73,7 @@
 .tab-count {
   margin-left: 6px;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.68rem;
   opacity: .7;
 }
@@ -94,13 +96,14 @@
   &:last-child { border-bottom: 0; }
   &:hover { background: rgba(10, 88, 102, .04); }
 
-  &.is-pending { background: rgba(245, 158, 11, .05); }
+  &.is-pending { background: rgba(180, 83, 9, .05); }
 }
 
 .op-receipt {
   flex: none;
   width: 116px;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.72rem;
   color: var(--data-4);
 }
@@ -129,6 +132,7 @@
 
 .op-amount {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--primary-dark);

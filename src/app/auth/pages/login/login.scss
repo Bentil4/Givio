@@ -13,7 +13,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary-dark) 100%);
+  background: var(--primary-deep); /* flat fill, not a gradient */
   color: var(--bg-white);
 }
 
@@ -76,6 +76,7 @@
 
 .brand-stat-value {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 1.35rem;
   font-weight: 700;
   color: var(--primary-mid);
@@ -119,9 +120,9 @@
 .auth-error {
   margin-bottom: var(--space-lg);
   padding: var(--space-md);
-  border: 1.5px solid rgba(239, 68, 68, .28);
+  border: 1.5px solid rgba(220, 38, 38, .28);
   border-radius: var(--radius-md);
-  background: rgba(239, 68, 68, .07);
+  background: rgba(220, 38, 38, .07);
 
   p { margin: 0; }
 }
@@ -135,7 +136,7 @@
 .auth-error-detail {
   margin-top: 3px !important;
   font-size: 0.82rem;
-  color: #b91c1c;
+  color: var(--func-error);
   line-height: 1.5;
 }
 
@@ -190,7 +191,7 @@
 
   &.is-invalid {
     border-color: var(--func-error);
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, .12);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, .12);
   }
 }
 
@@ -288,13 +289,15 @@
   justify-content: center;
   width: 56px;
   height: 56px;
-  border: 2px solid rgba(245, 158, 11, .35);
+  border: 2px solid var(--func-warning-soft);
   border-radius: var(--radius-full);
-  background: rgba(245, 158, 11, .10);
+  background: var(--func-warning-soft);
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 1.2rem;
   font-weight: 700;
-  color: #92400e;
+  color: var(--func-warning); /* theme-aware — a hardcoded hex here looked fine in light mode
+    and would have failed contrast once retuned/in dark mode */
   margin-bottom: var(--space-md);
 }
 

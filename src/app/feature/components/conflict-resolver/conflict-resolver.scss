@@ -2,9 +2,9 @@
 
 .resolver-explainer {
   padding: var(--space-md) var(--space-lg);
-  border: 1.5px solid rgba(245, 158, 11, .28);
+  border: 1.5px solid rgba(180, 83, 9, .28);
   border-radius: var(--radius-md);
-  background: rgba(245, 158, 11, .08);
+  background: rgba(180, 83, 9, .08);
 
   h2 { margin: 0 0 6px; }
   p { margin: 0; max-width: 78ch; line-height: 1.6; text-wrap: pretty; }
@@ -69,6 +69,7 @@
   // Only the fields that actually differ are highlighted, so the eye lands on the decision.
   &.is-diff dd {
     font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
     font-weight: 700;
     color: var(--primary-deep);
   }

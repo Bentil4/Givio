@@ -4,12 +4,12 @@
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md);
-  border: 1.5px solid rgba(245, 158, 11, .28);
+  border: 1.5px solid rgba(180, 83, 9, .28);
   border-radius: var(--radius-md);
-  background: rgba(245, 158, 11, .08);
+  background: rgba(180, 83, 9, .08);
 
   mat-icon { flex: none; color: var(--func-warning); font-size: 18px; width: 18px; height: 18px; }
-  p { margin: 0; color: #92400e; line-height: 1.55; text-wrap: pretty; }
+  p { margin: 0; color: var(--func-warning); line-height: 1.55; text-wrap: pretty; }
 }
 
 .stat-grid {
@@ -28,6 +28,7 @@
 
 .stat-value {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -.02em;
@@ -87,6 +88,7 @@
 
 .donut-count {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--primary-dark);
@@ -128,6 +130,7 @@
 
 .legend-value {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.7rem;
   color: var(--data-4);
 }
@@ -160,6 +163,7 @@
 
 .bar-count {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.62rem;
   color: var(--data-4);
 }

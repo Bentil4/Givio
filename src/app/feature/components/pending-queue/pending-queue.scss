@@ -75,9 +75,9 @@
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md);
-  border: 1.5px solid rgba(245, 158, 11, .28);
+  border: 1.5px solid rgba(180, 83, 9, .28);
   border-radius: var(--radius-md);
-  background: rgba(245, 158, 11, .07);
+  background: rgba(180, 83, 9, .07);
 }
 
 .queue-dot {
@@ -101,6 +101,7 @@
 .queue-amount {
   flex: none;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--primary-dark);
@@ -141,8 +142,8 @@
   margin: 0;
   padding: 9px 11px;
   border-radius: var(--radius-sm);
-  background: rgba(245, 158, 11, .10);
-  color: #92400e;
+  background: rgba(180, 83, 9, .10);
+  color: var(--func-warning);
 }
 
 .queue-footer .btn-primary:disabled {

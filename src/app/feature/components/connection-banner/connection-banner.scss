@@ -11,9 +11,9 @@
 }
 
 .banner--offline {
-  background: rgba(245, 158, 11, .10);
-  border-color: rgba(245, 158, 11, .30);
-  color: #92400e;
+  background: rgba(180, 83, 9, .10);
+  border-color: rgba(180, 83, 9, .30);
+  color: var(--func-warning);
 }
 
 .banner--syncing {
@@ -23,9 +23,9 @@
 }
 
 .banner--synced {
-  background: rgba(34, 197, 94, .12);
-  border-color: rgba(34, 197, 94, .30);
-  color: #15803d;
+  background: rgba(21, 128, 61, .12);
+  border-color: rgba(21, 128, 61, .30);
+  color: var(--func-success);
 }
 
 .banner-icon {
@@ -56,6 +56,7 @@
 .banner-count {
   flex: none;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.8rem;
   font-weight: 700;
 }

@@ -13,7 +13,7 @@
 .phone-head {
   flex: none;
   padding: var(--space-md) var(--space-lg);
-  background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary-dark) 100%);
+  background: var(--primary-deep); /* flat fill, not a gradient */
   color: var(--bg-white);
 }
 
@@ -67,6 +67,7 @@
 
 .phone-total {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 1.4rem;
   font-weight: 700;
   color: var(--primary-mid);
@@ -84,7 +85,7 @@
   margin-top: var(--space-sm);
   padding: 4px 10px;
   border-radius: var(--radius-full);
-  background: rgba(245, 158, 11, .22);
+  background: rgba(180, 83, 9, .22);
   font-size: 0.68rem;
   font-weight: 600;
   color: #fde68a;
@@ -111,12 +112,14 @@
 
 .amount-prefix {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.95rem;
   color: var(--data-4);
 }
 
 .amount-value {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   /* Story 5.1: a fixed 2.5rem risks overflowing a 360px viewport once the digit count grows
      (e.g. GH₵100,000.00) — clamp() shrinks it on narrower screens instead of clipping a real
      money amount, which must stay fully visible and correct. */
@@ -182,7 +185,7 @@
   transition: all .18s var(--ease);
 
   &.is-selected {
-    background: linear-gradient(135deg, var(--primary-deep), var(--primary-dark));
+    background: var(--primary-deep); /* flat fill, not a gradient */
     border-color: transparent;
     color: var(--bg-white);
   }
@@ -209,6 +212,7 @@
   border-radius: var(--radius-md);
   background: var(--bg-mist);
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 1.3rem;
   font-weight: 500;
   color: var(--primary-dark);
@@ -224,7 +228,7 @@
   margin-top: var(--space-sm);
   border: 0;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--primary-deep), var(--primary-dark));
+  background: var(--primary-deep); /* flat fill, not a gradient */
   font-family: var(--font-body);
   font-size: 1rem;
   font-weight: 700;
