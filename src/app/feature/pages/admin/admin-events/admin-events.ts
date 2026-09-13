@@ -5,10 +5,13 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { EventService } from '../../../../data/services/event.service';
 import { UserService } from '../../../../data/services/user.service';
+import { DonationService } from '../../../../data/services/donation.service';
 import { ServiceError } from '../../../../core/services/service-error';
 import type { Event, EventStatus, EventType } from '../../../../data/models/event';
 import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
 import type { AdminUser } from '../../../../data/models/admin-user';
+import type { Donation } from '../../../../data/models/donation';
+import { formatCedis, totalMinor } from '../../../../utils/donation.util';
 
 /**
  * Event management. Status is the gate on everything downstream, so the table leads with it
@@ -36,6 +39,7 @@ export class AdminEvents implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly eventService = inject(EventService);
   private readonly userService = inject(UserService);
+  private readonly donationService = inject(DonationService);
 
   public readonly events = this.eventService.events;
   public readonly loading = signal(true);
@@ -68,9 +72,21 @@ export class AdminEvents implements OnInit {
 
   public readonly isEmpty = computed(() => !this.loading() && this.visible().length === 0);
 
+  private readonly donationsByEvent = computed(() => {
+    const map = new Map<string, Donation[]>();
+    for (const d of this.donationService.donations()) {
+      if (d.deletedAt || d.syncStatus === 'conflict') continue;
+      const list = map.get(d.eventId);
+      if (list) list.push(d);
+      else map.set(d.eventId, [d]);
+    }
+    return map;
+  });
+
   ngOnInit(): void {
     this.loadEvents();
     this.loadOperators();
+    this.loadDonationTotals();
   }
 
   async loadEvents(): Promise<void> {
@@ -96,16 +112,18 @@ export class AdminEvents implements OnInit {
     }
   }
 
-  /**
-   * Still a stub: per-event donation totals need a per-event aggregate query, which no service
-   * in this list view currently loads (DonationDataService exists post-Epic 3, but wiring a
-   * real total here means fetching every event's donations up front just for this column —
-   * out of scope for this pass). Takes the event so the template call site and a future real
-   * implementation's signature don't need to change together.
-   */
+  /** Non-critical for this page — a failed load just leaves every row's total at "GH₵ 0.00"
+   *  rather than blocking the event list itself. */
+  async loadDonationTotals(): Promise<void> {
+    try {
+      await this.donationService.loadAllDonations();
+    } catch {
+      // Leaves donationsByEvent() at whatever it already was (empty on first load).
+    }
+  }
+
   public totalLabel(event: Event): string {
-    void event;
-    return '—';
+    return formatCedis(totalMinor(this.donationsByEvent().get(event.id) ?? []));
   }
 
   public codeLabel(e: Event): string {

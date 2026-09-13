@@ -5,10 +5,12 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { appDb } from '../../../../data/dexie/app-db';
 import { EventService } from '../../../../data/services/event.service';
 import { UserService } from '../../../../data/services/user.service';
+import { DonationService } from '../../../../data/services/donation.service';
 import { ServiceError } from '../../../../core/services/service-error';
 import type { Event, EventStatus } from '../../../../data/models/event';
 import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
 import type { AdminUser } from '../../../../data/models/admin-user';
+import { formatCedis, totalMinor } from '../../../../utils/donation.util';
 
 type Confirmable = 'pause' | 'resume' | 'close' | 'reopen' | 'generate' | 'regenerate' | null;
 type StatusAction = 'pause' | 'resume' | 'close' | 'reopen';
@@ -57,6 +59,7 @@ export class AdminEventDetail implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly eventService = inject(EventService);
   private readonly userService = inject(UserService);
+  private readonly donationService = inject(DonationService);
 
   public readonly event = signal<Event | null>(null);
   public readonly loading = signal(true);
@@ -75,8 +78,11 @@ export class AdminEventDetail implements OnInit {
 
   public readonly chipClass = EVENT_STATUS_CHIP;
 
-  /** Donation totals need Epic 3's Donation collection, which doesn't exist yet. */
-  public readonly totalLabel = computed(() => 'GH₵ 0.00');
+  public readonly totalLabel = computed(() => {
+    const eventId = this.event()?.id;
+    const donations = this.donationService.donations().filter((d) => d.eventId === eventId);
+    return formatCedis(totalMinor(donations));
+  });
 
   public readonly statusLabel = computed(() => {
     const s = this.event()?.status;
@@ -177,6 +183,13 @@ export class AdminEventDetail implements OnInit {
       // The assignment card is a nice-to-have on this page; a failed lookup just leaves it
       // empty rather than blocking the rest of the (already-loaded) event detail.
       this.availableOperators.set([]);
+    }
+
+    try {
+      await this.donationService.loadDonationsForEvent(id);
+    } catch {
+      // The total-raised figure is supplementary here too — "View donations" (which does its
+      // own load) is still the source of truth if this one fails.
     }
   }
 
