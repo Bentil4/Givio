@@ -11,6 +11,11 @@
   display: flex;
   align-items: center;
   gap: var(--space-lg);
+  /* This page's root has no .page/.page-head (it's .op-list-page, a bespoke wrapper with no
+     padding of its own) and organizer-layout's .main-content has no top padding either, so
+     without this the header touched the top of the browser directly. Matches .page-head's
+     top gap for consistency with the rest of the app. */
+  padding-top: 2rem;
 }
 
 .op-back {

@@ -2,6 +2,11 @@
   max-width: 560px;
   margin: 0 auto;
   font-family: var(--font-body);
+  /* This page is a standalone route with no layout wrapper, and had no padding of its own —
+     .family-header's rounded card touched the top of the browser directly. Matches
+     .page-head's top gap for consistency with the rest of the app; horizontal/bottom padding
+     added to match since this root had none at all before. */
+  padding: 2rem var(--space-lg) var(--space-2xl);
 }
 
 .family-header {
