@@ -42,7 +42,9 @@
 
   // Same self-reference issue as --color-danger above: --font-display/--font-body already
   // exist under those exact names, so literal values are duplicated here instead of var().
-  --font-display: 'Syne', sans-serif;
+  // Both resolve to the same face on purpose — hierarchy comes from size/weight on one
+  // typeface, not a second display font (see :root below).
+  --font-display: 'DM Sans', sans-serif;
   --font-body: 'DM Sans', sans-serif;
 
   --spacing-xs: var(--space-xs);
@@ -96,38 +98,59 @@ body {
 }
 /* You can add global styles to this file, and also import other style files */
 :root {
-  /* Primary Colors */
-  --primary-deep: #1a6b7a;
-  --primary-mid: #00c8e0;
-  --primary-dark: #0d4a5a;
-  --primary-black: #334155;
-  --primary-deep-cyan: #0891b2;
-  --color-danger: #ef0b0b;
+  /* Primary Colors — retuned to a restrained, desaturated ink-teal palette (Design System v1):
+     one accent color used deliberately, not spread across chrome; a near-black ink for text
+     instead of a saturated dark teal. Token NAMES kept as-is to avoid renaming ~40 consumer
+     files — only the values changed. */
+  --primary-deep: #0f7a8c; /* --accent */
+  --primary-mid: #0a5866; /* --accent-strong (hover/active depth, not a second bright hue) */
+  --primary-dark: #12262b; /* --text-primary */
+  --primary-black: #3d5a63; /* secondary nav/icon text — between text-primary and text-secondary */
+  --primary-deep-cyan: #0a5866; /* a distinguishing highlight, same depth as --accent-strong */
+  --color-danger: #dc2626; /* aligned with --func-error below */
 
   /* Background Colors */
   --bg-white: #ffffff;
-  --bg-light: #f4f8fa;
-  --bg-mist: #e8f2f5;
-  --bg-frost: #d4e8ee;
+  --bg-light: #f5f8f9; /* --surface-sunken */
+  --bg-mist: #eef2f3;
+  --bg-frost: #dee7e9; /* --border */
 
   /* Functional Colors */
-  --func-success: #22c55e;
-  --func-error: #ef4444;
-  --func-warning: #f59e0b;
-  --func-info: #3b82f6;
+  --func-success: #15803d; /* #1f9d55 only reached 3.49:1 on white — darkened to clear AA's 4.5:1 */
+  --func-error: #dc2626;
+  --func-warning: #b45309;
+  --func-info: #2563eb;
 
-  /* Accent Colors */
-  --accent-sky: #56c8e8;
-  --accent-teal: #00d4b0;
+  /* Soft (low-alpha) backgrounds paired with the functional colors above — for tags/toasts
+     that need to stay legible against BOTH the light and dark page background, unlike the
+     old hardcoded rgba()+hex pairs they replace (those never adapted to dark mode: a dark
+     green/red/blue foreground on a barely-tinted background is unreadable once the page
+     itself turns dark). */
+  --func-success-soft: rgba(21, 128, 61, 0.14);
+  --func-error-soft: rgba(220, 38, 38, 0.12);
+  --func-warning-soft: rgba(180, 83, 9, 0.14);
+  --func-info-soft: rgba(37, 99, 235, 0.12);
 
-  /* Data Colors */
-  --data-1: #e8edef;
-  --data-2: #c8d8df;
-  --data-3: #8aaab5;
-  --data-4: #4a6b78;
+  /* Accent Colors — accent-teal collapses onto the single accent (one accent color, not two);
+     accent-sky (a categorical color for the "in-kind" donation type, not brand chrome) is
+     desaturated to fit the same restrained mood instead of eliminated outright. */
+  --accent-sky: #6b96a8;
+  --accent-teal: #0f7a8c;
 
-  /* Typography */
-  --font-display: 'Syne', sans-serif;
+  /* Data Colors — a neutral ink-teal scale for secondary/tertiary text and muted fills. */
+  --data-1: #eef2f3;
+  --data-2: #c3d3d6; /* --border-strong */
+  --data-3: #5f7a83; /* --text-tertiary — #8aa3ab only reached 2.66:1 on white; darkened to 4.57:1 */
+  --data-4: #56707a; /* --text-secondary */
+
+  /* Numeric figures (amounts, receipt numbers, codes) get a monospace face with tabular
+     numerals — a real legibility win on money, not decoration. See index.html for the
+     Google Fonts <link>. */
+  --font-mono: 'DM Mono', monospace;
+
+  /* Typography — one face for both roles; hierarchy comes from size/weight (see .logo,
+     .badge, .section-label etc. below), not a second display font. */
+  --font-display: 'DM Sans', sans-serif;
   --font-body: 'DM Sans', sans-serif;
 
   /* Spacing */
@@ -144,11 +167,13 @@ body {
   --radius-lg: 20px;
   --radius-full: 9999px;
 
-  /* Glass */
-  --glass-bg: rgba(255, 255, 255, 0.55);
-  --glass-border: rgba(255, 255, 255, 0.75);
-  --glass-shadow: 0 8px 32px rgba(26, 107, 122, 0.1);
-  --glass-blur: blur(18px);
+  /* Surface — solid, not translucent: an opaque card/field fill with a quiet teal-tinted
+     border and a soft ink shadow, replacing the old backdrop-blur glass treatment. Token
+     names kept as --glass-* to avoid renaming every consumer; the effect is deliberately
+     no longer glass. */
+  --glass-bg: var(--bg-white);
+  --glass-border: rgba(15, 122, 140, 0.14);
+  --glass-shadow: 0 1px 2px rgba(13, 30, 35, 0.05), 0 6px 16px rgba(13, 30, 35, 0.05);
 
   /* Transitions */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -163,34 +188,40 @@ body {
 @mixin dark-theme-tokens {
   color-scheme: dark;
 
-  --primary-deep: #2a92a6;
-  --primary-mid: #33d6ea;
-  --primary-dark: #8fd8e8;
-  --primary-black: #dce6ea;
-  --primary-deep-cyan: #38b6d9;
-  --color-danger: #ff5252;
+  --primary-deep: #39bdd2; /* --accent (dark) */
+  --primary-mid: #6ad2e3; /* --accent-strong (dark) */
+  --primary-dark: #eaf2f3; /* --text-primary (dark) */
+  --primary-black: #9db3ba; /* secondary nav/icon text (dark) */
+  --primary-deep-cyan: #6ad2e3;
+  --color-danger: #f2685f;
 
   --bg-white: #16292f;
-  --bg-light: #0e1e24;
-  --bg-mist: #1e3840;
-  --bg-frost: #24424c;
+  --bg-light: #0d1b1f; /* --surface-sunken (dark) */
+  --bg-mist: #1c3239; /* --surface-raised (dark) */
+  --bg-frost: #24424c; /* --border (dark) */
 
-  --func-success: #4ade80;
-  --func-error: #f87171;
-  --func-warning: #fbbf24;
-  --func-info: #60a5fa;
+  --func-success: #34d17a;
+  --func-error: #f2685f;
+  --func-warning: #f2a33d;
+  --func-info: #5b9bf7;
 
-  --accent-sky: #6cd4ee;
-  --accent-teal: #2de0bd;
+  --func-success-soft: rgba(52, 209, 122, 0.14);
+  --func-error-soft: rgba(242, 104, 95, 0.14);
+  --func-warning-soft: rgba(242, 163, 61, 0.14);
+  --func-info-soft: rgba(91, 155, 247, 0.14);
 
-  --data-1: #17262b;
-  --data-2: #223840;
-  --data-3: #6e8891;
-  --data-4: #9fb8c0;
+  --accent-sky: #7fa8b8;
+  --accent-teal: #39bdd2;
 
-  --glass-bg: rgba(22, 41, 47, 0.55);
+  --data-1: #0d1b1f;
+  --data-2: #24424c; /* --border-strong (dark) */
+  --data-3: #7d99a1; /* --text-tertiary (dark) — lightened to clear 4.5:1 on the dark card bg */
+  --data-4: #9db3ba; /* --text-secondary (dark) */
+
+  /* Solid surface fill, not translucent — see the light-mode comment above --glass-bg. */
+  --glass-bg: var(--bg-white);
   --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 16px rgba(0, 0, 0, 0.3);
 }
 
 /* Followed only until an explicit choice exists — see ThemeService.readInitialTheme(). */
@@ -244,11 +275,9 @@ body {
   padding: 0 var(--space-lg) var(--space-2xl);
 }
 
-/* ── Glass Mixin ─────────────────────────────────────── */
+/* ── Surface ────────────────────────────────────────── */
 .glass {
   background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
   border: 1.5px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
 }
@@ -262,8 +291,7 @@ body {
 .logo {
   font-family: var(--font-display);
   font-size: 2.4rem;
-  font-weight: 800;
-  font-style: italic;
+  font-weight: 700;
   color: var(--primary-dark);
   letter-spacing: -0.03em;
 }
@@ -272,7 +300,6 @@ body {
   font-family: var(--font-display);
   font-size: 0.85rem;
   font-weight: 700;
-  font-style: italic;
   padding: 6px 20px;
   border: 2px solid var(--primary-dark);
   border-radius: var(--radius-full);
@@ -285,19 +312,17 @@ body {
   font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 700;
-  font-style: italic;
   color: var(--primary-deep);
   letter-spacing: 0.01em;
   margin-bottom: var(--space-md);
   padding-bottom: var(--space-sm);
-  border-bottom: 1.5px solid rgba(26, 107, 122, 0.12);
+  border-bottom: 1.5px solid rgba(15, 122, 140, 0.12);
 }
 
 .sub-label {
   font-family: var(--font-body);
   font-size: 0.7rem;
   font-weight: 400;
-  font-style: italic;
   color: var(--data-4);
   margin-bottom: var(--space-sm);
   letter-spacing: 0.03em;
@@ -334,15 +359,14 @@ section {
   padding: 6px 14px;
   border-radius: var(--radius-full);
   background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  border: 1.5px solid rgba(26, 107, 122, 0.18);
+  border: 1.5px solid rgba(15, 122, 140, 0.18);
   color: var(--primary-dark);
   cursor: default;
   transition: all 0.2s var(--ease);
 }
 .keyword:hover {
   border-color: var(--primary-deep);
-  background: rgba(0, 200, 224, 0.1);
+  background: rgba(10, 88, 102, 0.1);
   transform: translateY(-1px);
 }
 
@@ -358,7 +382,7 @@ section {
   height: 48px;
   border-radius: var(--radius-md);
   box-shadow:
-    0 2px 8px rgba(26, 107, 122, 0.12),
+    0 2px 8px rgba(15, 122, 140, 0.12),
     inset 0 0 0 1px rgba(255, 255, 255, 0.4);
   cursor: pointer;
   transition:
@@ -368,7 +392,7 @@ section {
 }
 .swatch:hover {
   transform: scale(1.12);
-  box-shadow: 0 6px 20px rgba(26, 107, 122, 0.2);
+  box-shadow: 0 6px 20px rgba(15, 122, 140, 0.2);
 }
 .swatch[title]:hover::after {
   content: attr(title);
@@ -482,13 +506,16 @@ section {
   letter-spacing: 0.01em;
 }
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary-dark) 100%);
+  /* Flat fill, not a gradient — one accent color spent deliberately, not a two-tone chrome
+     treatment (Design System v1). Hover deepens to --primary-mid (the accent-strong role). */
+  background: var(--primary-deep);
   color: var(--bg-white);
-  box-shadow: 0 4px 16px rgba(26, 107, 122, 0.35);
+  box-shadow: 0 4px 16px rgba(15, 122, 140, 0.35);
 }
 .btn-primary:hover {
+  background: var(--primary-mid);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(26, 107, 122, 0.45);
+  box-shadow: 0 8px 24px rgba(15, 122, 140, 0.45);
 }
 .btn-primary:active {
   transform: translateY(0);
@@ -497,11 +524,11 @@ section {
 .btn-secondary {
   background: transparent;
   color: var(--primary-dark);
-  border: 2px solid rgba(26, 107, 122, 0.35);
+  border: 2px solid rgba(15, 122, 140, 0.35);
 }
 .btn-secondary:hover {
   border-color: var(--primary-deep);
-  background: rgba(0, 200, 224, 0.06);
+  background: rgba(10, 88, 102, 0.06);
   transform: translateY(-1px);
 }
 
@@ -539,7 +566,7 @@ section {
 .table th {
   padding: var(--space-sm) var(--space-md);
   background: var(--bg-mist);
-  border-bottom: 1.5px solid rgba(26, 107, 122, 0.12);
+  border-bottom: 1.5px solid rgba(15, 122, 140, 0.12);
   font-family: var(--font-body);
   font-size: 0.68rem;
   font-weight: 700;
@@ -551,7 +578,7 @@ section {
 }
 .table td {
   padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid rgba(26, 107, 122, 0.07);
+  border-bottom: 1px solid rgba(15, 122, 140, 0.07);
   color: var(--primary-dark);
   vertical-align: middle;
 }
@@ -559,7 +586,7 @@ section {
   transition: background 0.18s var(--ease);
 }
 .table tbody tr:hover {
-  background: rgba(0, 200, 224, 0.05);
+  background: rgba(10, 88, 102, 0.05);
 }
 .table tbody tr:last-child td {
   border-bottom: 0;
@@ -568,7 +595,7 @@ section {
   text-align: right;
 }
 .table .is-mono {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
 }
 .table .is-strong {
@@ -604,25 +631,28 @@ section {
   padding: 4px 12px;
   border-radius: var(--radius-full);
 }
+/* Theme-aware: color/-soft come from the same func-* tokens the dark mixin overrides, so
+   these stay legible against both the light and dark page background — a hardcoded hex/rgba
+   pair here would look fine in light mode and unreadable once the page itself turns dark. */
 .tag-success {
-  background: rgba(34, 197, 94, 0.14);
-  color: #15803d;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: var(--func-success-soft);
+  color: var(--func-success);
+  border: 1px solid var(--func-success-soft);
 }
 .tag-error {
-  background: rgba(239, 68, 68, 0.12);
-  color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: var(--func-error-soft);
+  color: var(--func-error);
+  border: 1px solid var(--func-error-soft);
 }
 .tag-info {
-  background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: var(--func-info-soft);
+  color: var(--func-info);
+  border: 1px solid var(--func-info-soft);
 }
 .tag-default {
-  background: rgba(26, 107, 122, 0.08);
+  background: rgba(15, 122, 140, 0.08);
   color: var(--primary-dark);
-  border: 1px solid rgba(26, 107, 122, 0.15);
+  border: 1px solid rgba(15, 122, 140, 0.15);
 }
 
 /* ── Form Controls ───────────────────────────────────── */
@@ -682,11 +712,11 @@ section {
   width: 44px;
   height: 24px;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--primary-deep), var(--accent-teal));
+  background: var(--primary-deep); /* was a two-stop gradient; --accent-teal now equals this */
   position: relative;
   cursor: pointer;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(26, 107, 122, 0.3);
+  box-shadow: 0 2px 8px rgba(15, 122, 140, 0.3);
 }
 .toggle-thumb {
   width: 18px;
@@ -720,8 +750,7 @@ section {
   width: 100%;
   padding: 12px 40px 12px 16px;
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  border: 1.5px solid rgba(26, 107, 122, 0.15);
+  border: 1.5px solid rgba(15, 122, 140, 0.15);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
   font-size: 0.85rem;
@@ -733,7 +762,7 @@ section {
 }
 .select-field:focus {
   border-color: var(--primary-deep);
-  box-shadow: 0 0 0 3px rgba(0, 200, 224, 0.15);
+  box-shadow: 0 0 0 3px rgba(10, 88, 102, 0.15);
 }
 
 /* Progress */
@@ -743,14 +772,14 @@ section {
 .progress-track {
   height: 8px;
   border-radius: var(--radius-full);
-  background: rgba(26, 107, 122, 0.12);
+  background: rgba(15, 122, 140, 0.12);
   overflow: hidden;
   margin-bottom: 6px;
 }
 .progress-fill {
   height: 100%;
   border-radius: var(--radius-full);
-  background: linear-gradient(90deg, var(--primary-deep), var(--primary-mid));
+  background: var(--primary-deep); /* flat fill, not a gradient — see .btn-primary above */
   width: 65%;
   animation: fillAnim 1.4s var(--ease) forwards;
 }
@@ -782,18 +811,18 @@ section {
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: all 0.18s var(--ease);
-  border: 1.5px solid rgba(26, 107, 122, 0.2);
+  border: 1.5px solid rgba(15, 122, 140, 0.2);
   background: transparent;
   color: var(--primary-dark);
 }
 .filter-tag.active {
-  background: linear-gradient(135deg, var(--primary-deep), var(--primary-dark));
+  background: var(--primary-deep); /* flat fill, not a gradient — see .btn-primary above */
   color: var(--bg-white);
   border-color: transparent;
-  box-shadow: 0 3px 12px rgba(26, 107, 122, 0.3);
+  box-shadow: 0 3px 12px rgba(15, 122, 140, 0.3);
 }
 .filter-tag:not(.active):hover {
-  background: rgba(0, 200, 224, 0.08);
+  background: rgba(10, 88, 102, 0.08);
   border-color: var(--primary-deep);
 }
 
@@ -834,7 +863,7 @@ section {
 
 .divider {
   height: 1.5px;
-  background: rgba(26, 107, 122, 0.09);
+  background: rgba(15, 122, 140, 0.09);
   margin: var(--space-xl) 0;
 }
 
@@ -846,10 +875,10 @@ section {
 .token-table td {
   padding: 8px 14px;
   font-size: 0.8rem;
-  border-bottom: 1px solid rgba(26, 107, 122, 0.08);
+  border-bottom: 1px solid rgba(15, 122, 140, 0.08);
 }
 .token-table td:first-child {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--primary-deep);
 }

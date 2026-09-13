@@ -13,7 +13,7 @@
   width: 44px;
   height: 24px;
   border-radius: var(--radius-full);
-  background: rgba(26, 107, 122, 0.2);
+  background: rgba(15, 122, 140, 0.2);
   position: relative;
   flex-shrink: 0;
   transition: background 0.2s var(--ease);
@@ -21,7 +21,7 @@
 
   &.on {
     background: linear-gradient(135deg, var(--primary-deep), var(--accent-teal));
-    box-shadow: 0 2px 8px rgba(26, 107, 122, 0.3);
+    box-shadow: 0 2px 8px rgba(15, 122, 140, 0.3);
   }
 }
 

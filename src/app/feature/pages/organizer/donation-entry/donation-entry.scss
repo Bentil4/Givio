@@ -35,7 +35,7 @@
 
 .desk-event-meta {
   margin: 2px 0 0;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--data-4);
 }
@@ -49,7 +49,7 @@
 
 .desk-total-value {
   display: block;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1.35rem;
   font-weight: 700;
   color: var(--primary-deep);
@@ -111,7 +111,7 @@
 }
 
 .desk-receipt {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--data-4);
 }
@@ -127,8 +127,8 @@
 .confirm-rows {
   margin: var(--space-lg) 0;
   padding: var(--space-md) 0;
-  border-top: 1.5px solid rgba(26, 107, 122, .10);
-  border-bottom: 1.5px solid rgba(26, 107, 122, .10);
+  border-top: 1.5px solid rgba(15, 122, 140, .10);
+  border-bottom: 1.5px solid rgba(15, 122, 140, .10);
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
@@ -144,7 +144,7 @@
 }
 
 .confirm-amount {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--primary-deep);
@@ -209,14 +209,14 @@
 .desk-stat {
   flex: 1;
   padding: var(--space-sm) var(--space-md);
-  border: 1.5px solid rgba(26, 107, 122, .10);
+  border: 1.5px solid rgba(15, 122, 140, .10);
   border-radius: var(--radius-md);
   background: var(--bg-mist);
 }
 
 .desk-stat-value {
   display: block;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--primary-dark);

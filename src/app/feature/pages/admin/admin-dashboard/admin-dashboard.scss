@@ -37,7 +37,7 @@
 
 .stat-value {
   margin-top: var(--space-xs);
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -.02em;
@@ -76,7 +76,7 @@
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(26, 107, 122, .09);
+  border-bottom: 1px solid rgba(15, 122, 140, .09);
 
   h2 { margin: 0; flex: 1; }
 }
@@ -107,7 +107,7 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(26, 107, 122, .07);
+  border-bottom: 1px solid rgba(15, 122, 140, .07);
   text-decoration: none;
   cursor: pointer;
   transition: background .18s var(--ease);
@@ -130,7 +130,7 @@
   flex: none;
   text-align: right;
 
-  .is-mono { font-family: monospace; }
+  .is-mono { font-family: var(--font-mono); }
   .is-strong { font-weight: 700; font-size: 0.95rem; color: var(--primary-dark); }
 }
 
@@ -140,11 +140,11 @@
   justify-content: space-between;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(26, 107, 122, .07);
+  border-bottom: 1px solid rgba(15, 122, 140, .07);
 
   &:last-child { border-bottom: 0; }
 
-  .is-mono { font-family: monospace; }
+  .is-mono { font-family: var(--font-mono); }
   .is-strong { font-weight: 700; font-size: 0.95rem; color: var(--primary-dark); }
 }
 
@@ -171,7 +171,7 @@
 // ── Skeleton ──────────────────────────────────────────────────────────
 .skel-row {
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(26, 107, 122, .07);
+  border-bottom: 1px solid rgba(15, 122, 140, .07);
 
   &:last-child { border-bottom: 0; }
 }

@@ -27,7 +27,7 @@
 }
 
 .stat-value {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -.02em;
@@ -86,7 +86,7 @@
 }
 
 .donut-count {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--primary-dark);
@@ -127,7 +127,7 @@
 }
 
 .legend-value {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   color: var(--data-4);
 }
@@ -159,7 +159,7 @@
 }
 
 .bar-count {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.62rem;
   color: var(--data-4);
 }

@@ -66,7 +66,7 @@
 }
 
 .phone-total {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1.4rem;
   font-weight: 700;
   color: var(--primary-mid);
@@ -110,13 +110,13 @@
 }
 
 .amount-prefix {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.95rem;
   color: var(--data-4);
 }
 
 .amount-value {
-  font-family: monospace;
+  font-family: var(--font-mono);
   /* Story 5.1: a fixed 2.5rem risks overflowing a 360px viewport once the digit count grows
      (e.g. GH₵100,000.00) — clamp() shrinks it on narrower screens instead of clipping a real
      money amount, which must stay fully visible and correct. */
@@ -145,7 +145,7 @@
 .name-input {
   height: 46px;
   padding: 0 var(--space-md);
-  border: 1.5px solid rgba(26, 107, 122, .15);
+  border: 1.5px solid rgba(15, 122, 140, .15);
   border-radius: var(--radius-md);
   background: var(--bg-white);
   font-family: var(--font-body);
@@ -159,7 +159,7 @@
 
   &:focus {
     border-color: var(--primary-deep);
-    box-shadow: 0 0 0 3px rgba(0, 200, 224, .15);
+    box-shadow: 0 0 0 3px rgba(10, 88, 102, .15);
   }
 }
 
@@ -171,7 +171,7 @@
 .type-seg {
   flex: 1;
   height: 44px; /* Story 5.1: touch target minimum */
-  border: 1.5px solid rgba(26, 107, 122, .2);
+  border: 1.5px solid rgba(15, 122, 140, .2);
   border-radius: var(--radius-full);
   background: transparent;
   font-family: var(--font-body);
@@ -205,17 +205,17 @@
 
 .key {
   height: 52px;
-  border: 1.5px solid rgba(26, 107, 122, .10);
+  border: 1.5px solid rgba(15, 122, 140, .10);
   border-radius: var(--radius-md);
   background: var(--bg-mist);
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1.3rem;
   font-weight: 500;
   color: var(--primary-dark);
   cursor: pointer;
   transition: background .12s var(--ease);
 
-  &:active { background: rgba(0, 200, 224, .14); }
+  &:active { background: rgba(10, 88, 102, .14); }
   &.is-back { color: var(--data-4); }
 }
 

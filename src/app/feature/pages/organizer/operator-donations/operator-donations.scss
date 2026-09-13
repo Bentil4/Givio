@@ -44,7 +44,7 @@
 
 .op-total-value {
   display: block;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--primary-deep);
@@ -71,7 +71,7 @@
 
 .tab-count {
   margin-left: 6px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
   opacity: .7;
 }
@@ -88,11 +88,11 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(26, 107, 122, .07);
+  border-bottom: 1px solid rgba(15, 122, 140, .07);
   transition: background .18s var(--ease);
 
   &:last-child { border-bottom: 0; }
-  &:hover { background: rgba(0, 200, 224, .04); }
+  &:hover { background: rgba(10, 88, 102, .04); }
 
   &.is-pending { background: rgba(245, 158, 11, .05); }
 }
@@ -100,7 +100,7 @@
 .op-receipt {
   flex: none;
   width: 116px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--data-4);
 }
@@ -128,7 +128,7 @@
 }
 
 .op-amount {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--primary-dark);

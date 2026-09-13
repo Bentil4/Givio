@@ -14,7 +14,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-full);
-  background: rgba(0, 200, 224, .14);
+  background: rgba(10, 88, 102, .14);
   font-size: 0.65rem;
   font-weight: 700;
   color: var(--primary-deep);
@@ -33,7 +33,7 @@
   align-items: flex-start;
   gap: var(--space-sm);
   padding: 13px var(--space-md);
-  border: 1.5px solid rgba(26, 107, 122, .15);
+  border: 1.5px solid rgba(15, 122, 140, .15);
   border-radius: var(--radius-md);
   background: var(--bg-white);
   text-align: left;
@@ -44,7 +44,7 @@
 
   &.is-selected {
     border-color: var(--primary-deep);
-    background: rgba(0, 200, 224, .07);
+    background: rgba(10, 88, 102, .07);
   }
 }
 
@@ -54,7 +54,7 @@
   height: 16px;
   margin-top: 2px;
   border-radius: var(--radius-full);
-  border: 5px solid rgba(26, 107, 122, .25);
+  border: 5px solid rgba(15, 122, 140, .25);
   transition: border-color .18s var(--ease);
 
   .role-card.is-selected & { border-color: var(--primary-deep); }
@@ -71,9 +71,9 @@
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md);
-  border: 1.5px solid rgba(0, 200, 224, .25);
+  border: 1.5px solid rgba(10, 88, 102, .25);
   border-radius: var(--radius-md);
-  background: rgba(0, 200, 224, .07);
+  background: rgba(10, 88, 102, .07);
 
   mat-icon { flex: none; color: var(--primary-deep); font-size: 18px; width: 18px; height: 18px; }
   p { margin: 0; line-height: 1.55; text-wrap: pretty; }

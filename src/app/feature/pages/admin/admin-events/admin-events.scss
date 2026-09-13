@@ -20,9 +20,9 @@
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md);
-  border: 1.5px solid rgba(0, 200, 224, .25);
+  border: 1.5px solid rgba(10, 88, 102, .25);
   border-radius: var(--radius-md);
-  background: rgba(0, 200, 224, .07);
+  background: rgba(10, 88, 102, .07);
 
   mat-icon { flex: none; color: var(--primary-deep); font-size: 18px; width: 18px; height: 18px; }
   p { margin: 0; line-height: 1.55; text-wrap: pretty; }

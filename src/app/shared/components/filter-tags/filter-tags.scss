@@ -15,7 +15,7 @@
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: all 0.18s var(--ease);
-  border: 1.5px solid rgba(26, 107, 122, 0.2);
+  border: 1.5px solid rgba(15, 122, 140, 0.2);
   background: transparent;
   color: var(--primary-dark);
 
@@ -23,11 +23,11 @@
     background: linear-gradient(135deg, var(--primary-deep), var(--primary-dark));
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 3px 12px rgba(26, 107, 122, 0.3);
+    box-shadow: 0 3px 12px rgba(15, 122, 140, 0.3);
   }
 
   &:not(.active):hover {
-    background: rgba(0, 200, 224, 0.08);
+    background: rgba(10, 88, 102, 0.08);
     border-color: var(--primary-deep);
   }
 }

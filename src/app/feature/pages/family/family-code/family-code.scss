@@ -35,8 +35,7 @@
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.7rem;
-  font-weight: 800;
-  font-style: italic;
+  font-weight: 700;
   line-height: 1.2;
   letter-spacing: -.02em;
   color: var(--primary-dark);
@@ -86,20 +85,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1.5px solid rgba(26, 107, 122, .18);
+  border: 1.5px solid rgba(15, 122, 140, .18);
   border-radius: var(--radius-md);
   background: var(--bg-white);
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--primary-dark);
   transition: all .18s var(--ease);
 
-  &.is-filled { border-color: rgba(26, 107, 122, .32); }
+  &.is-filled { border-color: rgba(15, 122, 140, .32); }
 
   &.is-focused {
     border-color: var(--primary-deep);
-    box-shadow: 0 0 0 3px rgba(0, 200, 224, .15);
+    box-shadow: 0 0 0 3px rgba(10, 88, 102, .15);
   }
 }
 
@@ -157,9 +156,9 @@
   gap: var(--space-sm);
   margin-top: var(--space-xl);
   padding: var(--space-md);
-  border: 1.5px solid rgba(0, 200, 224, .22);
+  border: 1.5px solid rgba(10, 88, 102, .22);
   border-radius: var(--radius-md);
-  background: rgba(0, 200, 224, .07);
+  background: rgba(10, 88, 102, .07);
 
   mat-icon { flex: none; color: var(--primary-deep); font-size: 18px; width: 18px; height: 18px; }
 

@@ -80,7 +80,7 @@
   cursor: pointer;
   transition: background .18s var(--ease), opacity .18s var(--ease);
 
-  &:hover:not(.is-blocked) { background: rgba(0, 200, 224, .06); }
+  &:hover:not(.is-blocked) { background: rgba(10, 88, 102, .06); }
 
   // Blocked events stay visible but recede: "paused" is more useful than "vanished".
   &.is-blocked { opacity: .62; }
@@ -127,7 +127,7 @@
 
   &.is-muted {
     background: transparent;
-    border: 1.5px solid rgba(26, 107, 122, .22);
+    border: 1.5px solid rgba(15, 122, 140, .22);
     color: var(--data-4);
   }
 }
@@ -137,7 +137,7 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border: 1.5px dashed rgba(26, 107, 122, .22);
+  border: 1.5px dashed rgba(15, 122, 140, .22);
   border-radius: var(--radius-md);
 
   p { flex: 1; margin: 0; line-height: 1.55; text-wrap: pretty; }
