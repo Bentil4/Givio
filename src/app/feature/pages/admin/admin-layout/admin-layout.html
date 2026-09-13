@@ -15,11 +15,18 @@
     [userProfile]="userProfile"
     [collapsed]="isSidebarCollapsed()"
     [mobileOpen]="isMobileNavOpen()"
+    [theme]="theme()"
     (toggleCollapsed)="toggleSidebar()"
     (dismissMobile)="closeMobileNav()"
+    (toggleTheme)="toggleTheme()"
     (logout)="onLogout()"
   />
   <div class="main-content">
+    <app-connection-banner
+      [state]="connection()"
+      [pendingCount]="pendingCount()"
+      [syncedCount]="syncedCount()"
+    />
     <router-outlet />
   </div>
 </main>

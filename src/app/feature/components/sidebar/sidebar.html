@@ -63,6 +63,17 @@
   </nav>
 
   <footer class="sidebar-footer">
+    <button
+      type="button"
+      class="theme-toggle"
+      (click)="toggleTheme.emit()"
+      [matTooltip]="theme() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+      matTooltipPosition="right"
+      [attr.aria-label]="theme() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+    >
+      <mat-icon>{{ theme() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+      <span class="nav-label">{{ theme() === 'dark' ? 'Light mode' : 'Dark mode' }}</span>
+    </button>
     <div class="notification">
       <mat-icon matBadge="15">notifications</mat-icon>
       <span class="status-indicator nav-label">online . 2min ago</span>
