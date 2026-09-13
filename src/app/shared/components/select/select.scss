@@ -17,7 +17,7 @@
   width: 100%;
   min-height: 44px; /* Story 5.1: touch target minimum */
   padding: 12px 40px 12px 16px;
-  background: var(--glass-bg);
+  background: var(--bg-surface); /* solid, not glass — a form control, not floating chrome */
   border: 1.5px solid rgba(15, 122, 140, 0.15);
   border-radius: var(--radius-md);
   font-family: var(--font-body);

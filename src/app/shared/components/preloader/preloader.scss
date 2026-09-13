@@ -43,16 +43,7 @@
   font-size: 1.4rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  background: linear-gradient(
-    135deg,
-    var(--primary-deep) 0%,
-    var(--accent-sky) 40%,
-    var(--primary-mid) 70%,
-    var(--accent-teal) 100%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
+  color: var(--primary-deep); /* flat color, not a gradient-clipped text effect */
 }
 
 @keyframes spin {

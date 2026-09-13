@@ -26,11 +26,13 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary-dark) 100%);
+  /* Flat fill, not a gradient — no gradients anywhere in the app. */
+  background: var(--primary-deep);
   color: #fff;
   box-shadow: 0 4px 16px rgba(15, 122, 140, 0.35);
 
   &:hover {
+    background: var(--primary-mid);
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(15, 122, 140, 0.45);
   }

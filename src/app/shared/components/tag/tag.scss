@@ -6,20 +6,22 @@
   border-radius: var(--radius-full);
 }
 
+/* Theme-aware — see styles.scss's .tag-success/.tag-error/.tag-info for why these use the
+   func-*-soft tokens instead of hardcoded hex/rgba. */
 .tag-success {
-  background: rgba(34, 197, 94, 0.14);
-  color: #15803d;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: var(--func-success-soft);
+  color: var(--func-success);
+  border: 1px solid var(--func-success-soft);
 }
 .tag-error {
-  background: rgba(239, 68, 68, 0.12);
-  color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: var(--func-error-soft);
+  color: var(--func-error);
+  border: 1px solid var(--func-error-soft);
 }
 .tag-info {
-  background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: var(--func-info-soft);
+  color: var(--func-info);
+  border: 1px solid var(--func-info-soft);
 }
 .tag-default {
   background: rgba(15, 122, 140, 0.08);

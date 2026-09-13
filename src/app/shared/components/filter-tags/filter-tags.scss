@@ -20,7 +20,7 @@
   color: var(--primary-dark);
 
   &.active {
-    background: linear-gradient(135deg, var(--primary-deep), var(--primary-dark));
+    background: var(--primary-deep); /* flat fill, not a gradient */
     color: #fff;
     border-color: transparent;
     box-shadow: 0 3px 12px rgba(15, 122, 140, 0.3);

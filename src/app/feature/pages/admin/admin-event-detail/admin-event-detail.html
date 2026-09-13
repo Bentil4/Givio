@@ -165,7 +165,7 @@
   <!-- This click only stops the backdrop's dismiss-click from bubbling up — it's not itself a
        keyboard-operable control, so there's no keyboard equivalent to add. -->
   <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
-  <div class="dialog dialog--sm glass" role="dialog" [attr.aria-label]="c.title" (click)="$event.stopPropagation()">
+  <div class="dialog dialog--sm glass glass-thick" role="dialog" [attr.aria-label]="c.title" (click)="$event.stopPropagation()">
     <header class="dialog-head">
       <h2 class="t-page-title">{{ c.title }}</h2>
     </header>

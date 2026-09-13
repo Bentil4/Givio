@@ -26,7 +26,7 @@
   width: 64px;
   height: 64px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #c5dfe6 0%, #9abfc8 100%);
+  background: #9abfc8; /* flat fill, not a gradient */
   flex-shrink: 0;
   position: relative;
   overflow: hidden;

@@ -26,14 +26,14 @@
   gap: 7px;
   padding: 6px 12px;
   border-radius: var(--radius-full);
-  background: rgba(34, 197, 94, .12);
+  background: rgba(21, 128, 61, .12);
   font-size: 0.75rem;
   font-weight: 600;
-  color: #15803d;
+  color: var(--func-success);
 
   &.is-off {
-    background: rgba(245, 158, 11, .12);
-    color: #92400e;
+    background: rgba(180, 83, 9, .12);
+    color: var(--func-warning);
   }
 }
 
@@ -54,12 +54,12 @@
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md);
-  border: 1.5px solid rgba(245, 158, 11, .28);
+  border: 1.5px solid rgba(180, 83, 9, .28);
   border-radius: var(--radius-md);
-  background: rgba(245, 158, 11, .08);
+  background: rgba(180, 83, 9, .08);
 
   mat-icon { flex: none; color: var(--func-warning); font-size: 18px; width: 18px; height: 18px; }
-  p { margin: 0; color: #92400e; line-height: 1.55; text-wrap: pretty; }
+  p { margin: 0; color: var(--func-warning); line-height: 1.55; text-wrap: pretty; }
 }
 
 .event-list {
@@ -119,7 +119,7 @@
   flex: none;
   padding: 11px var(--space-md);
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--primary-deep), var(--primary-dark));
+  background: var(--primary-deep); /* flat fill, not a gradient */
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--bg-white);
@@ -147,9 +147,14 @@
   flex: 1;
   height: 14px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, var(--data-1) 25%, #f4f8fa 50%, var(--data-1) 75%);
-  background-size: 420px 100%;
-  animation: admin-shimmer 1.4s linear infinite;
+  background: var(--data-1); /* flat fill, not a gradient — an opacity pulse instead of a
+    gradient sweep still reads as "loading" */
+  animation: event-select-skel-pulse 1.4s var(--ease) infinite;
+}
+
+@keyframes event-select-skel-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .45; }
 }
 
 @media (max-width: 720px) {

@@ -1,6 +1,6 @@
 @if (loading()) {
   <section class="page">
-    <div class="dialog glass">
+    <div class="dialog glass glass-thick">
       <div class="skel-row"><span class="skel skel--lg"></span></div>
       <div class="skel-row"><span class="skel skel--lg"></span></div>
       <div class="skel-row"><span class="skel skel--lg"></span></div>
@@ -38,7 +38,7 @@
       </div>
     }
 
-    <form class="dialog glass" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+    <form class="dialog glass glass-thick" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
       <div class="dialog-body">
         <div class="field-row">
           <div class="field">

@@ -38,6 +38,7 @@
 .stat-value {
   margin-top: var(--space-xs);
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -.02em;
@@ -180,14 +181,14 @@
   display: block;
   height: 12px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, var(--data-1) 25%, #f4f8fa 50%, var(--data-1) 75%);
-  background-size: 420px 100%;
-  animation: dashboard-shimmer 1.4s linear infinite;
+  background: var(--data-1); /* flat fill, not a gradient — an opacity pulse instead of a
+    gradient sweep still reads as "loading" */
+  animation: dashboard-skel-pulse 1.4s var(--ease) infinite;
 }
 
 .skel--lg { width: 100%; }
 
-@keyframes dashboard-shimmer {
-  0% { background-position: -420px 0; }
-  100% { background-position: 420px 0; }
+@keyframes dashboard-skel-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .45; }
 }

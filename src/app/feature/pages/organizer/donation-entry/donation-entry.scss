@@ -36,6 +36,7 @@
 .desk-event-meta {
   margin: 2px 0 0;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.72rem;
   color: var(--data-4);
 }
@@ -50,6 +51,7 @@
 .desk-total-value {
   display: block;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 1.35rem;
   font-weight: 700;
   color: var(--primary-deep);
@@ -64,13 +66,13 @@
   align-items: center;
   gap: 7px;
   padding: 7px 13px;
-  border: 1.5px solid rgba(245, 158, 11, .35);
+  border: 1.5px solid rgba(180, 83, 9, .35);
   border-radius: var(--radius-full);
-  background: rgba(245, 158, 11, .12);
+  background: rgba(180, 83, 9, .12);
   font-family: var(--font-body);
   font-size: 0.78rem;
   font-weight: 600;
-  color: #92400e;
+  color: var(--func-warning);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -87,9 +89,9 @@
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
-  border: 1.5px solid rgba(239, 68, 68, .25);
+  border: 1.5px solid rgba(220, 38, 38, .25);
   border-radius: var(--radius-md);
-  background: rgba(239, 68, 68, .07);
+  background: rgba(220, 38, 38, .07);
   color: var(--func-error);
 
   p { margin: 0; color: var(--primary-dark); }
@@ -112,6 +114,7 @@
 
 .desk-receipt {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.72rem;
   color: var(--data-4);
 }
@@ -145,6 +148,7 @@
 
 .confirm-amount {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--primary-deep);
@@ -163,9 +167,9 @@
   align-items: flex-start;
   gap: var(--space-sm);
   padding: var(--space-md);
-  border: 1.5px solid rgba(34, 197, 94, .30);
+  border: 1.5px solid rgba(21, 128, 61, .30);
   border-radius: var(--radius-md);
-  background: rgba(34, 197, 94, .10);
+  background: rgba(21, 128, 61, .10);
   color: var(--func-success);
 
   p { margin: 0; color: var(--primary-dark); }
@@ -217,6 +221,7 @@
 .desk-stat-value {
   display: block;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--primary-dark);
