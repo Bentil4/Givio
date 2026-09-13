@@ -39,6 +39,34 @@ describe('UserService', () => {
     });
   });
 
+  describe('getUsersById', () => {
+    it('resolves with an id keyed map built from listUsers', async () => {
+      const users = [
+        { id: 'u1', name: 'Ama', email: 'ama@givio.test', role: 'admin' as const, active: true, registeredAt: '2026-01-01' },
+        { id: 'u2', name: 'Kojo', email: 'kojo@givio.test', role: 'operator' as const, active: true, registeredAt: '2026-01-02' },
+      ];
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 200,
+        responseBody: JSON.stringify(users),
+      });
+
+      const map = await service.getUsersById();
+
+      expect(map.get('u1')).toEqual(users[0]);
+      expect(map.get('u2')).toEqual(users[1]);
+      expect(map.size).toBe(2);
+    });
+
+    it('resolves with an empty map instead of throwing when listUsers fails', async () => {
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 403,
+        responseBody: JSON.stringify({ error: 'Forbidden' }),
+      });
+
+      await expect(service.getUsersById()).resolves.toEqual(new Map());
+    });
+  });
+
   describe('createUser', () => {
     it('resolves with the created userId and no generatedPassword when a password was provided', async () => {
       functions.createExecution.mockResolvedValueOnce({

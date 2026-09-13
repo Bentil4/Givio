@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { appDb } from '../../../../data/dexie/app-db';
 import { EventService } from '../../../../data/services/event.service';
@@ -47,7 +48,7 @@ function sameIds(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
  */
 @Component({
   selector: 'app-admin-event-detail',
-  imports: [MatIconModule, RouterLink],
+  imports: [MatIconModule, RouterLink, DatePipe],
   templateUrl: './admin-event-detail.html',
   styleUrl: './admin-event-detail.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

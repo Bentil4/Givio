@@ -15,7 +15,7 @@
       <header class="version-header">
         <div>
           <h3 class="t-card-title">Version A — saved on the tablet</h3>
-          <p class="t-tertiary">{{ conflict().local.recordedAt }} · offline</p>
+          <p class="t-tertiary">{{ conflict().local.recordedAt | date:'MMM d, y, h:mm a' }} · offline</p>
         </div>
         <span class="tag tag-default">Offline</span>
       </header>
@@ -36,7 +36,7 @@
       <header class="version-header">
         <div>
           <h3 class="t-card-title">Version B — on the server</h3>
-          <p class="t-tertiary">{{ conflict().server.recordedAt }} · edited by an Admin</p>
+          <p class="t-tertiary">{{ conflict().server.recordedAt | date:'MMM d, y, h:mm a' }} · edited by an Admin</p>
         </div>
         <span class="tag tag-info">Server</span>
       </header>

@@ -56,7 +56,7 @@
               <td class="is-mono is-muted">{{ d.receiptNumber }}</td>
               <td class="is-struck">{{ d.donorName }}</td>
               <td class="is-num is-mono is-muted">{{ amountLabel(d) }}</td>
-              <td class="is-muted">{{ d.deletedBy }} · {{ d.deletedAt }}</td>
+              <td class="is-muted">{{ userName(d.deletedBy) }} · {{ d.deletedAt | date:'MMM d, y, h:mm a' }}</td>
               <td>{{ d.deletionReason || '—' }}</td>
               <td class="is-actions">
                 <span class="days" [class.is-expiring]="isExpiring(d)">{{ daysLabel(d) }}</span>

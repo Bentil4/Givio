@@ -1,11 +1,15 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { DatePipe } from '@angular/common';
 import { inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Donation, DonationType, DONATION_TYPE_LABELS } from '../../../../data/models/donation';
+import type { AdminUser } from '../../../../data/models/admin-user';
 import { formatCedis, totalMinor } from '../../../../utils/donation.util';
+import { formatUserDisplay } from '../../../../utils/user-display.util';
 import { DonationService } from '../../../../data/services/donation.service';
+import { UserService } from '../../../../data/services/user.service';
 import { ServiceError } from '../../../../core/services/service-error';
 
 interface Filters {
@@ -27,7 +31,7 @@ interface Filters {
  */
 @Component({
   selector: 'app-admin-donations',
-  imports: [MatIconModule, ReactiveFormsModule, RouterLink],
+  imports: [MatIconModule, ReactiveFormsModule, RouterLink, DatePipe],
   templateUrl: './admin-donations.html',
   styleUrl: './admin-donations.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,9 +40,11 @@ export class AdminDonations implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly donationService = inject(DonationService);
+  private readonly userService = inject(UserService);
 
   public readonly donations = this.donationService.donations;
   public readonly loading = signal(true);
+  public readonly usersById = signal<ReadonlyMap<string, AdminUser>>(new Map());
   public readonly operators = computed(() => [...new Set(this.donations().map((d) => d.recordedBy))]);
 
   public readonly filters = signal<Filters>({ eventId: null, type: 'all', operator: 'all', search: '' });
@@ -66,13 +72,19 @@ export class AdminDonations implements OnInit {
 
   async ngOnInit(): Promise<void> {
     const eventId = this.route.snapshot.queryParamMap.get('event');
-    if (eventId) {
-      this.filters.update((f) => ({ ...f, eventId }));
-      await this.donationService.loadDonationsForEvent(eventId);
-    } else {
-      await this.donationService.loadAllDonations();
-    }
+    const loadDonations = eventId
+      ? this.donationService.loadDonationsForEvent(eventId)
+      : this.donationService.loadAllDonations();
+    if (eventId) this.filters.update((f) => ({ ...f, eventId }));
+
+    const [, usersById] = await Promise.all([loadDonations, this.userService.getUsersById()]);
+    this.usersById.set(usersById);
     this.loading.set(false);
+  }
+
+  /** A bare user id means nothing on screen — resolves it to "Name (email)". */
+  public userName(id: string): string {
+    return formatUserDisplay(this.usersById().get(id), id);
   }
 
   public readonly visible = computed(() => {

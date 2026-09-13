@@ -77,7 +77,7 @@
 
           <span class="op-row-meta">
             <span class="op-amount">{{ amountLabel(d) }}</span>
-            <span class="t-tertiary">{{ d.recordedAt }}</span>
+            <span class="t-tertiary">{{ d.recordedAt | date:'MMM d, y, h:mm a' }}</span>
           </span>
 
           <span class="tag" [class]="statusChip(d)">{{ statusLabel(d) }}</span>

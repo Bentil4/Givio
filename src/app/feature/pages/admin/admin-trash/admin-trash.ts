@@ -1,8 +1,12 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { DatePipe } from '@angular/common';
 import { Donation } from '../../../../data/models/donation';
+import type { AdminUser } from '../../../../data/models/admin-user';
 import { formatCedis } from '../../../../utils/donation.util';
+import { formatUserDisplay } from '../../../../utils/user-display.util';
 import { DonationService } from '../../../../data/services/donation.service';
+import { UserService } from '../../../../data/services/user.service';
 import { ServiceError } from '../../../../core/services/service-error';
 
 const RECOVERY_WINDOW_DAYS = 30;
@@ -17,24 +21,35 @@ const RECOVERY_WINDOW_DAYS = 30;
  */
 @Component({
   selector: 'app-admin-trash',
-  imports: [MatIconModule],
+  imports: [MatIconModule, DatePipe],
   templateUrl: './admin-trash.html',
   styleUrl: './admin-trash.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminTrash implements OnInit {
   private readonly donationService = inject(DonationService);
+  private readonly userService = inject(UserService);
 
   public readonly deleted = computed(() => this.donationService.donations().filter((d) => !!d.deletedAt));
   public readonly loading = signal(true);
+  public readonly usersById = signal<ReadonlyMap<string, AdminUser>>(new Map());
 
   public readonly recovering = signal<Donation | null>(null);
   public readonly busy = signal(false);
   public readonly recoverError = signal<string | null>(null);
 
   async ngOnInit(): Promise<void> {
-    await this.donationService.loadAllDonations();
+    const [, usersById] = await Promise.all([
+      this.donationService.loadAllDonations(),
+      this.userService.getUsersById(),
+    ]);
+    this.usersById.set(usersById);
     this.loading.set(false);
+  }
+
+  /** A bare user id means nothing on screen — resolves it to "Name (email)". */
+  public userName(id: string | undefined): string {
+    return id ? formatUserDisplay(this.usersById().get(id), id) : '—';
   }
 
   public readonly skeletons = Array.from({ length: 3 }, (_, i) => i);

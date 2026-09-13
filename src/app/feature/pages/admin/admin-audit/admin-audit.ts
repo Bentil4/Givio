@@ -1,7 +1,11 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { DatePipe } from '@angular/common';
 import { AuditLogService } from '../../../../data/services/audit-log.service';
+import { UserService } from '../../../../data/services/user.service';
 import type { AuditLogEntry } from '../../../../data/models/audit-log';
+import type { AdminUser } from '../../../../data/models/admin-user';
+import { formatUserDisplay } from '../../../../utils/user-display.util';
 
 export type AuditAction = 'create' | 'edit' | 'delete' | 'restore' | 'access' | 'assign' | 'security';
 
@@ -57,17 +61,21 @@ function toAuditEntry(entry: AuditLogEntry): AuditEntry {
  */
 @Component({
   selector: 'app-admin-audit',
-  imports: [MatIconModule],
+  imports: [MatIconModule, DatePipe],
   templateUrl: './admin-audit.html',
   styleUrl: './admin-audit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminAudit implements OnInit {
   private readonly auditLogService = inject(AuditLogService);
+  private readonly userService = inject(UserService);
 
   public readonly entries = computed(() => this.auditLogService.entries().map(toAuditEntry));
   public readonly loading = signal(true);
   public readonly loadError = signal<string | null>(null);
+  public readonly usersById = signal<ReadonlyMap<string, AdminUser>>(new Map());
+  // Kept keyed by the raw actor id — actorFilter()/search still match against it — the display
+  // name is resolved separately by actorName(), only at render time.
   public readonly actors = computed(() => [...new Set(this.entries().map((e) => e.actor))]);
 
   public readonly actionFilter = signal<AuditAction | 'all'>('all');
@@ -76,12 +84,21 @@ export class AdminAudit implements OnInit {
 
   async ngOnInit(): Promise<void> {
     try {
-      await this.auditLogService.loadAuditLogs();
+      const [, usersById] = await Promise.all([
+        this.auditLogService.loadAuditLogs(),
+        this.userService.getUsersById(),
+      ]);
+      this.usersById.set(usersById);
     } catch {
       this.loadError.set('Failed to load the audit trail.');
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /** A bare user id means nothing on screen — resolves it to "Name (email)". */
+  public actorName(id: string): string {
+    return formatUserDisplay(this.usersById().get(id), id);
   }
   public readonly exporting = signal(false);
 
@@ -99,7 +116,9 @@ export class AdminAudit implements OnInit {
       if (action !== 'all' && e.action !== action) return false;
       if (actor !== 'all' && e.actor !== actor) return false;
       if (needle) {
-        const hay = (e.summary + ' ' + (e.detail ?? '') + ' ' + e.actor).toLowerCase();
+        // Includes the resolved name/email, not just the raw actor id — an Admin searches for
+        // who did something by name, not by an id they've never seen.
+        const hay = (e.summary + ' ' + (e.detail ?? '') + ' ' + this.actorName(e.actor)).toLowerCase();
         if (!hay.includes(needle)) return false;
       }
       return true;

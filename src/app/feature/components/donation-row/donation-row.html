@@ -10,6 +10,6 @@
 
   <div class="row-amount">
     <span class="row-value">{{ amountLabel() }}</span>
-    <span class="t-tertiary row-time">{{ donation().recordedAt }}</span>
+    <span class="t-tertiary row-time">{{ donation().recordedAt | date:'MMM d, y, h:mm a' }}</span>
   </div>
 </article>

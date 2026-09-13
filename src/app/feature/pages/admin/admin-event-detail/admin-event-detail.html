@@ -18,7 +18,7 @@
           <span class="tag" [class]="chipClass[e.status]">{{ statusLabel() }}</span>
         </div>
         <p class="detail-meta">
-          @if (e.venue) { {{ e.venue }} · }{{ e.date }} · {{ e.hostName }}
+          @if (e.venue) { {{ e.venue }} · }{{ e.date | date:'mediumDate':'UTC' }} · {{ e.hostName }}
         </p>
       </div>
 

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { DatePipe } from '@angular/common';
 import { EventService } from '../../../../data/services/event.service';
 import { DonationService } from '../../../../data/services/donation.service';
 import { ServiceError } from '../../../../core/services/service-error';
@@ -21,7 +22,10 @@ import { formatCedis, formatCedisShort, totalMinor } from '../../../../utils/don
  */
 @Component({
   selector: 'app-admin-dashboard',
-  imports: [RouterLink],
+  imports: [RouterLink, DatePipe],
+  // DatePipe has no `providedIn: 'root'` — needed explicitly so inject(DatePipe) below can
+  // format eventMeta()'s date in TS, not just via the template pipe.
+  providers: [DatePipe],
   templateUrl: './admin-dashboard.html',
   styleUrl: './admin-dashboard.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,6 +33,7 @@ import { formatCedis, formatCedisShort, totalMinor } from '../../../../utils/don
 export class AdminDashboard implements OnInit, OnDestroy {
   private readonly eventService = inject(EventService);
   private readonly donationService = inject(DonationService);
+  private readonly datePipe = inject(DatePipe);
   private readonly todayKey = new Date().toISOString().slice(0, 10);
   private unsubscribeRealtime: (() => void) | null = null;
 
@@ -93,7 +98,10 @@ export class AdminDashboard implements OnInit, OnDestroy {
 
   public eventMeta(e: Event): string {
     const type = e.type.charAt(0).toUpperCase() + e.type.slice(1);
-    return e.venue ? `${type} · ${e.date} · ${e.venue}` : `${type} · ${e.date}`;
+    // 'UTC' avoids a day-shift bug: e.date has no time component, and formatting it in the
+    // viewer's local timezone could display it as the day before in negative-UTC-offset zones.
+    const date = this.datePipe.transform(e.date, 'mediumDate', 'UTC') ?? e.date;
+    return e.venue ? `${type} · ${date} · ${e.venue}` : `${type} · ${date}`;
   }
 
   public statusLabel(status: EventStatus): string {

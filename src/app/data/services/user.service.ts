@@ -14,6 +14,21 @@ export class UserService {
     return body;
   }
 
+  /**
+   * An id→AdminUser lookup, for resolving a bare recordedBy/performedBy/deletedBy id to a
+   * display name elsewhere in the app. Resolves to an empty map on failure rather than
+   * rejecting — a page showing donations/audit entries should still render (just with raw ids
+   * instead of names) rather than fail entirely over a user-lookup error.
+   */
+  async getUsersById(): Promise<ReadonlyMap<string, AdminUser>> {
+    try {
+      const users = await this.listUsers();
+      return new Map(users.map((u) => [u.id, u]));
+    } catch {
+      return new Map();
+    }
+  }
+
   async createUser(input: {
     name: string;
     email: string;

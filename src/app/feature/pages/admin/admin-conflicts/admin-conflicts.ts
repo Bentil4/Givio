@@ -2,8 +2,10 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { MatIconModule } from '@angular/material/icon';
 import { ConflictResolver } from '../../../components/conflict-resolver/conflict-resolver';
 import { ConflictPair, ConflictResolution } from '../../../../data/models/donation';
+import type { AdminUser } from '../../../../data/models/admin-user';
 import { formatCedis } from '../../../../utils/donation.util';
 import { ConflictService } from '../../../../data/services/conflict.service';
+import { UserService } from '../../../../data/services/user.service';
 import { ServiceError } from '../../../../core/services/service-error';
 
 /**
@@ -23,10 +25,12 @@ import { ServiceError } from '../../../../core/services/service-error';
 })
 export class AdminConflicts implements OnInit {
   private readonly conflictService = inject(ConflictService);
+  private readonly userService = inject(UserService);
 
   public readonly conflicts = this.conflictService.conflicts;
   public readonly loading = signal(true);
   public readonly loadError = signal<string | null>(null);
+  public readonly usersById = signal<ReadonlyMap<string, AdminUser>>(new Map());
 
   public readonly activeIndex = signal(0);
   public readonly busy = signal(false);
@@ -34,7 +38,11 @@ export class AdminConflicts implements OnInit {
 
   async ngOnInit(): Promise<void> {
     try {
-      await this.conflictService.loadConflicts();
+      const [, usersById] = await Promise.all([
+        this.conflictService.loadConflicts(),
+        this.userService.getUsersById(),
+      ]);
+      this.usersById.set(usersById);
     } catch {
       this.loadError.set('Failed to load sync conflicts.');
     } finally {
