@@ -12,6 +12,11 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-md);
+  /* This page's root has no .page/.page-head (it's .select-page, a bespoke wrapper with no
+     padding of its own) and organizer-layout's .main-content has no top padding either, so
+     without this the header touched the top of the browser directly. Matches .page-head's
+     top gap for consistency with the rest of the app. */
+  padding-top: 2rem;
 }
 
 .select-head-main {

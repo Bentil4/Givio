@@ -441,7 +441,13 @@ body {
 /* ── Layout ─────────────────────────────────────────── */
 .page {
   margin: 0 auto;
-  padding: 0 var(--space-lg) var(--space-2xl);
+  /* Top padding lives here, not on .page-head, so every page gets consistent breathing room
+     from the browser edge regardless of whether its first child happens to be a .page-head —
+     several screens (admin-event-detail, edit-event's loading/not-found states) had no
+     .page-head at all and their content touched the top of the viewport directly. Kept at the
+     same 2rem .page-head used to provide, so pages that already had a .page-head render
+     pixel-identical to before. */
+  padding: 2rem var(--space-lg) var(--space-2xl);
 }
 
 /* ── Surface ────────────────────────────────────────── */
@@ -481,7 +487,9 @@ body {
 /* ── Header ─────────────────────────────────────────── */
 
 .page-head {
-  padding: 2rem 0rem;
+  /* Top padding moved to .page (see above) so it isn't duplicated on pages that have a
+     .page-head; this keeps only the gap BELOW the header, before the content that follows it. */
+  padding: 0 0 2rem;
 }
 
 .logo {

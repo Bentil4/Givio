@@ -3,6 +3,10 @@
   flex-direction: column;
   gap: var(--space-md);
   font-family: var(--font-body);
+  /* organizer-layout's .main-content has no top padding, so without this .desk-header's own
+     rounded card touched the top of the browser directly. Matches .page-head's top gap for
+     consistency with the rest of the app. */
+  padding-top: 2rem;
 }
 
 .desk-header {
