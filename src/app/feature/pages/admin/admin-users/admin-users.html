@@ -19,8 +19,7 @@
     <div class="code-note" role="status">
       <mat-icon>vpn_key</mat-icon>
       <p class="t-caption">
-        Generated password: <strong>{{ pwd }}</strong> — share it with them
-        directly; it won't be shown again.
+        Generated password: <strong>{{ pwd }}</strong> — {{ passwordBannerCopy() }}
       </p>
       <button type="button" class="btn-ghost" (click)="dismissGeneratedPassword()">Dismiss</button>
     </div>
@@ -133,7 +132,7 @@
     <header class="dialog-head">
       <h2 class="t-page-title">{{ editing() ? 'Edit user' : 'Create user' }}</h2>
       <p class="t-secondary">
-        {{ editing() ? "Role changes still go through the server-side function." : "They'll get an email to set their own password." }}
+        {{ editing() ? "Role changes still go through the server-side function." : "Choose how they'll receive their login details below." }}
       </p>
     </header>
 
@@ -155,6 +154,34 @@
                placeholder="name@givio.app" [class.is-invalid]="invalid('email')" />
         @if (invalid('email')) { <p class="field-error">Enter a valid email address.</p> }
       </div>
+
+      @if (!editing()) {
+        <div class="field">
+          <label class="field-label" for="uPhone">Phone (optional)</label>
+          <input id="uPhone" class="input" type="tel" formControlName="phone"
+                 placeholder="+233241234567" [class.is-invalid]="invalid('phone')" />
+          @if (invalid('phone')) { <p class="field-error">Enter a phone number in international format, e.g. +233241234567.</p> }
+        </div>
+
+        <div class="field">
+          <span class="field-label">Invite (optional)</span>
+          <div class="invite-options">
+            <label class="invite-check">
+              <input type="checkbox" [checked]="inviteEmail()"
+                     (change)="inviteEmail.set($any($event.target).checked)" />
+              Send login details via email
+            </label>
+            <label class="invite-check" [class.is-disabled]="!hasPhone()">
+              <input type="checkbox" [checked]="inviteSms()" [disabled]="!hasPhone()"
+                     (change)="inviteSms.set($any($event.target).checked)" />
+              Send login details via SMS
+            </label>
+            @if (!hasPhone()) {
+              <p class="invite-hint">Add a phone number above to enable SMS.</p>
+            }
+          </div>
+        </div>
+      }
 
       <div class="field">
         <span class="field-label">Role <span class="req" aria-hidden="true">*</span></span>

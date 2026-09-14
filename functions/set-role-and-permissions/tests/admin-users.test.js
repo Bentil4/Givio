@@ -17,7 +17,7 @@ class FakeClient {
   }
 }
 
-function fakeContext({ body, headers = {}, getAccount, users = {} }) {
+function fakeContext({ body, headers = {}, getAccount, users = {}, messaging = {}, fetchImpl }) {
   const jsonCalls = [];
   const logs = [];
   const errors = [];
@@ -26,11 +26,11 @@ function fakeContext({ body, headers = {}, getAccount, users = {} }) {
   // async so a fake impl that throws synchronously still produces a rejected promise,
   // matching the real node-appwrite SDK's contract (its methods never throw synchronously).
   const record =
-    (name) =>
+    (name, impls = users) =>
     async (...args) => {
       calls[name] = calls[name] ?? [];
       calls[name].push(args);
-      const impl = users[name];
+      const impl = impls[name];
       return impl ? impl(...args) : undefined;
     };
 
@@ -50,6 +50,10 @@ function fakeContext({ body, headers = {}, getAccount, users = {} }) {
     updateLabels = record('updateLabels');
     updateStatus = record('updateStatus');
     deleteSessions = record('deleteSessions');
+  }
+
+  class MessagingCtor {
+    createEmail = record('createEmail', messaging);
   }
 
   const res = {
@@ -74,6 +78,8 @@ function fakeContext({ body, headers = {}, getAccount, users = {} }) {
       ClientCtor: FakeClient,
       AccountCtor,
       UsersCtor,
+      MessagingCtor,
+      fetchImpl: fetchImpl ?? (async () => ({ ok: true, status: 200 })),
     },
     jsonCalls,
     logs,
@@ -344,6 +350,128 @@ test('createUser rejects an invalid role with 400 before calling users.create', 
 
   assert.equal(result.status, 400);
   assert.equal(calls.create, undefined);
+});
+
+test('createUser rejects sms invite without a phone number, before calling users.create', async () => {
+  const { ctx, calls } = fakeContext({
+    body: {
+      action: 'createUser',
+      name: 'X',
+      email: 'x@givio.test',
+      role: 'operator',
+      inviteChannels: ['sms'],
+    },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 400);
+  assert.equal(calls.create, undefined);
+});
+
+test('createUser rejects a malformed phone number', async () => {
+  const { ctx, calls } = fakeContext({
+    body: { action: 'createUser', name: 'X', email: 'x@givio.test', role: 'operator', phone: 'not-a-phone' },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 400);
+  assert.equal(calls.create, undefined);
+});
+
+test('createUser sends an email and sms invite and reports both as sent', async () => {
+  const { ctx, calls } = fakeContext({
+    body: {
+      action: 'createUser',
+      name: 'New User',
+      email: 'new@givio.test',
+      role: 'operator',
+      phone: '+233241234567',
+      inviteChannels: ['email', 'sms'],
+    },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+    users: { create: () => ({ $id: 'invited-1' }) },
+    fetchImpl: async () => ({ ok: true, status: 200 }),
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body.inviteStatus, { email: 'sent', sms: 'sent' });
+  assert.equal(typeof result.body.generatedPassword, 'string');
+  assert.equal(calls.create[0][0].phone, '+233241234567');
+  assert.deepEqual(calls.createEmail[0][0].users, ['invited-1']);
+});
+
+test('createUser still creates the user and returns the password when the email invite provider throws', async () => {
+  const { ctx } = fakeContext({
+    body: {
+      action: 'createUser',
+      name: 'New User',
+      email: 'new@givio.test',
+      role: 'operator',
+      inviteChannels: ['email'],
+    },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+    users: { create: () => ({ $id: 'invited-2' }) },
+    messaging: {
+      createEmail: () => {
+        throw new Error('no email provider configured');
+      },
+    },
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+  assert.equal(typeof result.body.generatedPassword, 'string');
+  assert.deepEqual(result.body.inviteStatus, { email: 'failed' });
+});
+
+test('createUser reports an sms invite as failed when Arkesel returns a non-2xx status', async () => {
+  const { ctx } = fakeContext({
+    body: {
+      action: 'createUser',
+      name: 'New User',
+      email: 'new@givio.test',
+      role: 'operator',
+      phone: '+233241234567',
+      inviteChannels: ['sms'],
+    },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+    users: { create: () => ({ $id: 'invited-3' }) },
+    fetchImpl: async () => ({ ok: false, status: 401 }),
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+  assert.deepEqual(result.body.inviteStatus, { sms: 'failed' });
+});
+
+test('createUser with no inviteChannels behaves exactly as before — no inviteStatus at all', async () => {
+  const { ctx, calls } = fakeContext({
+    body: { action: 'createUser', name: 'New User', email: 'new@givio.test', role: 'operator' },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+    users: { create: () => ({ $id: 'invited-4' }) },
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.inviteStatus, undefined);
+  assert.equal(calls.createEmail, undefined);
 });
 
 test('updateUser only calls the update methods for fields actually provided', async () => {

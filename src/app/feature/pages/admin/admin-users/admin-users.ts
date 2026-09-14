@@ -80,6 +80,9 @@ export class AdminUsers implements OnInit {
   public readonly busy = signal(false);
   public readonly formError = signal<string | null>(null);
   public readonly generatedPassword = signal<string | null>(null);
+  public readonly inviteStatus = signal<{ email?: 'sent' | 'failed'; sms?: 'sent' | 'failed' } | null>(null);
+  public readonly inviteEmail = signal(false);
+  public readonly inviteSms = signal(false);
 
   public readonly roles: Role[] = ['admin', 'operator'];
   public readonly roleOptions: (Role | 'all')[] = ['all', 'admin', 'operator'];
@@ -88,6 +91,7 @@ export class AdminUsers implements OnInit {
   public readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]],
     email: ['', [Validators.required, Validators.email]],
+    phone: ['', [Validators.pattern(/^\+[1-9]\d{6,14}$/)]],
     role: ['operator' as Role, Validators.required],
   });
 
@@ -139,6 +143,23 @@ export class AdminUsers implements OnInit {
     };
   });
 
+  public readonly passwordBannerCopy = computed(() => {
+    const status = this.inviteStatus();
+    if (!status) {
+      return "share it with them directly; it won't be shown again.";
+    }
+    const sent = (Object.keys(status) as ('email' | 'sms')[]).filter((c) => status[c] === 'sent');
+    const failed = (Object.keys(status) as ('email' | 'sms')[]).filter((c) => status[c] === 'failed');
+    if (failed.length === 0) {
+      return `Sent to them via ${sent.join(' and ')} — they can sign in with it now.`;
+    }
+    if (sent.length === 0) {
+      return "Delivery failed — share it with them directly; it won't be shown again.";
+    }
+    return `Sent via ${sent.join(' and ')}, but ${failed.join(' and ')} delivery failed — `
+      + 'share it with them directly as a backup.';
+  });
+
   ngOnInit(): void {
     this.loadUsers();
   }
@@ -185,14 +206,18 @@ export class AdminUsers implements OnInit {
   public openCreate(): void {
     this.editing.set(null);
     this.formError.set(null);
-    this.form.reset({ name: '', email: '', role: 'operator' });
+    this.form.reset({ name: '', email: '', phone: '', role: 'operator' });
+    this.inviteEmail.set(false);
+    this.inviteSms.set(false);
     this.creating.set(true);
   }
 
   public openEdit(u: ManagedUser): void {
     this.editing.set(u);
     this.formError.set(null);
-    this.form.reset({ name: u.name, email: u.email, role: u.role ?? 'operator' });
+    this.form.reset({ name: u.name, email: u.email, phone: '', role: u.role ?? 'operator' });
+    this.inviteEmail.set(false);
+    this.inviteSms.set(false);
     this.creating.set(true);
   }
 
@@ -202,24 +227,41 @@ export class AdminUsers implements OnInit {
 
   public dismissGeneratedPassword(): void {
     this.generatedPassword.set(null);
+    this.inviteStatus.set(null);
+  }
+
+  /** Whether a plausible phone number has been entered — gates the SMS-invite checkbox. */
+  public hasPhone(): boolean {
+    return this.form.controls.phone.value.trim().length > 0;
   }
 
   public async save(): Promise<void> {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.busy.set(true);
     this.formError.set(null);
-    const { name, email, role } = this.form.getRawValue();
+    const { name, email, phone, role } = this.form.getRawValue();
     const editing = this.editing();
 
     try {
       if (editing) {
         await this.userService.updateUser(editing.id, { name, email, role });
       } else {
+        const inviteChannels: ('email' | 'sms')[] = [
+          ...(this.inviteEmail() ? (['email'] as const) : []),
+          ...(this.inviteSms() && this.hasPhone() ? (['sms'] as const) : []),
+        ];
         // The role is applied by the set-role-and-permissions Function, never by the client.
-        const result = await this.userService.createUser({ name, email, role });
+        const result = await this.userService.createUser({
+          name,
+          email,
+          role,
+          ...(this.hasPhone() ? { phone: phone.trim() } : {}),
+          ...(inviteChannels.length ? { inviteChannels } : {}),
+        });
         if (result.generatedPassword) {
           this.generatedPassword.set(result.generatedPassword);
         }
+        this.inviteStatus.set(result.inviteStatus ?? null);
       }
       this.closeCreate();
     } catch (err) {
