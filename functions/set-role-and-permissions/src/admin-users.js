@@ -183,6 +183,7 @@ async function handleCreateUser({ UsersCtor, MessagingCtor, fetchImpl, adminClie
     });
   } catch (err) {
     if (isConflictError(err)) {
+      error(`users.create conflict: type=${err.type} message=${err.message}`);
       return { status: 409, body: { error: `A user with this ${duplicateField(err)} already exists` } };
     }
     error(`users.create failed: ${err.message}`);
