@@ -34,7 +34,13 @@ export class UserService {
     email: string;
     role: Role;
     password?: string;
-  }): Promise<{ userId: string; generatedPassword?: string }> {
+    phone?: string;
+    inviteChannels?: ('email' | 'sms')[];
+  }): Promise<{
+    userId: string;
+    generatedPassword?: string;
+    inviteStatus?: { email?: 'sent' | 'failed'; sms?: 'sent' | 'failed' };
+  }> {
     return this.invoke('createUser', 'Failed to create user', input);
   }
 

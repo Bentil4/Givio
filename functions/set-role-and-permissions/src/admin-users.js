@@ -1,10 +1,20 @@
 import { randomBytes } from 'node:crypto';
-import { Client, Account, Users, ID, Query } from 'node-appwrite';
+import { Client, Account, Users, Messaging, ID, Query } from 'node-appwrite';
 import { VALID_ROLES, buildClient, verifyAdminCaller, VALID, invalid, hasValue } from './shared.js';
 
 const ACTIONS = ['listUsers', 'createUser', 'updateUser', 'setStatus', 'forceExpireSessions'];
 
 const LIST_PAGE_SIZE = 100;
+
+const INVITE_CHANNELS = ['email', 'sms'];
+
+// Arkesel isn't an Appwrite Messaging provider, so SMS invites bypass Messaging entirely and
+// hit Arkesel's own REST API directly.
+const ARKESEL_SMS_ENDPOINT = 'https://sms.arkesel.com/api/v2/sms/send';
+
+function isValidPhone(phone) {
+  return /^\+[1-9]\d{6,14}$/.test(phone);
+}
 
 function mapUser(u) {
   return {
@@ -29,10 +39,23 @@ function rejectSelfTarget(userId, caller, error) {
 const PAYLOAD_VALIDATORS = {
   listUsers: () => VALID,
 
-  createUser: ({ name, email, role }) =>
-    hasValue(name) && hasValue(email) && VALID_ROLES.includes(role)
-      ? VALID
-      : invalid('Request must include name, email, and role ("admin" | "operator")'),
+  createUser: ({ name, email, role, phone, inviteChannels }) => {
+    if (!hasValue(name) || !hasValue(email) || !VALID_ROLES.includes(role)) {
+      return invalid('Request must include name, email, and role ("admin" | "operator")');
+    }
+    if (phone !== undefined && !isValidPhone(phone)) {
+      return invalid('phone must be in E.164 format, e.g. +233241234567');
+    }
+    if (inviteChannels !== undefined) {
+      if (!Array.isArray(inviteChannels) || inviteChannels.some((c) => !INVITE_CHANNELS.includes(c))) {
+        return invalid('inviteChannels must only contain "email" and/or "sms"');
+      }
+      if (inviteChannels.includes('sms') && !hasValue(phone)) {
+        return invalid('inviteChannels cannot include "sms" without a phone number');
+      }
+    }
+    return VALID;
+  },
 
   updateUser: ({ userId, role }, caller) => {
     if (!hasValue(userId)) {
@@ -101,15 +124,58 @@ async function handleListUsers({ UsersCtor, adminClient, error }) {
   return { status: 200, body: all.map(mapUser) };
 }
 
-async function handleCreateUser({ UsersCtor, adminClient, payload, error }) {
-  const { name, email, role, password } = payload ?? {};
+function inviteMessage({ email, generatedPassword }) {
+  return `Welcome to Givio! Sign in with ${email} and temporary password: ${generatedPassword}`;
+}
+
+async function sendInviteEmail({ MessagingCtor, adminClient, userId, content, error }) {
+  try {
+    await new MessagingCtor(adminClient).createEmail({
+      messageId: ID.unique(),
+      subject: 'Your Givio account',
+      content,
+      users: [userId],
+    });
+    return 'sent';
+  } catch (err) {
+    error(`Invite email failed: ${err.message}`);
+    return 'failed';
+  }
+}
+
+async function sendInviteSms({ fetchImpl, phone, content, error }) {
+  try {
+    const response = await fetchImpl(ARKESEL_SMS_ENDPOINT, {
+      method: 'POST',
+      headers: { 'api-key': process.env.ARKESEL_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sender: process.env.ARKESEL_SENDER_ID, message: content, recipients: [phone] }),
+    });
+    if (!response.ok) {
+      error(`Arkesel SMS failed with status ${response.status}`);
+      return 'failed';
+    }
+    return 'sent';
+  } catch (err) {
+    error(`Arkesel SMS request failed: ${err.message}`);
+    return 'failed';
+  }
+}
+
+async function handleCreateUser({ UsersCtor, MessagingCtor, fetchImpl, adminClient, payload, error }) {
+  const { name, email, role, password, phone, inviteChannels = [] } = payload ?? {};
   const users = new UsersCtor(adminClient);
   const explicitPassword = hasValue(password);
   const generatedPassword = explicitPassword ? password : randomBytes(12).toString('base64url');
 
   let user;
   try {
-    user = await users.create({ userId: ID.unique(), email, password: generatedPassword, name });
+    user = await users.create({
+      userId: ID.unique(),
+      email,
+      ...(hasValue(phone) ? { phone } : {}),
+      password: generatedPassword,
+      name,
+    });
   } catch (err) {
     if (isDuplicateEmailError(err)) {
       return { status: 409, body: { error: 'A user with this email already exists' } };
@@ -125,9 +191,28 @@ async function handleCreateUser({ UsersCtor, adminClient, payload, error }) {
     return { status: 502, body: { error: 'User created but failed to set role' } };
   }
 
+  // Invite delivery failures never fail this request — the user (and their password) already
+  // exist; generatedPassword stays in the response either way so the Admin has a fallback.
+  let inviteStatus;
+  if (inviteChannels.length > 0) {
+    inviteStatus = {};
+    const content = inviteMessage({ email, generatedPassword });
+    if (inviteChannels.includes('email')) {
+      inviteStatus.email = await sendInviteEmail({ MessagingCtor, adminClient, userId: user.$id, content, error });
+    }
+    if (inviteChannels.includes('sms')) {
+      inviteStatus.sms = await sendInviteSms({ fetchImpl, phone, content, error });
+    }
+  }
+
   return {
     status: 200,
-    body: { success: true, userId: user.$id, ...(explicitPassword ? {} : { generatedPassword }) },
+    body: {
+      success: true,
+      userId: user.$id,
+      ...(explicitPassword ? {} : { generatedPassword }),
+      ...(inviteStatus ? { inviteStatus } : {}),
+    },
   };
 }
 
@@ -231,8 +316,8 @@ async function handleForceExpireSessions({ UsersCtor, adminClient, payload, erro
  * user accounts (AD-9) — Appwrite's Users service is server-only, so every one of these
  * actions is only possible here, never from the client SDK directly.
  *
- * ClientCtor/AccountCtor/UsersCtor are injectable so tests can substitute fakes without
- * module-mocking node-appwrite.
+ * ClientCtor/AccountCtor/UsersCtor/MessagingCtor/fetchImpl are injectable so tests can
+ * substitute fakes without module-mocking node-appwrite or the network.
  */
 export async function handleAdminUsersRequest({
   req,
@@ -242,6 +327,8 @@ export async function handleAdminUsersRequest({
   ClientCtor = Client,
   AccountCtor = Account,
   UsersCtor = Users,
+  MessagingCtor = Messaging,
+  fetchImpl = fetch,
 }) {
   const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT;
   const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID;
@@ -279,7 +366,7 @@ export async function handleAdminUsersRequest({
   }
 
   const adminClient = buildClient(ClientCtor, endpoint, projectId).setKey(dynamicKey);
-  const actionContext = { UsersCtor, adminClient, payload, caller, error };
+  const actionContext = { UsersCtor, MessagingCtor, fetchImpl, adminClient, payload, caller, error };
 
   let result;
   switch (action) {
