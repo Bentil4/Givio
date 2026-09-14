@@ -339,6 +339,33 @@ test('createUser rejects a duplicate email with 409 and never sets a label', asy
   assert.equal(calls.updateLabels, undefined);
 });
 
+test('createUser attributes a phone conflict to the phone number, not the email', async () => {
+  const { ctx } = fakeContext({
+    body: {
+      action: 'createUser',
+      name: 'Dup',
+      email: 'fresh@givio.test',
+      role: 'admin',
+      phone: '+233548244583',
+    },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+    users: {
+      create: () => {
+        const err = new Error('A user with the same phone already exists in this project.');
+        err.code = 409;
+        err.type = 'user_phone_already_exists';
+        throw err;
+      },
+    },
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 409);
+  assert.match(result.body.error, /phone number already exists/i);
+});
+
 test('createUser rejects an invalid role with 400 before calling users.create', async () => {
   const { ctx, calls } = fakeContext({
     body: { action: 'createUser', name: 'X', email: 'x@givio.test', role: 'superadmin' },

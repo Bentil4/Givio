@@ -27,8 +27,13 @@ function mapUser(u) {
   };
 }
 
-function isDuplicateEmailError(err) {
-  return err?.code === 409 || err?.type === 'user_already_exists';
+function isConflictError(err) {
+  return err?.code === 409;
+}
+
+/** Appwrite reports which field actually collided; defaults to email for the generic type. */
+function duplicateField(err) {
+  return err?.type === 'user_phone_already_exists' ? 'phone number' : 'email';
 }
 
 /** Shared by every action that must not let an admin target their own account. */
@@ -177,8 +182,8 @@ async function handleCreateUser({ UsersCtor, MessagingCtor, fetchImpl, adminClie
       name,
     });
   } catch (err) {
-    if (isDuplicateEmailError(err)) {
-      return { status: 409, body: { error: 'A user with this email already exists' } };
+    if (isConflictError(err)) {
+      return { status: 409, body: { error: `A user with this ${duplicateField(err)} already exists` } };
     }
     error(`users.create failed: ${err.message}`);
     return { status: 502, body: { error: 'Failed to create user' } };
@@ -266,7 +271,8 @@ async function handleUpdateUser({ UsersCtor, adminClient, payload, error }) {
       return;
     }
     failed = true;
-    if (isDuplicateEmailError(outcome.reason)) {
+    // updateUser only ever changes email (never phone), so any 409 here is an email conflict.
+    if (isConflictError(outcome.reason)) {
       duplicateEmail = true;
     }
     error(`updateUser: ${tasks[index].field} failed: ${outcome.reason?.message}`);
