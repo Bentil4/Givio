@@ -490,6 +490,11 @@ test('createUser sends an email and sms invite and reports both as sent', async 
   assert.equal(typeof result.body.generatedPassword, 'string');
   assert.equal(calls.create[0][0].phone, '+233241234567');
   assert.deepEqual(calls.createEmail[0][0].users, ['invited-1']);
+  assert.equal(calls.createEmail[0][0].html, true);
+  assert.match(calls.createEmail[0][0].subject, /operator/i);
+  assert.match(calls.createEmail[0][0].content, /New User/);
+  assert.match(calls.createEmail[0][0].content, /new@givio\.test/);
+  assert.match(calls.createEmail[0][0].content, new RegExp(result.body.generatedPassword));
 });
 
 test('createUser still creates the user and returns the password when the email invite provider throws', async () => {
