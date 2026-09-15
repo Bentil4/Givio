@@ -1,0 +1,162 @@
+// Design source: _bmad-output/planning-artifacts/invite-email-template.html
+// Keep this in sync by hand if the design changes there — the two aren't generated from
+// each other, since the design artifact ships full email-client boilerplate (Outlook MSO
+// fallbacks, mobile media query) that would just be dead weight duplicated here as a build step.
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
+export function renderInviteEmail({ name, role, email, password, appUrl }) {
+  const safeName = escapeHtml(name);
+  const safeRole = escapeHtml(role);
+  const safeEmail = escapeHtml(email);
+  const safePassword = escapeHtml(password);
+  const safeUrl = escapeHtml(appUrl);
+
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<!--[if mso]>
+<noscript>
+<xml>
+<o:OfficeDocumentSettings>
+<o:PixelsPerInch>96</o:PixelsPerInch>
+</o:OfficeDocumentSettings>
+</xml>
+</noscript>
+<style>
+  table, td { border-collapse: collapse; }
+  .fallback-font { font-family: Arial, sans-serif !important; }
+</style>
+<![endif]-->
+<title>Your Givio account</title>
+<style>
+  body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+  table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+  img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+  body { margin: 0; padding: 0; width: 100% !important; height: 100% !important; }
+
+  @media only screen and (max-width: 480px) {
+    .email-outer { padding: 24px 16px !important; }
+    .email-card { border-radius: 12px !important; }
+    .email-card-pad { padding: 28px 20px !important; }
+    .cred-row td { display: block !important; width: 100% !important; }
+    .cred-label { padding-bottom: 4px !important; }
+    .password-value { font-size: 18px !important; letter-spacing: 1.5px !important; word-break: break-all; }
+  }
+</style>
+</head>
+<body class="fallback-font" style="margin:0; padding:0; background-color:#f7f8fa; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#f7f8fa;">
+    Sign in with the temporary password below — you'll set your own on first login.
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f8fa;">
+    <tr>
+      <td class="email-outer" align="center" style="padding:48px 24px;">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="width:480px; max-width:100%;">
+
+          <tr>
+            <td align="center" style="padding-bottom:32px;">
+              <span style="font-size:20px; font-weight:700; letter-spacing:-0.2px; color:#164a99;">Givio</span>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="email-card" style="background-color:#ffffff; border:1px solid #eef0f3; border-radius:16px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td class="email-card-pad" style="padding:40px 40px 32px;">
+
+                    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+                      <tr>
+                        <td style="background-color:#eef4ff; border-radius:100px; padding:5px 12px;">
+                          <span style="font-size:11px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:#164a99;">${safeRole} account</span>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <h1 style="margin:0 0 12px; font-size:22px; line-height:1.35; font-weight:700; color:#12151a;">
+                      Welcome to Givio, ${safeName}.
+                    </h1>
+                    <p style="margin:0 0 28px; font-size:15px; line-height:1.6; color:#5b6270;">
+                      An admin set up your account. Use the details below to sign in — you'll choose your own password right after.
+                    </p>
+
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f8fa; border:1px solid #eef0f3; border-radius:12px;">
+                      <tr class="cred-row">
+                        <td style="padding:20px 24px 0;">
+                          <span class="cred-label" style="display:block; font-size:11px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:#7a828e;">Sign-in email</span>
+                          <span style="display:block; margin-top:4px; font-size:15px; font-weight:600; color:#12151a; word-break:break-all;">${safeEmail}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:20px 24px 24px;">
+                          <span class="cred-label" style="display:block; font-size:11px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:#7a828e; margin-bottom:8px;">Temporary password</span>
+                          <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                            <tr>
+                              <td style="background-color:#ffffff; border:1px solid #dde1e7; border-radius:8px; padding:12px 16px;">
+                                <span class="password-value" style="font-family:'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size:20px; font-weight:600; letter-spacing:2px; color:#12151a;">${safePassword}</span>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:28px;">
+                      <tr>
+                        <td style="border-radius:8px; background-color:#1f5fbf;">
+                          <!--[if mso]>
+                          <a href="${safeUrl}" style="height:44px;v-text-anchor:middle;width:220px;" arcsize="18%" strokecolor="#1f5fbf" fillcolor="#1f5fbf">
+                          <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:15px;font-weight:600;">Sign in to Givio</center>
+                          </a>
+                          <![endif]-->
+                          <!--[if !mso]><!-->
+                          <a href="${safeUrl}" style="display:inline-block; padding:13px 28px; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none; border-radius:8px;">
+                            Sign in to Givio →
+                          </a>
+                          <!--<![endif]-->
+                        </td>
+                      </tr>
+                    </table>
+
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px 12px 0;">
+              <p style="margin:0; font-size:13px; line-height:1.6; color:#7a828e;">
+                This password works once — you'll be asked to set a new one the moment you sign in. Didn't expect this account? You can safely ignore this email; nothing happens until it's used.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:32px 12px 0;">
+              <p style="margin:0; font-size:12px; line-height:1.6; color:#a2a8b3;">
+                Sent by Givio · This is an automated message — replies aren't monitored.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}

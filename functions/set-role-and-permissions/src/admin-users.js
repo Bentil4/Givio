@@ -1,12 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { Client, Account, Users, Messaging, ID, Query } from 'node-appwrite';
 import { VALID_ROLES, buildClient, verifyAdminCaller, VALID, invalid, hasValue } from './shared.js';
+import { renderInviteEmail } from './invite-email-template.js';
 
 const ACTIONS = ['listUsers', 'createUser', 'updateUser', 'setStatus', 'forceExpireSessions'];
 
 const LIST_PAGE_SIZE = 100;
 
-const INVITE_CHANNELS = ['email', 'sms'];
+const INVITE_CHANNELS = new Set(['email', 'sms']);
 
 // Arkesel isn't an Appwrite Messaging provider, so SMS invites bypass Messaging entirely and
 // hit Arkesel's own REST API directly.
@@ -66,7 +67,7 @@ const PAYLOAD_VALIDATORS = {
       return invalid('phone must be in E.164 format, e.g. +233241234567');
     }
     if (inviteChannels !== undefined) {
-      if (!Array.isArray(inviteChannels) || inviteChannels.some((c) => !INVITE_CHANNELS.includes(c))) {
+      if (!Array.isArray(inviteChannels) || inviteChannels.some((c) => !INVITE_CHANNELS.has(c))) {
         return invalid('inviteChannels must only contain "email" and/or "sms"');
       }
       if (inviteChannels.includes('sms') && !hasValue(phone)) {
@@ -143,16 +144,27 @@ async function handleListUsers({ UsersCtor, adminClient, error }) {
   return { status: 200, body: all.map(mapUser) };
 }
 
-function inviteMessage({ email, generatedPassword }) {
+function smsInviteMessage({ email, generatedPassword }) {
   return `Welcome to Givio! Sign in with ${email} and temporary password: ${generatedPassword}`;
 }
 
-async function sendInviteEmail({ MessagingCtor, adminClient, userId, content, error }) {
+/** Falls back to '#' (never throws) so a missing APP_URL degrades to a dead link, not a failed send. */
+function resolveAppUrl(error) {
+  const appUrl = process.env.APP_URL;
+  if (!hasValue(appUrl)) {
+    error('APP_URL is not configured — invite emails will link to "#".');
+    return '#';
+  }
+  return appUrl;
+}
+
+async function sendInviteEmail({ MessagingCtor, adminClient, userId, name, role, email, generatedPassword, error }) {
   try {
     await new MessagingCtor(adminClient).createEmail({
       messageId: ID.unique(),
-      subject: 'Your Givio account',
-      content,
+      subject: `Your Givio ${role} account`,
+      content: renderInviteEmail({ name, role, email, password: generatedPassword, appUrl: resolveAppUrl(error) }),
+      html: true,
       users: [userId],
     });
     return 'sent';
@@ -217,11 +229,20 @@ async function handleCreateUser({ UsersCtor, MessagingCtor, fetchImpl, adminClie
   let inviteStatus;
   if (inviteChannels.length > 0) {
     inviteStatus = {};
-    const content = inviteMessage({ email, generatedPassword });
     if (inviteChannels.includes('email')) {
-      inviteStatus.email = await sendInviteEmail({ MessagingCtor, adminClient, userId: user.$id, content, error });
+      inviteStatus.email = await sendInviteEmail({
+        MessagingCtor,
+        adminClient,
+        userId: user.$id,
+        name,
+        role,
+        email,
+        generatedPassword,
+        error,
+      });
     }
     if (inviteChannels.includes('sms')) {
+      const content = smsInviteMessage({ email, generatedPassword });
       inviteStatus.sms = await sendInviteSms({ fetchImpl, phone, content, error });
     }
   }
