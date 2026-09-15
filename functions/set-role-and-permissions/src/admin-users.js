@@ -31,9 +31,23 @@ function isConflictError(err) {
   return err?.code === 409;
 }
 
-/** Appwrite reports which field actually collided; defaults to email for the generic type. */
-function duplicateField(err) {
-  return err?.type === 'user_phone_already_exists' ? 'phone number' : 'email';
+/**
+ * Appwrite's specific error types tell us which field collided, but `users.create` often
+ * returns the generic `user_already_exists` ("id, email, or phone") instead — in that case we
+ * look the values up ourselves rather than guess, since userId is always freshly generated and
+ * so can never be the real cause.
+ */
+async function resolveDuplicateField(users, err, email, phone) {
+  if (err?.type === 'user_phone_already_exists') return 'phone number';
+  if (err?.type === 'user_email_already_exists') return 'email';
+
+  try {
+    const byEmail = await users.list({ queries: [Query.equal('email', [email])] });
+    if (byEmail.total > 0) return 'email';
+  } catch {
+    // Fall through to the phone-based default below.
+  }
+  return hasValue(phone) ? 'phone number' : 'email';
 }
 
 /** Shared by every action that must not let an admin target their own account. */
@@ -183,8 +197,9 @@ async function handleCreateUser({ UsersCtor, MessagingCtor, fetchImpl, adminClie
     });
   } catch (err) {
     if (isConflictError(err)) {
-      error(`users.create conflict: type=${err.type} message=${err.message}`);
-      return { status: 409, body: { error: `A user with this ${duplicateField(err)} already exists` } };
+      const field = await resolveDuplicateField(users, err, email, phone);
+      error(`users.create conflict: type=${err.type} resolvedField=${field} message=${err.message}`);
+      return { status: 409, body: { error: `A user with this ${field} already exists` } };
     }
     error(`users.create failed: ${err.message}`);
     return { status: 502, body: { error: 'Failed to create user' } };

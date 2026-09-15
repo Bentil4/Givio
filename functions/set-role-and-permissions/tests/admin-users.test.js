@@ -366,6 +366,62 @@ test('createUser attributes a phone conflict to the phone number, not the email'
   assert.match(result.body.error, /phone number already exists/i);
 });
 
+test('createUser resolves a generic conflict to phone when email search finds no match', async () => {
+  const { ctx } = fakeContext({
+    body: {
+      action: 'createUser',
+      name: 'Dup',
+      email: 'fresh@givio.test',
+      role: 'admin',
+      phone: '+233548244583',
+    },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+    users: {
+      create: () => {
+        const err = new Error('A user with the same id, email, or phone already exists in this project.');
+        err.code = 409;
+        err.type = 'user_already_exists';
+        throw err;
+      },
+      list: () => ({ total: 0, users: [] }),
+    },
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 409);
+  assert.match(result.body.error, /phone number already exists/i);
+});
+
+test('createUser resolves a generic conflict to email when the email search finds a match', async () => {
+  const { ctx } = fakeContext({
+    body: {
+      action: 'createUser',
+      name: 'Dup',
+      email: 'taken@givio.test',
+      role: 'admin',
+      phone: '+233548244583',
+    },
+    headers: ADMIN_HEADERS,
+    getAccount: asAdmin,
+    users: {
+      create: () => {
+        const err = new Error('A user with the same id, email, or phone already exists in this project.');
+        err.code = 409;
+        err.type = 'user_already_exists';
+        throw err;
+      },
+      list: () => ({ total: 1, users: [{ $id: 'existing-1' }] }),
+    },
+  });
+
+  const result = await handleAdminUsersRequest(ctx);
+
+  assert.equal(result.status, 409);
+  assert.match(result.body.error, /email already exists/i);
+});
+
 test('createUser rejects an invalid role with 400 before calling users.create', async () => {
   const { ctx, calls } = fakeContext({
     body: { action: 'createUser', name: 'X', email: 'x@givio.test', role: 'superadmin' },
