@@ -18,10 +18,11 @@ interface CreateEventInput {
   venue?: string;
   description?: string;
   notes?: string;
+  image?: string;
 }
 
 type UpdateEventPatch = Partial<
-  Pick<Event, 'name' | 'date' | 'hostName' | 'venue' | 'description' | 'notes'>
+  Pick<Event, 'name' | 'date' | 'hostName' | 'venue' | 'description' | 'notes' | 'image'>
 >;
 
 /** The row's `$id` is authoritative — it's what Function/outbox writes actually key on. */
@@ -35,6 +36,7 @@ function rowToEvent(row: Models.DefaultRow): Event {
     venue: row['venue'] ?? undefined,
     description: row['description'] ?? undefined,
     notes: row['notes'] ?? undefined,
+    image: row['image'] ?? undefined,
     status: row['status'],
     accessCode: row['accessCode'] ?? undefined,
     assignedUserIds: row['assignedUserIds'] ?? [],
@@ -114,6 +116,7 @@ export class EventDataService {
       venue: input.venue,
       description: input.description,
       notes: input.notes,
+      image: input.image,
       status: 'active',
       assignedUserIds: [],
       createdBy: this.authService.currentUser()!.$id,
