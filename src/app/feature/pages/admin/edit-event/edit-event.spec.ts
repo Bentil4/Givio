@@ -62,6 +62,7 @@ describe('EditEvent', () => {
       venue: '',
       description: '',
       notes: '',
+      image: null,
     });
   });
 

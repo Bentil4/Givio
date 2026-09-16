@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { ImageUpload } from '../../../../shared/components';
 import { appDb } from '../../../../data/dexie/app-db';
 import { EventService } from '../../../../data/services/event.service';
 import { ServiceError } from '../../../../core/services/service-error';
@@ -9,7 +10,7 @@ import type { Event } from '../../../../data/models/event';
 
 @Component({
   selector: 'app-edit-event',
-  imports: [ReactiveFormsModule, RouterLink, MatIconModule],
+  imports: [ReactiveFormsModule, RouterLink, MatIconModule, ImageUpload],
   templateUrl: './edit-event.html',
   styleUrl: './edit-event.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -33,6 +34,7 @@ export class EditEvent implements OnInit {
     venue: [''],
     description: [''],
     notes: [''],
+    image: this.formBuilder.control<string | null>(null),
   });
 
   async ngOnInit(): Promise<void> {
@@ -58,6 +60,7 @@ export class EditEvent implements OnInit {
       venue: event.venue ?? '',
       description: event.description ?? '',
       notes: event.notes ?? '',
+      image: event.image ?? null,
     });
     if (event.status === 'closed') {
       this.form.disable();
@@ -75,7 +78,7 @@ export class EditEvent implements OnInit {
     this.formError.set(null);
     this.submitting.set(true);
 
-    const { name, date, hostName, venue, description, notes } = this.form.value;
+    const { name, date, hostName, venue, description, notes, image } = this.form.value;
 
     try {
       await this.eventService.updateEvent(event.id, {
@@ -85,6 +88,7 @@ export class EditEvent implements OnInit {
         venue: venue || undefined,
         description: description || undefined,
         notes: notes || undefined,
+        image: image || undefined,
       });
       await this.router.navigate(['/dashboard']);
     } catch (err) {

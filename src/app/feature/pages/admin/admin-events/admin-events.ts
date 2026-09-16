@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { ImageUpload } from '../../../../shared/components';
 import { EventService } from '../../../../data/services/event.service';
 import { UserService } from '../../../../data/services/user.service';
 import { DonationService } from '../../../../data/services/donation.service';
@@ -30,7 +31,7 @@ import { formatCedis, totalMinor } from '../../../../utils/donation.util';
  */
 @Component({
   selector: 'app-admin-events',
-  imports: [MatIconModule, ReactiveFormsModule, RouterLink, DatePipe],
+  imports: [MatIconModule, ReactiveFormsModule, RouterLink, DatePipe, ImageUpload],
   templateUrl: './admin-events.html',
   styleUrl: './admin-events.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -63,6 +64,7 @@ export class AdminEvents implements OnInit {
     date: ['', Validators.required],
     hostName: ['', [Validators.required, Validators.maxLength(120)]],
     venue: ['', Validators.maxLength(160)],
+    image: this.fb.control<string | null>(null),
   });
 
   public readonly visible = computed(() => {
@@ -174,7 +176,7 @@ export class AdminEvents implements OnInit {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.busy.set(true);
     this.formError.set(null);
-    const { name, type, date, hostName, venue } = this.form.getRawValue();
+    const { name, type, date, hostName, venue, image } = this.form.getRawValue();
 
     let event: Event;
     try {
@@ -184,6 +186,7 @@ export class AdminEvents implements OnInit {
         date,
         hostName,
         venue: venue || undefined,
+        image: image || undefined,
       });
     } catch (err) {
       this.formError.set(err instanceof ServiceError ? err.message : 'Failed to create event');

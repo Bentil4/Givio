@@ -12,6 +12,15 @@
   &.is-loading { min-height: 96px; }
 }
 
+.detail-hero-photo {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  border: 1.5px solid rgba(255, 255, 255, .35);
+}
+
 .detail-hero-main { flex: 1; min-width: 0; }
 
 .detail-hero-title {

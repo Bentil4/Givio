@@ -12,6 +12,9 @@
     </div>
   } @else if (event(); as e) {
     <header class="detail-hero">
+      @if (e.image) {
+        <img [src]="e.image" alt="" class="detail-hero-photo" />
+      }
       <div class="detail-hero-main">
         <div class="detail-hero-title">
           <h1 class="detail-name">{{ e.name }}</h1>

@@ -10,6 +10,7 @@ export interface Event {
   venue?: string;
   description?: string;
   notes?: string;
+  image?: string;
   status: EventStatus;
   accessCode?: string;
   assignedUserIds: string[];

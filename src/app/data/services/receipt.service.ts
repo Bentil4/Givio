@@ -59,6 +59,12 @@ export class ReceiptService {
     const center = pageWidth / 2;
     let y = MARGIN;
 
+    if (event.image) {
+      const imageSize = 22;
+      doc.addImage(event.image, 'JPEG', center - imageSize / 2, y, imageSize, imageSize);
+      y += imageSize + 6;
+    }
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.text(event.name, center, y, { align: 'center' });

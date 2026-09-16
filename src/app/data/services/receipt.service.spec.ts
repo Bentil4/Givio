@@ -21,6 +21,7 @@ vi.mock('jspdf', () => ({
     this['output'] = vi.fn().mockReturnValue(new URL('blob:mock-url'));
     this['addFileToVFS'] = vi.fn().mockReturnThis();
     this['addFont'] = vi.fn().mockReturnThis();
+    this['addImage'] = vi.fn().mockReturnThis();
   }),
 }));
 
@@ -141,6 +142,26 @@ describe('ReceiptService', () => {
       expect(doc['addFileToVFS']).toHaveBeenCalledWith('DejaVuSans.ttf', expect.any(String));
       expect(doc['addFont']).toHaveBeenCalledWith('DejaVuSans.ttf', 'DejaVuSans', 'normal');
       expect(setFontCalls.some((call: unknown[]) => call[0] === 'DejaVuSans')).toBe(true);
+    });
+
+    it('embeds the event image when present', () => {
+      const image = 'data:image/jpeg;base64,abc123';
+      service.downloadReceipt(makeDonation(), makeEvent({ image }), 'Efua Mensah');
+
+      expect(latestDoc()['addImage']).toHaveBeenCalledWith(
+        image,
+        'JPEG',
+        expect.any(Number),
+        expect.any(Number),
+        expect.any(Number),
+        expect.any(Number),
+      );
+    });
+
+    it('does not call addImage when the event has no image', () => {
+      service.downloadReceipt(makeDonation(), makeEvent(), 'Efua Mensah');
+
+      expect(latestDoc()['addImage']).not.toHaveBeenCalled();
     });
   });
 
