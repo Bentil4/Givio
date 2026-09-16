@@ -69,8 +69,17 @@
           @for (e of visible(); track e.id) {
             <tr>
               <td>
-                <span class="t-body-em">{{ e.name }}</span>
-                <span class="cell-sub">{{ e.type }} · {{ e.date | date:'mediumDate':'UTC' }}@if (e.venue) { · {{ e.venue }} }</span>
+                <div class="event-cell">
+                  @if (e.image) {
+                    <img [src]="e.image" alt="" class="event-thumb" />
+                  } @else {
+                    <span class="event-thumb event-thumb--placeholder"><mat-icon>event</mat-icon></span>
+                  }
+                  <div>
+                    <span class="t-body-em">{{ e.name }}</span>
+                    <span class="cell-sub">{{ e.type }} · {{ e.date | date:'mediumDate':'UTC' }}@if (e.venue) { · {{ e.venue }} }</span>
+                  </div>
+                </div>
               </td>
               <td class="is-mono is-muted">{{ codeLabel(e) }}</td>
               <td><span class="tag" [class]="chipClass[e.status]">{{ statusLabel(e.status) }}</span></td>
@@ -143,6 +152,10 @@
         <label class="field-label" for="evVenue">Venue</label>
         <input id="evVenue" class="input" type="text" formControlName="venue"
                placeholder="e.g. Osu Presbyterian Church, Accra" />
+      </div>
+
+      <div class="field">
+        <app-image-upload formControlName="image" label="Event photo (optional)" />
       </div>
 
       <div class="field">
