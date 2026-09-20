@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { roleGuard, sessionExpiryGuard } from '../../../core/guards/role.guard';
+import type { BreadcrumbItem } from '../../../shared/components/breadcrumb/breadcrumb';
 
 export const ADMIN_ROUTES: Routes = [
   {
@@ -33,6 +34,9 @@ export const ADMIN_ROUTES: Routes = [
         path: 'events/:id/edit',
         loadComponent: () => import('./edit-event/edit-event').then((m) => m.EditEvent),
         title: 'Edit Event',
+        data: {
+          breadcrumb: [{ label: 'Events', path: '/dashboard/events' }] satisfies BreadcrumbItem[],
+        },
       },
       {
         // Must stay after 'events/:id/edit' — a 2-segment param route would otherwise
@@ -43,6 +47,9 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () =>
           import('./admin-event-detail/admin-event-detail').then((m) => m.AdminEventDetail),
         title: 'Event detail',
+        data: {
+          breadcrumb: [{ label: 'Events', path: '/dashboard/events' }] satisfies BreadcrumbItem[],
+        },
       },
       {
         path: 'donations',
@@ -55,11 +62,21 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () =>
           import('./admin-conflicts/admin-conflicts').then((m) => m.AdminConflicts),
         title: 'Resolve sync conflicts',
+        data: {
+          breadcrumb: [
+            { label: 'Donation oversight', path: '/dashboard/donations' },
+          ] satisfies BreadcrumbItem[],
+        },
       },
       {
         path: 'donations/deleted',
         loadComponent: () => import('./admin-trash/admin-trash').then((m) => m.AdminTrash),
         title: 'Deleted donations',
+        data: {
+          breadcrumb: [
+            { label: 'Donation oversight', path: '/dashboard/donations' },
+          ] satisfies BreadcrumbItem[],
+        },
       },
       {
         path: 'reports',

@@ -12,6 +12,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { INavbarItem, IUserProfile } from '../../../../data/models/user.model';
 import { Sidebar } from '../../../components/sidebar/sidebar';
+import { Breadcrumb } from '../../../../shared/components';
 import {
   ConnectionBanner,
   type ConnectionState,
@@ -24,7 +25,7 @@ import { MOBILE_NAV_QUERY } from '../../../../utils/breakpoints.util';
 
 @Component({
   selector: 'app-admin-layout',
-  imports: [RouterOutlet, Sidebar, MatIconModule, ConnectionBanner],
+  imports: [RouterOutlet, Sidebar, MatIconModule, ConnectionBanner, Breadcrumb],
   templateUrl: './admin-layout.html',
   styleUrl: './admin-layout.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
