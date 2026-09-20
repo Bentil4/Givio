@@ -55,12 +55,17 @@ jobs:
       # The @angular/build Vitest runner has an intermittent platform-specific flake in its
       # esbuild mock-resolution plugin (angular:vitest-mock-patch) when a spec uses
       # vi.mock() on a non-relative package (e.g. jspdf) — reproduces only on Linux CI
-      # runners, not locally. Retry masks the flake; see follow-up to root-cause upstream.
+      # runners, not locally. Once it fails, it fails identically on every retry on the
+      # same runner (confirmed: a fresh runner passes first try), which points to a
+      # corrupted on-disk esbuild/Vite cache rather than true per-attempt randomness.
+      # Clearing the Angular CLI cache before each retry gives the retry a clean slate
+      # without needing a whole new runner. See follow-up to root-cause upstream.
       - name: Test with coverage
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
           timeout_minutes: 10
           max_attempts: 3
+          on_retry_command: rm -rf .angular/cache node_modules/.cache
           command: npm test -- --coverage --coverage-reporters=text-summary --coverage-reporters=lcov
       - name: Upload coverage report
         if: always()
