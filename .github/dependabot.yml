@@ -8,14 +8,20 @@ updates:
     labels:
       - 'dependencies'
     groups:
-      # Angular packages (and libraries peer-locked to Angular's version, like primeng
-      # and @ng-icons) must move together — bumping one alone breaks npm ci with ERESOLVE.
+      # Angular packages (and everything peer-locked to Angular's version: primeng,
+      # @ng-icons, angular-eslint, and the typescript/typescript-eslint range that
+      # @angular/build pins) must move together — bumping any one alone breaks
+      # npm ci with ERESOLVE.
       angular:
         patterns:
           - '@angular/*'
           - '@angular-devkit/*'
+          - 'angular-eslint'
+          - '@angular-eslint/*'
           - 'primeng'
           - '@ng-icons/*'
+          - 'typescript'
+          - 'typescript-eslint'
       # @vitest/coverage-v8 must match the vitest version @angular/build pins internally.
       vitest:
         patterns:
