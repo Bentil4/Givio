@@ -1,0 +1,50 @@
+:host {
+  display: block;
+}
+
+.breadcrumb {
+  padding: var(--space-md) var(--space-lg) 0;
+}
+
+.breadcrumb-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.breadcrumb-item a {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--data-4);
+  text-decoration: none;
+}
+
+.breadcrumb-item a:hover {
+  color: var(--primary-deep);
+  text-decoration: underline;
+}
+
+.breadcrumb-item span {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--primary-dark);
+}
+
+.breadcrumb-sep {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--data-4);
+}
