@@ -10,6 +10,7 @@ export const environment: {
   auditLogsCollectionId: string;
   donationsCollectionId: string;
   donationConflictsCollectionId: string;
+  primeNgLicenseKey: string;
 } = {
   appwriteEndpoint: 'https://fra.cloud.appwrite.io/v1',
   appwriteProjectId: 'YOUR_APPWRITE_PROJECT_ID',
@@ -26,5 +27,9 @@ export const environment: {
   // Console → Databases → your database → Tables → donations → $id.
   donationsCollectionId: 'YOUR_DONATIONS_TABLE_ID',
   // Console → Databases → your database → Tables → donation_conflicts → $id.
-  donationConflictsCollectionId: 'YOUR_DONATION_CONFLICTS_TABLE_ID'
+  donationConflictsCollectionId: 'YOUR_DONATION_CONFLICTS_TABLE_ID',
+  // Free for orgs under $1M revenue / <5 devs / <10 employees / <$3M funding, or
+  // non-profits/individuals — register at https://primeui.dev/licenses/community.
+  // Without a valid key, PrimeNG shows a persistent "Invalid PrimeUI License" banner.
+  primeNgLicenseKey: 'YOUR_PRIMENG_LICENSE_KEY'
 };

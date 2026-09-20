@@ -12,6 +12,7 @@ import { providePrimeNG } from 'primeng/config';
 import { routes } from './app.routes';
 import { provideServiceWorker } from '@angular/service-worker';
 import { AuthService } from './data/services/auth.service';
+import { environment } from '../environments/environment';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -21,7 +22,7 @@ export const appConfig: ApplicationConfig = {
     // theme: 'none' — unstyled mode. Components ship no built-in CSS; styling is done
     // entirely with this project's existing Tailwind design tokens (see tailwindcss-primeui
     // in styles.scss), keeping one consistent visual language instead of a second theme.
-    providePrimeNG({ theme: 'none' }),
+    providePrimeNG({ theme: 'none', license: environment.primeNgLicenseKey }),
     provideAppInitializer(() => {
       const authService = inject(AuthService);
       authService.registerActivityListeners();
