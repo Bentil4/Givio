@@ -46,6 +46,12 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
+      # environment.ts / environment.development.ts are gitignored (deploy-specific IDs,
+      # never committed). CI only needs a compilable placeholder, not live backend values.
+      - name: Set up environment files
+        run: |
+          cp src/environments/environment.example.ts src/environments/environment.ts
+          cp src/environments/environment.example.ts src/environments/environment.development.ts
       - name: Test with coverage
         run: npm test -- --coverage --coverage-reporters=text-summary --coverage-reporters=lcov
       - name: Upload coverage report
@@ -70,6 +76,12 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
+      # environment.ts / environment.development.ts are gitignored (deploy-specific IDs,
+      # never committed). CI only needs a compilable placeholder, not live backend values.
+      - name: Set up environment files
+        run: |
+          cp src/environments/environment.example.ts src/environments/environment.ts
+          cp src/environments/environment.example.ts src/environments/environment.development.ts
       - name: Build (production)
         run: npm run build -- --configuration production
       - name: Upload build artifact
