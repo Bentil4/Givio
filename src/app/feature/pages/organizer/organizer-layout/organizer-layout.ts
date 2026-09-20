@@ -6,6 +6,7 @@ import { BreakpointObserver } from '@angular/cdk/layout';
 import { filter, map } from 'rxjs';
 import { INavbarItem, IUserProfile } from '../../../../data/models/user.model';
 import { Sidebar } from '../../../components/sidebar/sidebar';
+import { Breadcrumb } from '../../../../shared/components';
 import {
   ConnectionBanner,
   type ConnectionState,
@@ -18,7 +19,7 @@ import { MOBILE_NAV_QUERY } from '../../../../utils/breakpoints.util';
 
 @Component({
   selector: 'app-organizer-layout',
-  imports: [RouterOutlet, Sidebar, MatIconModule, ConnectionBanner],
+  imports: [RouterOutlet, Sidebar, MatIconModule, ConnectionBanner, Breadcrumb],
   templateUrl: './organizer-layout.html',
   styleUrl: './organizer-layout.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

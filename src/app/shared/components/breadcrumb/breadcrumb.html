@@ -1,0 +1,16 @@
+@if (crumbs().length > 1) {
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <ol class="breadcrumb-list">
+    @for (crumb of crumbs(); track crumb.path) {
+    <li class="breadcrumb-item">
+      @if (crumb.current) {
+      <span aria-current="page">{{ crumb.label }}</span>
+      } @else {
+      <a [routerLink]="crumb.path">{{ crumb.label }}</a>
+      <mat-icon aria-hidden="true" class="breadcrumb-sep">chevron_right</mat-icon>
+      }
+    </li>
+    }
+  </ol>
+</nav>
+}
