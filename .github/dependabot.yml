@@ -7,6 +7,20 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - 'dependencies'
+    groups:
+      # Angular packages (and libraries peer-locked to Angular's version, like primeng
+      # and @ng-icons) must move together — bumping one alone breaks npm ci with ERESOLVE.
+      angular:
+        patterns:
+          - '@angular/*'
+          - '@angular-devkit/*'
+          - 'primeng'
+          - '@ng-icons/*'
+      # @vitest/coverage-v8 must match the vitest version @angular/build pins internally.
+      vitest:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
 
   - package-ecosystem: 'github-actions'
     directory: '/'
