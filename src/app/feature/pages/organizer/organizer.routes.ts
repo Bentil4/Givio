@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { roleGuard, sessionExpiryGuard } from '../../../core/guards/role.guard';
+import type { BreadcrumbItem } from '../../../shared/components/breadcrumb/breadcrumb';
 
 export const ORGANIZER_ROUTES: Routes = [
   {
@@ -33,6 +34,11 @@ export const ORGANIZER_ROUTES: Routes = [
         path: 'entry/phone',
         loadComponent: () => import('./mobile-entry/mobile-entry').then((m) => m.MobileEntry),
         title: 'Record a donation',
+        data: {
+          breadcrumb: [
+            { label: 'Record a donation', path: '/organizer/entry' },
+          ] satisfies BreadcrumbItem[],
+        },
       },
       {
         path: 'donations',
