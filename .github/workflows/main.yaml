@@ -52,8 +52,16 @@ jobs:
         run: |
           cp src/environments/environment.example.ts src/environments/environment.ts
           cp src/environments/environment.example.ts src/environments/environment.development.ts
+      # The @angular/build Vitest runner has an intermittent platform-specific flake in its
+      # esbuild mock-resolution plugin (angular:vitest-mock-patch) when a spec uses
+      # vi.mock() on a non-relative package (e.g. jspdf) — reproduces only on Linux CI
+      # runners, not locally. Retry masks the flake; see follow-up to root-cause upstream.
       - name: Test with coverage
-        run: npm test -- --coverage --coverage-reporters=text-summary --coverage-reporters=lcov
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          command: npm test -- --coverage --coverage-reporters=text-summary --coverage-reporters=lcov
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
