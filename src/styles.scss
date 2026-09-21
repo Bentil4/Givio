@@ -270,7 +270,12 @@ body {
   --material-regular-blur: 40px;
   --material-thick-bg: rgba(255, 255, 255, 0.88);
   --material-thick-blur: 50px;
-  --material-chrome-bg: rgba(246, 246, 248, 0.94); /* near-opaque, no blur — toolbars sitting
+  --material-chrome-bg: rgba(
+    246,
+    246,
+    248,
+    0.94
+  ); /* near-opaque, no blur — toolbars sitting
     directly over data tables, and the @supports fallback when backdrop-filter is unsupported */
   --glass-saturate: 1.8; /* 180%, per spec */
   --glass-border: rgba(255, 255, 255, 0.6); /* top-edge highlight */
@@ -318,7 +323,9 @@ body {
   --color-blue-100: #141f2e;
 
   --bg-canvas: var(--color-neutral-50);
-  --bg-surface: var(--color-neutral-100); /* a dark canvas needs a LIGHTER surface to read as
+  --bg-surface: var(
+    --color-neutral-100
+  ); /* a dark canvas needs a LIGHTER surface to read as
     "raised", the same relationship light mode has (canvas is slightly darker than surface) */
   --bg-surface-raised: #22262b;
   --border-default: var(--color-neutral-300);
