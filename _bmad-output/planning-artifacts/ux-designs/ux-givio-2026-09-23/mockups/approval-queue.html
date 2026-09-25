@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Approval queue — key screen</title>
+<style>
+/*
+  Governs: EXPERIENCE.md — Component Patterns > "Approval-queue row";
+  State Patterns > "Empty approval queue"; Flow 6 (Yaw adds Kojo — pending state shown
+  in the second row here). DESIGN.md — Colors (status vocabulary), Components >
+  "Approval-queue row", "Tenant-status pill". Tokens below are copied verbatim from
+  src/styles.scss (light mode only, for this static mock).
+*/
+:root{
+  --bg-canvas:#F7F8FA; --bg-surface:#FFFFFF;
+  --border-default:#C9CED6; --border-focus:#1F5FBF;
+  --text-primary:#12151A; --text-secondary:#5B636D; --text-tertiary:#677080;
+  --action-primary-bg:#1F5FBF; --action-primary-bg-hover:#164A99;
+  --action-destructive-bg:#C2352E;
+  --status-verified-bg:#E4F5EC; --status-verified-fg:#12603A;
+  --status-pending-bg:#FBF0DA; --status-pending-fg:#8C5C09;
+  --status-flagged-bg:#FBE7E6; --status-flagged-fg:#8F2A25;
+  --status-reversed-bg:#EEF0F3; --status-reversed-fg:#3C4450;
+  --radius-sm:4px; --radius-md:8px; --radius-lg:14px; --radius-full:9999px;
+  --space-xs:4px; --space-sm:8px; --space-md:16px; --space-lg:24px; --space-xl:40px;
+  --elevation-2: 0 4px 12px rgba(18,21,26,.10);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg-canvas); color:var(--text-primary);
+  font-family:'Inter','IBM Plex Sans',system-ui,sans-serif; font-size:14.4px;
+}
+.frame{max-width:960px; margin:0 auto; padding:var(--space-lg);}
+.page-head{padding-bottom:var(--space-lg); border-bottom:1px solid var(--border-default); margin-bottom:var(--space-lg);}
+.page-title{font-size:22.4px; font-weight:700; margin:0 0 4px;}
+.page-sub{color:var(--text-secondary); font-size:13px; margin:0;}
+.tabs{display:flex; gap:var(--space-lg); margin-bottom:var(--space-lg); border-bottom:1px solid var(--border-default);}
+.tab{padding:10px 2px; font-weight:600; font-size:13.5px; color:var(--text-secondary); border-bottom:2px solid transparent; cursor:default;}
+.tab.active{color:var(--action-primary-bg); border-bottom-color:var(--action-primary-bg);}
+.queue{display:flex; flex-direction:column; gap:var(--space-sm);}
+.row{
+  background:var(--bg-surface); border:1px solid var(--border-default); border-radius:var(--radius-lg);
+  box-shadow:var(--elevation-2); padding:var(--space-md) var(--space-lg);
+}
+.row-head{display:flex; align-items:center; gap:var(--space-md);}
+.avatar{
+  width:40px; height:40px; border-radius:var(--radius-full); background:var(--status-info-bg,#E7F0FC);
+  display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--action-primary-bg);
+  flex-shrink:0;
+}
+.row-main{flex:1; min-width:0;}
+.row-name{font-weight:700; font-size:15px;}
+.row-meta{color:var(--text-tertiary); font-size:12.5px; margin-top:2px;}
+.tier-badge{
+  display:inline-flex; align-items:center; gap:5px; border:1px solid var(--border-default);
+  border-radius:var(--radius-full); padding:3px 10px 3px 8px; font-size:11.5px; font-weight:600;
+  color:var(--text-secondary); background:var(--bg-surface);
+}
+.status-pill{
+  border-radius:var(--radius-full); padding:4px 12px; font-size:11.5px; font-weight:600; white-space:nowrap;
+}
+.status-pending{background:var(--status-pending-bg); color:var(--status-pending-fg);}
+.status-flagged{background:var(--status-flagged-bg); color:var(--status-flagged-fg);}
+.row-actions{display:flex; gap:var(--space-sm);}
+.btn{
+  min-height:36px; padding:8px 18px; border-radius:var(--radius-full); border:none; font-weight:600;
+  font-size:12.5px; cursor:default;
+}
+.btn-primary{background:var(--action-primary-bg); color:#fff;}
+.btn-ghost{background:transparent; color:var(--action-destructive-bg); border:1.5px solid rgba(194,53,46,.35);}
+.row-expanded{
+  margin-top:var(--space-md); padding-top:var(--space-md); border-top:1px solid var(--border-default);
+  display:grid; grid-template-columns:1fr 1fr; gap:var(--space-lg); font-size:13px;
+}
+.field-label{font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-tertiary); margin-bottom:2px;}
+.field-value{color:var(--text-primary); margin-bottom:var(--space-sm);}
+.doc-link{color:var(--action-primary-bg); font-weight:600; text-decoration:underline;}
+.caption{
+  max-width:960px; margin:var(--space-lg) auto 0; padding:var(--space-md); background:var(--bg-surface);
+  border-radius:var(--radius-md); border:1px dashed var(--border-default); font-size:12.5px; color:var(--text-secondary);
+}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="page-head">
+    <p class="page-title">Approvals</p>
+    <p class="page-sub">Organizer applications and duplicate-event flags awaiting your review.</p>
+  </div>
+  <div class="tabs">
+    <div class="tab active">Organizer applications (2)</div>
+    <div class="tab">Duplicate-event flags (0)</div>
+  </div>
+  <div class="queue">
+
+    <!-- Row 1: Kwame's application, collapsed, then expanded below to show the disclosure pattern -->
+    <div class="row">
+      <div class="row-head">
+        <div class="avatar">KM</div>
+        <div class="row-main">
+          <div class="row-name">Kwame Mensah — Mensah Funeral Services</div>
+          <div class="row-meta">Submitted 2 days ago</div>
+        </div>
+        <span class="tier-badge">🏢 Super Organizer (pending)</span>
+        <span class="status-pill status-pending">Pending</span>
+        <div class="row-actions">
+          <button class="btn btn-primary">Approve</button>
+          <button class="btn btn-ghost">Reject</button>
+        </div>
+      </div>
+      <div class="row-expanded">
+        <div>
+          <div class="field-label">Location</div>
+          <div class="field-value">Kumasi, Ashanti Region</div>
+          <div class="field-label">Company size</div>
+          <div class="field-value">6–10 staff</div>
+          <div class="field-label">Company type</div>
+          <div class="field-value">Funeral services</div>
+        </div>
+        <div>
+          <div class="field-label">Estimated platform users</div>
+          <div class="field-value">4</div>
+          <div class="field-label">Verification document</div>
+          <div class="field-value"><span class="doc-link">business-registration.pdf</span></div>
+          <div class="field-label">Phone verification</div>
+          <div class="field-value">Not yet completed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Kojo's flagged co-Organizer addition (Flow 6) — collapsed, no expand shown here -->
+    <div class="row">
+      <div class="row-head">
+        <div class="avatar">KO</div>
+        <div class="row-main">
+          <div class="row-name">Kojo Antwi — added by Yaw Boateng (Asante Events)</div>
+          <div class="row-meta">Co-Organizer addition · flagged 3 hours ago</div>
+        </div>
+        <span class="tier-badge">🏢 Organizer (flagged)</span>
+        <span class="status-pill status-flagged">Needs review</span>
+        <div class="row-actions">
+          <button class="btn btn-primary">Confirm match</button>
+          <button class="btn btn-ghost">Clear</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<div class="caption">
+  Key screen — Approvals queue: default collapsed row (Row 2) and expanded disclosure (Row 1).
+  Row 1 illustrates the intake fields + document link + verification status the expanded state shows.
+  Row 2 illustrates the "flagged, not terminal-failure" pending state from Flow 6 (Yaw adds Kojo) —
+  note the row exists and is visible, not hidden, matching the non-terminal pending pattern.
+</div>
+</body>
+</html>

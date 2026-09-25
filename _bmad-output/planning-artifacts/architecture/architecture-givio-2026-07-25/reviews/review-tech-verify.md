@@ -1,92 +1,27 @@
-# Tech Verification Review — ARCHITECTURE-SPINE.md
+# Reviewer Gate — Tech Verification (web-research / reality-check lens)
 
-**Target:** `_bmad-output/planning-artifacts/architecture/architecture-givio-2026-07-25/ARCHITECTURE-SPINE.md`
-**Method:** live npm registry queries (`registry.npmjs.org`) + WebSearch/WebFetch against Appwrite's official docs, as of 2026-07-26.
-**Verdict: PASS WITH CONCERNS**
+**Target:** ARCHITECTURE-SPINE.md — Stack table, version-pinned claims, and the Appwrite-capability-dependent multi-tenant material (AD-1, AD-2, AD-9, AD-11, AD-12, AD-13).
+**Method:** WebSearch (npm registries, Angular/Appwrite release info) + Appwrite official docs (via `appwrite_search_docs`), run 2026-09-23.
 
-All five specific claims in the spine check out against current, live sources. One item (Appwrite web SDK pin) is technically accurate but under-qualified — the spine calls it "already pinned" without noting it's now three major versions behind npm's `latest` tag, and no public SDK↔server compatibility matrix was found to confirm `^23.0.0` is still safe against whatever Appwrite Cloud/self-hosted version the team is running.
+## Verdict: CONDITIONAL PASS — one stale figure, one flagging inconsistency, one unverified/ambiguous claim. All checked Appwrite capability claims hold up against current docs.
 
----
+## Findings
 
-## 1. Versions — Angular 21, Appwrite ^23.0.0, Dexie ^4.3.0, Angular Material ^21.2.3
+1. **STALE — Appwrite web SDK gap understated.** Spine says `^23.0.0`, "3 majors behind current 26.x." Current npm `appwrite` is now **27.0.0** (published ~16 days before this review). The gap is **4 majors behind**, and the "26.x" reference is itself one major out of date. Update the Stack table row and re-run the "confirm compatibility with the provisioned Appwrite Cloud instance" caveat against 27.x, not 26.x.
 
-Confirmed against `package.json` in the repo (these are already-installed pins, not new proposals) and cross-checked against `registry.npmjs.org`:
+2. **VERIFIED — Angular gap is accurate.** `^21.0.0`, "one major behind now-current Angular 22" is correct: Angular 22 (stable, v22.1.0, July 2026) is current as of 2026-09-23. No change needed.
 
-| Package | Pinned | Real version? | Published | npm `latest` today | Gap |
-| --- | --- | --- | --- | --- | --- |
-| `@angular/core` | `^21.0.0` | Yes | Angular 21 GA'd 2025-11-20 | `22.0.6` (v21 still an active LTS line, `21.2.14`) | 1 major behind |
-| `@angular/material` | `^21.2.3` | Yes | 2026-03-18 | `22.0.6` | 1 major behind, matches paired Angular 21 |
-| `appwrite` (web SDK) | `^23.0.0` | Yes | 2026-03-03 | `26.2.0` (2026-07-13) | **3 majors behind** |
-| `dexie` | `^4.3.0` | Yes | 2025-12-20 | `4.4.4` (2026-06-16) | 1 minor line behind, same major |
+3. **INCONSISTENT FLAGGING — Angular Material.** Spine pins `^21.2.3` with no currency caveat ("already pinned, icons/badge/tooltip only"). Current `@angular/material` is **22.1.5** — Material is one major behind, the same situation as Angular itself, yet only Angular and Appwrite got an explicit "N behind" annotation. Either this was checked and the caveat was dropped inconsistently, or it wasn't checked at all — recommend adding the same "N major(s) behind" note applied to Angular/Appwrite for consistency and to make the drift visible to implementers.
 
-- Angular 21 and Angular Material 21.2.3 are legitimate, currently-supported versions (LTS tag `v21-lts` exists). Not stale, no concern.
-- Dexie 4.3.0 → 4.4.4 gap is trivial (same major, no breaking changes documented for 4.x line).
-- **Appwrite web SDK is the outlier.** `^23.0.0` is a real, real npm version (published 2026-03-03), but npm has since published 24.0.0 (Mar 26), 25.0.0 (Apr 28), and 26.0.0 (Jun 8) — three majors in four months, suggesting Appwrite ships web-SDK majors roughly monthly, likely tracking their own server/API releases. I found no public SDK-to-server compatibility matrix (checked `appwrite.io/docs/sdks`, which itself currently references "23.0.0" as its documented Web SDK version — possibly meaning Appwrite's own docs site lags its npm publishes, or that 23.x remains their documented stable baseline). Either way: **the spine asserts this version is fine without having verified it against the actual target Appwrite Cloud/self-hosted server version**, and Appwrite SDK majors are known to carry breaking API changes across versions. This should be confirmed against the project's actual Appwrite instance version before the data layer is built.
-- Since Angular/Material/Dexie/Appwrite pins were flagged "(already pinned)" in the spine (i.e., descriptive of current `package.json`, not a fresh recommendation), the verification bar is lower than for jsPDF/SheetJS below — but the Appwrite gap is large enough to flag as a genuine currency risk, not just descriptive color.
+4. **VERIFIED — jsPDF and SheetJS claims hold.** jsPDF `4.2.1 "verified current"` is still the latest npm release (last published ~March 2026, no newer version since). The SheetJS guidance (npm package stale/CVE-2024-22363-vulnerable, install the patched build from `cdn.sheetjs.com` instead) is accurate: SheetJS stopped publishing to npm after 0.18.5 (vulnerable to CVE-2023-30533/CVE-2024-22363); fixed 0.20.2+ ships only via their own CDN.
 
-## 2. Appwrite Labels — server/Console-only, `Role.label()`
+5. **VERIFIED — core Appwrite capabilities the multi-tenant ADs lean on.**
+   - **Labels are server/Console-only** (AD-1): confirmed — `Users.updateLabels` requires a server-side API key; the client Account service has no label-write method. AD-1's reasoning is sound.
+   - **`Role.user`/`Role.label` in document permissions** (AD-2): standard, current Appwrite permission primitives, confirmed via docs examples.
+   - **Unique email per Account** (AD-1's Teams-rejection argument): confirmed — "each email address must be unique across all users and identities," and account creation with a duplicate email 409s (`user_email_already_exists`). Supports the claim that an email-based Team invite would collapse two tenant relationships into one shared Account.
+   - **Storage bucket for verification docs**: bucket + file-level permissions are current, standard Appwrite Storage capability; an Admin/Super-Admin-only bucket via `Role.label('admin')` is straightforward.
 
-**Confirmed accurate**, via `appwrite.io/docs/advanced/platform/permissions` and Appwrite community threads:
+6. **UNVERIFIED / AMBIGUOUS — "revocation disables the account" (no AD-14 exists).** The spine tops out at AD-13; there is no AD-14. The nearest claims are AD-1's Membership `status: active|revoked` and AD-11/Consistency-Conventions' "only revoked/suspended (`status` field, AD-1/AD-11)" for accounts that have ever recorded a donation or approval action. Appwrite *does* have a native account-block mechanism (`users.updateStatus`, surfaced client-side as the `user_blocked` error) — confirmed via docs — but the spine never states whether revocation/suspension actually calls that native mechanism or relies solely on the custom `status` field being checked by app logic (which would not stop the person from holding an authenticated session if a check is missed). This should be resolved and cited explicitly rather than left implicit — it's the one place the spine's design intent and Appwrite's actual primitive aren't tied together on paper.
 
-- Labels can only be **created and modified** via the Appwrite Console or a **Server SDK** — there is no client-SDK endpoint for setting labels (confirmed: "you can't update using client SDK for security reasons... There's no endpoint client side because it's within the user resource").
-- Labels **can be read** client-side via `account.get()` (the account response includes a `labels: string[]` field), which is exactly what AD-1 relies on (`AuthStore` reads `account.labels`).
-- `Role.label([LABEL_ID])` is a real, current permission-role helper, documented verbatim on Appwrite's permissions page: "Grants access to all accounts with a specific label ID."
-- This directly validates the spine's threat model in AD-1: the current `login.ts` pattern using `account.prefs.role` is genuinely client-writable (via `account.updatePrefs`), so moving to Labels does close a real self-escalation hole.
-
-## 3. Appwrite Teams — `Role.team(teamId)`, `Role.team(teamId, [role])`
-
-**Confirmed accurate**, same permissions doc page:
-
-- `Role.team([TEAM_ID])` — "Grants access to any member of the specific team."
-- `Role.team([TEAM_ID], [ROLE])` — "Grants access to any member who possesses a specific role in a team."
-- Team membership roles are arbitrary developer-defined strings (e.g., the spine's `viewer`), consistent with Appwrite Teams' custom-roles-per-membership model.
-- Both primitives are real and current as documented on Appwrite's live permissions reference.
-
-## 4. jsPDF 4.2.1
-
-**Confirmed accurate and current, better than the spine implies.**
-
-- `registry.npmjs.org/jspdf` dist-tag `latest` = `4.2.1`, published 2026-03-17 — matches the spine exactly.
-- No `peerDependencies` and no `deprecated` flag on the package — plain `npm install jspdf` has no gotchas.
-- Better still: 4.2.1 is specifically a **security-patch release** (fixes an HTML-injection-in-output-methods vulnerability and a PDF-object-injection-via-free-text-annotation-color vulnerability per Snyk/release notes), so pinning to it isn't just "current," it's the version you'd want anyway.
-- Note for implementers (not a spine error, just a heads-up): jsPDF 4.0.0 introduced a breaking change restricting filesystem access by default (Node-only concern, irrelevant to this browser/PWA context).
-
-## 5. SheetJS `xlsx` — npm stale/vulnerable, use `cdn.sheetjs.com`
-
-**Confirmed accurate.**
-
-- `registry.npmjs.org/xlsx` dist-tag `latest` = `0.18.5`, published **2022-03-24** — over four years stale, confirming the npm registry package is abandoned.
-- SheetJS publicly confirmed (via their own issue tracker, git.sheetjs.com/sheetjs/sheetjs#2667) that they stopped publishing to the npm registry, citing npm's two-factor-auth requirements for high-download packages and a dispute with npm/GitHub; current releases (0.20.x+) are only distributed via `cdn.sheetjs.com` tarballs.
-- The npm-registry version (0.18.5) is within the range affected by **CVE-2024-22363** (prototype pollution), so "stale/vulnerable" is not just outdated language — the frozen npm package is a real, unpatched CVE.
-- The spine's guidance (do not `npm install xlsx`; vendor the tarball from `cdn.sheetjs.com` per SheetJS's own current install docs) matches SheetJS's own documented recommendation.
-
----
-
-## Findings Summary
-
-| # | Severity | Finding |
-| --- | --- | --- |
-| 1 | Medium | Appwrite web SDK pin (`^23.0.0`) is a real version but is 3 majors behind npm's current `latest` (`26.2.0`); no public SDK↔server compatibility matrix was found, and the spine doesn't note or reconcile this gap against the team's actual Appwrite Cloud/self-hosted server version. |
-| 2 | Low | Angular 21 / Angular Material 21.2.3 are one major behind the now-current Angular 22 line; not stale (still on an active LTS tag), but worth a one-line acknowledgment if the team wants to time an upgrade. |
-| 3 | Info | jsPDF 4.2.1 claim not only checks out but is actually a security-fix release — stronger justification than the spine states. |
-| 4 | Info | SheetJS/xlsx claim fully verified: npm's `xlsx@0.18.5` (2022) sits inside the CVE-2024-22363 vulnerable range; SheetJS's own move to `cdn.sheetjs.com` is independently confirmed. |
-| 5 | None | Appwrite Labels and Teams permission primitives (`Role.label()`, `Role.team(teamId)`, `Role.team(teamId, [role])`) and the server/Console-only nature of Labels are all confirmed verbatim against Appwrite's live documentation. |
-
-## Sources Consulted
-
-- https://registry.npmjs.org/jspdf (registry JSON, dist-tags/time/engines/peerDependencies)
-- https://registry.npmjs.org/appwrite (registry JSON, version history incl. 23.0.0 → 26.2.0)
-- https://registry.npmjs.org/dexie (registry JSON)
-- https://registry.npmjs.org/@angular/material, https://registry.npmjs.org/@angular/core (registry JSON)
-- https://registry.npmjs.org/xlsx (registry JSON)
-- https://appwrite.io/docs/advanced/platform/permissions (Role.label, Role.team syntax)
-- https://appwrite.io/docs/advanced/security/roles
-- https://appwrite.io/docs/sdks
-- https://appwrite.io/blog/post/manage-user-permissions-with-labels-and-teams
-- https://appwrite.io/threads/1202973760643145738 ("Update authenticated users labels using client or server sdk?")
-- https://appwrite.io/threads/1179654083100037201 ("Labels vs. Teams")
-- https://github.com/orgs/appwrite/discussions/5162 ("Role permissions for teams")
-- https://git.sheetjs.com/sheetjs/sheetjs/issues/2667 ("Why the move away from npm registry?")
-- https://www.bleepingcomputer.com/news/software/npm-package-with-14m-weekly-downloads-ditches-npmjscom-for-own-cdn/
-- https://advisories.gitlab.com/pkg/npm/xlsx/CVE-2024-22363/
-- https://security.snyk.io/package/npm/jspdf/4.2.1
+## Recommendation
+Fix finding 1 (Appwrite SDK version/gap) before sign-off — it's a factual regression risk for the epic that provisions the SDK. Findings 3 and 6 are lower severity but should be closed (add the missing "N behind" note; and either cite `users.updateStatus` explicitly in AD-11/AD-1 or confirm the design intentionally avoids it and say so) so a future reader doesn't have to re-derive what was actually checked.

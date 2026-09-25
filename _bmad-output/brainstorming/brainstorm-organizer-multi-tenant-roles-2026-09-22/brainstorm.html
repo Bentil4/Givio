@@ -1,0 +1,1040 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>The Register</title>
+<style>
+  :root{
+    /* ---- light (default) palette ---- */
+    --bg:        #E5E1D5;
+    --surface:   #F0ECE1;
+    --surface-2: #DAD4C4;
+    --ink:       #241C16;
+    --ink-muted: #5B4F42;
+    --gold:      #7E5E24;
+    --gold-2:    #92702E;
+    --rust:      #7A3428;
+    --line:      #C7BEAA;
+    --shadow:    rgba(36,28,22,0.10);
+
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", Georgia, "Times New Roman", serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+    color-scheme: light dark;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:        #17130F;
+      --surface:   #1E1912;
+      --surface-2: #262019;
+      --ink:       #EDE6D7;
+      --ink-muted: #B3A691;
+      --gold:      #D2A75B;
+      --gold-2:    #CFA355;
+      --rust:      #CE8474;
+      --line:      #3A322A;
+      --shadow:    rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:        #17130F;
+    --surface:   #1E1912;
+    --surface-2: #262019;
+    --ink:       #EDE6D7;
+    --ink-muted: #B3A691;
+    --gold:      #D2A75B;
+    --gold-2:    #CFA355;
+    --rust:      #CE8474;
+    --line:      #3A322A;
+    --shadow:    rgba(0,0,0,0.35);
+  }
+
+  *{ box-sizing: border-box; }
+  html, body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    padding-inline: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  img{ max-width:100%; }
+  [hidden]{ display:none !important; }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  }
+
+  a{ color: var(--gold-2); }
+  a:focus-visible, [tabindex]:focus-visible, summary:focus-visible{
+    outline: 2px solid var(--gold-2);
+    outline-offset: 3px;
+  }
+
+  .wrap{
+    max-width: 760px;
+    margin-inline: auto;
+    padding-inline: 20px;
+  }
+
+  /* ---------- eyebrow / labels ---------- */
+  .eyebrow{
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--gold-2);
+  }
+  .tag{
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.18em 0.55em;
+    border-radius: 3px;
+    border: 1px solid var(--line);
+    color: var(--ink-muted);
+    white-space: nowrap;
+  }
+  .tag.coach{ color: var(--gold-2); border-color: var(--gold-2); }
+  .tag.user{ color: var(--rust); border-color: var(--rust); }
+  .tag.resolved{ color: var(--gold-2); border-color: var(--gold-2); }
+  .tag.open{ color: var(--ink-muted); border-style: dashed; }
+
+  /* ---------- cover ---------- */
+  .cover{
+    padding-block: clamp(2.6rem, 10vw, 4.5rem) 2.5rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .cover .kicker{
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    color: var(--ink-muted);
+    margin: 0 0 1.1rem;
+  }
+  .cover h1{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.1rem, 5.5vw + 1rem, 3.4rem);
+    line-height: 1.06;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.9rem;
+    text-wrap: balance;
+  }
+  .cover h1 em{
+    font-style: italic;
+    color: var(--gold-2);
+  }
+  .cover .dek{
+    font-size: 1.05rem;
+    color: var(--ink-muted);
+    max-width: 60ch;
+    margin: 0 0 1.6rem;
+  }
+  .meta-row{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.8rem;
+  }
+  .code-badge{
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-family: var(--font-mono);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0.5rem 0.7rem;
+  }
+  .code-badge span{
+    width: 1.05em;
+    text-align: center;
+    font-size: 0.95rem;
+    color: var(--gold-2);
+  }
+  .code-note{
+    font-size: 0.85rem;
+    color: var(--ink-muted);
+    max-width: 46ch;
+  }
+  .code-line{
+    display:flex;
+    align-items:center;
+    gap: 0.9rem;
+    flex-wrap: wrap;
+    margin-top: 0.4rem;
+  }
+
+  /* ---------- seam divider ---------- */
+  .seam{
+    height: 14px;
+    margin-block: 0;
+    background-image: repeating-linear-gradient(
+      110deg,
+      var(--line) 0px, var(--line) 2px,
+      transparent 2px, transparent 14px
+    );
+    opacity: 0.55;
+  }
+  .stage{
+    padding-block: clamp(2.4rem, 6vw, 3.4rem);
+    border-bottom: 1px solid var(--line);
+  }
+  .stage-head{
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.4rem;
+  }
+  .stage-num{
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    color: var(--gold-2);
+    font-weight: 700;
+  }
+  .stage h2{
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 3.5vw + 0.6rem, 2.1rem);
+    margin: 0 0 0.5rem;
+    line-height: 1.15;
+  }
+  .stage-intro{
+    color: var(--ink-muted);
+    max-width: 62ch;
+    margin: 0 0 1.8rem;
+  }
+
+  /* ---------- role playing ---------- */
+  .voices{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  @media (max-width: 620px){
+    .voices{ grid-template-columns: 1fr; }
+  }
+  .voice-card{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 1.3rem 1.3rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+  .voice-card h3{
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    margin: 0;
+  }
+  .voice-card .role-eyebrow{
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin: 0 0 0.15rem;
+  }
+  .voice-list{
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .voice-list li{
+    display: flex;
+    gap: 0.55rem;
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+  .voice-list .mark{
+    flex: none;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    width: 1.1em;
+  }
+  .voice-list.wants .mark{ color: var(--gold-2); }
+  .voice-list.fears .mark{ color: var(--rust); }
+  .voice-sub{
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin: 0.2rem 0 -0.15rem;
+  }
+  .coach-callout{
+    border: 1px dashed var(--gold-2);
+    border-radius: 3px;
+    padding: 0.75rem 0.85rem;
+    font-size: 0.88rem;
+    font-style: italic;
+    color: var(--ink);
+    background: color-mix(in srgb, var(--gold-2) 7%, transparent);
+  }
+  .coach-callout .tag{ font-style: normal; margin-bottom: 0.4rem; }
+
+  /* ---------- first principles ---------- */
+  .bedrock{
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.8rem;
+  }
+  .brick{
+    display: grid;
+    grid-template-columns: 2em 1fr auto;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--gold-2);
+    border-radius: 2px;
+    background: var(--surface);
+    font-size: 0.92rem;
+  }
+  .brick .n{
+    font-family: var(--font-mono);
+    color: var(--gold-2);
+    font-weight: 700;
+  }
+  .brick.excluded{
+    border-left-color: var(--line);
+    background: transparent;
+    opacity: 0.6;
+  }
+  .brick.excluded .n{ color: var(--ink-muted); }
+  .brick.excluded p{ text-decoration: line-through; text-decoration-color: var(--ink-muted); }
+  .brick p{ margin: 0; }
+
+  .built-on{
+    border-left: 2px solid var(--line);
+    margin-left: 0.95rem;
+    padding-left: 1.3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .built-on .step{ position: relative; font-size: 0.94rem; }
+  .built-on .step::before{
+    content: "";
+    position: absolute;
+    left: -1.62rem;
+    top: 0.35rem;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--gold-2);
+  }
+  .built-on .step strong{ color: var(--ink); }
+
+  .pull{
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: clamp(1.15rem, 2.6vw + 0.6rem, 1.5rem);
+    line-height: 1.4;
+    color: var(--ink);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding-block: 1.1rem;
+    margin: 1.6rem 0;
+  }
+  .pull cite{
+    display: block;
+    font-family: var(--font-body);
+    font-style: normal;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold-2);
+    margin-top: 0.6rem;
+  }
+
+  /* ---------- five whys ---------- */
+  .chain{
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 2rem;
+  }
+  .chain-title{
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 0 0 0.9rem;
+    color: var(--ink);
+  }
+  .why-step{
+    display: grid;
+    grid-template-columns: 3.4em 1fr;
+    gap: 0.9rem;
+    padding-block: 0.7rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.92rem;
+  }
+  .why-step:last-child{ border-bottom: 1px solid var(--line); }
+  .why-step .why-label{
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+    padding-top: 0.15rem;
+  }
+  .why-step.dead .why-text{ text-decoration: line-through; text-decoration-color: var(--rust); opacity: 0.75; }
+  .why-step.dead .why-label{ color: var(--rust); }
+  .dead-flag{
+    display: inline-block;
+    margin-top: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--rust);
+  }
+  .why-step.root{ border-bottom: 1px solid var(--line); }
+  .why-step.root .why-label{ color: var(--gold-2); }
+  .outcome-card{
+    margin-top: 0.9rem;
+    border: 1px solid var(--gold-2);
+    border-radius: 3px;
+    padding: 0.9rem 1rem;
+    font-size: 0.9rem;
+    background: color-mix(in srgb, var(--gold-2) 6%, transparent);
+  }
+  .outcome-card .tag{ margin-bottom: 0.5rem; }
+
+  /* ---------- question storming ---------- */
+  .questions{
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin-bottom: 2.2rem;
+  }
+  .q-item{
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.7rem;
+    align-items: start;
+    padding: 0.6rem 0.8rem;
+    border-radius: 3px;
+    font-size: 0.92rem;
+  }
+  .q-item p{ margin: 0.2rem 0 0; }
+  .q-item.opener{ background: var(--surface); border: 1px solid var(--line); }
+  .q-pair{
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.7rem;
+  }
+  .q-pair .q-item{ border-radius: 0; }
+  .q-pair .q-item + .q-item{ border-top: 1px dashed var(--line); background: var(--surface); }
+  .q-pair-foot{
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.5rem 0.8rem 0.65rem;
+    background: var(--surface);
+  }
+
+  .themes{
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.6rem;
+    margin: 1.6rem 0 2rem;
+  }
+  @media (max-width: 700px){
+    .themes{ grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 420px){
+    .themes{ grid-template-columns: 1fr; }
+  }
+  .theme-card{
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--gold-2);
+    border-radius: 2px;
+    padding: 0.8rem 0.8rem 0.9rem;
+    background: var(--surface);
+    font-size: 0.85rem;
+  }
+  .theme-card .t-n{
+    font-family: var(--font-mono);
+    color: var(--gold-2);
+    font-size: 0.72rem;
+  }
+  .theme-card h4{
+    font-family: var(--font-display);
+    font-size: 1.02rem;
+    margin: 0.2rem 0 0;
+    line-height: 1.25;
+  }
+
+  .resolutions{
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+  .res-item{
+    display: grid;
+    grid-template-columns: 1.6em 1fr;
+    gap: 0.7rem;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--surface);
+    font-size: 0.9rem;
+  }
+  .res-item .check{
+    font-family: var(--font-mono);
+    color: var(--gold-2);
+    font-weight: 700;
+  }
+  .res-item strong{ color: var(--ink); }
+
+  /* ---------- synthesis ---------- */
+  .synthesis{
+    background: var(--ink);
+    color: var(--bg);
+    padding-block: clamp(2.8rem, 8vw, 4rem);
+  }
+  .synthesis .wrap{ padding-block: 0; }
+  .synthesis .eyebrow{ color: var(--gold-2); }
+  .synthesis h2{
+    font-family: var(--font-display);
+    font-size: clamp(1.7rem, 4vw + 0.6rem, 2.4rem);
+    margin: 0.3rem 0 0.6rem;
+  }
+  .synthesis .stage-intro{ color: color-mix(in srgb, var(--bg) 72%, transparent); }
+  .decisions{
+    display: flex;
+    flex-direction: column;
+  }
+  .decision{
+    display: grid;
+    grid-template-columns: 3.2rem 1fr;
+    gap: 1rem;
+    padding-block: 1.3rem;
+    border-top: 1px solid color-mix(in srgb, var(--bg) 22%, transparent);
+  }
+  .decision:last-child{ border-bottom: 1px solid color-mix(in srgb, var(--bg) 22%, transparent); }
+  .decision .num{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 2rem;
+    color: var(--gold-2);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .decision p{
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+  .decision .d-tag{
+    display:block;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--bg) 60%, transparent);
+    margin-bottom: 0.35rem;
+  }
+
+  /* ---------- footer ---------- */
+  footer{
+    padding-block: 2.4rem;
+    background: var(--bg);
+  }
+  footer .wrap{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    align-items: center;
+    justify-content: space-between;
+  }
+  footer p{
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+  }
+  footer .status{
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--gold-2);
+  }
+</style>
+</head>
+<body>
+
+  <header class="cover">
+    <div class="wrap">
+      <p class="kicker">GIVIO &mdash; BRAINSTORM KEEPSAKE &mdash; 22 SEPTEMBER 2026</p>
+      <h1>The Register of <em>Who May Enter</em></h1>
+      <p class="dek">A Creative Partner session on the Organizer role for multi-tenant event
+        management: events created, operators added, everything managed on one's own and
+        walled off from every other organizer on the platform. The working goal was a PRD
+        and architecture for a role system built on trust.</p>
+
+      <div class="meta-row">
+        <span class="tag coach">Role Playing</span>
+        <span class="tag coach">First Principles</span>
+        <span class="tag coach">Five Whys</span>
+        <span class="tag coach">Question Storming</span>
+        <span class="tag resolved">Affinity Clustering &rarr; 5 themes</span>
+      </div>
+
+      <div class="code-line">
+        <div class="code-badge" aria-label="eight character access code">
+          <span>A</span><span>7</span><span>K</span><span>Q</span><span>2</span><span>P</span><span>9</span><span>X</span>
+        </div>
+        <p class="code-note">This is how a family finds their event &mdash; eight characters,
+          typed once, often on a phone borrowed for the afternoon. Everything in this
+          session bends toward protecting what's on the other side of that code.</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="seam" role="presentation"></div>
+
+  <!-- ================= ROLE PLAYING ================= -->
+  <section class="stage" aria-labelledby="s1-h">
+    <div class="wrap">
+      <div class="stage-head">
+        <span class="stage-num">I.</span>
+        <h2 id="s1-h">Four Voices in the Room</h2>
+      </div>
+      <p class="stage-intro">Role Playing put four people in four chairs &mdash; the Organizer,
+        the Operator, the Admin, the Family &mdash; and asked each what they want and what
+        they're afraid of. The coach then leaned on two of them to see where the guarantees
+        would actually have to hold.</p>
+
+      <div class="voices">
+
+        <article class="voice-card">
+          <div>
+            <p class="role-eyebrow">Stakeholder</p>
+            <h3>The Organizer</h3>
+          </div>
+          <p class="voice-sub">Wants</p>
+          <ul class="voice-list wants">
+            <li><span class="mark">+</span>Each event managed independently.</li>
+            <li><span class="mark">+</span>The platform handling many events at once, without degrading.</li>
+          </ul>
+          <p class="voice-sub">Fears</p>
+          <ul class="voice-list fears">
+            <li><span class="mark">&minus;</span>Events mixing together &mdash; no separation between them.</li>
+            <li><span class="mark">&minus;</span>The application buckling under concurrent organizers and events.</li>
+          </ul>
+          <div class="coach-callout">
+            <span class="tag coach">Coach raises the stakes</span>
+            Picture Organizer B &mdash; a rival company on the same platform. They don't just
+            want their data unmixed. They want to never even discover Organizer A exists:
+            no shared IDs, no leaked names in a URL or an error message, no operator addable
+            across tenants by mistake.
+          </div>
+        </article>
+
+        <article class="voice-card">
+          <div>
+            <p class="role-eyebrow">Stakeholder</p>
+            <h3>The Operator</h3>
+          </div>
+          <p class="voice-sub">Wants</p>
+          <ul class="voice-list wants">
+            <li><span class="mark">+</span>To see only the events they're assigned to &mdash; never the Organizer's other events.</li>
+            <li><span class="mark">+</span>To manage only what they're assigned to.</li>
+            <li><span class="mark">+</span>When on several events at once, to see all of them and choose which to work first.</li>
+          </ul>
+          <div class="coach-callout">
+            <span class="tag coach">Coach raises the stakes</span>
+            An event-switcher &mdash; tabs, a workspace picker &mdash; so "which event am I
+            acting in right now" is unmistakable on screen at all times. A scoped check-in
+            action should never be able to fire against the wrong event.
+          </div>
+        </article>
+
+        <article class="voice-card">
+          <div>
+            <p class="role-eyebrow">Stakeholder</p>
+            <h3>The Admin</h3>
+          </div>
+          <p class="voice-sub">Wants</p>
+          <ul class="voice-list wants">
+            <li><span class="mark">+</span>To manage many Organizer accounts and events independently, one never affecting another.</li>
+            <li><span class="mark">+</span>Organizers to sign up, then wait for Admin's review and confirmation before getting in.</li>
+            <li><span class="mark">+</span>Before approving: company name, location, size, estimated users, company type, and other onboarding facts.</li>
+          </ul>
+          <p class="voice-sub">Fears</p>
+          <ul class="voice-list fears">
+            <li><span class="mark">&minus;</span>Organizers seeing or managing other Organizers' accounts or events.</li>
+            <li><span class="mark">&minus;</span>Organizers holding full admin privileges.</li>
+            <li><span class="mark">&minus;</span>Admin itself losing full system control.</li>
+          </ul>
+        </article>
+
+        <article class="voice-card">
+          <div>
+            <p class="role-eyebrow">Stakeholder</p>
+            <h3>The Family</h3>
+          </div>
+          <p class="voice-sub">Wants</p>
+          <ul class="voice-list wants">
+            <li><span class="mark">+</span>Live, accurate donation totals when viewing through the family code.</li>
+            <li><span class="mark">+</span>On entry, to be asked whether this is their own phone &mdash; and if not, to be logged out automatically the moment they leave.</li>
+          </ul>
+          <p class="voice-sub">Fears</p>
+          <ul class="voice-list fears">
+            <li><span class="mark">&minus;</span>The wrong family member &mdash; or a stranger &mdash; gaining access to donation details.</li>
+            <li><span class="mark">&minus;</span>Not seeing every donation actually entered &mdash; a partial or hidden total.</li>
+          </ul>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <div class="seam" role="presentation"></div>
+
+  <!-- ================= FIRST PRINCIPLES ================= -->
+  <section class="stage" aria-labelledby="s2-h">
+    <div class="wrap">
+      <div class="stage-head">
+        <span class="stage-num">II.</span>
+        <h2 id="s2-h">Bedrock, and What Sits On It</h2>
+      </div>
+      <p class="stage-intro">First Principles Thinking tested eight candidate facts about
+        how Givio actually works. Five held their weight. Three didn't &mdash; true, but not
+        load-bearing for a role system &mdash; and were set aside.</p>
+
+      <div class="bedrock">
+        <div class="brick"><span class="n">1</span><p>Multiple unrelated event companies share the platform concurrently.</p></div>
+        <div class="brick"><span class="n">2</span><p>One event company runs several events concurrently.</p></div>
+        <div class="brick excluded"><span class="n">3</span><p>Recorder and viewer are different people, in different places.</p></div>
+        <div class="brick excluded"><span class="n">4</span><p>Events are temporary and bounded.</p></div>
+        <div class="brick"><span class="n">5</span><p>The family didn't choose the platform &mdash; the Organizer brought them onto it.</p></div>
+        <div class="brick"><span class="n">6</span><p>Access to an event must be auditable at any moment.</p></div>
+        <div class="brick excluded"><span class="n">7</span><p>Connectivity at the event is unreliable.</p></div>
+        <div class="brick"><span class="n">8</span><p>One person could work across more than one event company over time.</p></div>
+      </div>
+
+      <p class="stage-intro" style="margin-bottom:1rem;">Everything else in the session was
+        built on the five that stayed:</p>
+
+      <div class="built-on">
+        <p class="step">An Operator logs in with credentials the Organizer sent them &mdash;
+          <strong>scoped to that Organizer</strong> &mdash; rather than one identity that
+          switches between events or companies.</p>
+        <p class="step">Two paths onto the platform for an Organizer: Admin creates and
+          invites them directly, or they self-sign-up and set their own credentials, but
+          stay <strong>pending until Admin approves</strong>.</p>
+        <p class="step">Confirmed as bedrock: access to event or money data is always
+          <strong>granted per event, never at the company level</strong> &mdash; even an
+          Organizer's access to their own events is an implicit per-event grant, not a
+          blanket company permission.</p>
+        <p class="step"><strong>One human always equals one Organizer account.</strong> Two
+          people at the same company need two separate accounts, never shared access under
+          one identity.</p>
+        <p class="step">The first Organizer at a company is a <strong>Super Organizer</strong>
+          &mdash; able to add other people as Organizer too, by the same mechanism used to
+          add an Operator, so every person keeps their own identity for audit and security.</p>
+        <p class="step">Hierarchy rule: an added Organizer can add and manage Operators, but
+          <strong>cannot add another Organizer</strong>. Only the Super Organizer can add
+          co-Organizers, and only the Super Organizer can manage or revoke either
+          co-Organizers or Operators.</p>
+      </div>
+
+      <p class="pull">Revoking access never erases attribution: a person's name stays
+        permanently attached to every donation they entered, even after they can no longer
+        log in. Revocation removes access &mdash; not history.
+        <cite>Decision &middot; First Principles</cite>
+      </p>
+
+      <p class="pull">A family's read-only live view survives even if Admin suspends the
+        entire Organizer account. Suspension blocks the Organizer and Operator's write and
+        login access &mdash; not the family's view, which may freeze or may keep updating.
+        <cite>Decision &middot; First Principles</cite>
+      </p>
+    </div>
+  </section>
+
+  <div class="seam" role="presentation"></div>
+
+  <!-- ================= FIVE WHYS ================= -->
+  <section class="stage" aria-labelledby="s3-h">
+    <div class="wrap">
+      <div class="stage-head">
+        <span class="stage-num">III.</span>
+        <h2 id="s3-h">Two Roads Down to the Root</h2>
+      </div>
+      <p class="stage-intro">Five Whys was run twice &mdash; once on the approval gate that
+        stands between an Organizer and the platform, once on why an Operator only ever
+        sees their own events. The first chain has a false floor halfway down. The second
+        is short, and lands somewhere the whole session kept returning to.</p>
+
+      <div class="chain">
+        <p class="chain-title">Why does Admin approve every Organizer account?</p>
+
+        <div class="why-step">
+          <span class="why-label">Why #1</span>
+          <div class="why-text">To manage organizer access to the platform, for future
+            billing purposes.</div>
+        </div>
+
+        <div class="why-step dead">
+          <span class="why-label">Why #2</span>
+          <div class="why-text">
+            Nothing would actually go wrong if Organizers self-activated instantly &mdash;
+            billing alone does not require pre-approval.
+            <span class="dead-flag">False floor &middot; billing isn't the real reason</span>
+          </div>
+        </div>
+
+        <div class="why-step">
+          <span class="why-label">Why #3</span>
+          <div class="why-text">Without approval, the platform becomes a vector for
+            scams &mdash; unvetted organizers could defraud grieving families, and the
+            platform's credibility collapses if it's seen as enabling that.</div>
+        </div>
+
+        <div class="why-step root">
+          <span class="why-label">Why #4</span>
+          <div class="why-text">After-the-fact bans don't work: a scammer just abandons the
+            account and opens a new one for the next event, skipping out on the bill and
+            the consequences each time.</div>
+        </div>
+
+        <div class="outcome-card">
+          <span class="tag resolved">Resulting feature</span>
+          Detect potential duplicate events &mdash; the same event, or the same deceased,
+          registered more than once to double-collect donations &mdash; and notify Admin
+          when it happens.
+        </div>
+      </div>
+
+      <div class="chain">
+        <p class="chain-title">Why are Operators scoped to only their assigned events?</p>
+
+        <div class="why-step">
+          <span class="why-label">Why #1</span>
+          <div class="why-text">Confidentiality and data protection &mdash; a generic
+            privacy policy.</div>
+        </div>
+
+        <div class="why-step root">
+          <span class="why-label">Root</span>
+          <div class="why-text">It ultimately protects the grieving family's dignity &mdash;
+            being seen, in their grief and their finances, by a stranger who has no
+            relationship to their event.</div>
+        </div>
+      </div>
+
+      <p class="pull">Not a data-privacy policy. A dignity guarantee.
+        <cite>Insight &middot; Five Whys</cite>
+      </p>
+    </div>
+  </section>
+
+  <div class="seam" role="presentation"></div>
+
+  <!-- ================= QUESTION STORMING ================= -->
+  <section class="stage" aria-labelledby="s4-h">
+    <div class="wrap">
+      <div class="stage-head">
+        <span class="stage-num">IV.</span>
+        <h2 id="s4-h">Questions Left on the Table</h2>
+      </div>
+      <p class="stage-intro">Question Storming opened with the coach, then fell into a
+        rhythm: a question, and the coach's follow-up sharpening it further. Thirteen
+        questions surfaced. Affinity Clustering sorted the session's ideas into five
+        PRD-ready themes, and six of these questions were carried forward and resolved.
+        One is still genuinely open.</p>
+
+      <div class="questions">
+
+        <div class="q-item opener">
+          <span class="tag coach">Coach</span>
+          <p>How does Admin actually verify that the company name, location, and size an
+            Organizer submits at signup is true, rather than just plausible-sounding fields
+            on a form?</p>
+        </div>
+
+        <div class="q-pair">
+          <div class="q-item"><span class="tag user">You</span>
+            <p>How does Admin help an Organizer resolve issues?</p></div>
+          <div class="q-item"><span class="tag coach">Coach</span>
+            <p>Is there an in-platform support channel at all, or does an issue reach Admin
+              some other way &mdash; email, phone &mdash; outside the app entirely?</p></div>
+          <div class="q-pair-foot"><span class="tag resolved">Resolved &darr;</span></div>
+        </div>
+
+        <div class="q-pair">
+          <div class="q-item"><span class="tag user">You</span>
+            <p>Does anyone see all events' donation entries across a company &mdash; a
+              consolidated view?</p></div>
+          <div class="q-item"><span class="tag coach">Coach</span>
+            <p>If the Super Organizer sees that consolidated total, does it need to
+              reconcile in real time with each event's number, or is a periodic rollup good
+              enough?</p></div>
+          <div class="q-pair-foot"><span class="tag resolved">Resolved &darr;</span></div>
+        </div>
+
+        <div class="q-pair">
+          <div class="q-item"><span class="tag user">You</span>
+            <p>Is there a way an Organizer can bypass the system without meeting the
+              required criteria?</p></div>
+          <div class="q-item"><span class="tag coach">Coach</span>
+            <p>Could a rejected or banned Organizer just have a friend at an
+              already-approved company add them as a co-Organizer &mdash; routing around the
+              vetting gate entirely?</p></div>
+          <div class="q-pair-foot"><span class="tag resolved">Resolved &darr;</span></div>
+        </div>
+
+        <div class="q-pair">
+          <div class="q-item"><span class="tag user">You</span>
+            <p>Can a family member be an Organizer for their own event, instead of going
+              through a professional event company?</p></div>
+          <div class="q-item"><span class="tag coach">Coach</span>
+            <p>If a family can self-organize, would they clear the same vetting as a
+              professional company, or does the platform need a lighter tier?</p></div>
+          <div class="q-pair-foot"><span class="tag resolved">Resolved &darr;</span></div>
+        </div>
+
+        <div class="q-pair">
+          <div class="q-item"><span class="tag user">You</span>
+            <p>Is every user's activity logged, for auditing?</p></div>
+          <div class="q-item"><span class="tag coach">Coach</span>
+            <p>Who can actually see the audit log itself &mdash; only Admin, or can a Super
+              Organizer view the trail for their own company?</p></div>
+          <div class="q-pair-foot"><span class="tag resolved">Resolved &darr;</span></div>
+        </div>
+
+        <div class="q-pair">
+          <div class="q-item"><span class="tag user">You</span>
+            <p>What other feature could be added to the family screen, besides
+              donation-view-only?</p></div>
+          <div class="q-item"><span class="tag coach">Coach</span>
+            <p>Would the family want to send a thank-you back to a donor &mdash; and would
+              that mean seeing donor identities they currently can't, or could it stay
+              anonymous, a broadcast to everyone who gave?</p></div>
+          <div class="q-pair-foot"><span class="tag open">Still open &mdash; parked</span></div>
+        </div>
+
+      </div>
+
+      <p class="stage-intro" style="margin-bottom:0.8rem;">Affinity Clustering gathered the
+        session's ideas into five themes ready for the PRD:</p>
+
+      <div class="themes">
+        <div class="theme-card"><span class="t-n">01</span><h4>Tenant &amp; Access Model</h4></div>
+        <div class="theme-card"><span class="t-n">02</span><h4>Trust &amp; Fraud Prevention</h4></div>
+        <div class="theme-card"><span class="t-n">03</span><h4>Family Experience &amp; Dignity</h4></div>
+        <div class="theme-card"><span class="t-n">04</span><h4>Admin Oversight &amp; Support</h4></div>
+        <div class="theme-card"><span class="t-n">05</span><h4>Isolation Guarantee</h4></div>
+      </div>
+
+      <p class="stage-intro" style="margin-bottom:1rem;">The six threads carried out of
+        Themes 2&ndash;4 were resolved one by one:</p>
+
+      <div class="resolutions">
+        <div class="res-item">
+          <span class="check">&#10003;</span>
+          <p><strong>Co-Organizer bypass, closed.</strong> The same identity checks used at
+            Organizer signup &mdash; cross-referenced against banned or rejected applicants
+            &mdash; apply whenever a co-Organizer is added, and Admin is notified on every
+            addition. No separate vetting system needed.</p>
+        </div>
+        <div class="res-item">
+          <span class="check">&#10003;</span>
+          <p><strong>Company verification, manual for v1.</strong> Admin reviews the
+            submitted info plus a document upload &mdash; business registration or ID &mdash;
+            and a phone verification call, before approving. Automated third-party
+            verification is deferred.</p>
+        </div>
+        <div class="res-item">
+          <span class="check">&#10003;</span>
+          <p><strong>Family-as-organizer: Won't &mdash; this time.</strong> V1 stays scoped
+            to the professional event-company Organizer model. Self-service family accounts
+            are parked as a future direction.</p>
+        </div>
+        <div class="res-item">
+          <span class="check">&#10003;</span>
+          <p><strong>Audit log follows the tenant boundary.</strong> Admin sees the
+            platform-wide log across every Organizer. A Super Organizer sees only their own
+            company's trail &mdash; co-Organizers and Operators &mdash; never another
+            company's.</p>
+        </div>
+        <div class="res-item">
+          <span class="check">&#10003;</span>
+          <p><strong>Support, for v1, is a form.</strong> A simple, logged "Contact Admin"
+            form &mdash; not a full ticketing system, which is deferred as a later Should.</p>
+        </div>
+        <div class="res-item">
+          <span class="check">&#10003;</span>
+          <p><strong>The consolidated total is near-real-time.</strong> Same consistency
+            bar as the family's live view, with a periodic settlement and export report as
+            a secondary accounting feature.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SYNTHESIS ================= -->
+  <section class="synthesis" aria-labelledby="s5-h">
+    <div class="wrap">
+      <p class="eyebrow">V. &middot; Synthesis</p>
+      <h2 id="s5-h">Five Things the Whole System Stands On</h2>
+      <p class="stage-intro">Everything above &mdash; four voices, five bedrock facts, two
+        chains of why, thirteen questions &mdash; settles into five decisions the PRD
+        cannot compromise on.</p>
+
+      <div class="decisions">
+        <div class="decision">
+          <span class="num">01</span>
+          <p><span class="d-tag">The unit of access</span>The per-event grant is the sole
+            atomic unit of access control, across every tier &mdash; Admin, Organizer,
+            Operator alike.</p>
+        </div>
+        <div class="decision">
+          <span class="num">02</span>
+          <p><span class="d-tag">The shape of isolation</span>Credentials-per-relationship
+            makes tenant isolation structural, not policy-enforced &mdash; there is no
+            shared identity left to leak across a boundary.</p>
+        </div>
+        <div class="decision">
+          <span class="num">03</span>
+          <p><span class="d-tag">What the gate is for</span>The approval gate exists for
+            fraud and trust protection, not billing &mdash; and that's what drives onboarding
+            verification, duplicate-event detection, and the co-Organizer bypass fix.</p>
+        </div>
+        <div class="decision">
+          <span class="num">04</span>
+          <p><span class="d-tag">What scoping protects</span>Family dignity &mdash; not a
+            generic privacy policy &mdash; is the real reason for strict Operator scoping,
+            and should frame the PRD's own language.</p>
+        </div>
+        <div class="decision">
+          <span class="num">05</span>
+          <p><span class="d-tag">What revocation means</span>Revocation removes access but
+            never erases attribution. No one who has touched money can ever be hard-deleted.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <p>Organizer role for multi-tenant event management &middot; Creative Partner
+        session &middot; 22 September 2026</p>
+      <p class="status">STATUS: COMPLETE</p>
+    </div>
+  </footer>
+
+</body>
+</html>

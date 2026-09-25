@@ -1,65 +1,91 @@
-# Architecture Spine Review — Rubric Pass
+# Reviewer Gate — Rubric Walker
 
-**Reviewed:** `ARCHITECTURE-SPINE.md` (Givio DMS, 2026-07-25)
-**Against:** `docs/DMS_Product_Requirements_Document.md` §6.1–6.9, §8–9, §10.2, and the 26 screen specs in `.claude/skills/plan/*.md`
-**Method:** checklist-driven read of the spine, full read of the PRD's functional-requirement sections, header/full-content spot-reads of all 26 screen specs, targeted greps across the spec corpus for capabilities (audit, receipt, conflict, user management, event code, notifications), and a live version spot-check of jsPDF/Appwrite against package.json.
+**Target:** ARCHITECTURE-SPINE.md (Givio, updated 2026-09-23 — multi-tenant Organizer/role hierarchy amendment on top of the final v1 spine).
+**Method:** Checklist walk against `.claude/skills/bmad-architecture/references/reviewer-gate.md`'s "Good-spine checklist," cross-checked against the companion PRD (`prd-givio-2026-09-23/prd.md`), the live repo (`package.json`, `src/app/data/services/auth.service.ts`, `src/app/data/models/role.ts`), `sprint-status.yaml`, and the sibling reviewer artifacts already in this folder (`review-tech-verify.md`, `review-adversarial.md`, `reconcile-prd.md`).
 
 ## Verdict
 
-The spine is well-constructed where it engages — AD-1 through AD-7 are each individually sharp, falsifiable, and traceable to a real divergence risk — but it has one **self-undermining gap in its own centerpiece rule (AD-1)**, one **unreconciled contradiction between AD-3 and its own source screen spec**, and **two structural dimensions the PRD treats as Critical/High priority that are left completely silent** rather than deferred. It should not be considered final until at least the AD-1 mechanism gap is resolved.
+**CONDITIONAL PASS.** The spine is well-reasoned and its amendments are individually sound, but two Critical gaps mean two builders *can* diverge on exactly the things this document exists to prevent — a permission-revocation mechanism that isn't actually wired to Membership/Tenant status, and a Stack table that no longer matches the repo it's supposed to describe (missing a whole UI library the app already ships).
+
+**Findings: 2 Critical, 3 High, 3 Medium, 2 Low.**
 
 ---
 
-## Findings
+## Critical
 
-### 1. CRITICAL — AD-1's Label mechanism has no implementation path in a pure-client architecture
+### C1 — Membership/Tenant revocation doesn't mechanically retract already-granted Event permissions (AD-2, AD-9)
 
-AD-1's own justification text states: *"Labels are server/Console-only."* This is factually correct for Appwrite (only the Server SDK / Users API with an API key, or the Console, can call `users.updateLabels()` — the client Account API only ever manages the caller's own account). But the Structural Seed, Stack table, and every layer description in the spine describe a **purely client-side** system: `data/appwrite/client.ts` wraps `Account, Databases, Teams` (all client-callable services), there is no Appwrite Function, no Server SDK usage, and no API-key-bearing backend component anywhere in the document.
+AD-2's Rule ties Appwrite document-permission regeneration to one trigger only: *"recomputed every time `assignedUserIds` changes."* Revoking a Membership (`status: active→revoked`) or suspending/banning a Tenant does **not** itself change any Event's `assignedUserIds` — so a fired Operator's or suspended Organizer's `Role.user(uid)` entry on every Event they were assigned to stays exactly as it was until something else explicitly edits `assignedUserIds`. AD-9's Rule lists "writes or revokes a Membership record" and "rewrites an Event/Donation document's derived permissions" as two separate Function responsibilities but never states that a revoke/suspend **triggers** a sweep of that user's currently-assigned Events. This is not a hypothetical: PRD UJ-5 and FR-17 require an Admin-suspended Organizer's Operators to *"immediately lose login/write access,"* and FR-13's revocation semantics are load-bearing for the whole trust model (§4.4, §4.7). As written, two builders could reasonably diverge — one wiring revoke-triggers-sweep, one assuming (as the Rule literally says) that only `assignedUserIds` edits matter — and the second interpretation ships a real security hole: a revoked Operator retains Appwrite-level write access to every Event they were on until someone separately edits that Event.
+**Fix:** add an explicit clause to AD-2 or AD-9: *Membership revoke / Tenant suspend-or-ban also triggers the Function to re-derive permissions for every Event currently referencing that `uid` in `assignedUserIds`* (or state the alternative — login is blocked at auth time and that's judged sufficient, distinct from write-permission revocation — but say so on purpose, don't leave it implicit).
 
-Meanwhile FR-USR-001/002 (Critical/High) require the Admin to create accounts and assign/change roles from *inside the DMS app*, and `admin-settings.md`'s "User Management Section" spec literally has an "Add New User" button and a "Change Role" row action — i.e., a client-side UI action that must, per AD-1, end up setting a server/Console-only Label. The spine never says how that button click reaches a privileged surface. This isn't deferred — it's silent, and it's the load-bearing rule the whole permission model depends on.
+### C2 — Stack table doesn't match the repo it claims to describe (Stack section)
 
-**Impact:** two teams implementing this independently will diverge exactly where AD-1 claims to prevent divergence — one might bolt on an Appwrite Function, another might (incorrectly) try to set labels from the client and silently fail, another might fall back to `prefs.role` (the very anti-pattern AD-1 exists to kill) because it's the only thing reachable from the browser.
+The spine's Stack table and repo state directly disagree:
 
-**Fix direction:** add an AD (or extend AD-1) that names the privileged surface — e.g., "an Appwrite Function (`assignUserLabel`), invoked via `functions.createExecution`, is the only caller of `users.updateLabels`" — and add it to the Structural Seed / Stack.
+| Row | Spine claims | Repo (`package.json`) actually has |
+|---|---|---|
+| Angular | `^21.0.0` ("already pinned... one major behind now-current 22") | `^22.1.7` — already upgraded (merged PR #76 "chore/angular-22-upgrade," per git log) |
+| Appwrite web SDK | `^23.0.0` ("3 majors behind current 26.x") | `^27.0.0` |
+| Dexie | `^4.3.0` | `^4.4.6` |
+| Angular Material | `^21.2.3` | `^22.1.7` |
+| jsPDF | `4.2.1` | `^4.2.1` — matches |
+| — (unlisted) | not mentioned anywhere | **`primeng: ^22.1.1`** — actively wired (recent commit "fix(app-config): wire up PrimeNG license key config") |
 
-### 2. HIGH — Family-member "no-account" access is a distinct auth mechanism the spine never names, and it conflicts with AD-2's team-membership model
-
-FR-AUTH-004 (High) requires: *"Family Member can log in using the event code without a full account."* FR-EVT-005 requires Admin-generated, regenerable, single-event-scoped 8+ character codes. AD-2's mechanism for family-member access is: *"assigning a family member = adding them with a restricted in-team role."* Appwrite Team membership requires a real user (invited via email or an existing account) — there is no such thing as a code-authenticated, account-less Team member. These two requirements describe genuinely different auth primitives (label/team RBAC vs. a bearer-code/magic-link session), and the spine picks only the first without acknowledging the second exists.
-
-Compounding this, `share-access.md` describes a *third*, separate mechanism — organizer-generated shareable links with tiered permissions (**View Only / Add Donations / Full Access**) and expirations (24h/3d/1wk/unlimited) that explicitly work "without login." A "Full Access" link-holder can add/edit/delete donations per that spec — which is a write capability AD-2's "restricted in-team role (e.g. `viewer`)" cannot express, and which also contradicts the PRD's own role definition (§4.2: Family Member is read-only, full stop). None of `login-screen.md` (email/password + social login + "Sign Up" — inconsistent with a closed, admin-provisioned account model to begin with), the Capability Map, or Deferred acknowledges any of this. It is not decided and not deferred — it is unaddressed.
-
-**Impact:** whoever builds `share-access` and whoever builds the family-member login path will each invent their own passwordless-session primitive, with no shared contract for how a code/link maps to Appwrite permissions.
-
-### 3. HIGH — AD-3 contradicts the sync-status.md screen spec it's supposed to govern
-
-AD-3's stated purpose is explicit: *"Prevents: a second offline conflict-review UI / local conflicts table for a scenario Admin resolves online... Conflicts surface only in the Admin dashboard."* But `sync-status.md` — the very screen the Capability Map assigns to `data/sync/SyncEngine`/`SyncStore` under AD-3 — has its own "Conflict resolution section" with **"Resolution options (Keep Local / Use Server / Manual Merge)"**, presented as a generic, non-admin-gated action available to whoever is looking at sync status (the screen's nav is "Back to Dashboard," not "Back to Admin Dashboard," and the spec carries no role badge the way `admin-*` specs do). This is precisely the second conflict-UI AD-3 says must not exist.
-
-**Impact:** this is exactly the kind of divergence the review is meant to catch — the spine's own rule and its own source material disagree, and nothing in the document flags or resolves it. A dev implementing `sync-status` faithfully to spec will build a conflict-resolution surface AD-3 forbids.
-
-### 4. HIGH — Session/token lifecycle is a completely silent dimension
-
-FR-AUTH-002 (Critical: session token "not in localStorage in plain text," 8h inactivity expiry) and FR-SEC-005 (High: refresh-token rotation on each use, concurrent multi-device sessions allowed, Admin can force-expire all sessions for a user) are concrete, testable, Critical/High-priority requirements directly adjacent to AD-1's auth model. The spine's Consistency Conventions table covers naming/data formats/state-management conventions but never mentions where session/token state is held, how expiry is enforced, or how force-expiry is exposed to Admin. This is not in Deferred either — it's silent.
-
-**Impact:** two implementers will independently choose different token-storage and expiry-check strategies (e.g., one relying on Appwrite's default cookie session, another hand-rolling a timer in `AuthStore`), with no shared contract for the Admin-facing force-expire action.
-
-### 5. MEDIUM — Notifications (toast + email) are unaddressed, despite being named in the review's own failure-mode examples
-
-FR-OFF-004 requires a toast ("Sync complete — X records uploaded"); FR-USR-001 requires an auto-generated password sent via email notification; `admin-settings.md` devotes an entire "Notification Settings Section" to in-app/email notification triggers and channels. None of this appears anywhere in the spine — not as an AD, not in the Capability Map, not in Deferred. Given the spine explicitly names client-side libraries for PDF (jsPDF) and Excel (SheetJS) generation, the omission of any home for the notification/toast mechanism (and the email-sending mechanism, which — like AD-1's label problem — likely needs a privileged surface, since Appwrite SMTP sends are typically triggered via the Users/Account API's password-recovery flows or a Function, not arbitrary client calls) reads as an oversight rather than a considered scope cut.
-
-### 6. LOW — Two bookkeeping gaps in the "26 screens" claim
-
-- `reports.md` — cited by name in the Capability Map's "Reports/exports" row — is a **zero-byte file**. The map cites a spec that currently defines nothing; whatever "reports" was meant to contribute is undiscoverable from the source material the spine claims to be built against.
-- `dashboard-screen.md` ("Event Dashboard," organizer-facing overview + event list) is a distinct file from `organizer-dashboard.md` and is not named anywhere in the Capability Map (the map's "organizer-*" wildcard doesn't lexically match this filename, unlike `organizer-dashboard.md`/`organizer-donations.md`/`organizer.events.md`/`organizer.report.md`). It heavily overlaps `organizer-dashboard.md`'s content, so it may be a superseded draft — but the spine doesn't say so, and its scope line claims coverage of "all 26 planned screens."
+Every row except jsPDF is stale by at least one major version, and the app ships an entire second UI component library (PrimeNG) that the Stack table, Design Paradigm, and Structural Seed never mention at all. `review-tech-verify.md` (sibling reviewer, web-verified) independently confirms the Appwrite SDK figure is stale against npm ("27.0.0... 4 majors behind, not 3") and flags Angular Material's missing currency caveat — but that lens checked npm-registry currency, not the repo's actual installed versions, so it didn't catch that Angular/Material are already fully upgraded in-repo, or that PrimeNG is missing entirely. This directly fails checklist item 4 ("ratifies rather than contradicts a brownfield codebase") — a builder reading this spine for the current stack would get four wrong answers and one missing dependency.
+**Fix:** regenerate the Stack table from `package.json` directly; add a PrimeNG row and a one-line note on when to reach for PrimeNG vs. Angular Material vs. `shared/components` for the new Organizer/Admin screens this amendment adds.
 
 ---
 
-## What the spine gets right (for balance)
+## High
 
-- **AD-1, AD-2 (the team-membership half), AD-4, AD-5, AD-6, AD-7** are each concretely enforceable, each name the exact current-codebase anti-pattern they replace (self-escalation via `account.prefs.role`, zero route guards, eager 26-component route table, float money), and each would actually prevent the stated divergence for a normal (non-account-less) user.
-- **Deferred** section is well-chosen for what it does defer: Realtime-vs-polling and receipt-template/PDF-layout are genuinely non-load-bearing at this altitude (Presentation only ever talks to the store either way); deployment/environments and the audit-log write mechanism are correctly flagged as open rather than silently skipped — these satisfy the checklist's "deployment," "receipt specifics," and "audit log write mechanism" example dimensions. It's specifically **notifications** and **session lifecycle** (also named in the checklist's example list) that fall through.
-- Tech-currency spot check: jsPDF 4.2.1 confirmed as the actual current npm version; Angular ^21.0.0, Appwrite ^23.0.0, Dexie ^4.3.0, Angular Material ^21.2.3 all confirmed present in `package.json` exactly as the spine describes ("already pinned") — the Stack table is not fabricating brownfield facts. The SheetJS "don't npm install, vendor from cdn.sheetjs.com" guidance is accurate to SheetJS's actual current distribution practice.
-- The paradigm/layering rule (Presentation/Domain never import `appwrite`/`dexie`) is simple, checkable by lint/import-boundary tooling, and would genuinely prevent the layering violations it targets.
+### H1 — No stated Appwrite permission lockdown for who may write Memberships/Tenant/IdentityFlag, or Event's own permission-bearing fields (AD-1, AD-2, AD-9)
 
-## Recommendation
+AD-1, AD-2, and AD-9 all assert "written only by the AD-9 Function, never hand-edited elsewhere" for Memberships, Tenant approval state, and Event/Donation derived permissions. For the original AD-1 Labels case this is mechanically true (`Users.updateLabels` is server-key-only — Appwrite has no client write path, confirmed by `review-tech-verify.md`). But Memberships/Tenant/IdentityFlag are **ordinary collections** — nothing in the spine states their Appwrite collection-level write permissions are locked to the Function's server key, and nothing states that `Event.assignedUserIds`/`Event.tenantId` are excluded from the Update permission an assigned Operator already needs on their own Event row (to edit event details). Without that, "sole source of truth" and "never hand-edited elsewhere" are policy, not the "structural (not policy-based)" guarantee FR-2/§8 of the PRD explicitly demands. This is the one place the checklist's "does the Rule actually enforce/prevent, or is it just descriptive" question bites hardest.
+**Fix:** state explicitly that Memberships/Tenant/IdentityFlag collections have create/update permission scoped to the Function's execution identity only (no `users`/`any` write role), and that Event/Donation's Update permission — while granted to assigned users for other fields — is not sufficient on its own to prove `assignedUserIds`/`tenantId` can't be client-edited (Appwrite permissions are document-level, not field-level).
 
-Before marking this spine `final`, resolve #1 (AD-1's mechanism) and #3 (AD-3 vs. sync-status.md) — both are direct self-contradictions/gaps in the spine's own load-bearing rules, not just scope questions. #2 and #4 should get at minimum an explicit Deferred entry (they're plausibly legitimate to defer to the epic that builds `AuthStore`, but silence is not the same as a deliberate deferral) so a future reader can tell "not decided yet, on purpose" from "not noticed."
+### H2 — AD-9's Function has six-plus concerns and no internal decomposition convention (AD-9, Structural Seed)
+
+AD-9 itself flags "scope grown" but the Structural Seed still shows `functions/set-role-and-permissions/` as one undifferentiated block. The codebase already establishes a per-concern-file convention inside that Function — `sprint-status.yaml` references `admin-users.js`, `event-assignment.js`, `conflict-resolution.js`, `donation-recording.js`, `shared.js` as separate source files for the *existing* four concerns. The amendment adds at least four more (Memberships/Tenant-approval, Admin/Super-Admin account mgmt, IdentityFlags cross-reference, duplicate-event detection) without naming how they extend that file layout, or any rule preventing two builders from picking incompatible internal boundaries (one giant `index.js` switch vs. one file per action vs. one file per AD). This is exactly what checklist item 6 in this task's brief asks about: the one-Function *decision* is still coherent (one shared elevated-trust boundary is the right call, and nothing here argues for a second Function), but the *organization* of that one deployable is undecided.
+**Fix:** either extend the Structural Seed with the new files (e.g. `tenant-membership.js`, `admin-accounts.js`, `identity-flags.js`, `duplicate-event.js`) matching the existing convention, or add one sentence to AD-9 establishing the pattern ("one source file per action-group, routed by a single handler — see existing `admin-users.js`/`event-assignment.js`").
+
+### H3 — "Operations" as a dimension is entirely silent (Deferred, whole document)
+
+The reviewer-gate checklist calls this out by name as commonly skipped, and it is skipped here: nothing in Deferred, the Stack table, or any AD addresses monitoring/alerting for the AD-9 Function (now the single point of failure for every role/tenant/admin transition in the system), error tracking, or backup/restore for Appwrite collections. This wasn't a gap in the original v1 spine's excuse ("feature altitude, ops belongs elsewhere") — the amendment substantially raises the stakes of this one Function failing silently (it now gates tenant approval, admin account management, and duplicate-fraud detection, not just role writes), which arguably crosses the threshold where at least a Deferred line item, with an owner, is warranted.
+**Fix:** add a Deferred entry naming operations/observability for the AD-9 Function explicitly, even if the answer is "left to the deploy runbook, not this spine" — say it on purpose rather than by omission.
+
+---
+
+## Medium
+
+### M1 — "Deployment & environments" Deferred entry has no owner (Deferred)
+
+Every other Deferred line names who resolves it ("left to the epic that builds it," "manual/out-of-band," etc.). "Deployment & environments... out of scope for this spine" is the one exception — it names the dimension (good, satisfies the letter of the checklist) but not who owns closing it. Infra/provider strategy (Appwrite Cloud) is assumed throughout (e.g., AD-1's "provisioned Appwrite Cloud instance") but never stated as an explicit decision at this altitude either.
+**Fix:** one clause — which artifact (a platform-altitude spine? the deploy runbook referenced in the Migration/rollout Deferred entry?) owns this.
+
+### M2 — IdentityFlags Deferred entry bundles two differently-scoped checks (Deferred, AD-9, Multi-tenant collections table)
+
+The PRD is explicit that FR-12 (co-Organizer addition) runs the *full cross-tenant banned/rejected* check, while FR-23 (Operator addition) is deliberately *"lighter-weight... same-tenant name/email/phone matching"* (PRD §4.5, its own Assumption). The spine's Multi-tenant collections table and Deferred section both describe one `IdentityFlag` collection with one deferred "exact matched fields" line covering FR-12/FR-23/FR-24 together, without flagging that FR-12 and FR-23 need different match scopes against it. A builder implementing this literally as written risks building one matcher and running it identically for both flows, undershooting FR-12's cross-tenant reach or overshooting FR-23's intentionally narrower one.
+**Fix:** split the Deferred line (or at least the collection-table note) into "FR-12/FR-24 cross-tenant matching fields" and "FR-23 same-tenant matching fields," even though both stay Deferred.
+
+### M3 — AD-12's audit-on-every-Admin-read has no structural guard against a missed call site (AD-12)
+
+AD-12 self-identifies as "best-effort... not tamper-proof" and explicitly rejects a Function-proxied alternative — that trade-off is made on purpose, which is good. But the Rule's enforcement is "fire an audit-log write... whenever the caller holds `Role.label('admin')`" with no shared chokepoint named (e.g., a single query wrapper every Admin-gated read must go through) — so as new Admin-facing read paths are added by this amendment (Organizer approval queue, duplicate-event review, Admin-account list), each one has to remember to call `AuditDataService` independently, with nothing catching an omission. Low severity since the AD already accepts best-effort as the design point, but worth naming since new read surfaces are exactly where this amendment is heaviest.
+
+---
+
+## Low
+
+### L1 — Corroborated by `review-tech-verify.md`: Angular Material's staleness has no "N major behind" caveat (Stack)
+Same root cause as C2 — once the Stack table is regenerated from `package.json` this resolves itself alongside C2.
+
+### L2 — Revocation mechanism vs. Appwrite's native account-block primitive left implicit (AD-1, AD-11)
+`review-tech-verify.md` flags that Appwrite has a native `users.updateStatus` block mechanism, and the spine never states whether Membership/Tenant `status` transitions actually call it (vs. relying solely on app-level status checks, which wouldn't invalidate an already-issued session). Related to C1 but narrower — C1 is about Appwrite document *permissions* not being swept; this is about the *account/session* layer. Worth resolving in the same pass as C1.
+
+---
+
+## What's solid (not findings, noted for context)
+
+- AD-3, AD-4, AD-8, AD-11's Super Admin gate, and AD-13's "never blocks" rule all have real mechanical teeth (specific fields, specific trigger conditions, specific enforcement points) — these are the model to match when closing C1/H1.
+- Spot-checked against the live repo: `AuthService` already reads `account.labels` via Appwrite (`src/app/data/services/auth.service.ts:33-35`), confirming AD-1's inherited v1 rule is already implemented, not just asserted — no `IUserPrefs.role`/`prefs.role` reference remains. `role.ts` correctly shows only `'admin' | 'operator'` today, confirming the multi-tenant roles are honestly described as not-yet-built rather than the spine overclaiming.
+- `sprint-status.yaml` supports the PRD's "Epics 1–5 substantially built... in review" claim (§0, §12) — most Epic 1–5 stories are `done` or `review`, none are `backlog` except 5-2. The brownfield framing is accurate here.
+- AD-10's scope boundary (v1 ships exactly FR-AUTH-004, richer scheme deferred) is a clean, well-precedented Deferred pattern — no divergence risk.

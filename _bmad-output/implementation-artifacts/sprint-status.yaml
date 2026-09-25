@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-07-26
-last_updated: 2026-09-12-story-5-3-multi-device-concurrent-operators
+last_updated: 2026-09-25-story-6-2-created
 project: givio
 project_key: NOKEY
 tracking_system: file-system
@@ -381,3 +381,39 @@ development_status:
   # device test.
   5-3-multi-device-concurrent-operators: review
   epic-5-retrospective: optional
+
+  # Epics 6-9 added 2026-09-25 (sprint planning): Organizer Multi-Tenancy & Role
+  # Hierarchy capability, from prd-givio-2026-09-23 / architecture-givio-2026-07-25
+  # (amended) / ux-givio-2026-09-23 / epics.md Epics 6-9. Story 6.1 was drafted then
+  # retired during elicitation (route-rename plan reversed) -- Epic 6 starts at 6.2,
+  # ID intentionally not reused.
+  epic-6: in-progress
+  6-2-tenant-membership-foundation: ready-for-dev
+  6-3-credentials-per-relationship-enforcement: backlog
+  6-4-organizer-onboarding-admin-invited-self-signup: backlog
+  6-5-manual-verification-admin-approval-queue: backlog
+  6-6-operator-event-switcher: backlog
+  epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-add-manage-team-members: backlog
+  7-2-identity-check-on-team-additions: backlog
+  7-3-revocation-preserves-attribution-for-cause-revocations-feed-the-bypass-list: backlog
+  7-4-platform-wide-duplicate-event-detection: backlog
+  7-5-tenant-scoped-audit-log: backlog
+  epic-7-retrospective: optional
+
+  epic-8: backlog
+  8-1-admin-suspends-a-tenant: backlog
+  8-2-admin-super-admin-access-logging: backlog
+  8-3-contact-admin-support-form: backlog
+  8-4-consolidated-cross-event-total: backlog
+  8-5-periodic-settlement-export-report: backlog
+  8-6-super-admin-manages-admin-accounts: backlog
+  epic-8-retrospective: optional
+
+  epic-9: backlog
+  9-1-personal-device-prompt-auto-logout: backlog
+  9-2-family-view-survives-organizer-suspension: backlog
+  9-3-full-donation-visibility-for-family: backlog
+  epic-9-retrospective: optional
