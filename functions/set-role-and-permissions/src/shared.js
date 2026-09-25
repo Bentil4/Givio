@@ -79,6 +79,11 @@ export function hasValue(field) {
   return typeof field === 'string' && field.length > 0;
 }
 
+/** Shared by every module that writes a row protected by a unique-column constraint. */
+export function isConflictError(err) {
+  return err?.code === 409;
+}
+
 /**
  * Recomputes an Event document's Appwrite permissions from its assignedUserIds (AD-2): Admin
  * keeps full CRUD via the Label; each assigned uid gets read-only document access. Relocated

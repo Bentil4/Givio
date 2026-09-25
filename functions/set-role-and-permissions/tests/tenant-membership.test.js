@@ -440,3 +440,71 @@ test(
     assert.equal(calls.updateRow.length, 1);
   }),
 );
+
+test(
+  "setTenantStatus('suspended') on an already-suspended tenant retries just the sweep, not rejected as a no-op transition",
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: { action: 'setTenantStatus', tenantId: 't1', status: 'suspended' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: {
+        // Tenant is ALREADY suspended — the earlier attempt's status write succeeded but its
+        // sweep must have failed (the previous test's scenario), leaving stale Event grants.
+        getRow: async () => ({ $id: 't1', status: 'suspended' }),
+        listRows: async () => ({ rows: [{ $id: 'event-1', assignedUserIds: ['u1'] }] }),
+        updateRow: async () => ({}),
+      },
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.status, 'suspended');
+    // No tenant-status write this time (already in that state) — only the swept Event.
+    assert.equal(calls.updateRow.length, 1);
+    assert.equal(calls.updateRow[0][0].rowId, 'event-1');
+  }),
+);
+
+test(
+  'listAllRows drains a full page and follows the cursor to a second page',
+  withEnv(async () => {
+    const page1 = Array.from({ length: 100 }, (_, i) => ({
+      $id: `event-${i}`,
+      assignedUserIds: ['u1'],
+    }));
+    const page2 = [{ $id: 'event-100', assignedUserIds: ['u1'] }];
+    let callCount = 0;
+
+    const { ctx, calls } = fakeContext({
+      body: { action: 'setTenantStatus', tenantId: 't1', status: 'suspended' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: {
+        getRow: async () => ({ $id: 't1', status: 'approved' }),
+        updateRow: async () => ({}),
+        listRows: async () => {
+          callCount += 1;
+          return { rows: callCount === 1 ? page1 : page2 };
+        },
+      },
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 200);
+    assert.equal(callCount, 2);
+    // The second listRows call carries a cursorAfter for the last row of page 1.
+    const [secondCallArgs] = calls.listRows[1];
+    assert.ok(
+      secondCallArgs.queries.some(
+        (q) => q.includes('"method":"cursorAfter"') && q.includes('event-99'),
+      ),
+    );
+    // updateRow[0] is the tenant's own approved->suspended status write; the remaining 101
+    // calls are every row from both pages of the paginated sweep (100 + 1).
+    assert.equal(calls.updateRow.length, 102);
+    assert.equal(calls.updateRow[0][0].tableId, 'tenants-1');
+  }),
+);

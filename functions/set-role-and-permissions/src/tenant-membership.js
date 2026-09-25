@@ -7,6 +7,7 @@ import {
   hasValue,
   computeEventPermissions,
   listAllRows,
+  isConflictError,
 } from './shared.js';
 
 const ACTIONS = ['createMembership', 'revokeMembership', 'setTenantStatus'];
@@ -172,6 +173,10 @@ async function handleCreateMembership({
     error(`createMembership: existing-membership lookup failed: ${err.message}`);
     return { status: 502, body: { error: 'Failed to verify existing memberships' } };
   }
+  // Not atomic on its own — a concurrent request can pass this same check before either write
+  // lands (code review finding). The `userId_unique` index on the memberships table is what
+  // actually enforces "at most one Membership row per Account, ever" (per AD-1/FR-4/FR-5); this
+  // pre-check just turns the common case into a clean 409 without a wasted createRow attempt.
   if (existingActiveMemberships.length > 0) {
     return { status: 409, body: { error: 'User already holds an active membership' } };
   }
@@ -187,6 +192,10 @@ async function handleCreateMembership({
       permissions: [Permission.read(Role.label('admin')), Permission.read(Role.user(userId))],
     });
   } catch (err) {
+    if (isConflictError(err)) {
+      error(`createMembership: userId_unique conflict for ${userId}: ${err.message}`);
+      return { status: 409, body: { error: 'User already holds an active membership' } };
+    }
     error(`createMembership: createRow failed: ${err.message}`);
     return { status: 502, body: { error: 'Failed to create membership' } };
   }
@@ -279,23 +288,31 @@ async function handleSetTenantStatus({
   }
 
   const from = tenant.status;
-  if (!(ALLOWED_TENANT_TRANSITIONS[from] ?? []).includes(status)) {
+  // A same-status call to a terminal, sweep-bearing status is treated as "retry the sweep",
+  // not an illegal no-op transition (code review finding): without this, a tenant whose status
+  // write succeeded but whose event sweep then failed (the 502 case below) would be
+  // permanently stuck — ALLOWED_TENANT_TRANSITIONS has no outgoing entry for 'suspended' or
+  // 'rejected', so the normal transition check would reject every retry attempt.
+  const isSweepRetry = from === status && (status === 'suspended' || status === 'rejected');
+  if (!isSweepRetry && !(ALLOWED_TENANT_TRANSITIONS[from] ?? []).includes(status)) {
     return {
       status: 400,
       body: { error: `Cannot change tenant status from ${from} to ${status}` },
     };
   }
 
-  try {
-    await databases.updateRow({
-      databaseId,
-      tableId: tenantsCollectionId,
-      rowId: tenantId,
-      data: { status },
-    });
-  } catch (err) {
-    error(`setTenantStatus: updateRow failed: ${err.message}`);
-    return { status: 502, body: { error: 'Failed to change the tenant status' } };
+  if (!isSweepRetry) {
+    try {
+      await databases.updateRow({
+        databaseId,
+        tableId: tenantsCollectionId,
+        rowId: tenantId,
+        data: { status },
+      });
+    } catch (err) {
+      error(`setTenantStatus: updateRow failed: ${err.message}`);
+      return { status: 502, body: { error: 'Failed to change the tenant status' } };
+    }
   }
 
   if (status === 'suspended' || status === 'rejected') {
