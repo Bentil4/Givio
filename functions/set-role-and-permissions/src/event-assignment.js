@@ -6,6 +6,7 @@ import {
   invalid,
   hasValue,
   computeEventPermissions,
+  listAllRows,
 } from './shared.js';
 
 const ACTIONS = ['assignOperators', 'setEventStatus'];
@@ -128,9 +129,11 @@ async function filterTenantMatchedUserIds({
     return [];
   }
 
-  let memberships;
+  let membershipRows;
   try {
-    memberships = await databases.listRows({
+    membershipRows = await listAllRows({
+      DatabasesCtor,
+      adminClient,
       databaseId,
       tableId: membershipsCollectionId,
       queries: [Query.equal('tenantId', [tenantId]), Query.equal('userId', assignedUserIds)],
@@ -141,7 +144,7 @@ async function filterTenantMatchedUserIds({
   }
 
   const activeTenantMatchedUserIds = new Set(
-    memberships.rows.filter((m) => m.status === 'active').map((m) => m.userId),
+    membershipRows.filter((m) => m.status === 'active').map((m) => m.userId),
   );
   return assignedUserIds.filter((userId) => activeTenantMatchedUserIds.has(userId));
 }

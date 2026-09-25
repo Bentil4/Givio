@@ -1,4 +1,4 @@
-import { Permission, Role } from 'node-appwrite';
+import { Permission, Query, Role } from 'node-appwrite';
 
 // Shared by every action module in this Function (admin-users.js, event-assignment.js).
 // Keep in sync with src/app/data/services/auth.service.ts's ROLE_LABELS — the two run in
@@ -83,7 +83,12 @@ export function hasValue(field) {
  * Recomputes an Event document's Appwrite permissions from its assignedUserIds (AD-2): Admin
  * keeps full CRUD via the Label; each assigned uid gets read-only document access. Relocated
  * here from event-assignment.js (Story 6.2) so tenant-membership.js's sweep can share it
- * without a circular import between the two action modules.
+ * without a circular import between the two action modules. Donation-row permissions aren't
+ * touched here — Story 3.1 sets those directly at creation from the assignedUserIds already
+ * known at that moment. Known gap: if assignedUserIds ever changes *after* donations already
+ * exist for that event, this function does not retroactively rewrite their permissions — a
+ * re-assigned/unassigned uid's access to already-existing Donations won't reflect the change
+ * until this is extended to do that bulk rewrite too.
  */
 export function computeEventPermissions(assignedUserIds) {
   return [
@@ -92,4 +97,34 @@ export function computeEventPermissions(assignedUserIds) {
     Permission.delete(Role.label('admin')),
     ...assignedUserIds.map((userId) => Permission.read(Role.user(userId))),
   ];
+}
+
+/**
+ * Story 6.2 code review: drains every page of a listRows query instead of only the default
+ * first page — without this, any call site filtering a large table (Memberships/Events) by a
+ * tenant/membership condition silently misses rows beyond Appwrite's default page size (25).
+ * Mirrors the pagination shape already established in EventDataService.fetchAllEventRows
+ * (client-side), now shared by every server-side Function module that lists more than a
+ * handful of rows.
+ */
+export async function listAllRows({ DatabasesCtor, adminClient, databaseId, tableId, queries }) {
+  const PAGE_SIZE = 100;
+  const databases = new DatabasesCtor(adminClient);
+  const rows = [];
+  let cursor;
+
+  for (;;) {
+    const pageQueries = [...queries, Query.limit(PAGE_SIZE)];
+    if (cursor) {
+      pageQueries.push(Query.cursorAfter(cursor));
+    }
+    const page = await databases.listRows({ databaseId, tableId, queries: pageQueries });
+    rows.push(...page.rows);
+    if (page.rows.length < PAGE_SIZE) {
+      break;
+    }
+    cursor = page.rows[page.rows.length - 1].$id;
+  }
+
+  return rows;
 }

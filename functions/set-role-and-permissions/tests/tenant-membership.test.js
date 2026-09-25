@@ -17,18 +17,18 @@ class FakeClient {
   }
 }
 
-function fakeContext({ body, headers = {}, getAccount, databases = {} }) {
+function fakeContext({ body, headers = {}, getAccount, databases = {}, users = {} }) {
   const jsonCalls = [];
   const logs = [];
   const errors = [];
   const calls = {};
 
   const record =
-    (name) =>
+    (name, impls) =>
     async (...args) => {
       calls[name] = calls[name] ?? [];
       calls[name].push(args);
-      const impl = databases[name];
+      const impl = impls[name];
       return impl ? impl(...args) : undefined;
     };
 
@@ -39,10 +39,14 @@ function fakeContext({ body, headers = {}, getAccount, databases = {} }) {
   }
 
   class DatabasesCtor {
-    getRow = record('getRow');
-    updateRow = record('updateRow');
-    createRow = record('createRow');
-    listRows = record('listRows');
+    getRow = record('getRow', databases);
+    updateRow = record('updateRow', databases);
+    createRow = record('createRow', databases);
+    listRows = record('listRows', databases);
+  }
+
+  class UsersCtor {
+    get = record('usersGet', users);
   }
 
   const res = {
@@ -66,6 +70,7 @@ function fakeContext({ body, headers = {}, getAccount, databases = {} }) {
       error: (msg) => errors.push(msg),
       ClientCtor: FakeClient,
       AccountCtor,
+      UsersCtor,
       DatabasesCtor,
     },
     jsonCalls,
@@ -77,6 +82,18 @@ function fakeContext({ body, headers = {}, getAccount, databases = {} }) {
 
 const ADMIN_HEADERS = { 'x-appwrite-user-jwt': 'admin-jwt', 'x-appwrite-key': 'dynamic-key' };
 const asAdmin = async () => ({ $id: 'admin-1', labels: ['admin'] });
+const asOperator = {
+  headers: { 'x-appwrite-user-jwt': 'operator-jwt' },
+  getAccount: async () => ({ $id: 'op-1', labels: ['operator'] }),
+};
+
+// Baseline createMembership fixture: tenant exists, user exists, no existing active Membership.
+const CREATE_MEMBERSHIP_HAPPY_PATH_DBS = {
+  getRow: async () => ({ $id: 't1', status: 'pending' }),
+  listRows: async () => ({ rows: [] }),
+  createRow: async () => ({ $id: 'membership-1' }),
+};
+const CREATE_MEMBERSHIP_HAPPY_PATH_USERS = { usersGet: async () => ({ $id: 'u1' }) };
 
 function withEnv(fn) {
   return async () => {
@@ -100,8 +117,7 @@ test(
   withEnv(async () => {
     const { ctx, calls } = fakeContext({
       body: { action: 'createMembership', userId: 'u1', tenantId: 't1', role: 'operator' },
-      headers: { 'x-appwrite-user-jwt': 'operator-jwt' },
-      getAccount: async () => ({ $id: 'op-1', labels: ['operator'] }),
+      ...asOperator,
     });
 
     const result = await handleTenantMembershipRequest(ctx);
@@ -133,7 +149,8 @@ test(
       body: { action: 'createMembership', userId: 'u1', tenantId: 't1', role: 'operator' },
       headers: ADMIN_HEADERS,
       getAccount: asAdmin,
-      databases: { createRow: async () => ({ $id: 'membership-1' }) },
+      databases: CREATE_MEMBERSHIP_HAPPY_PATH_DBS,
+      users: CREATE_MEMBERSHIP_HAPPY_PATH_USERS,
     });
 
     const result = await handleTenantMembershipRequest(ctx);
@@ -167,7 +184,106 @@ test(
 );
 
 test(
-  'revokeMembership sets status to revoked and sweeps affected Events',
+  'createMembership rejects a nonexistent tenantId with 404, before checking the user',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: {
+        action: 'createMembership',
+        userId: 'u1',
+        tenantId: 'bogus-tenant',
+        role: 'operator',
+      },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: { getRow: async () => Promise.reject(new Error('not found')) },
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 404);
+    assert.equal(calls.usersGet, undefined);
+    assert.equal(calls.createRow, undefined);
+  }),
+);
+
+test(
+  'createMembership succeeds against a pending tenant — self-signup provisions the Super Organizer Membership before approval',
+  withEnv(async () => {
+    const { ctx } = fakeContext({
+      body: { action: 'createMembership', userId: 'u1', tenantId: 't1', role: 'super_organizer' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: {
+        ...CREATE_MEMBERSHIP_HAPPY_PATH_DBS,
+        getRow: async () => ({ $id: 't1', status: 'pending' }),
+      },
+      users: CREATE_MEMBERSHIP_HAPPY_PATH_USERS,
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 200);
+  }),
+);
+
+test(
+  'createMembership rejects a userId with no matching account with 404',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: { action: 'createMembership', userId: 'ghost', tenantId: 't1', role: 'operator' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: CREATE_MEMBERSHIP_HAPPY_PATH_DBS,
+      users: { usersGet: async () => Promise.reject(new Error('not found')) },
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 404);
+    assert.equal(calls.createRow, undefined);
+  }),
+);
+
+test(
+  'createMembership rejects a user who already holds an active membership with 409',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: { action: 'createMembership', userId: 'u1', tenantId: 't2', role: 'operator' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: {
+        ...CREATE_MEMBERSHIP_HAPPY_PATH_DBS,
+        listRows: async () => ({
+          rows: [{ $id: 'existing-membership', userId: 'u1', status: 'active' }],
+        }),
+      },
+      users: CREATE_MEMBERSHIP_HAPPY_PATH_USERS,
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 409);
+    assert.equal(calls.createRow, undefined);
+  }),
+);
+
+test(
+  'revokeMembership rejects a verified non-admin caller with 403',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: { action: 'revokeMembership', membershipId: 'membership-1' },
+      ...asOperator,
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 403);
+    assert.equal(calls.updateRow, undefined);
+  }),
+);
+
+test(
+  'revokeMembership sets status to revoked and sweeps affected Events, paginating the lookup',
   withEnv(async () => {
     const { ctx, calls } = fakeContext({
       body: { action: 'revokeMembership', membershipId: 'membership-1' },
@@ -192,6 +308,47 @@ test(
     // u1 (revoked) is dropped from the derived permissions; u2 (unaffected) is retained.
     assert.ok(eventUpdate.permissions.some((p) => p.includes('u2')));
     assert.ok(!eventUpdate.permissions.some((p) => p.includes('"user:u1"')));
+    // The sweep's listRows call is scoped to this membership's own tenant+userId, not a blanket query.
+    const [listArgs] = calls.listRows[0];
+    assert.deepEqual(listArgs.queries.slice(0, 2), [
+      JSON.stringify({ method: 'equal', attribute: 'tenantId', values: ['t1'] }),
+      JSON.stringify({ method: 'contains', attribute: 'assignedUserIds', values: ['u1'] }),
+    ]);
+  }),
+);
+
+test(
+  "revokeMembership returns 502 (not a false 200) when the sweep's Event lookup fails",
+  withEnv(async () => {
+    const { ctx } = fakeContext({
+      body: { action: 'revokeMembership', membershipId: 'membership-1' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: {
+        getRow: async () => ({ $id: 'membership-1', userId: 'u1', tenantId: 't1' }),
+        updateRow: async () => ({}),
+        listRows: async () => Promise.reject(new Error('network error')),
+      },
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 502);
+  }),
+);
+
+test(
+  'setTenantStatus rejects a verified non-admin caller with 403',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: { action: 'setTenantStatus', tenantId: 't1', status: 'suspended' },
+      ...asOperator,
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 403);
+    assert.equal(calls.updateRow, undefined);
   }),
 );
 
@@ -213,7 +370,7 @@ test(
 );
 
 test(
-  "setTenantStatus('suspended') sweeps every Event the tenant currently grants",
+  "setTenantStatus('suspended') clears permissions on every Event the tenant owns, verified via the actual query filter",
   withEnv(async () => {
     const { ctx, calls } = fakeContext({
       body: { action: 'setTenantStatus', tenantId: 't1', status: 'suspended' },
@@ -223,10 +380,14 @@ test(
         getRow: async () => ({ $id: 't1', status: 'approved' }),
         updateRow: async () => ({}),
         listRows: async (args) => {
-          // Distinguish the "tenant's own events" lookup from the sweep's own listRows call —
-          // both query events-1, but only the first two calls (tenant status transition) needs
-          // every Event; the sweep's own listRows (inside sweepTenantEventPermissions) reuses
-          // the same fixture data, which is fine since both should return the same tenant events.
+          const tenantFilter = JSON.stringify({
+            method: 'equal',
+            attribute: 'tenantId',
+            values: ['t1'],
+          });
+          if (!args.queries.includes(tenantFilter)) {
+            return { rows: [] };
+          }
           return {
             rows: [
               { $id: 'event-1', assignedUserIds: ['u1'] },
@@ -245,5 +406,37 @@ test(
     assert.equal(calls.updateRow.length, 3);
     const tenantUpdate = calls.updateRow[0][0];
     assert.equal(tenantUpdate.data.status, 'suspended');
+    // Every Event's permissions are fully cleared (no Role.user grant left at all).
+    assert.deepEqual(
+      calls.updateRow[1][0].permissions.filter((p) => p.includes('user:')),
+      [],
+    );
+    assert.deepEqual(
+      calls.updateRow[2][0].permissions.filter((p) => p.includes('user:')),
+      [],
+    );
+  }),
+);
+
+test(
+  "setTenantStatus('suspended') returns 502 (not a false 200) when listing the tenant's events fails",
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: { action: 'setTenantStatus', tenantId: 't1', status: 'suspended' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: {
+        getRow: async () => ({ $id: 't1', status: 'approved' }),
+        updateRow: async () => ({}),
+        listRows: async () => Promise.reject(new Error('network error')),
+      },
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    // The tenant's status row was already written (updateRow[0]) — the failure is reported,
+    // not silently swallowed as a false success.
+    assert.equal(result.status, 502);
+    assert.equal(calls.updateRow.length, 1);
   }),
 );
