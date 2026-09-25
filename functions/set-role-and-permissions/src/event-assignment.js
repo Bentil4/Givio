@@ -1,5 +1,12 @@
-import { Client, Account, Users, TablesDB, Permission, Role } from 'node-appwrite';
-import { buildClient, verifyAdminCaller, VALID, invalid, hasValue } from './shared.js';
+import { Client, Account, Users, TablesDB, Query } from 'node-appwrite';
+import {
+  buildClient,
+  verifyAdminCaller,
+  VALID,
+  invalid,
+  hasValue,
+  computeEventPermissions,
+} from './shared.js';
 
 const ACTIONS = ['assignOperators', 'setEventStatus'];
 
@@ -73,35 +80,103 @@ async function rejectNonOperatorIds({ UsersCtor, adminClient, assignedUserIds, e
 }
 
 /**
- * Recomputes an Event document's Appwrite permissions from its assignedUserIds (AD-2): Admin
- * keeps full CRUD via the Label; each assigned Operator gets read-only document access (the
- * app's own UI is the only place event fields are edited, and only by an Admin — Story 2.1/
- * 2.2). Donation-row permissions aren't touched here — Story 3.1 sets those directly at
- * creation from the assignedUserIds already known at that moment, the same way EventDataService
- * sets an Event's own permissions at create time. Known gap: if assignedUserIds ever changes
- * *after* donations already exist for that event, this Function does not retroactively rewrite
- * their permissions — a re-assigned/unassigned Operator's access to already-existing Donations
- * won't reflect the change until this Function is extended to do that bulk rewrite too.
+ * Story 6.2 (AD-2 amended): filters assignedUserIds down to only uids that are actually
+ * grant-eligible for this Event's tenant before computeEventPermissions ever sees them — a
+ * uid is silently excluded (never an error) if it has no Membership row for the Event's own
+ * tenantId, or that Membership isn't 'active', or the Tenant itself isn't 'approved'.
+ * `assignedUserIds` itself is left untouched by this filter; only the *permission grant*
+ * derived from it is narrowed. The Tenant.status check (not just Membership.status) is what
+ * keeps a suspended/rejected tenant's uid from being silently re-granted by a later,
+ * unrelated assignedUserIds edit — see Story 6.2 Dev Notes ("Why the grant-check also checks
+ * Tenant.status"). An Event with no tenantId (still-Admin-created events, pre-Story-6.2 or
+ * before an Organizer-tier creation flow exists) skips the filter entirely — every uid passes
+ * through unchanged, preserving today's Admin-only behavior exactly.
  */
-function computeEventPermissions(assignedUserIds) {
-  return [
-    Permission.read(Role.label('admin')),
-    Permission.update(Role.label('admin')),
-    Permission.delete(Role.label('admin')),
-    ...assignedUserIds.map((userId) => Permission.read(Role.user(userId))),
-  ];
+async function filterTenantMatchedUserIds({
+  DatabasesCtor,
+  adminClient,
+  databaseId,
+  tenantsCollectionId,
+  membershipsCollectionId,
+  tenantId,
+  assignedUserIds,
+  error,
+}) {
+  if (!hasValue(tenantId) || assignedUserIds.length === 0) {
+    return assignedUserIds;
+  }
+  // A tenant-owned Event requires the tenant/membership collections to be configured — fail
+  // closed (grant nobody) rather than silently falling back to ungated legacy behavior, which
+  // would puncture FR-2's isolation guarantee the moment a real tenant-owned Event exists.
+  if (!hasValue(tenantsCollectionId) || !hasValue(membershipsCollectionId)) {
+    error(
+      'filterTenantMatchedUserIds: tenant-owned Event but APPWRITE_TENANTS_COLLECTION_ID/APPWRITE_MEMBERSHIPS_COLLECTION_ID are not configured — denying all grants.',
+    );
+    return [];
+  }
+
+  const databases = new DatabasesCtor(adminClient);
+
+  let tenant;
+  try {
+    tenant = await databases.getRow({ databaseId, tableId: tenantsCollectionId, rowId: tenantId });
+  } catch (err) {
+    error(`filterTenantMatchedUserIds: tenant ${tenantId} not found: ${err.message}`);
+    return [];
+  }
+  if (tenant.status !== 'approved') {
+    return [];
+  }
+
+  let memberships;
+  try {
+    memberships = await databases.listRows({
+      databaseId,
+      tableId: membershipsCollectionId,
+      queries: [Query.equal('tenantId', [tenantId]), Query.equal('userId', assignedUserIds)],
+    });
+  } catch (err) {
+    error(`filterTenantMatchedUserIds: memberships lookup failed: ${err.message}`);
+    return [];
+  }
+
+  const activeTenantMatchedUserIds = new Set(
+    memberships.rows.filter((m) => m.status === 'active').map((m) => m.userId),
+  );
+  return assignedUserIds.filter((userId) => activeTenantMatchedUserIds.has(userId));
 }
 
-async function handleAssignOperators({ DatabasesCtor, adminClient, payload, databaseId, eventsCollectionId, error }) {
+async function handleAssignOperators({
+  DatabasesCtor,
+  adminClient,
+  payload,
+  databaseId,
+  eventsCollectionId,
+  tenantsCollectionId,
+  membershipsCollectionId,
+  error,
+}) {
   const { eventId, assignedUserIds } = payload;
   const databases = new DatabasesCtor(adminClient);
 
+  let event;
   try {
-    await databases.getRow({ databaseId, tableId: eventsCollectionId, rowId: eventId });
+    event = await databases.getRow({ databaseId, tableId: eventsCollectionId, rowId: eventId });
   } catch (err) {
     error(`assignOperators: event ${eventId} not found: ${err.message}`);
     return { status: 404, body: { error: 'Event not found' } };
   }
+
+  const grantEligibleUserIds = await filterTenantMatchedUserIds({
+    DatabasesCtor,
+    adminClient,
+    databaseId,
+    tenantsCollectionId,
+    membershipsCollectionId,
+    tenantId: event.tenantId,
+    assignedUserIds,
+    error,
+  });
 
   try {
     await databases.updateRow({
@@ -109,7 +184,7 @@ async function handleAssignOperators({ DatabasesCtor, adminClient, payload, data
       tableId: eventsCollectionId,
       rowId: eventId,
       data: { assignedUserIds },
-      permissions: computeEventPermissions(assignedUserIds),
+      permissions: computeEventPermissions(grantEligibleUserIds),
     });
   } catch (err) {
     error(`assignOperators: updateRow failed: ${err.message}`);
@@ -126,7 +201,14 @@ async function handleAssignOperators({ DatabasesCtor, adminClient, payload, data
  * donation-recording.js already treats `status !== 'active'` as a trust-sensitive gate, so the
  * field itself is treated as trust-sensitive too, not just cosmetic.
  */
-async function handleSetEventStatus({ DatabasesCtor, payload, adminClient, databaseId, eventsCollectionId, error }) {
+async function handleSetEventStatus({
+  DatabasesCtor,
+  payload,
+  adminClient,
+  databaseId,
+  eventsCollectionId,
+  error,
+}) {
   const { eventId, status } = payload;
   const databases = new DatabasesCtor(adminClient);
 
@@ -191,6 +273,9 @@ export async function handleEventAssignmentRequest({
   // gitignored instead.
   const databaseId = process.env.APPWRITE_DATABASE_ID;
   const eventsCollectionId = process.env.APPWRITE_EVENTS_COLLECTION_ID;
+  // Story 6.2 — only assignOperators needs these (the tenant-matched grant filter).
+  const tenantsCollectionId = process.env.APPWRITE_TENANTS_COLLECTION_ID;
+  const membershipsCollectionId = process.env.APPWRITE_MEMBERSHIPS_COLLECTION_ID;
 
   const { errorResponse, caller } = await verifyAdminCaller({
     req,
@@ -220,7 +305,9 @@ export async function handleEventAssignmentRequest({
 
   const dynamicKey = req.headers['x-appwrite-key'];
   if (!dynamicKey) {
-    error('Missing x-appwrite-key — the Function\'s execution API key scopes are likely misconfigured.');
+    error(
+      "Missing x-appwrite-key — the Function's execution API key scopes are likely misconfigured.",
+    );
     return res.json({ error: 'Server misconfiguration: missing execution API key' }, 500);
   }
 
@@ -254,6 +341,8 @@ export async function handleEventAssignmentRequest({
         payload,
         databaseId,
         eventsCollectionId,
+        tenantsCollectionId,
+        membershipsCollectionId,
         error,
       });
       break;

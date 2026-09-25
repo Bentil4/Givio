@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { EventDataService } from './event-data.service';
 import { ServiceError } from '../../core/services/service-error';
 import { AuthService } from './auth.service';
+import { TenantDataService } from './tenant-data.service';
 import { DATABASES, FUNCTIONS } from '../../core/appwrite/client';
 import { appDb } from '../dexie/app-db';
 
@@ -13,10 +14,14 @@ describe('EventDataService', () => {
     listRows: ReturnType<typeof vi.fn>;
   };
   let functions: { createExecution: ReturnType<typeof vi.fn> };
+  let tenantDataService: { getMyActiveMembership: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     databases = { createRow: vi.fn(), updateRow: vi.fn(), listRows: vi.fn() };
     functions = { createExecution: vi.fn() };
+    // Story 6.2: no Membership by default — matches today's Admin caller, preserving every
+    // pre-existing test's assumptions unchanged (tenantId stays undefined).
+    tenantDataService = { getMyActiveMembership: vi.fn().mockResolvedValue(null) };
     TestBed.configureTestingModule({
       providers: [
         { provide: DATABASES, useValue: databases },
@@ -25,6 +30,7 @@ describe('EventDataService', () => {
           provide: AuthService,
           useValue: { currentUser: () => ({ $id: 'admin-1' }) },
         },
+        { provide: TenantDataService, useValue: tenantDataService },
       ],
     });
     service = TestBed.inject(EventDataService);
@@ -55,7 +61,11 @@ describe('EventDataService', () => {
       expect(databases.createRow).toHaveBeenCalledWith(
         expect.objectContaining({
           rowId: event.id,
-          data: expect.objectContaining({ status: 'active', assignedUserIds: [], nextReceiptSeq: 0 }),
+          data: expect.objectContaining({
+            status: 'active',
+            assignedUserIds: [],
+            nextReceiptSeq: 0,
+          }),
         }),
       );
     });
@@ -74,6 +84,44 @@ describe('EventDataService', () => {
       const pending = (await appDb.outbox.toArray()).filter((e) => e.entityId === event.id);
       expect(pending).toHaveLength(1);
       expect(pending[0].status).toBe('pending');
+    });
+
+    it("stamps tenantId from the caller's own active Membership when one exists", async () => {
+      tenantDataService.getMyActiveMembership.mockResolvedValueOnce({
+        id: 'membership-1',
+        userId: 'admin-1',
+        tenantId: 'tenant-1',
+        role: 'super_organizer',
+        status: 'active',
+        grantedBy: 'admin-1',
+        grantedAt: '2026-09-25T00:00:00.000Z',
+      });
+      databases.createRow.mockResolvedValueOnce({});
+
+      const event = await service.createEvent({
+        name: 'Kwame Funeral',
+        type: 'funeral',
+        date: '2026-09-25',
+        hostName: 'The Mensah Family',
+      });
+
+      expect(event.tenantId).toBe('tenant-1');
+      expect(databases.createRow).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ tenantId: 'tenant-1' }) }),
+      );
+    });
+
+    it("leaves tenantId undefined when the caller has no active Membership (today's Admin)", async () => {
+      databases.createRow.mockResolvedValueOnce({});
+
+      const event = await service.createEvent({
+        name: 'Admin-Created Event',
+        type: 'wedding',
+        date: '2026-09-25',
+        hostName: 'The Osei Family',
+      });
+
+      expect(event.tenantId).toBeUndefined();
     });
   });
 
@@ -126,7 +174,10 @@ describe('EventDataService', () => {
       expect(updated.name).toBe('New Name');
       expect((await appDb.events.get('active-1'))?.name).toBe('New Name');
       expect(databases.updateRow).toHaveBeenCalledWith(
-        expect.objectContaining({ rowId: 'active-1', data: expect.objectContaining({ name: 'New Name' }) }),
+        expect.objectContaining({
+          rowId: 'active-1',
+          data: expect.objectContaining({ name: 'New Name' }),
+        }),
       );
     });
 
@@ -243,7 +294,9 @@ describe('EventDataService', () => {
 
   describe('assignOperators', () => {
     it('rejects with ServiceError for an unknown id, without calling the Function', async () => {
-      await expect(service.assignOperators('missing', ['op-1'])).rejects.toBeInstanceOf(ServiceError);
+      await expect(service.assignOperators('missing', ['op-1'])).rejects.toBeInstanceOf(
+        ServiceError,
+      );
       expect(functions.createExecution).not.toHaveBeenCalled();
     });
 
@@ -263,7 +316,11 @@ describe('EventDataService', () => {
       });
       functions.createExecution.mockResolvedValueOnce({
         responseStatusCode: 200,
-        responseBody: JSON.stringify({ success: true, eventId: 'active-1', assignedUserIds: ['op-1'] }),
+        responseBody: JSON.stringify({
+          success: true,
+          eventId: 'active-1',
+          assignedUserIds: ['op-1'],
+        }),
       });
 
       const updated = await service.assignOperators('active-1', ['op-1']);
@@ -272,7 +329,11 @@ describe('EventDataService', () => {
       expect((await appDb.events.get('active-1'))?.assignedUserIds).toEqual(['op-1']);
       expect(functions.createExecution).toHaveBeenCalledWith(
         expect.objectContaining({
-          body: JSON.stringify({ action: 'assignOperators', eventId: 'active-1', assignedUserIds: ['op-1'] }),
+          body: JSON.stringify({
+            action: 'assignOperators',
+            eventId: 'active-1',
+            assignedUserIds: ['op-1'],
+          }),
         }),
       );
     });
@@ -296,7 +357,9 @@ describe('EventDataService', () => {
         responseBody: JSON.stringify({ error: 'User ghost does not exist' }),
       });
 
-      await expect(service.assignOperators('active-3', ['ghost'])).rejects.toBeInstanceOf(ServiceError);
+      await expect(service.assignOperators('active-3', ['ghost'])).rejects.toBeInstanceOf(
+        ServiceError,
+      );
       expect((await appDb.events.get('active-3'))?.assignedUserIds).toEqual([]);
     });
   });
@@ -365,7 +428,9 @@ describe('EventDataService', () => {
 
   describe('setEventStatus', () => {
     it('rejects with ServiceError for an unknown id, without calling the Function', async () => {
-      await expect(service.setEventStatus('missing', 'paused')).rejects.toBeInstanceOf(ServiceError);
+      await expect(service.setEventStatus('missing', 'paused')).rejects.toBeInstanceOf(
+        ServiceError,
+      );
       expect(functions.createExecution).not.toHaveBeenCalled();
     });
 
@@ -453,7 +518,9 @@ describe('EventDataService', () => {
         responseBody: JSON.stringify({ error: 'Cannot change status from active to active' }),
       });
 
-      await expect(service.setEventStatus('active-3', 'active')).rejects.toBeInstanceOf(ServiceError);
+      await expect(service.setEventStatus('active-3', 'active')).rejects.toBeInstanceOf(
+        ServiceError,
+      );
       expect((await appDb.events.get('active-3'))?.status).toBe('active');
     });
   });
@@ -475,9 +542,7 @@ describe('EventDataService', () => {
       const synced = await service.retryOutboxEntry(entry);
 
       expect(synced).toBe(true);
-      expect(databases.createRow).toHaveBeenCalledWith(
-        expect.objectContaining({ rowId: 'e1' }),
-      );
+      expect(databases.createRow).toHaveBeenCalledWith(expect.objectContaining({ rowId: 'e1' }));
     });
 
     it('reports failure without throwing when the retry itself fails', async () => {

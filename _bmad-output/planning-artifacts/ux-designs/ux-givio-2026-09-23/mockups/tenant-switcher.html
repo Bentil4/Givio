@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Operator dashboard — tenant-switcher key screen</title>
+<style>
+/*
+  Governs: EXPERIENCE.md — Component Patterns > "Tenant-switcher"; Interaction Primitives
+  (switcher-required, explain-don't-silently-block rule); Flow 2 (Ama adds Kwesi, event-switcher
+  beat). DESIGN.md — Components > "Tenant-switcher". Two states shown side by side: unpicked
+  (blocked, with the accessible explanation) and picked (unblocked, page-head confirms).
+  Tokens copied verbatim from src/styles.scss (light mode only, for this static mock).
+*/
+:root{
+  --bg-canvas:#F7F8FA; --bg-surface:#FFFFFF;
+  --border-default:#C9CED6; --border-focus:#1F5FBF;
+  --text-primary:#12151A; --text-secondary:#5B636D; --text-tertiary:#677080;
+  --action-primary-bg:#1F5FBF; --action-primary-bg-hover:#164A99;
+  --radius-sm:4px; --radius-md:8px; --radius-lg:14px; --radius-full:9999px;
+  --space-xs:4px; --space-sm:8px; --space-md:16px; --space-lg:24px;
+  --elevation-1: 0 1px 2px rgba(18,21,26,.06);
+  --elevation-2: 0 4px 12px rgba(18,21,26,.10);
+  --status-info-bg:#E7F0FC; --status-info-fg:#1D57A6;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--bg-canvas); color:var(--text-primary); font-family:'Inter','IBM Plex Sans',system-ui,sans-serif; font-size:14.4px;}
+.split{display:flex; gap:var(--space-lg); padding:var(--space-lg); max-width:1120px; margin:0 auto;}
+.phone{width:100%; background:var(--bg-surface); border-radius:var(--radius-lg); box-shadow:var(--elevation-2); overflow:hidden;}
+.phone-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text-tertiary); padding:var(--space-sm) var(--space-md) 0;}
+.bar{padding:var(--space-md); border-bottom:1px solid var(--border-default);}
+.switcher{
+  display:flex; align-items:center; justify-content:space-between; gap:var(--space-sm);
+  border:1.5px solid var(--border-focus); border-radius:var(--radius-md); padding:10px 14px;
+  background:var(--bg-surface); cursor:default;
+}
+.switcher .placeholder{color:var(--text-tertiary); font-size:13px;}
+.switcher .picked{font-weight:700; font-size:13.5px;}
+.dot{width:8px; height:8px; border-radius:50%; background:var(--action-primary-bg); flex-shrink:0;}
+.chev{color:var(--text-tertiary); font-size:12px;}
+.page-head{padding:var(--space-md);}
+.page-title{font-size:18px; font-weight:700; margin:0 0 2px;}
+.page-sub{font-size:12px; color:var(--text-secondary); margin:0;}
+.content{padding:0 var(--space-md) var(--space-md);}
+.field-row{margin-bottom:var(--space-sm);}
+.field-label{font-size:11px; color:var(--text-tertiary); margin-bottom:3px;}
+.field{
+  border:1px solid var(--border-default); border-radius:var(--radius-sm); padding:10px 12px; font-size:13px;
+  background:var(--bg-canvas); color:var(--text-tertiary);
+}
+.field.enabled{background:var(--bg-surface); color:var(--text-primary);}
+.btn{
+  width:100%; margin-top:var(--space-sm); min-height:44px; border-radius:var(--radius-full); border:none;
+  font-weight:600; font-size:13.5px; cursor:default;
+}
+.btn-primary{background:var(--action-primary-bg); color:#fff;}
+.explain{
+  margin-top:var(--space-sm); display:flex; gap:8px; align-items:flex-start; background:var(--status-info-bg);
+  color:var(--status-info-fg); border-radius:var(--radius-md); padding:10px 12px; font-size:12px; font-weight:500;
+}
+.caption{
+  max-width:1120px; margin:0 auto var(--space-lg); padding:var(--space-md); background:var(--bg-surface);
+  border-radius:var(--radius-md); border:1px dashed var(--border-default); font-size:12.5px; color:var(--text-secondary);
+}
+</style>
+</head>
+<body>
+<div class="split">
+  <div style="flex:1">
+    <p class="phone-label">State A — unpicked (blocked, explained)</p>
+    <div class="phone">
+      <div class="bar">
+        <div class="switcher">
+          <span class="placeholder">Pick an Event…</span>
+          <span class="chev">▾</span>
+        </div>
+      </div>
+      <div class="page-head">
+        <p class="page-title">Record a Donation</p>
+        <p class="page-sub">Kwesi Owusu · Mensah Funeral Services</p>
+      </div>
+      <div class="content">
+        <div class="field-row"><div class="field-label">Donor name</div><div class="field">—</div></div>
+        <div class="field-row"><div class="field-label">Amount (GHS)</div><div class="field">—</div></div>
+        <button class="btn btn-primary" style="opacity:.55">Save Donation</button>
+        <div class="explain">⚠️ Pick an Event first — you're assigned to 2 active Events and haven't chosen one yet.</div>
+      </div>
+    </div>
+  </div>
+  <div style="flex:1">
+    <p class="phone-label">State B — picked (unblocked)</p>
+    <div class="phone">
+      <div class="bar">
+        <div class="switcher">
+          <span class="picked"><span class="dot"></span>&nbsp; Asante Funeral</span>
+          <span class="chev">▾</span>
+        </div>
+      </div>
+      <div class="page-head">
+        <p class="page-title">Record a Donation — Asante Funeral</p>
+        <p class="page-sub">Kwesi Owusu · Mensah Funeral Services</p>
+      </div>
+      <div class="content">
+        <div class="field-row"><div class="field-label">Donor name</div><div class="field enabled">Efua Asante</div></div>
+        <div class="field-row"><div class="field-label">Amount (GHS)</div><div class="field enabled">200.00</div></div>
+        <button class="btn btn-primary">Save Donation</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="caption">
+  Key screen — Operator dashboard tenant-switcher (Flow 2, Kwesi). State A shows the
+  "Record Donation" control enabled-but-explaining rather than silently disabled — activating it
+  moves focus to the switcher with the shown message. State B shows the page-head naming the
+  active Event a second time, alongside the switcher itself, per the "three places agree" rule.
+</div>
+</body>
+</html>

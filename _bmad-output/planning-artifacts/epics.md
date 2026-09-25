@@ -1,9 +1,13 @@
 ---
-stepsCompleted: [1, 2, 3]
+stepsCompleted: [1, 2, 3, 4]
 inputDocuments:
   - docs/DMS_Product_Requirements_Document.md
   - _bmad-output/planning-artifacts/architecture/architecture-givio-2026-07-25/ARCHITECTURE-SPINE.md
   - .claude/skills/plan/*.md (26 screen specs — treated as UI/UX detail input, no formal bmad-ux DESIGN.md/EXPERIENCE.md pair exists)
+  - _bmad-output/planning-artifacts/prds/prd-givio-2026-09-23/prd.md (Organizer Multi-Tenancy & Role Hierarchy — added 2026-09-23; ARCHITECTURE-SPINE.md above was amended, not replaced, to cover it: AD-1/AD-2/AD-9 amended, AD-11/AD-12/AD-13 new)
+  - _bmad-output/specs/spec-organizer-multi-tenancy/SPEC.md (adopts the two above as companions — cited for its CAP-1..CAP-8/constraint framing, not a separate source of requirements)
+  - _bmad-output/planning-artifacts/ux-designs/ux-givio-2026-09-23/DESIGN.md (added 2026-09-23 — fills the gap flagged below; visual identity for the multi-tenancy capability, ratifies existing src/styles.scss tokens)
+  - _bmad-output/planning-artifacts/ux-designs/ux-givio-2026-09-23/EXPERIENCE.md (added 2026-09-23 — IA, Key Flows UJ-1/2/3/4/5/7, Component/State Patterns for the multi-tenancy capability; companion mockups/approval-queue.html and mockups/tenant-switcher.html)
 ---
 
 # Givio Donation Management System - Epic Breakdown
@@ -12,6 +16,8 @@ inputDocuments:
 
 - **Verify Appwrite plan tier includes Functions and Realtime** in the console for project `69c270d10029e7ed7f82` before Epic 1 story work starts. AD-9 (single writer of Labels/permissions, load-bearing for Epic 1 *and* Epic 2) needs Functions; Epic 4's live dashboard needs Realtime. Neither has been confirmed available on the current plan.
 - **Appwrite web SDK `^23.0.0`** is 3 majors behind current (26.x) — confirm it still talks to the provisioned Cloud project correctly before relying on it in Epic 1's first story.
+- **AD-9 Function is now a single point of failure for safety, not just convenience** (surfaced during Epic 6-9 elicitation, 2026-09-24 cascading-failure simulation): by Epic 6, the Function is the sole writer for Memberships, Tenant approval, IdentityFlags, Admin/Super Admin accounts, and permission sweeps. A Function outage during Epic 8's Story 8.1 (Admin suspends a Tenant) can leave a suspended tenant's Operators with live access for the outage's duration — the worst possible timing, since an outage may correlate with the kind of incident that triggers a suspend. Story 8.1 now makes this failure visible (suspend reports failed, not succeeded, if the sweep doesn't confirm) rather than silent — but the Architecture Spine's already-Deferred "Operations envelope (monitoring/alerting/backup) for the Function" should be treated as higher-priority than its Deferred status implies once Epic 8 is being built, not left for an unspecified later pass.
+- **Super Admin operational security is out of scope for this epic set** (PRD Non-Goals, added 2026-09-24 pre-mortem) — the single Super Admin account has no MFA/rotation/anomaly-detection story anywhere in Epics 6-9. Deliberately deferred to a follow-on pass, not silently missing.
 
 ## Cross-Cutting Definition of Done (from Inversion Analysis)
 
@@ -83,6 +89,37 @@ FR-SEC-003: Donor personal data (phone numbers) shall be accessible only to Admi
 FR-SEC-004: The system shall maintain a full audit log for all create, edit, and delete operations.
 FR-SEC-005: Session management shall enforce automatic expiry and secure token handling.
 
+#### Multi-Tenancy & Role Hierarchy (added 2026-09-23, from `prd-givio-2026-09-23/prd.md`)
+
+IDs below are the PRD's own stable `FR-N` sequence (distinct numbering track from the `FR-{DOMAIN}-NNN` IDs above) — kept verbatim rather than renumbered, since the Architecture Spine, SPEC.md, and the PRD itself already cite them by these exact IDs.
+
+FR-1: The system shall resolve every access decision as an explicit per-Event grant, never an implicit company-wide permission, even for an Organizer's or Super Organizer's own tenant's Events.
+FR-2: The system shall guarantee that no tenant can detect the existence of another tenant through any part of the product surface.
+FR-3: An Operator assigned to more than one concurrent Event shall see an unmistakable on-screen indicator of which Event they are currently acting in, server-validated on every scoped write.
+FR-4: An Operator shall authenticate using credentials scoped to the specific Organizer relationship that issued them, never a single identity reused across tenants.
+FR-5: The system shall onboard each additional person at a tenant's leadership level as their own distinct account, never a shared credential set.
+FR-6: The system shall support both Admin-invited and self-signup Organizer onboarding, with self-signup entering a pending state until Admin approves.
+FR-7: The system shall collect company name, location, size, estimated user count, and company type before Admin can approve a self-signed-up Organizer.
+FR-8: Admin shall review submitted intake info, a document upload, and complete a phone verification call before approving a self-signed-up Organizer.
+FR-9: A pending-state Organizer shall have no access to create Events, add Operators, or view donation data.
+FR-10: A Super Organizer shall be able to add co-Organizers and Operators, and manage or revoke either's privileges.
+FR-11: A non-Super Organizer shall be able to add and manage Operators only, and shall never be able to add another Organizer.
+FR-12: Adding a co-Organizer shall run the same identity checks as original Organizer signup and notify Admin on every addition.
+FR-13: Revoking any person's access shall remove login/write access only — their name shall remain permanently attached to every donation they entered, and their account shall never be hard-deleted.
+FR-14: The system shall detect potential duplicate Event registrations across tenants and notify Admin, without blocking Event creation.
+FR-15: Audit log visibility shall follow the tenant boundary — Admin sees the platform-wide log, a Super Organizer sees only their own tenant's log.
+FR-16: On family access-code entry, the system shall ask whether the device is personal; if not, the session shall auto-logout on navigation away, and the Organizer shall be able to invalidate/reissue a leaked code.
+FR-17: If Admin suspends an Organizer account, the Family Member's read-only view for that tenant's Events shall keep working.
+FR-18: A Family Member's view shall reflect every donation actually entered for their Event, with no partial or hidden totals.
+FR-19: The system shall guarantee Admin can manage tenants independently with no cross-account interference, no Organizer gains Admin privileges, and every Admin access to tenant data is logged.
+FR-20: The system shall provide a simple, logged Contact Admin form as the sole v1 support channel.
+FR-21: A Super Organizer shall see a near-real-time consolidated donation total across their tenant's concurrent Events, updating within 15 seconds.
+FR-22: The system shall provide a periodic settlement/export report of a tenant's consolidated donation totals.
+FR-23: Adding an Operator shall run a lighter-weight identity check within the adding tenant, with Admin notified on a match.
+FR-24: A person revoked for cause shall be added to the same banned/rejected cross-reference checked at signup and co-Organizer/Operator addition, platform-wide.
+FR-25: Super Admin shall have every capability and access guarantee an ordinary Admin has, with nothing withheld.
+FR-26: Only Super Admin shall be able to create, promote, demote, or suspend an Admin account.
+
 ### NonFunctional Requirements
 
 NFR-PERF-001: Initial page load ≤ 3s on 4G.
@@ -103,6 +140,14 @@ NFR-MAIN-001: ≥ 70% unit test coverage across Angular services/components.
 NFR-MAIN-002: Appwrite collections versioned; schema migrations documented.
 NFR-COMPAT-001: Chrome 90+, Safari 14+, Firefox 90+, Edge 90+.
 NFR-COMPAT-002: Android 8+, iOS 14+, Windows 10+, macOS 11+.
+
+#### Multi-Tenancy & Role Hierarchy (added 2026-09-23)
+
+NFR-SEC-006: Tenant isolation and per-Event grants shall be enforced at the Appwrite permission/data layer, not just the UI.
+NFR-SEC-007: Every access-control action (grant, revoke, approve, reject, suspend, co-Organizer addition) shall be logged immutably, with visibility following the tenant boundary.
+NFR-SEC-008: No account that has ever recorded a donation shall be hard-deleted, platform-wide, under any admin tooling.
+NFR-PERF-005: The consolidated cross-event total shall update within 15 seconds of a new donation.
+NFR-USE-003 (existing, above) extends to every new screen this capability introduces (Organizer approval queue, event-switcher, Contact Admin form, consolidated dashboard) — no new ID needed.
 
 ### Additional Requirements
 
@@ -131,11 +176,40 @@ Brownfield state the epics must account for (from the Architecture Spine's recon
 - Zero route guards exist; routing is flat and fully eager (4 routes).
 - `shared/components` barrel exports only Button/Input/Preloader; Card/Checkbox/FilterTags/Progress/Radio/Select/Tag/Toggle exist as files but aren't wired in yet.
 
+#### Multi-Tenancy & Role Hierarchy (added 2026-09-23)
+
+AD-1, AD-2, and AD-9 above are **amended**, not superseded — their bullets are left as-written above since Epics 1–5's already-shipped stories were built against that wording; the amended text lives only in `ARCHITECTURE-SPINE.md` (cited here, not duplicated, to avoid the two copies drifting):
+
+- AD-1 (amended): Appwrite Labels narrow to platform-wide `admin`/`super_admin` only (AD-11). Tenant-scoped role (Super Organizer/Organizer/Operator) moves to a new `Memberships` collection (`{userId, tenantId, role, status, grantedBy, grantedAt}`), written only by the AD-9 Function.
+- AD-2 (amended): `Event` gains a `tenantId`. The Function refuses to grant `Role.user(uid)` unless `uid` holds an *active* Membership matching the Event's own tenant — this is where FR-2's structural isolation is enforced. Revocation or Tenant suspension now immediately sweeps and retracts affected permissions, not just on an `assignedUserIds` edit.
+- AD-9 (amended, scope grown): the one Function is now also the sole writer of Memberships, Tenant approval state (`pending→approved/rejected/suspended`), the `IdentityFlags` banned/rejected cross-reference, and Admin/Super Admin account management — decomposed internally into per-concern files (extending the existing `admin-users.js`/`event-assignment.js` convention), still one deployable.
+- AD-11 (new): Super Admin is dual-Labeled (`admin` + `super_admin`), bootstrapped out-of-band; admin-account management gates exclusively on `super_admin`.
+- AD-12 (new): Admin/Super Admin read+write access logging is client-side (`AuditDataService`, extending the existing create/edit/delete pattern), at one-entry-per-Data-layer-method-invocation granularity — best-effort/accountability, not tamper-proof (deliberate trade-off, not a gap).
+- AD-13 (new): duplicate-event detection runs only inside the Function (the one cross-tenant-visible trust boundary), writing to a dedicated `DuplicateEventFlags` collection; never blocks Event creation.
+- New collections not covered above: `Tenants` (onboarding/approval state), a verification-document Storage bucket (Admin-only read), `SupportRequest` (Contact Admin form), and `audit_logs` gaining a `tenantId` column.
+- Migration: existing test Admin/Event/Donation data clears before launch; new tenant-model code paths stay behind a feature flag until that reset is confirmed complete — no manual per-account reconciliation (production accounts are test data, not real tenants).
+- Deferred to story-level design, not fixed by the Spine: duplicate-event matching algorithm, exact `IdentityFlags` matching fields, Super Admin succession mechanism, and the Function's operations/monitoring/backup envelope.
+
 ### UX Design Requirements
 
 No formal bmad-ux `DESIGN.md`/`EXPERIENCE.md` contract exists. Instead, 26 per-screen specs in `.claude/skills/plan/*.md` supply UI/layout/content detail (sections, fields, states) for each screen and are cited directly in each story rather than restated here:
 
 `admin-dashboard`, `admin-donations`, `admin-event`, `admin-report`, `admin-settings`, `organizer-dashboard`, `organizer-donations`, `organizer.events`, `organizer.report`, `member-dashboard`, `member-donation`, `member-events`, `login-screen`, `dashboard-screen`, `create-event-screen`, `edit-event`, `event-detail`, `add-donation`, `edit-donation`, `donation-list`, `donor-verify`, `export-preview`, `reports`, `event-reports`, `share-access` (v1.1+ per AD-10), `sync-status`.
+
+**Gap (added 2026-09-23, resolved same day):** a `bmad-ux` pass ran and produced `DESIGN.md`/`EXPERIENCE.md` for this capability (`ux-designs/ux-givio-2026-09-23/`), reviewed and finalized. UX Design Requirements below are extracted from that pair, with the same rigor as the FR extraction above.
+
+#### Multi-Tenancy & Role Hierarchy — UX Design Requirements (added 2026-09-23)
+
+UX-DR1 (revised 2026-09-25): Build the new Organizer/Super-Organizer tier at a new route, `/company`, rather than reusing `/organizer` — the existing `/organizer` routes (today's Operator-tier, donation-recording staff) are left completely untouched. A rename was the original plan but was rejected as unnecessary regression risk on stable, shipped code for a naming-purity gain (EXPERIENCE.md Foundation).
+UX-DR2: Build the Tier badge component — outlined pill, neutral color (never status-colored), icon + label always shown together, tooltip spelling out the tier's capability on hover/focus.
+UX-DR3: Build the Tenant-status pill component — the existing `Tag` component re-skinned onto the existing 4-state status token vocabulary (pending/approved/rejected/suspended → pending/verified/flagged/reversed 1:1), always carrying a text label, never color alone.
+UX-DR4: Build the Dignity banner component (patterned after the existing `ConnectionBanner`) in two variants: non-dismissible (family personal-device prompt — renders with no dismiss control at all, focus moves to it programmatically on render, behaves as a focus-trapping modal) and dismissible (Organizer-suspension family-safety message).
+UX-DR5: Build the Approval-queue row component — `Card`-based, collapsed by default (name, tier badge, submitted date, tenant-status pill, Approve/Reject actions), expands inline via `aria-expanded` with focus moving into the expanded content on open and back to the row trigger on collapse; every action reachable by keyboard alone. See `mockups/approval-queue.html`.
+UX-DR6: Build the Tenant-switcher component — `Select`-shaped, brand-blue border, always visible (never a hidden menu), a required pick before any scoped write. While unpicked, "Record Donation" renders enabled (never silently disabled) and on activation moves focus to the switcher with an explicit explanation message. See `mockups/tenant-switcher.html`.
+UX-DR7: Build the Step-wizard shell for Organizer self-signup — numbered steps (company info → document upload → phone-verification-pending confirmation), Back always available, a single step's failure retains every other step's already-entered data, non-disclosing failure messaging when the identity/bypass check flags a match (never reveals why to the applicant).
+UX-DR8: Implement the 7 new State Pattern rows: Tenant audit log empty state; Reports no-period-elapsed-yet state; Contact Admin submission-confirmation and submission-error states; consolidated cross-event total's loading (skeleton) and per-Event aggregation-error states (a failed Event's figure shows inline, never silently drops from or blocks the whole total).
+UX-DR9: Implement the pending/rejected Organizer-dashboard full-page shell — while `Tenant.status` isn't `approved`, no sidebar nav renders at all (not merely hidden), matching FR-9's access boundary at the UI-shell level, not just the route-guard level.
+UX-DR10: Wire the existing platform audit log screen (`admin-audit`, unchanged route) to display Admin/Super Admin's own tenant-data reads and writes as new rows — no new screen, an existing screen gains a row source (FR-19/FR-25's logging requirement made visible).
 
 ### FR Coverage Map
 
@@ -181,6 +255,33 @@ FR-DEV-001: Epic 5 - Responsive mobile/desktop
 FR-DEV-002: Epic 5 - Installable PWA
 FR-DEV-003: Epic 5 - Multi-device concurrent operators
 
+FR-1: Epic 6 - Per-event grant as the sole atomic unit
+FR-2: Epic 6 - Structural tenant isolation
+FR-3: Epic 6 - Operator event-switcher
+FR-4: Epic 6 - Credentials-per-relationship
+FR-5: Epic 6 - One human, one Organizer account
+FR-6: Epic 6 - Two onboarding paths (Admin-invite / self-signup)
+FR-7: Epic 6 - Required intake before approval
+FR-8: Epic 6 - Manual v1 verification
+FR-9: Epic 6 - Pending-state access boundary
+FR-10: Epic 7 - Super Organizer manages co-Organizers and Operators
+FR-11: Epic 7 - Organizer manages Operators only
+FR-12: Epic 7 - Co-Organizer bypass-loophole closure
+FR-13: Epic 7 - Revocation preserves attribution
+FR-14: Epic 7 - Duplicate-event detection (platform-wide)
+FR-15: Epic 7 - Tenant-scoped audit log visibility
+FR-23: Epic 7 - Operator-addition identity check
+FR-24: Epic 7 - Post-approval revocations feed the bypass check
+FR-16: Epic 9 - Personal-device prompt and auto-logout
+FR-17: Epic 9 - Family view survives Organizer suspension
+FR-18: Epic 9 - Full donation visibility for family
+FR-19: Epic 8 - Cross-account independence guarantees (Admin logging, Tenant suspend)
+FR-20: Epic 8 - Contact Admin support form
+FR-21: Epic 8 - Consolidated cross-event total
+FR-22: Epic 8 - Periodic settlement/export report
+FR-25: Epic 8 - Super Admin has full Admin capabilities
+FR-26: Epic 8 - Super Admin manages Admin accounts
+
 ## Epic List
 
 ### Epic 1: Accounts, Roles & Secure Access
@@ -209,6 +310,26 @@ Admin sees a real-time per-event dashboard and can export full donation records 
 The app installs to a phone's home screen, works fully offline once installed, and multiple Operators can use it simultaneously on different devices without stepping on each other.
 **FRs covered:** FR-DEV-001..003
 **Implementation notes:** Fixes the duplicated `provideServiceWorker` call; adds `ngsw-config.json` `dataGroups` (currently asset-only); PWA manifest/icons; responsive pass (360px–1920px, ≥44px touch targets) across all 26 screens; Lighthouse PWA audit ≥ 90; multi-device concurrent-session verification (NFR-SCALE-001).
+
+### Epic 6: Tenant Onboarding & Structural Isolation (added 2026-09-23)
+An event company can sign up, get vetted by Admin, and start working — completely isolated from every other company on the platform, on their own scoped credentials.
+**FRs covered:** FR-1..FR-9
+**Implementation notes:** Foundational — every later epic in this set depends on it. Stands up `Tenants`/`Memberships` collections; amends AD-1 (Labels narrow to Admin/Super Admin only) and AD-2 (tenant-matched permission derivation) per the Architecture Spine. Includes UX-DR1 (the new tier lives at `/company`; the existing `/organizer` Operator-tier routes are untouched — no rename, see the Numbering note under Epic 6's detail section) and the approval-queue screen (UX-DR5) with its Organizer-applications tab.
+
+### Epic 7: Team Lifecycle & Trust (added 2026-09-23)
+Organizer leadership can grow their team safely — add co-Organizers and Operators with fraud checks built in, revoke access without erasing history — while the platform catches duplicate-event fraud across companies.
+**FRs covered:** FR-10..FR-15, FR-23, FR-24
+**Implementation notes:** Builds `IdentityFlags` and the AD-13 duplicate-detection logic; adds a second tab (Duplicate-event flags) to the approval-queue screen Epic 6 ships, rather than a new screen. Depends on Epic 6's Tenant/Membership infrastructure.
+
+### Epic 8: Admin Oversight, Reporting & Platform Administration (added 2026-09-23)
+Admin gets platform-wide oversight and support tooling; Super Organizer gets tenant-wide reporting; exactly one Super Admin can manage Admin accounts themselves.
+**FRs covered:** FR-19..FR-22, FR-25, FR-26
+**Implementation notes:** Implements AD-11 (Super Admin dual-Label) and AD-12 (client-side Admin access logging). Delivers `/dashboard/admins` inside the *existing* Admin route tree, gated by an additional `super_admin` check layered on the existing admin guard — no separate route tree/layout (this matches what the Architecture Spine's Capability Map already said; an earlier UX draft had introduced a redundant `/super-admin` tree, caught and dropped via Occam's Razor elicitation, 2026-09-25). This is where "suspend a Tenant" (consumed by FR-17 in Epic 9) actually gets built.
+
+### Epic 9: Family Dignity & Access Safeguards (added 2026-09-23)
+A grieving family always sees their event's true, complete donation picture — safely, even from a borrowed device, even if their Organizer's account is suspended.
+**FRs covered:** FR-16..FR-18
+**Implementation notes:** Deliberately last — FR-17 (view survives suspension) needs Epic 8's suspend capability to exist to be end-to-end testable. Mostly extends the existing v1 family access-code flow rather than building new infrastructure.
 
 ## Epic 1: Accounts, Roles & Secure Access
 
@@ -732,3 +853,481 @@ So that a large event with many helpers doesn't corrupt or lose anyone's entries
 **Given** one Operator logged in on two devices at once
 **When** both are active
 **Then** this is explicitly allowed (per Story 1.4/FR-SEC-005) with no conflict between the sessions
+
+## Epic 6: Tenant Onboarding & Structural Isolation
+
+An event company can sign up, get vetted by Admin, and start working — completely isolated from every other company on the platform, on their own scoped credentials.
+
+**Numbering note:** this epic starts at Story 6.2. Story 6.1 (renaming the existing `/organizer` Operator-tier routes to `/operator` to free the name up) was drafted, then dropped during a 2026-09-25 Steelmanning elicitation pass — the rename was unnecessary regression risk on stable, shipped code for a naming-purity gain. The new Organizer/Super Organizer tier is instead built at a new route, `/company`, from the start, leaving the existing `/organizer` routes completely untouched. The ID is left retired rather than renumbering every story that already cross-references 6.2–6.6 by number.
+
+### Story 6.2: Tenant & Membership Foundation
+
+As a Super Organizer,
+I want my tenant's access boundaries enforced at the data layer, not just trusted to the UI,
+So that I can be confident no client-side bug or malicious actor can grant themselves or anyone else access to my company's data.
+
+**Acceptance Criteria:**
+
+**Given** a new `Tenants` collection (`id, name, location, size, type, estimatedUserCount, status, superOrganizerId, verifiedBy, verifiedAt, createdAt`) and a new `Memberships` collection (`userId, tenantId, role, status, grantedBy, grantedAt`)
+**When** this story ships
+**Then** both collections have no client create/update/delete permission at all — every write goes through the existing AD-9 Function, extended to write Memberships and Tenant status (AD-1, AD-9)
+
+**Given** `Event` gains a `tenantId` field, set at creation and immutable thereafter
+**When** the Function is asked to add `Role.user(uid)` to an Event's (or its Donations') derived permissions
+**Then** it checks `uid`'s Membership: only an **active** Membership whose `tenantId` matches the Event's own `tenantId` results in the grant being added — a mismatched or inactive Membership is refused, even if the caller supplies a validly-formatted Event ID from another tenant (FR-1, FR-2, AD-2)
+
+**Given** a Membership's `status` changes to `revoked`, or a Tenant's `status` changes to `suspended` or `rejected`
+**When** that change is written by the Function
+**Then** every Event permission grant that depended on it is swept and retracted in the same operation — not deferred until a later, unrelated `assignedUserIds` edit (AD-2, tightened by the 2026-09-23 reviewer gate)
+
+**Given** a newly created Membership with no Event grants yet
+**When** the person it belongs to attempts any Event read or write
+**Then** they are denied — a Membership alone confers identity, never Event access (FR-1)
+
+**Given** an Organizer's own attempt to list or search for a person or Event to add to their team
+**When** the query runs
+**Then** it can never return a person or Event belonging to another tenant, and a "not found" response is indistinguishable in shape from an "exists but not yours" response (FR-2)
+
+### Story 6.3: Credentials-Per-Relationship Enforcement
+
+As a person who may work for more than one event company over time,
+I want each company relationship to have its own separate login,
+So that revoking my access at one company can never affect my access at another.
+
+**Acceptance Criteria:**
+
+**Given** a person who already holds an Appwrite Account tied to one tenant's Membership
+**When** a second tenant tries to add that same person (matched by email), via a direct call to the Function (exercised directly for this story — Epic 7's Story 7.1 wires the Team-management UI to this same call)
+**Then** the platform requires a distinct Account for the new relationship — there is no product surface anywhere that attaches a second tenant's Membership to an existing Account (FR-4, FR-5)
+
+**Given** two separate Accounts belonging to the same human, one per tenant
+**When** one relationship's Membership is revoked via a direct call to the Function (exercised directly for this story — Epic 7's Story 7.3 wires the Revoke action to this same call)
+**Then** the other Account's session and Membership are completely unaffected — verified by revoking one and confirming the other's Event access is unchanged (FR-4)
+
+**Given** a direct Function call adding a co-Organizer or Operator on a Super Organizer's behalf
+**When** it's processed
+**Then** the flow always provisions a new Account for that person, never a mechanism to share or forward the Super Organizer's own credentials (FR-5)
+
+### Story 6.4: Organizer Onboarding — Admin-Invited & Self-Signup
+
+As a prospective Organizer,
+I want to either be invited directly by Admin or sign myself up and wait for approval,
+So that I can start using the platform through whichever path fits how I found it.
+
+**Acceptance Criteria:**
+
+**Given** Admin creates/invites a new Organizer directly
+**When** the invite is sent and accepted
+**Then** the resulting Tenant and Super Organizer Membership are immediately `active` — no pending state (FR-6)
+
+**Given** a prospective Organizer self-signs-up
+**When** they complete the step-wizard intake — company name, location, size, estimated platform-user count, company type, then a document upload, then a confirmation step (UX-DR7) — and submit
+**Then** a new `Tenant` is created with `status: pending` and a `Membership` for the applicant as `super_organizer`, and Admin's approval action is unavailable until every required intake field is present (FR-7)
+
+**Given** the applicant's Tenant is `pending`
+**When** they log in
+**Then** the full-page pending shell renders — no sidebar navigation at all, not merely a hidden one — and every Event-facing and user-management route rejects them server-side, not just hides its UI entry point (FR-9, UX-DR9)
+
+**Given** the step-wizard's document-upload step fails partway through
+**When** the applicant retries
+**Then** only that step resets — company info already entered in step 1 is retained, not lost (UX-DR7)
+
+**Given** a Tenant whose `status` becomes `rejected`
+**When** the applicant next logs in
+**Then** they see the same pending-shell pattern with the message swapped to a generic "not approved" — no reason disclosed (FR-9 boundary, consistent with the non-disclosure rule Story 6.5/7.3 establish for identity-check failures)
+
+### Story 6.5: Manual Verification & Admin Approval Queue
+
+As Admin,
+I want to review a self-signed-up Organizer's intake, document, and a phone call before approving them,
+So that no unvetted company can start touching real families' data.
+
+**Acceptance Criteria:**
+
+**Given** a pending Tenant application
+**When** Admin opens the Approvals screen
+**Then** the row renders collapsed by default (name, tier badge, submitted date, pending status pill, Approve/Reject) and expands inline — via `aria-expanded`, focus moving into the expanded content on open and back to the row trigger on collapse — to show the intake fields and the verification-document link (FR-8, UX-DR5)
+
+**Given** Admin has reviewed the document and completed the phone verification call
+**When** they record that verification
+**Then** `Tenant.verifiedBy` and `Tenant.verifiedAt` are set — the record shows who verified and when, not just a boolean "approved" (FR-8)
+
+**Given** Admin clicks Approve
+**When** the action completes
+**Then** the Tenant's `status` becomes `approved`, the applicant's Membership becomes fully usable, and the applicant can log in to their real (empty) dashboard on next login — no separate activation step (FR-6, FR-8)
+
+**Given** Admin clicks Reject
+**When** the action completes
+**Then** the Tenant's `status` becomes `rejected` and every row action for it disappears from the active queue
+
+**Given** Admin has not yet completed the document review and phone call
+**When** they attempt to Approve
+**Then** the action is unavailable — an approval cannot be recorded without both verification steps present (FR-8)
+
+**Given** the Approvals screen with no pending applications
+**When** Admin opens it
+**Then** it shows the empty-queue state ("No applications waiting"), not a blank or loading-forever screen
+
+### Story 6.6: Operator Event-Switcher
+
+As an Operator assigned to more than one concurrent Event,
+I want to always know unmistakably which Event I'm currently acting in, and be unable to record against the wrong one,
+So that I never fire a scoped action against an Event I didn't mean to.
+
+**Acceptance Criteria:**
+
+**Given** an Operator assigned to 2+ active Events
+**When** they open their dashboard
+**Then** the tenant-switcher is visible in the header at all times — never a hidden menu — and no Event is pre-selected by default (FR-3, UX-DR6)
+
+**Given** no Event is yet picked
+**When** the Operator attempts to record a donation
+**Then** "Save Donation" renders enabled, not silently disabled — activating it moves focus to the switcher and shows an explicit "Pick an Event first" message (FR-3, UX-DR6)
+
+**Given** the Operator picks an Event from the switcher
+**When** the pick is made
+**Then** the page-head updates to name that Event alongside the switcher itself — the active Event is confirmed in two places, not one (FR-3)
+
+**Given** an Event is picked and a donation is submitted
+**When** the save request reaches the server
+**Then** it is validated against the Event the UI currently indicates as active — a mismatch between what the client claims and what the server independently verifies is rejected, never silently corrected to "the right one" (FR-3)
+
+**Given** an Operator assigned to only one active Event
+**When** they open their dashboard
+**Then** the switcher does not render at all — the single-Event case has no ambiguity to resolve, per the underlying v1 assignment model this extends (FR-3)
+
+## Epic 7: Team Lifecycle & Trust
+
+Organizer leadership can grow their team safely — add co-Organizers and Operators with fraud checks built in, revoke access without erasing history — while the platform catches duplicate-event fraud across companies.
+
+### Story 7.1: Add & Manage Team Members
+
+As a Super Organizer,
+I want to add co-Organizers and Operators and manage or revoke either's privileges,
+So that I can build out my company's team without giving up control of who has it.
+
+**Acceptance Criteria:**
+
+**Given** I am a Super Organizer on `/company/team`
+**When** I add a co-Organizer or an Operator
+**Then** a new Membership is created for them at my tenant (Story 6.2's model) with zero Event access until I grant it against a specific Event (FR-10)
+
+**Given** an existing co-Organizer
+**When** I revoke their privileges
+**Then** they immediately lose the ability to add or manage Operators — their own Membership status change cascades per Story 6.2's sweep behavior, not a separate mechanism (FR-10)
+
+**Given** I am a non-Super Organizer on `/company/team`
+**When** the page renders
+**Then** "Add Operator" is available but "Add Organizer" is not present anywhere in the page — not disabled, not hidden behind a tooltip, simply never rendered — and a direct call attempting to add an Organizer is rejected server-side regardless (FR-11)
+
+**Given** the team list is empty (first login after Story 6.5's approval)
+**When** I open `/company/team`
+**Then** I see the empty-team state ("You haven't added anyone yet") with primary "Add co-Organizer"/"Add Operator" actions
+
+### Story 7.2: Identity Check on Team Additions
+
+As Admin,
+I want every co-Organizer or Operator addition checked against known bad actors before it takes effect,
+So that someone rejected or removed elsewhere can't quietly join a different company.
+
+**Acceptance Criteria:**
+
+**Given** a new `IdentityFlags` collection (`name, email, phone, reason, flaggedAt, sourceType, flaggedByTenantId`), written only by the Function
+**When** a Super Organizer adds a co-Organizer
+**Then** the addition is cross-referenced against `IdentityFlags` and I am notified — every time, whether or not it matches (FR-12)
+
+**Given** an Organizer (Super or not) adds an Operator
+**When** the addition is submitted
+**Then** it runs against the *same* platform-wide `IdentityFlags` cross-reference the co-Organizer check uses — this is what makes a for-cause revocation (Story 7.3, FR-24) actually catch someone re-attempting as an Operator at a different tenant — **plus** an additional, lighter-weight same-tenant check (name/email/phone against existing or previously-revoked people at that tenant); I am notified on either kind of match (FR-23). *(Corrected 2026-09-25 — an earlier draft scoped this check to same-tenant only, which directly contradicted Story 7.3's cross-tenant guarantee; caught via Assumption Audit.)*
+
+**Given** an addition matches `IdentityFlags`
+**When** the match is detected
+**Then** the new row appears in the adding Organizer's team list with a pending status, not a rejection — no error, no explanation of why (FR-12, FR-23)
+
+**Given** I review a flagged addition and confirm it's a real match
+**When** I act on it
+**Then** the row is removed from the team list on the adder's next view, with no notification explaining why (FR-12, FR-23)
+
+**Given** I review a flagged addition and it's a false positive (coincidental name match)
+**When** I clear it
+**Then** the row silently transitions to active on the adder's next view — the adder never learns a check happened either way
+
+**Given** I clear a false-positive match at one tenant
+**When** a *different* tenant later attempts to add a person matching the same name/email/phone
+**Then** that addition runs its own independent check and gets its own review if it matches — a clearance at one tenant is never treated as a platform-wide "this identity is fine" record, since caching it that way would let a real bad actor get laundered through one easy clearance and walk into every other tenant unchecked
+
+### Story 7.3: Revocation Preserves Attribution; For-Cause Revocations Feed the Bypass List
+
+As anyone reviewing an event's donation history,
+I want every donation's recorder name to stay exactly as it was, no matter what happened to that person's access since,
+So that accountability for money never depends on an account still existing.
+
+**Acceptance Criteria:**
+
+**Given** a person (Organizer, co-Organizer, or Operator) with donations recorded under their name
+**When** their access is revoked, for any reason
+**Then** their login/write access is removed but every donation they recorded still displays their name identically to before — no delete operation exists anywhere in the product for an account any donation references (FR-13)
+
+**Given** I am revoking someone's access
+**When** I complete the revoke action
+**Then** I must state whether this is routine offboarding or for-cause (fraud/active investigation) — the two are never conflated into one generic "revoke" (FR-13, FR-24)
+
+**Given** I mark a revocation as for-cause
+**When** it's recorded
+**Then** that person is added to the same `IdentityFlags` list Story 7.2 checks, platform-wide — so a self-signup, co-Organizer addition, or Operator addition matching them at any other tenant gets flagged the same way (FR-24)
+
+**Given** I mark a revocation as routine offboarding
+**When** it's recorded
+**Then** no `IdentityFlags` entry is created — an Operator who simply left is never treated as a fraud signal (FR-24)
+
+### Story 7.4: Platform-Wide Duplicate-Event Detection
+
+As Admin,
+I want the platform to flag when the same event or deceased individual looks like it's been registered more than once, across different companies,
+So that a family can't be double-billed by two companies claiming the same funeral.
+
+**Acceptance Criteria:**
+
+**Given** a new Event is created, by any tenant
+**When** the Function processes the creation
+**Then** it compares against Events platform-wide — the only place this comparison can run, since it's the sole boundary with cross-tenant reach — never a tenant-scoped check an Organizer's own client could perform (FR-14)
+
+**Given** a potential duplicate is detected
+**When** the Event is created
+**Then** Event creation is **not** blocked — the Organizer's flow completes normally, and a flag appears on the Duplicate-event flags tab of the Approvals screen (Story 6.5) for Admin to review (FR-14)
+
+**Given** I review a duplicate-event flag
+**When** I confirm it's a genuine duplicate or clear it as a false positive (e.g. a legitimate reschedule)
+**Then** the flag is resolved and removed from the active queue either way — a cleared flag never reappears for the same pair of Events
+
+**Given** no duplicate-event flags are pending
+**When** I open that tab
+**Then** I see the same empty-queue state pattern as the Organizer-applications tab
+
+### Story 7.5: Tenant-Scoped Audit Log
+
+As a Super Organizer,
+I want to see my own company's activity trail — and only my own company's,
+So that I can review what my co-Organizers and Operators have done without needing Admin's help.
+
+**Acceptance Criteria:**
+
+**Given** I am a Super Organizer on `/company/audit`
+**When** the page loads
+**Then** I see every logged action taken by my tenant's co-Organizers and Operators — never another tenant's, even attempted via direct API access, since visibility is enforced at the query/permission level, not filtered client-side (FR-15)
+
+**Given** my tenant has no logged activity yet
+**When** I open `/company/audit`
+**Then** I see an empty-log state ("No activity yet"), reusing the existing empty-state pattern
+
+**Given** Admin's existing platform-wide audit log (`admin-audit`, unchanged)
+**When** compared against my tenant-scoped view
+**Then** Admin's log includes everything mine does plus every other tenant's — my view is a strict subset, never a divergent one
+
+## Epic 8: Admin Oversight, Reporting & Platform Administration
+
+Admin gets platform-wide oversight and support tooling; Super Organizer gets tenant-wide reporting; exactly one Super Admin can manage Admin accounts themselves.
+
+### Story 8.1: Admin Suspends a Tenant
+
+As Admin,
+I want to suspend an entire Organizer account under investigation,
+So that its Organizer and Operators lose access immediately without me having to hunt down each of their Memberships individually.
+
+**Acceptance Criteria:**
+
+**Given** an `approved` Tenant
+**When** Admin suspends it
+**Then** `Tenant.status` becomes `suspended`, and every Membership under that tenant is swept per Story 6.2's cascade — every Organizer, co-Organizer, and Operator loses login/write access in the same operation, not eventually (FR-19)
+
+**Given** a suspended Tenant
+**When** Admin reviews and clears the investigation
+**Then** Admin can transition it back to `approved`, and Memberships resume normal access without needing to be individually re-granted
+
+**Given** any Organizer or Operator action, at any tenant
+**When** it executes
+**Then** it can never modify Admin's own access level or any other tenant's account state — verified by attempting a suspend/approve action from a non-Admin role and confirming server-side rejection (FR-19)
+
+**Given** a tenant whose sole Super Organizer has been revoked (Story 7.3), leaving co-Organizers or Operators with no one able to add/manage the team
+**When** Admin reviews the tenant
+**Then** Admin can designate an existing co-Organizer (or a newly-added person) as the new Super Organizer, using Admin's own standing cross-tenant access (FR-19) — a tenant is never permanently orphaned by losing its Super Organizer
+
+**Given** the suspend action's permission-sweep is attempted (Story 6.2's cascade)
+**When** the underlying Function call fails or times out (e.g. during an outage) rather than succeeding
+**Then** the suspend is reported to Admin as failed, not as succeeded — the UI never shows "Tenant suspended" unless the sweep is confirmed complete, since a silently-incomplete sweep would leave a suspended tenant's Operators with live access exactly when the investigation needs them cut off
+
+### Story 8.2: Admin/Super Admin Access Logging
+
+As Admin,
+I want my own reads and writes of any tenant's data to be logged, the same way an Organizer's actions already are,
+So that my own access is accountable, not a silent exception to the system's own audit discipline.
+
+**Acceptance Criteria:**
+
+**Given** I (Admin or Super Admin) list or view any tenant's Events or Donations
+**When** the query resolves
+**Then** `EventDataService`/`DonationDataService` fire one audit-log entry per Data-layer method invocation — not per row — recording actor, tenant, and timestamp (AD-12, FR-19)
+
+**Given** those entries
+**When** I open the platform-wide audit log (`admin-audit`)
+**Then** my own past reads/writes appear alongside every Organizer's and Operator's — self-visible, not hidden from the log I myself can see
+
+**Given** this logging mechanism is client-side, not Function-proxied
+**When** verified
+**Then** it's documented as best-effort/accountability, not tamper-proof — a deliberate trade-off (AD-12), not treated anywhere in this story as a gap to close
+
+### Story 8.3: Contact Admin Support Form
+
+As a Super Organizer or Organizer,
+I want a simple way to reach Admin with a question,
+So that I'm not stuck without a support channel when something looks wrong.
+
+**Acceptance Criteria:**
+
+**Given** a new `SupportRequests` collection (`tenantId, userId, message, createdAt, status`), Admin-only read
+**When** I submit the Contact Admin form at `/company/support`
+**Then** the submission is retained and associated with my tenant/account, and I see an inline confirmation ("Sent — Admin will follow up") replacing the form, with no redirect (FR-20)
+
+**Given** the submission fails (network/server error)
+**When** it happens
+**Then** my entered text is retained and an inline error appears above the submit button, matching the existing donation-entry save-failure pattern (FR-20)
+
+**Given** this is v1's only support channel
+**When** verified
+**Then** no ticket-status-tracking UI exists anywhere — a logged form, not a ticketing system (FR-20, explicit Non-Goal)
+
+**Given** my tenant has been suspended (Story 8.1) and I can no longer log in
+**When** I need to dispute it
+**Then** I can still reach a public, unauthenticated dispute form at `/company/dispute`, identifying myself by email and tenant name — the same `SupportRequests` collection, a submission type Admin can distinguish from an ordinary question, so suspension never also cuts off the one channel that could correct a wrongful suspension (FR-20, added 2026-09-25 via Stakeholder Lens Rotation elicitation)
+
+### Story 8.4: Consolidated Cross-Event Total
+
+As a Super Organizer,
+I want to see a live total across all of my company's concurrently running Events,
+So that I know where my company stands without opening each Event individually.
+
+**Acceptance Criteria:**
+
+**Given** my tenant has 2+ concurrently Active Events
+**When** I open my dashboard
+**Then** I see a consolidated total that reflects a new donation recorded on any of those Events within 15 seconds, without a manual refresh (FR-21)
+
+**Given** my tenant is newly approved with zero Events or zero donations recorded yet
+**When** I open my dashboard
+**Then** I see a real, explicit `GH₵0.00` total — never an error, a blank area, or a "no data" state that could be mistaken for something broken or hidden (FR-21, mirrors FR-18's same zero-state discipline for the family view)
+
+**Given** the dashboard is loading
+**When** the page first renders
+**Then** the total/breakdown area shows a skeleton placeholder, matching the existing admin-dashboard's own loading treatment — never a blank flash
+
+**Given** one Event's figures fail to aggregate
+**When** the total renders
+**Then** that Event's row shows a small inline "couldn't load" note rather than silently dropping from, or blocking, the whole total (FR-21)
+
+### Story 8.5: Periodic Settlement/Export Report
+
+As a Super Organizer,
+I want to export my company's consolidated donation totals periodically,
+So that I have a clean accounting record without pulling numbers from each Event by hand.
+
+**Acceptance Criteria:**
+
+**Given** I am on `/company/reports`
+**When** I generate an export
+**Then** it reuses the existing SheetJS export pattern (vendored, never `npm install xlsx`), scoped to my tenant's Events, and its totals reconcile exactly — to the minor currency unit — with the sum of my tenant's individual Event totals at export time (FR-22, AD-5)
+
+**Given** no full period has elapsed yet since my tenant was approved
+**When** I open `/company/reports`
+**Then** I see "Your first settlement export will be available after your first full period" rather than an empty or broken export attempt
+
+### Story 8.6: Super Admin Manages Admin Accounts
+
+As Super Admin,
+I want to be the only one who can create, promote, demote, or suspend an Admin account,
+So that as more platform staff get Admin access, no single Admin can go unchecked.
+
+**Acceptance Criteria:**
+
+**Given** the single designated Super Admin account, holding both `admin` and `super_admin` Appwrite Labels (AD-11)
+**When** they access any existing Admin screen or action
+**Then** it works identically to an ordinary Admin's access — nothing withheld, no separate capability gate anywhere (FR-25)
+
+**Given** Super Admin on `/dashboard/admins`
+**When** they create, promote, demote, or suspend an Admin account
+**Then** the action succeeds and is gated exclusively on `Role.label('super_admin')`, enforced inside the Function — never a client-side-only check (FR-26)
+
+**Given** any account other than the designated Super Admin (including another Admin)
+**When** it attempts a create/promote/demote/suspend action against an Admin account
+**Then** it is rejected server-side, with no exception (FR-26)
+
+**Given** an Admin account is suspended by Super Admin
+**When** the suspension takes effect
+**Then** that Admin immediately loses approval authority, suspension authority, and platform-wide audit visibility — but their historical audit-log entries remain visible and attributed, never hidden or reassigned (FR-26, extending FR-13's attribution-retention principle one tier up)
+
+## Epic 9: Family Dignity & Access Safeguards
+
+A grieving family always sees their event's true, complete donation picture — safely, even from a borrowed device, even if their Organizer's account is suspended.
+
+### Story 9.1: Personal-Device Prompt & Auto-Logout
+
+As a Family Member viewing my event's donations via access code,
+I want to be asked whether this is my own phone, and signed out automatically if it isn't the moment I leave,
+So that a stranger who later picks up a borrowed device never sees my family's information.
+
+**Acceptance Criteria:**
+
+**Given** I enter a valid family access code
+**When** the page is about to render the donation total
+**Then** a dignity-banner prompt asks whether this is my personal phone, and renders before the total does — with no dismiss control, focus moving to it programmatically on render, behaving as a focus-trapping modal (FR-16)
+
+**Given** I answer "No, not my phone"
+**When** I later navigate away from the page or background the tab
+**Then** my session clears immediately — the next visitor to this device sees the access-code entry screen, not my family's data (FR-16)
+
+**Given** I answer "Yes, my personal phone"
+**When** I navigate away and return
+**Then** my session persists normally, matching the existing v1 behavior — the prompt only changes behavior for the "no" answer
+
+**Given** a family access code has been shared beyond the intended family (forwarded, posted, guessed)
+**When** the Organizer notices
+**Then** they can invalidate and reissue it at any time from their Tenant/Event detail view — reusing the existing v1 regenerate-code action (Story 2.4), now framed as leak recovery, not just a mechanism swap; regenerating immediately invalidates the old code (FR-16)
+
+### Story 9.2: Family View Survives Organizer Suspension
+
+As a Family Member,
+I want my event's donation view to keep working even if something goes wrong with my Organizer's account,
+So that a dispute I have nothing to do with never interrupts my ability to follow my own event.
+
+**Acceptance Criteria:**
+
+**Given** Admin suspends the Tenant that owns my Event (Story 8.1)
+**When** I open my family access-code view afterward
+**Then** it continues to resolve and render exactly as before — the total and donor list either freeze at their last known state or keep updating, but access itself is never blocked (FR-17)
+
+**Given** my view is open in a tab at the moment a suspension takes effect
+**When** the suspension happens
+**Then** I see no interruption, no banner, no flicker — the guarantee is invisible by design, verified by confirming no error state or access-denial path exists on this route for a suspended tenant
+
+**Given** the same suspended Tenant
+**When** an Operator or Organizer from it attempts to log in
+**Then** they are blocked, in contrast to my unaffected family view — the suspension's effect is asymmetric on purpose (FR-17)
+
+### Story 9.3: Full Donation Visibility for Family
+
+As a Family Member,
+I want to see every donation actually entered for my event, with nothing hidden or partial,
+So that I never have to wonder if the total I'm shown is the real one.
+
+**Acceptance Criteria:**
+
+**Given** donations have been recorded for my Event by one or more Operators
+**When** I view my family summary
+**Then** the total and donor list reconcile exactly with the Operator/Organizer-facing total for the same Event — modulo only the fields already excluded for privacy (donor phone, per existing FR-SEC-003/FR-RPT-003) (FR-18)
+
+**Given** a donation is edited or soft-deleted by an Operator or Admin
+**When** I next view my family summary
+**Then** it reflects the current, corrected state — never a stale or partially-updated figure
+
+**Given** no donations have been recorded yet
+**When** I view my family summary
+**Then** I see a real zero total, not an error or a "no data" state that could be mistaken for something hidden
