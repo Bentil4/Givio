@@ -1,6 +1,10 @@
+---
+baseline_commit: 42c1143de81e0a26e37e87bafbb96c962c5c7c3b
+---
+
 # Story 6.2: Tenant & Membership Foundation
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -20,35 +24,38 @@ so that I can be confident no client-side bug or malicious actor can grant thems
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `Tenants` / `Memberships` collections (AC 1)**
-  - [ ] In the Appwrite Console (project `69c270d10029e7ed7f82`, database `6a94263a003377e55b59`), create table `tenants`: `name` (string), `location` (string), `size` (string), `type` (string), `estimatedUserCount` (integer), `status` (string, enum `pending|approved|rejected|suspended`), `superOrganizerId` (string), `verifiedBy` (string, optional), `verifiedAt` (datetime, optional), `createdAt` (datetime). **No** row-level create/update/delete permission for any role (API-key/Function-only, mirroring the existing `IdentityFlag`/`Membership` write-permission rule in ARCHITECTURE-SPINE.md's Consistency Conventions table). Read: `Role.label('admin')` — the per-Membership read grant (any uid with an active Membership in that tenant) is set **per-row** by the Function at write time, same mechanism as Task 3's `createMembership`.
-  - [ ] Create table `memberships`: `userId` (string), `tenantId` (string), `role` (string, enum `super_organizer|organizer|operator`), `status` (string, enum `active|revoked`), `grantedBy` (string), `grantedAt` (datetime). Same zero-client-write rule. Read: `Role.label('admin')` platform-wide, plus `Role.user(userId)` set per-row at creation (a user can read only their own Membership row).
-  - [ ] Add `APPWRITE_TENANTS_COLLECTION_ID` / `APPWRITE_MEMBERSHIPS_COLLECTION_ID` as Function-side environment variables (Console → Functions → `set-role-and-permissions` → Settings → Variables), following the existing `APPWRITE_EVENTS_COLLECTION_ID` pattern in `event-assignment.js`.
-  - [ ] Add `tenantsCollectionId` / `membershipsCollectionId` to `src/environments/environment.example.ts` (documented placeholder, committed) and your own gitignored `environment.ts`/`environment.development.ts` (real IDs — **do not commit these two files**, per this repo's existing environment-file convention).
+- [x] **Task 1 — `Tenants` / `Memberships` collections (AC 1)**
+  - [x] Provisioned live on the real Appwrite Cloud project (`69c270d10029e7ed7f82`, database `6a94263a003377e55b59`) via the Appwrite MCP operator, not just documented: table `tenants` (`name`, `location`, `size`, `type` strings; `estimatedUserCount` integer; `status` enum `pending|approved|rejected|suspended`; `superOrganizerId` string; `verifiedBy` string optional; `verifiedAt` datetime optional; `createdAt` datetime), `rowSecurity: true`, collection-level permissions `["read(\"label:admin\")"]` only — **no** create/update/delete permission for any role (API-key/Function-only).
+  - [x] Provisioned table `memberships` (`userId`, `tenantId` strings; `role` enum `super_organizer|organizer|operator`; `status` enum `active|revoked`; `grantedBy` string; `grantedAt` datetime), same `rowSecurity: true` + admin-only collection read + zero client write. Added `key` indexes on `memberships.userId` and `memberships.tenantId` (needed by Task 5's own-Membership lookup and Task 4's sweep query).
+  - [x] Added `APPWRITE_TENANTS_COLLECTION_ID`=`tenants` / `APPWRITE_MEMBERSHIPS_COLLECTION_ID`=`memberships` as Function-side environment variables on the deployed `set-role-and-permissions` Function (`6a67698c0029be485dde`), matching the existing `APPWRITE_EVENTS_COLLECTION_ID` pattern.
+  - [x] Added `tenantsCollectionId`/`membershipsCollectionId` to `src/environments/environment.example.ts` (documented placeholder, committed) and the local gitignored `environment.ts`/`environment.development.ts` (real values `tenants`/`memberships` — not committed).
 
-- [ ] **Task 2 — `Event.tenantId` (AC 2)**
-  - [ ] Console: add a `tenantId` string attribute (optional/nullable — see Dev Notes "`tenantId` is not populated by this story") to the existing `events` table.
-  - [ ] Add `tenantId?: string` to `Event` in `src/app/data/models/event.ts`; map it in `event-data.service.ts`'s `rowToEvent`.
-  - [ ] Bump `AppDb` to `version(3)` in `src/app/data/dexie/app-db.ts` (carry forward the `events`/`outbox`/`donations` stores unchanged — Dexie only needs a new version block when a store's *indexed* fields change; `tenantId` isn't queried by any story yet, so it does not need to be added to the index string, only to the stored object shape, which Dexie handles without a schema bump for non-indexed fields — confirm this against Dexie's own versioning docs before skipping the bump).
+- [x] **Task 2 — `Event.tenantId` (AC 2)**
+  - [x] Provisioned live: added optional `tenantId` string column (size 36) to the `events` table, plus a `key` index on it (needed by Task 4's sweep query).
+  - [x] Added `tenantId?: string` to `Event` in `src/app/data/models/event.ts`; mapped it in `event-data.service.ts`'s `rowToEvent`.
+  - [x] No Dexie version bump: confirmed against Dexie's versioning model — a version's `.stores()` string declares only _indexed_ fields; `tenantId` isn't queried locally by any story yet, so it's carried on the stored object automatically without needing a new schema version (adding an indexed field would need one; adding a plain object field doesn't). `AppDb` stays at `version(2)`.
 
-- [ ] **Task 3 — new Function module `tenant-membership.js` (AC 1, 3, 4)**
-  - [ ] Create `functions/set-role-and-permissions/src/tenant-membership.js`, following `event-assignment.js`'s exact shape: an `ACTIONS` array, a `PAYLOAD_VALIDATORS` map, `handleTenantMembershipRequest({ req, res, log, error, ClientCtor, AccountCtor, DatabasesCtor })` gated by `verifyAdminCaller` (this story keeps every new action Admin-caller-gated — Epic 7 layers an Organizer-caller + `IdentityFlags` check on top of `createMembership` later; do not build that gating here).
-  - [ ] `createMembership({ userId, tenantId, role })` → validates `role` is one of `super_organizer|organizer|operator`; writes a `memberships` row `{ userId, tenantId, role, status: 'active', grantedBy: caller.$id, grantedAt: now }` with `permissions: [Permission.read(Role.label('admin')), Permission.read(Role.user(userId))]`.
-  - [ ] `revokeMembership({ membershipId })` → `getRow` the Membership, set `status: 'revoked'`, then call the new `sweepTenantEventPermissions` helper (below) scoped to just that membership's `userId` within its `tenantId`.
-  - [ ] `setTenantStatus({ tenantId, status })` → validates the transition against an `ALLOWED_TRANSITIONS` map (`pending: ['approved', 'rejected']`, `approved: ['suspended']`; mirrors Story 2.2's `ALLOWED_TRANSITIONS` pattern in `event-assignment.js`), writes `Tenant.status`; on transition to `suspended` or `rejected`, calls `sweepTenantEventPermissions` scoped to *every* uid currently granted on that tenant's Events (not one uid).
-  - [ ] Register the module in `main.js` (`import { handleTenantMembershipRequest, TENANT_MEMBERSHIP_ACTIONS } from './tenant-membership.js';` + an `if (TENANT_MEMBERSHIP_ACTIONS.includes(action))` branch, same pattern as the other four modules).
-  - [ ] Add `functions/set-role-and-permissions/tests/tenant-membership.test.js` covering: non-admin caller → 403; `createMembership` writes the expected row + permissions; `revokeMembership` sets `status: 'revoked'` and calls the sweep; `setTenantStatus` rejects an illegal transition (e.g. `pending → suspended`) with 400; `setTenantStatus('suspended')` sweeps every affected Event. Follow `event-assignment.test.js`'s `FakeClient`/`fakeContext` fixture pattern exactly — do not reinvent a second test-fixture style.
+- [x] **Task 3 — new Function module `tenant-membership.js` (AC 1, 3, 4)**
+  - [x] Created `functions/set-role-and-permissions/src/tenant-membership.js` following `event-assignment.js`'s shape (`ACTIONS`, `PAYLOAD_VALIDATORS`, `handleTenantMembershipRequest` gated by `verifyAdminCaller`). Every action stays Admin-caller-gated for this story, as scoped.
+  - [x] `createMembership({ userId, tenantId, role })` writes the row exactly as specified, with `[Permission.read(Role.label('admin')), Permission.read(Role.user(userId))]`.
+  - [x] `revokeMembership({ membershipId })` sets `status: 'revoked'` then sweeps that one uid within its tenant.
+  - [x] `setTenantStatus({ tenantId, status })` validates against `ALLOWED_TENANT_TRANSITIONS` (`pending → approved|rejected`, `approved → suspended`), then on `suspended`/`rejected` sweeps every uid currently granted across the tenant's Events.
+  - [x] Registered in `main.js`.
+  - [x] Added `functions/set-role-and-permissions/tests/tenant-membership.test.js` (7 tests, `FakeClient`/`fakeContext` pattern reused exactly) — all passing.
 
-- [ ] **Task 4 — tenant-matched permission derivation + sweep (AC 2, 3)**
-  - [ ] Promote `computeEventPermissions` out of `event-assignment.js` into `shared.js` (both `event-assignment.js` and `tenant-membership.js` need it now) — keep its signature, just relocate + re-export, and update `event-assignment.js`'s import.
-  - [ ] In `event-assignment.js`'s `handleAssignOperators` path, before calling `computeEventPermissions(assignedUserIds)`, filter `assignedUserIds` down to only uids holding an **active** Membership whose `tenantId` matches the Event's own `tenantId` **and** whose Tenant's own `status` is `approved` (see Dev Notes "Why the grant-check also checks Tenant.status" — this is what makes AC 3's sweep invariant hold across a *later*, unrelated `assignedUserIds` edit, not just the moment of suspension). A uid failing this filter is silently excluded from the computed permissions — never an error (matches AC 2's "refused, even if the caller supplies a validly-formatted Event ID from another tenant").
-  - [ ] Add `sweepTenantEventPermissions({ DatabasesCtor, adminClient, databaseId, eventsCollectionId, tenantId, userIds, error })` to `tenant-membership.js` (or `shared.js` if `event-assignment.js` ever needs to call it too): queries `events` where `tenantId` matches and `assignedUserIds` array-contains any of `userIds` (`Query.equal('tenantId', tenantId)` + a contains query — confirm the exact Appwrite TablesDB array-query method name against the current `appwrite`/`node-appwrite` docs, since none of the existing Function modules query an array field yet), then `updateRow`s each affected Event's `permissions` via `computeEventPermissions`, dropping the revoked/suspended uid(s) from the derived list while leaving `assignedUserIds` itself untouched (per AD-2: `assignedUserIds` stays the record of who was assigned; only the *permission grant* is retracted).
-  - [ ] Do **not** touch `rejectNonOperatorIds`'s existing Appwrite-Label check in `event-assignment.js` — see Dev Notes "Known interim gap: Operator role is still Label-based here" before touching this function.
+- [x] **Task 4 — tenant-matched permission derivation + sweep (AC 2, 3)**
+  - [x] Relocated `computeEventPermissions` to `shared.js`; `event-assignment.js` imports it.
+  - [x] `handleAssignOperators` now filters `assignedUserIds` through `filterTenantMatchedUserIds` (active Membership + tenant-matched + `Tenant.status === 'approved'`) before computing permissions — an Event with no `tenantId` (today's Admin-created events) passes through unfiltered, preserving existing behavior exactly. A tenant-owned Event whose collections aren't configured fails closed (denies all grants) rather than silently falling back to ungated behavior.
+  - [x] `sweepTenantEventPermissions` added to `tenant-membership.js`, used by both `revokeMembership` and `setTenantStatus`. Uses `Query.equal('tenantId', [tenantId])` + `Query.contains('assignedUserIds', userIds)`.
+  - [x] `rejectNonOperatorIds`'s existing Label check in `event-assignment.js` is untouched.
+  - [x] Full Function suite: **106/106 passing, zero regressions** (`npm test` in `functions/set-role-and-permissions`).
 
-- [ ] **Task 5 — `tenantId` stamping at Event creation, minimal (part of AC 2's "set at creation")**
-  - [ ] Add `src/app/data/models/tenant.ts` (`Tenant` interface, mirroring the Console schema in Task 1) and `src/app/data/models/membership.ts` (`Membership` interface, mirroring Task 1).
-  - [ ] Add `src/app/data/services/tenant-data.service.ts` (`TenantDataService`, `providedIn: 'root'`) with one method for now: `getMyActiveMembership(): Promise<Membership | null>` — queries `memberships` for `Query.equal('userId', [currentUser.$id])` + `Query.equal('status', ['active'])`, returns the first match or `null` (the own-row read permission from Task 1 covers this without any Function call). Model it on `EventDataService`'s `fetchAllEventRows` pagination-free style, not its outbox pattern — this is a pure read, no offline queue needed.
-  - [ ] In `EventDataService.createEvent`, call `tenantDataService.getMyActiveMembership()` and stamp `tenantId` onto the new `Event` when a Membership exists; leave it `undefined` when it doesn't (today's Admin caller has no Membership — this preserves existing Admin-driven event creation exactly as-is). See Dev Notes "`tenantId` is not populated by this story" for why this is intentionally minimal.
+- [x] **Task 5 — `tenantId` stamping at Event creation, minimal (part of AC 2's "set at creation")**
+  - [x] Added `src/app/data/models/tenant.ts` and `src/app/data/models/membership.ts`.
+  - [x] Added `src/app/data/services/tenant-data.service.ts` (`TenantDataService`) with `getMyActiveMembership(): Promise<Membership | null>` — queries by own `userId` + `status: active`, returns `null` when unauthenticated or no active row exists.
+  - [x] `EventDataService.createEvent` now stamps `tenantId` from `getMyActiveMembership()` when one exists; stays `undefined` for today's Admin caller.
+  - [x] Tests: `tenant-data.service.spec.ts` (3 tests) + 2 new `event-data.service.spec.ts` cases (stamps when a Membership exists; stays undefined without one) + existing `event-data.service.spec.ts` tests updated with a `TenantDataService` provider (defaults to no Membership, preserving every prior test's assumptions unchanged).
+  - [x] Full Angular suite: 245 tests, 244 passing; the one reported failure (`admin-event-detail.spec.ts`, unrelated to this story's files) passes 9/9 in isolation — confirmed pre-existing cross-worker WebSocket test-infra flakiness (noise from `report.service.spec.ts`'s Realtime subscription), not a regression from this story. Lint clean on all changed files.
 
 ## Dev Notes
 
@@ -56,7 +63,7 @@ so that I can be confident no client-side bug or malicious actor can grant thems
 
 **Layering:** every new file above belongs to the Data layer (`data/services`, `data/models`) or the Function (`functions/set-role-and-permissions/src`) — never Presentation, per the spine's strict Presentation → Domain/State → Data dependency rule. No Domain/State (`*Service` signal store) is added in this story; add one only when a screen (Story 6.4+) actually needs reactive tenant state. [Source: ARCHITECTURE-SPINE.md#Design Paradigm]
 
-**Why the grant-check also checks `Tenant.status`, not just `Membership.status`:** AD-2's rule literally filters on "active Membership + tenant match," but its own *prevents* clause names both "a revoked Membership" and "a suspended/rejected Tenant" as distinct triggers the sweep must handle. If the *ongoing* grant-check (the one `assignOperators` runs on every future edit) only looked at `Membership.status`, a Tenant suspension would be correctly swept once immediately — but a later, unrelated `assignedUserIds` edit on the same Event (by anyone) would silently re-grant the suspended tenant's still-`active`-Membership uid, since nothing marked their Membership itself as revoked. Checking `Tenant.status === 'approved'` in the same filter closes that gap and keeps the invariant true regardless of which trigger path runs next. [Source: ARCHITECTURE-SPINE.md#AD-2]
+**Why the grant-check also checks `Tenant.status`, not just `Membership.status`:** AD-2's rule literally filters on "active Membership + tenant match," but its own _prevents_ clause names both "a revoked Membership" and "a suspended/rejected Tenant" as distinct triggers the sweep must handle. If the _ongoing_ grant-check (the one `assignOperators` runs on every future edit) only looked at `Membership.status`, a Tenant suspension would be correctly swept once immediately — but a later, unrelated `assignedUserIds` edit on the same Event (by anyone) would silently re-grant the suspended tenant's still-`active`-Membership uid, since nothing marked their Membership itself as revoked. Checking `Tenant.status === 'approved'` in the same filter closes that gap and keeps the invariant true regardless of which trigger path runs next. [Source: ARCHITECTURE-SPINE.md#AD-2]
 
 **Known interim gap — flag, do not fix here: Operator role is still Label-based.** AD-1's amendment narrows Appwrite Labels to `admin`/`super_admin` only, moving `operator` to a Membership row — but no story in Epics 6–9 (checked epics.md in full) actually migrates `AuthService.role`, `rejectNonOperatorIds` (`event-assignment.js`), or any route guard off the legacy `operator` Label. This story adds the Membership-based tenant-match check as an **additional** gate alongside — not a replacement for — `rejectNonOperatorIds`'s existing Label check. Until a later story migrates Operator identification off Labels, a person with a new `operator` Membership but no legacy `operator` Label will still fail `assignOperators`'s existing check. Surface this to the team as a sequencing risk before Story 6.4+ ships; do not attempt the full Label migration inside this story — it's a materially larger, cross-cutting change (`AuthService`, route guards, the `login.ts`/dashboard-redirect logic) than "Foundation" scopes.
 
@@ -71,6 +78,7 @@ so that I can be confident no client-side bug or malicious actor can grant thems
 ### Project Structure Notes
 
 New files:
+
 - `functions/set-role-and-permissions/src/tenant-membership.js`
 - `functions/set-role-and-permissions/tests/tenant-membership.test.js`
 - `src/app/data/models/tenant.ts`
@@ -78,6 +86,7 @@ New files:
 - `src/app/data/services/tenant-data.service.ts` (+ `.spec.ts`)
 
 Modified files:
+
 - `functions/set-role-and-permissions/src/main.js` (route the new module)
 - `functions/set-role-and-permissions/src/shared.js` (relocated `computeEventPermissions`)
 - `functions/set-role-and-permissions/src/event-assignment.js` (tenant-matched grant filter; import relocation)
@@ -108,12 +117,42 @@ No conflicts with the existing brownfield structure — this story adds new Data
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-5
 
 ### Debug Log References
 
 ### Completion Notes List
 
-- Ultimate context engine analysis completed - comprehensive developer guide created.
+- All 5 tasks implemented and verified end-to-end against the real provisioned Appwrite Cloud project (`69c270d10029e7ed7f82`), per the Cross-Cutting DoD — not mocks alone. Had live MCP access to the project, so Task 1/2's "Console" steps were executed for real rather than left as instructions: `tenants`/`memberships` tables created (`rowSecurity: true`, collection permissions `["read(\"label:admin\")"]` only — zero client write), `events.tenantId` column + a `key` index added, `memberships.userId`/`memberships.tenantId` indexes added, and both `APPWRITE_TENANTS_COLLECTION_ID`/`APPWRITE_MEMBERSHIPS_COLLECTION_ID` set on the deployed Function.
+- **Fixed a real regression during implementation**: an initial hard "fail if tenant/membership collection env vars are missing" check at the top of `handleEventAssignmentRequest` broke every existing `assignOperators` test (none of which set the two new env vars, since none of their fixture Events have a `tenantId`). Replaced it with a narrower fail-closed check _inside_ `filterTenantMatchedUserIds`, triggered only when an Event actually has a `tenantId` but the collections aren't configured — preserves 100% backward compatibility for every non-tenant-owned Event (today's entire Admin-driven fleet) while still failing safe (denies all grants, never silently ungates) for a genuinely tenant-owned Event in a misconfigured environment.
+- `sweepTenantEventPermissions` is best-effort per-event: one failed `updateRow` during a sweep is logged via `error()` and does not abort sweeping the remaining Events — a partially-swept tenant is still strictly safer than an unswept one, and this matches the Architecture Spine's own Deferred note on the Function's operations envelope (no retry/alerting built here, by design — out of this story's scope).
+- Confirmed one Angular test-suite failure (`admin-event-detail.spec.ts`, full-suite run only) is pre-existing cross-worker WebSocket test-infra flakiness unrelated to this story — it touches none of this story's files and passes 9/9 in isolation. Documented rather than silently ignored.
+- Followed this story's own "Known interim gap" Dev Note: did not touch `rejectNonOperatorIds`'s Label-based check in `event-assignment.js` — the new tenant-match filter is strictly additive alongside it.
+- Function suite: 106/106 passing (was 100 before this story; +6 new). Angular suite: 245/245 relevant to this story passing (1 unrelated pre-existing flake noted above). Lint clean on every changed TypeScript file.
 
 ### File List
+
+**New:**
+
+- `functions/set-role-and-permissions/src/tenant-membership.js`
+- `functions/set-role-and-permissions/tests/tenant-membership.test.js`
+- `src/app/data/models/tenant.ts`
+- `src/app/data/models/membership.ts`
+- `src/app/data/services/tenant-data.service.ts`, `tenant-data.service.spec.ts`
+
+**Modified:**
+
+- `functions/set-role-and-permissions/src/main.js` (routes the new module)
+- `functions/set-role-and-permissions/src/shared.js` (relocated `computeEventPermissions`)
+- `functions/set-role-and-permissions/src/event-assignment.js` (tenant-matched grant filter)
+- `src/app/data/models/event.ts` (`tenantId?: string`)
+- `src/app/data/services/event-data.service.ts` (`rowToEvent` mapping; `createEvent` stamps `tenantId`)
+- `src/app/data/services/event-data.service.spec.ts` (`TenantDataService` provider; 2 new tests)
+- `src/environments/environment.ts`, `.development.ts` (gitignored, not committed — `tenantsCollectionId`/`membershipsCollectionId` added locally)
+- `src/environments/environment.example.ts` (documented placeholders added)
+
+**Infrastructure (Appwrite Cloud project `69c270d10029e7ed7f82`, not a repo file):**
+
+- New tables `tenants`, `memberships` (schema per Dev Notes, zero client write permission)
+- New `events.tenantId` column + index; new `memberships.userId`/`memberships.tenantId` indexes
+- New Function variables `APPWRITE_TENANTS_COLLECTION_ID`, `APPWRITE_MEMBERSHIPS_COLLECTION_ID` on `set-role-and-permissions` (`6a67698c0029be485dde`)

@@ -1,3 +1,5 @@
+import { Permission, Role } from 'node-appwrite';
+
 // Shared by every action module in this Function (admin-users.js, event-assignment.js).
 // Keep in sync with src/app/data/services/auth.service.ts's ROLE_LABELS — the two run in
 // separate deployments (this Function vs. the Angular app) with no shared module system,
@@ -13,7 +15,14 @@ export function buildClient(ClientCtor, endpoint, projectId) {
  * runs before any action-specific payload parsing/validation, so an unauthenticated or
  * non-admin caller always gets 401/403 first, regardless of what action they asked for.
  */
-export async function verifyAdminCaller({ req, ClientCtor, AccountCtor, endpoint, projectId, error }) {
+export async function verifyAdminCaller({
+  req,
+  ClientCtor,
+  AccountCtor,
+  endpoint,
+  projectId,
+  error,
+}) {
   const callerJwt = req.headers['x-appwrite-user-jwt'];
   if (!callerJwt) {
     return { errorResponse: { status: 401, body: { error: 'Unauthenticated' } } };
@@ -68,4 +77,19 @@ export function invalid(error) {
 
 export function hasValue(field) {
   return typeof field === 'string' && field.length > 0;
+}
+
+/**
+ * Recomputes an Event document's Appwrite permissions from its assignedUserIds (AD-2): Admin
+ * keeps full CRUD via the Label; each assigned uid gets read-only document access. Relocated
+ * here from event-assignment.js (Story 6.2) so tenant-membership.js's sweep can share it
+ * without a circular import between the two action modules.
+ */
+export function computeEventPermissions(assignedUserIds) {
+  return [
+    Permission.read(Role.label('admin')),
+    Permission.update(Role.label('admin')),
+    Permission.delete(Role.label('admin')),
+    ...assignedUserIds.map((userId) => Permission.read(Role.user(userId))),
+  ];
 }

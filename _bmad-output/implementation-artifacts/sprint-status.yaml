@@ -41,11 +41,11 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-07-26
-last_updated: 2026-09-25-story-6-2-created
+last_updated: 2026-09-25-story-6-2-review
 project: givio
 project_key: NOKEY
 tracking_system: file-system
-story_location: "{project-root}/_bmad-output/implementation-artifacts"
+story_location: '{project-root}/_bmad-output/implementation-artifacts'
 
 development_status:
   epic-1: in-progress
@@ -388,7 +388,7 @@ development_status:
   # retired during elicitation (route-rename plan reversed) -- Epic 6 starts at 6.2,
   # ID intentionally not reused.
   epic-6: in-progress
-  6-2-tenant-membership-foundation: ready-for-dev
+  6-2-tenant-membership-foundation: review
   6-3-credentials-per-relationship-enforcement: backlog
   6-4-organizer-onboarding-admin-invited-self-signup: backlog
   6-5-manual-verification-admin-approval-queue: backlog

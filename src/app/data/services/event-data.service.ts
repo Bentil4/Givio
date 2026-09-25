@@ -6,6 +6,7 @@ import { appDb } from '../dexie/app-db';
 import type { OutboxEntry } from '../models/outbox-entry';
 import type { Event } from '../models/event';
 import { AuthService } from './auth.service';
+import { TenantDataService } from './tenant-data.service';
 import { ServiceError } from '../../core/services/service-error';
 import { writeAuditLog } from './audit-log-writer';
 import { environment } from '../../../environments/environment';
@@ -39,6 +40,7 @@ function rowToEvent(row: Models.DefaultRow): Event {
     image: row['image'] ?? undefined,
     status: row['status'],
     accessCode: row['accessCode'] ?? undefined,
+    tenantId: row['tenantId'] ?? undefined,
     assignedUserIds: row['assignedUserIds'] ?? [],
     createdBy: row['createdBy'],
     nextReceiptSeq: row['nextReceiptSeq'],
@@ -52,6 +54,7 @@ export class EventDataService {
   private readonly databases = inject(DATABASES);
   private readonly functions = inject(FUNCTIONS);
   private readonly authService = inject(AuthService);
+  private readonly tenantDataService = inject(TenantDataService);
 
   /**
    * Server-pull (Story 2.1's added AC, FR-DEV-003): without this, a device that never itself
@@ -107,6 +110,11 @@ export class EventDataService {
 
   async createEvent(input: CreateEventInput): Promise<Event> {
     const now = new Date().toISOString();
+    // Story 6.2: stamps the creating user's own tenant onto the Event, set once at creation
+    // (AD-2 — immutable thereafter). Today's Admin caller has no Membership, so this stays
+    // undefined for Admin-created events, preserving existing behavior exactly until an
+    // Organizer-tier creation flow exists.
+    const membership = await this.tenantDataService.getMyActiveMembership();
     const event: Event = {
       id: ID.unique(),
       name: input.name,
@@ -118,6 +126,7 @@ export class EventDataService {
       notes: input.notes,
       image: input.image,
       status: 'active',
+      tenantId: membership?.tenantId,
       assignedUserIds: [],
       createdBy: this.authService.currentUser()!.$id,
       nextReceiptSeq: 0,
@@ -211,10 +220,15 @@ export class EventDataService {
       throw new ServiceError('Event not found');
     }
 
-    await invokeAdminFunction(this.functions, 'assignOperators', 'Failed to save operator assignment', {
-      eventId,
-      assignedUserIds,
-    });
+    await invokeAdminFunction(
+      this.functions,
+      'assignOperators',
+      'Failed to save operator assignment',
+      {
+        eventId,
+        assignedUserIds,
+      },
+    );
 
     const updated: Event = { ...current, assignedUserIds, updatedAt: new Date().toISOString() };
     try {
@@ -253,10 +267,15 @@ export class EventDataService {
       throw new ServiceError('Event not found');
     }
 
-    await invokeAdminFunction(this.functions, 'setEventStatus', 'Failed to change the event status', {
-      eventId,
-      status,
-    });
+    await invokeAdminFunction(
+      this.functions,
+      'setEventStatus',
+      'Failed to change the event status',
+      {
+        eventId,
+        status,
+      },
+    );
 
     const updated: Event = { ...current, status, updatedAt: new Date().toISOString() };
     try {
