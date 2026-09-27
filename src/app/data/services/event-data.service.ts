@@ -113,8 +113,10 @@ export class EventDataService {
     // Story 6.2: stamps the creating user's own tenant onto the Event, set once at creation
     // (AD-2 — immutable thereafter). Today's Admin caller has no Membership, so this stays
     // undefined for Admin-created events, preserving existing behavior exactly until an
-    // Organizer-tier creation flow exists.
-    const membership = await this.tenantDataService.getMyActiveMembership();
+    // Organizer-tier creation flow exists. Code-review fix: guarded at this call site too
+    // (TenantDataService itself never rejects, but a lookup failure must never block the
+    // offline-first local save below regardless of which layer would otherwise throw).
+    const membership = await this.tenantDataService.getMyActiveMembership().catch(() => null);
     const event: Event = {
       id: ID.unique(),
       name: input.name,

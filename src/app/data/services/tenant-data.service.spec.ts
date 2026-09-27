@@ -38,6 +38,14 @@ describe('TenantDataService', () => {
       expect(result).toBeNull();
     });
 
+    it('returns null (never throws) when the lookup fails — e.g. offline', async () => {
+      databases.listRows.mockRejectedValueOnce(new Error('offline'));
+
+      const result = await service.getMyActiveMembership();
+
+      expect(result).toBeNull();
+    });
+
     it("maps the first matching row and queries by the caller's own userId and active status", async () => {
       databases.listRows.mockResolvedValueOnce({
         rows: [

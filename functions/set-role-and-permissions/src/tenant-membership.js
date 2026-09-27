@@ -1,4 +1,4 @@
-import { Client, Account, TablesDB, ID, Query, Permission, Role } from 'node-appwrite';
+import { Client, Account, Users, TablesDB, ID, Query, Permission, Role } from 'node-appwrite';
 import {
   buildClient,
   verifyAdminCaller,
@@ -6,6 +6,8 @@ import {
   invalid,
   hasValue,
   computeEventPermissions,
+  listAllRows,
+  isConflictError,
 } from './shared.js';
 
 const ACTIONS = ['createMembership', 'revokeMembership', 'setTenantStatus'];
@@ -75,25 +77,27 @@ async function sweepTenantEventPermissions({
   error,
 }) {
   if (userIds.length === 0) {
-    return;
+    return { listed: true };
   }
 
   const databases = new DatabasesCtor(adminClient);
 
   let affectedEvents;
   try {
-    affectedEvents = await databases.listRows({
+    affectedEvents = await listAllRows({
+      DatabasesCtor,
+      adminClient,
       databaseId,
       tableId: eventsCollectionId,
       queries: [Query.equal('tenantId', [tenantId]), Query.contains('assignedUserIds', userIds)],
     });
   } catch (err) {
     error(`sweepTenantEventPermissions: listRows failed for tenant ${tenantId}: ${err.message}`);
-    return;
+    return { listed: false };
   }
 
   const sweptUserIds = new Set(userIds);
-  for (const event of affectedEvents.rows) {
+  for (const event of affectedEvents) {
     const remainingUserIds = (event.assignedUserIds ?? []).filter((uid) => !sweptUserIds.has(uid));
     try {
       await databases.updateRow({
@@ -107,22 +111,75 @@ async function sweepTenantEventPermissions({
       // Best-effort per-event: one failed sweep must not abort the others (a partially-swept
       // tenant is still strictly safer than an unswept one) — surfaced via `error` for
       // operator visibility, per the Architecture Spine's Deferred operations-envelope note.
+      // (Deferred, not patched — see Story 6.2's code-review findings: this matches the
+      // Architecture Spine's own explicit Deferred note on the AD-9 Function's ops envelope.)
       error(`sweepTenantEventPermissions: updateRow failed for event ${event.$id}: ${err.message}`);
     }
   }
+
+  return { listed: true };
 }
 
 async function handleCreateMembership({
   DatabasesCtor,
+  UsersCtor,
   adminClient,
   payload,
   caller,
   databaseId,
+  tenantsCollectionId,
   membershipsCollectionId,
   error,
 }) {
   const { userId, tenantId, role } = payload;
   const databases = new DatabasesCtor(adminClient);
+
+  // Deliberately does NOT require tenant.status === 'approved' — Story 6.4's self-signup flow
+  // creates the applicant's own Super Organizer Membership while the Tenant is still
+  // 'pending' (the intake step, before Admin's later approval). Existence is still required:
+  // a typo'd/garbage tenantId must not create a permanently orphaned Membership.
+  try {
+    await databases.getRow({ databaseId, tableId: tenantsCollectionId, rowId: tenantId });
+  } catch (err) {
+    error(`createMembership: tenant ${tenantId} not found: ${err.message}`);
+    return { status: 404, body: { error: 'Tenant not found' } };
+  }
+
+  // Mirrors rejectNonOperatorIds's existing precedent in event-assignment.js: confirm the
+  // target is a real account before writing an association to it.
+  try {
+    await new UsersCtor(adminClient).get({ userId });
+  } catch (err) {
+    error(`createMembership: user ${userId} not found: ${err.message}`);
+    return { status: 404, body: { error: 'User not found' } };
+  }
+
+  // AD-1/FR-4/FR-5's credentials-per-relationship model means one Account never legitimately
+  // holds more than one active Membership at a time — Story 6.3's own AC1 states there is "no
+  // product surface anywhere that attaches a second tenant's Membership to an existing
+  // Account." Enforcing that here (rather than trusting every future caller to check first)
+  // is what makes TenantDataService.getMyActiveMembership's "the" active Membership actually
+  // well-defined, instead of picking an arbitrary one among duplicates.
+  let existingActiveMemberships;
+  try {
+    existingActiveMemberships = await listAllRows({
+      DatabasesCtor,
+      adminClient,
+      databaseId,
+      tableId: membershipsCollectionId,
+      queries: [Query.equal('userId', [userId]), Query.equal('status', ['active'])],
+    });
+  } catch (err) {
+    error(`createMembership: existing-membership lookup failed: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to verify existing memberships' } };
+  }
+  // Not atomic on its own — a concurrent request can pass this same check before either write
+  // lands (code review finding). The `userId_unique` index on the memberships table is what
+  // actually enforces "at most one Membership row per Account, ever" (per AD-1/FR-4/FR-5); this
+  // pre-check just turns the common case into a clean 409 without a wasted createRow attempt.
+  if (existingActiveMemberships.length > 0) {
+    return { status: 409, body: { error: 'User already holds an active membership' } };
+  }
 
   const now = new Date().toISOString();
   let row;
@@ -135,6 +192,10 @@ async function handleCreateMembership({
       permissions: [Permission.read(Role.label('admin')), Permission.read(Role.user(userId))],
     });
   } catch (err) {
+    if (isConflictError(err)) {
+      error(`createMembership: userId_unique conflict for ${userId}: ${err.message}`);
+      return { status: 409, body: { error: 'User already holds an active membership' } };
+    }
     error(`createMembership: createRow failed: ${err.message}`);
     return { status: 502, body: { error: 'Failed to create membership' } };
   }
@@ -181,7 +242,7 @@ async function handleRevokeMembership({
     return { status: 502, body: { error: 'Failed to revoke membership' } };
   }
 
-  await sweepTenantEventPermissions({
+  const sweepResult = await sweepTenantEventPermissions({
     DatabasesCtor,
     adminClient,
     databaseId,
@@ -190,6 +251,17 @@ async function handleRevokeMembership({
     userIds: [membership.userId],
     error,
   });
+  if (!sweepResult.listed) {
+    // Same fail-closed reasoning as setTenantStatus: the Membership row is already revoked,
+    // but the Event-permission sweep couldn't even be attempted — say so rather than 200.
+    return {
+      status: 502,
+      body: {
+        error: 'Membership was revoked, but sweeping its Event permissions failed',
+        membershipId,
+      },
+    };
+  }
 
   return { status: 200, body: { success: true, membershipId, status: 'revoked' } };
 }
@@ -216,49 +288,78 @@ async function handleSetTenantStatus({
   }
 
   const from = tenant.status;
-  if (!(ALLOWED_TENANT_TRANSITIONS[from] ?? []).includes(status)) {
+  // A same-status call to a terminal, sweep-bearing status is treated as "retry the sweep",
+  // not an illegal no-op transition (code review finding): without this, a tenant whose status
+  // write succeeded but whose event sweep then failed (the 502 case below) would be
+  // permanently stuck — ALLOWED_TENANT_TRANSITIONS has no outgoing entry for 'suspended' or
+  // 'rejected', so the normal transition check would reject every retry attempt.
+  const isSweepRetry = from === status && (status === 'suspended' || status === 'rejected');
+  if (!isSweepRetry && !(ALLOWED_TENANT_TRANSITIONS[from] ?? []).includes(status)) {
     return {
       status: 400,
       body: { error: `Cannot change tenant status from ${from} to ${status}` },
     };
   }
 
-  try {
-    await databases.updateRow({
-      databaseId,
-      tableId: tenantsCollectionId,
-      rowId: tenantId,
-      data: { status },
-    });
-  } catch (err) {
-    error(`setTenantStatus: updateRow failed: ${err.message}`);
-    return { status: 502, body: { error: 'Failed to change the tenant status' } };
+  if (!isSweepRetry) {
+    try {
+      await databases.updateRow({
+        databaseId,
+        tableId: tenantsCollectionId,
+        rowId: tenantId,
+        data: { status },
+      });
+    } catch (err) {
+      error(`setTenantStatus: updateRow failed: ${err.message}`);
+      return { status: 502, body: { error: 'Failed to change the tenant status' } };
+    }
   }
 
   if (status === 'suspended' || status === 'rejected') {
+    // Every one of this tenant's Events loses every currently-granted uid — not a
+    // targeted-by-uid sweep (that's sweepTenantEventPermissions's job for a single
+    // Membership revoke), so this lists and clears the tenant's Events directly rather than
+    // computing a uid list and re-querying by it (avoids a redundant round trip, and means
+    // there is exactly one place this can fail, not two).
     let tenantEvents;
     try {
-      tenantEvents = await databases.listRows({
+      tenantEvents = await listAllRows({
+        DatabasesCtor,
+        adminClient,
         databaseId,
         tableId: eventsCollectionId,
         queries: [Query.equal('tenantId', [tenantId])],
       });
     } catch (err) {
       error(`setTenantStatus: listing tenant's events failed: ${err.message}`);
-      tenantEvents = { rows: [] };
+      // Story 6.2 code review (fail-closed, not fail-open): the tenant's status row was
+      // already written above, but the sweep could not even be attempted — report that
+      // honestly rather than a 200 that implies every Event grant was revoked.
+      return {
+        status: 502,
+        body: {
+          error: 'Tenant status was changed, but sweeping its Event permissions failed',
+          tenantId,
+          status,
+        },
+      };
     }
-    const everyGrantedUserId = [
-      ...new Set(tenantEvents.rows.flatMap((event) => event.assignedUserIds ?? [])),
-    ];
-    await sweepTenantEventPermissions({
-      DatabasesCtor,
-      adminClient,
-      databaseId,
-      eventsCollectionId,
-      tenantId,
-      userIds: everyGrantedUserId,
-      error,
-    });
+
+    for (const event of tenantEvents) {
+      try {
+        await databases.updateRow({
+          databaseId,
+          tableId: eventsCollectionId,
+          rowId: event.$id,
+          data: {},
+          permissions: computeEventPermissions([]),
+        });
+      } catch (err) {
+        // Deferred, not patched — matches sweepTenantEventPermissions's own per-event
+        // best-effort behavior and the Architecture Spine's Deferred ops-envelope note.
+        error(`setTenantStatus: updateRow failed for event ${event.$id}: ${err.message}`);
+      }
+    }
   }
 
   return { status: 200, body: { success: true, tenantId, status } };
@@ -281,6 +382,7 @@ export async function handleTenantMembershipRequest({
   error,
   ClientCtor = Client,
   AccountCtor = Account,
+  UsersCtor = Users,
   DatabasesCtor = TablesDB,
 }) {
   const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT;
@@ -339,6 +441,7 @@ export async function handleTenantMembershipRequest({
   const adminClient = buildClient(ClientCtor, endpoint, projectId).setKey(dynamicKey);
   const actionContext = {
     DatabasesCtor,
+    UsersCtor,
     adminClient,
     payload,
     caller,

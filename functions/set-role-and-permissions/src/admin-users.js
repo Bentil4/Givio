@@ -1,6 +1,14 @@
 import { randomBytes } from 'node:crypto';
 import { Client, Account, Users, Messaging, ID, Query } from 'node-appwrite';
-import { VALID_ROLES, buildClient, verifyAdminCaller, VALID, invalid, hasValue } from './shared.js';
+import {
+  VALID_ROLES,
+  buildClient,
+  verifyAdminCaller,
+  VALID,
+  invalid,
+  hasValue,
+  isConflictError,
+} from './shared.js';
 import { renderInviteEmail } from './invite-email-template.js';
 
 const ACTIONS = ['listUsers', 'createUser', 'updateUser', 'setStatus', 'forceExpireSessions'];
@@ -26,10 +34,6 @@ function mapUser(u) {
     active: u.status,
     registeredAt: u.registration,
   };
-}
-
-function isConflictError(err) {
-  return err?.code === 409;
 }
 
 /**
@@ -158,12 +162,27 @@ function resolveAppUrl(error) {
   return appUrl;
 }
 
-async function sendInviteEmail({ MessagingCtor, adminClient, userId, name, role, email, generatedPassword, error }) {
+async function sendInviteEmail({
+  MessagingCtor,
+  adminClient,
+  userId,
+  name,
+  role,
+  email,
+  generatedPassword,
+  error,
+}) {
   try {
     await new MessagingCtor(adminClient).createEmail({
       messageId: ID.unique(),
       subject: `Your Givio ${role} account`,
-      content: renderInviteEmail({ name, role, email, password: generatedPassword, appUrl: resolveAppUrl(error) }),
+      content: renderInviteEmail({
+        name,
+        role,
+        email,
+        password: generatedPassword,
+        appUrl: resolveAppUrl(error),
+      }),
       html: true,
       users: [userId],
     });
@@ -179,7 +198,11 @@ async function sendInviteSms({ fetchImpl, phone, content, error }) {
     const response = await fetchImpl(ARKESEL_SMS_ENDPOINT, {
       method: 'POST',
       headers: { 'api-key': process.env.ARKESEL_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sender: process.env.ARKESEL_SENDER_ID, message: content, recipients: [phone] }),
+      body: JSON.stringify({
+        sender: process.env.ARKESEL_SENDER_ID,
+        message: content,
+        recipients: [phone],
+      }),
     });
     if (!response.ok) {
       error(`Arkesel SMS failed with status ${response.status}`);
@@ -192,7 +215,14 @@ async function sendInviteSms({ fetchImpl, phone, content, error }) {
   }
 }
 
-async function handleCreateUser({ UsersCtor, MessagingCtor, fetchImpl, adminClient, payload, error }) {
+async function handleCreateUser({
+  UsersCtor,
+  MessagingCtor,
+  fetchImpl,
+  adminClient,
+  payload,
+  error,
+}) {
   const { name, email, role, password, phone, inviteChannels = [] } = payload ?? {};
   const users = new UsersCtor(adminClient);
   const explicitPassword = hasValue(password);
@@ -210,7 +240,9 @@ async function handleCreateUser({ UsersCtor, MessagingCtor, fetchImpl, adminClie
   } catch (err) {
     if (isConflictError(err)) {
       const field = await resolveDuplicateField(users, err, email, phone);
-      error(`users.create conflict: type=${err.type} resolvedField=${field} message=${err.message}`);
+      error(
+        `users.create conflict: type=${err.type} resolvedField=${field} message=${err.message}`,
+      );
       return { status: 409, body: { error: `A user with this ${field} already exists` } };
     }
     error(`users.create failed: ${err.message}`);
@@ -404,12 +436,22 @@ export async function handleAdminUsersRequest({
 
   const dynamicKey = req.headers['x-appwrite-key'];
   if (!dynamicKey) {
-    error('Missing x-appwrite-key — the Function\'s execution API key scopes are likely misconfigured.');
+    error(
+      "Missing x-appwrite-key — the Function's execution API key scopes are likely misconfigured.",
+    );
     return res.json({ error: 'Server misconfiguration: missing execution API key' }, 500);
   }
 
   const adminClient = buildClient(ClientCtor, endpoint, projectId).setKey(dynamicKey);
-  const actionContext = { UsersCtor, MessagingCtor, fetchImpl, adminClient, payload, caller, error };
+  const actionContext = {
+    UsersCtor,
+    MessagingCtor,
+    fetchImpl,
+    adminClient,
+    payload,
+    caller,
+    error,
+  };
 
   let result;
   switch (action) {

@@ -123,6 +123,22 @@ describe('EventDataService', () => {
 
       expect(event.tenantId).toBeUndefined();
     });
+
+    it('still creates and saves the event locally when the Membership lookup itself rejects (offline)', async () => {
+      tenantDataService.getMyActiveMembership.mockRejectedValueOnce(new Error('offline'));
+      databases.createRow.mockResolvedValueOnce({});
+
+      const event = await service.createEvent({
+        name: 'Offline Membership Lookup',
+        type: 'wedding',
+        date: '2026-09-25',
+        hostName: 'The Osei Family',
+      });
+
+      expect(event.id).toBeTruthy();
+      expect(event.tenantId).toBeUndefined();
+      expect(await appDb.events.get(event.id)).toMatchObject({ name: 'Offline Membership Lookup' });
+    });
   });
 
   describe('updateEvent', () => {
