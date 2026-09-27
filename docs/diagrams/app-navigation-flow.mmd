@@ -1,0 +1,43 @@
+---
+title: Givio app navigation flow
+id: https://mermaidchart.com/d/4142e8d2-b6dd-4b26-a66a-f772ff9aee28
+---
+%% Source: src/app/app.routes.ts, src/app/auth/auth.routes.ts,
+%% src/app/feature/pages/{admin,organizer,family}/*.routes.ts, src/app/core/guards/role.guard.ts
+flowchart TD
+    Start([Visitor opens app]) --> Root["/"]
+    Root -->|redirect| Login["/login"]
+
+    Login --> Authed{Already signed in?}
+    Authed -->|admin| AdminHome
+    Authed -->|operator| OrgHome
+    Authed -->|no| SignIn[Sign in with Appwrite]
+    SignIn -->|admin| AdminHome
+    SignIn -->|operator| OrgHome
+
+    Start --> FamilyCode["/family<br/>Enter event code"]
+    FamilyCode --> FamilyLive["/family/:code<br/>Live giving"]
+
+    subgraph Admin["/dashboard — sessionExpiryGuard + roleGuard(admin)"]
+        AdminHome["/dashboard<br/>Admin Dashboard"]
+        AdminHome --> Users["/dashboard/users"]
+        AdminHome --> Events["/dashboard/events"]
+        Events --> EventDetail["/dashboard/events/:id"]
+        Events --> EditEvent["/dashboard/events/:id/edit"]
+        AdminHome --> Donations["/dashboard/donations<br/>Donation oversight"]
+        Donations --> Conflicts["/dashboard/donations/conflicts"]
+        Donations --> Deleted["/dashboard/donations/deleted"]
+        AdminHome --> Reports["/dashboard/reports"]
+        AdminHome --> Audit["/dashboard/audit"]
+    end
+
+    subgraph Organizer["/organizer — sessionExpiryGuard + roleGuard(operator)"]
+        OrgHome["/organizer<br/>Overview"]
+        OrgHome --> EventSelect["/organizer/events<br/>Select an event"]
+        OrgHome --> Entry["/organizer/entry<br/>Record a donation"]
+        Entry --> PhoneEntry["/organizer/entry/phone"]
+        OrgHome --> TodayDonations["/organizer/donations<br/>Today's donations"]
+    end
+
+    Admin -. session expired or wrong role .-> Login
+    Organizer -. session expired or wrong role .-> Login

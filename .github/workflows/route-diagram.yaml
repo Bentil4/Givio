@@ -1,0 +1,61 @@
+name: Route Diagram
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'src/app/**/*.routes.ts'
+      - 'docs/diagrams/**/*.mmd'
+      - 'scripts/generate-route-diagram.mjs'
+      - '.github/workflows/route-diagram.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  regenerate:
+    name: Regenerate route diagram
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MERMAID_CHART_AUTH_TOKEN: ${{ secrets.MERMAID_CHART_AUTH_TOKEN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate diagram
+        run: npm run diagrams
+      # Pushes made with GITHUB_TOKEN don't trigger new workflow runs, so this can't loop.
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- docs/diagrams/generated; then
+            echo "Route diagram already up to date."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/diagrams/generated
+          git commit -m 'docs(diagrams): regenerate route map'
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+      # Only files linked with `mermaidchart link` (an `id:` in their frontmatter) can be pushed.
+      - name: Push linked diagrams to Mermaid
+        if: ${{ env.MERMAID_CHART_AUTH_TOKEN != '' }}
+        run: |
+          linked=$(grep -rlE '^id: ' docs/diagrams --include='*.mmd' || true)
+          if [ -z "$linked" ]; then
+            echo "No linked diagrams yet — run 'npx @mermaidchart/cli link <file>' locally first."
+            exit 0
+          fi
+          npx -y @mermaidchart/cli push $linked
