@@ -5,6 +5,7 @@ on:
     branches: [main, dev]
     paths:
       - 'src/app/**/*.routes.ts'
+      - 'docs/diagrams/**/*.mmd'
       - 'scripts/generate-route-diagram.mjs'
       - '.github/workflows/route-diagram.yaml'
   workflow_dispatch:
@@ -21,6 +22,8 @@ jobs:
     name: Regenerate route diagram
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      MERMAID_CHART_AUTH_TOKEN: ${{ secrets.MERMAID_CHART_AUTH_TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,3 +49,13 @@ jobs:
           git commit -m 'docs(diagrams): regenerate route map'
           git pull --rebase origin "${GITHUB_REF_NAME}"
           git push origin "HEAD:${GITHUB_REF_NAME}"
+      # Only files linked with `mermaidchart link` (an `id:` in their frontmatter) can be pushed.
+      - name: Push linked diagrams to Mermaid
+        if: ${{ env.MERMAID_CHART_AUTH_TOKEN != '' }}
+        run: |
+          linked=$(grep -rlE '^id: ' docs/diagrams --include='*.mmd' || true)
+          if [ -z "$linked" ]; then
+            echo "No linked diagrams yet — run 'npx @mermaidchart/cli link <file>' locally first."
+            exit 0
+          fi
+          npx -y @mermaidchart/cli push $linked
