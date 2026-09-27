@@ -1,0 +1,10 @@
+package-lock.json
+node_modules/
+dist/
+coverage/
+_bmad/
+_bmad-output/
+**/*.spec.ts
+**/*.scss
+src/environments/
+docs/diagrams/generated/
