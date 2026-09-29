@@ -1,6 +1,6 @@
 import { randomBytes as nodeRandomBytes } from 'node:crypto';
 import { Client, Account, TablesDB, Query } from 'node-appwrite';
-import { buildClient, verifyAdminCaller, VALID, invalid, hasValue } from './shared.js';
+import { buildClient, verifyAdminCaller, VALID, invalid, hasValue, listAllRows } from './shared.js';
 
 const ACTIONS = ['generateAccessCode', 'resolveAccessCode'];
 const CODE_LENGTH = 8;
@@ -49,7 +49,15 @@ function randomCode(randomBytes) {
  * against a party who can't already read the field anyway, at the cost of breaking that
  * already-built "copy code" UI entirely.
  */
-async function handleGenerateAccessCode({ TablesDBCtor, adminClient, payload, databaseId, eventsTableId, randomBytes, error }) {
+async function handleGenerateAccessCode({
+  TablesDBCtor,
+  adminClient,
+  payload,
+  databaseId,
+  eventsTableId,
+  randomBytes,
+  error,
+}) {
   const { eventId } = payload;
   const tablesDB = new TablesDBCtor(adminClient);
 
@@ -79,7 +87,12 @@ async function handleGenerateAccessCode({ TablesDBCtor, adminClient, payload, da
   }
 
   try {
-    await tablesDB.updateRow({ databaseId, tableId: eventsTableId, rowId: eventId, data: { accessCode: code } });
+    await tablesDB.updateRow({
+      databaseId,
+      tableId: eventsTableId,
+      rowId: eventId,
+      data: { accessCode: code },
+    });
   } catch (err) {
     error(`generateAccessCode: updateRow failed: ${err.message}`);
     return { status: 502, body: { error: 'Failed to save the new code' } };
@@ -99,7 +112,15 @@ async function handleGenerateAccessCode({ TablesDBCtor, adminClient, payload, da
  * Never reveals which half of a wrong code was wrong (family-code.ts's own design note) — a
  * miss and a code for someone else's event look identical: a generic 404.
  */
-async function handleResolveAccessCode({ TablesDBCtor, adminClient, payload, databaseId, eventsTableId, donationsTableId, error }) {
+async function handleResolveAccessCode({
+  TablesDBCtor,
+  adminClient,
+  payload,
+  databaseId,
+  eventsTableId,
+  donationsTableId,
+  error,
+}) {
   const { code } = payload;
   const tablesDB = new TablesDBCtor(adminClient);
 
@@ -113,28 +134,38 @@ async function handleResolveAccessCode({ TablesDBCtor, adminClient, payload, dat
     return { status: 404, body: { error: 'Code not recognised' } };
   }
 
-  let donations = [];
+  // Story 9.3 (FR-18): every page, not just the first — a single capped page silently
+  // truncated the family's total for any event past that cap, while Operators/Admin (who
+  // paginate in DonationDataService) saw the full figure.
+  let rows;
   try {
-    const page = await tablesDB.listRows({
+    rows = await listAllRows({
+      DatabasesCtor: TablesDBCtor,
+      adminClient,
       databaseId,
       tableId: donationsTableId,
-      queries: [Query.equal('eventId', event.$id), Query.limit(200)],
+      queries: [Query.equal('eventId', event.$id)],
     });
-    donations = (page.rows ?? [])
-      .filter((d) => !d.deletedAt && d.syncStatus !== 'conflict')
-      .map((d) => ({
-        id: d.$id,
-        donorName: d.donorName,
-        amountMinor: d.amountMinor ?? null,
-        donationType: d.donationType,
-        onBehalfOf: d.onBehalfOf,
-        recordedAt: d.recordedAt,
-        // donorPhone, recordedBy, notes deliberately excluded — never sent to Family.
-      }));
   } catch (err) {
     error(`resolveAccessCode: listing donations failed: ${err.message}`);
-    // The event itself resolved fine — better to show it with an empty list than fail outright.
+    // Never degrade to an empty list here: the family would read it as a real GH₵0 total,
+    // which is exactly the "partial or hidden total" FR-18 forbids. An error keeps their
+    // last-known figure on screen (family-live shows "Reconnecting…") instead.
+    return { status: 502, body: { error: 'Failed to load donations, try again' } };
   }
+
+  // Same exclusion rule as the shared totalMinor() every Operator/Admin total uses.
+  const donations = rows
+    .filter((d) => !d.deletedAt && d.syncStatus !== 'conflict')
+    .map((d) => ({
+      id: d.$id,
+      donorName: d.donorName,
+      amountMinor: d.amountMinor ?? null,
+      donationType: d.donationType,
+      onBehalfOf: d.onBehalfOf,
+      recordedAt: d.recordedAt,
+      // donorPhone, recordedBy, notes deliberately excluded — never sent to Family.
+    }));
 
   return {
     status: 200,
@@ -184,7 +215,12 @@ export async function handleFamilyAccessRequest({
   let caller = null;
   if (action === 'generateAccessCode') {
     const { errorResponse, caller: verifiedCaller } = await verifyAdminCaller({
-      req, ClientCtor, AccountCtor, endpoint, projectId, error,
+      req,
+      ClientCtor,
+      AccountCtor,
+      endpoint,
+      projectId,
+      error,
     });
     if (errorResponse) {
       return res.json(errorResponse.body, errorResponse.status);
@@ -196,12 +232,16 @@ export async function handleFamilyAccessRequest({
 
   const dynamicKey = req.headers['x-appwrite-key'];
   if (!dynamicKey) {
-    error('Missing x-appwrite-key — the Function\'s execution API key scopes are likely misconfigured.');
+    error(
+      "Missing x-appwrite-key — the Function's execution API key scopes are likely misconfigured.",
+    );
     return res.json({ error: 'Server misconfiguration: missing execution API key' }, 500);
   }
 
   if (!hasValue(databaseId) || !hasValue(eventsTableId) || !hasValue(donationsTableId)) {
-    error('Missing APPWRITE_DATABASE_ID/APPWRITE_EVENTS_COLLECTION_ID/APPWRITE_DONATIONS_COLLECTION_ID function variables.');
+    error(
+      'Missing APPWRITE_DATABASE_ID/APPWRITE_EVENTS_COLLECTION_ID/APPWRITE_DONATIONS_COLLECTION_ID function variables.',
+    );
     return res.json({ error: 'Server misconfiguration: missing database/table ID' }, 500);
   }
 
@@ -211,12 +251,24 @@ export async function handleFamilyAccessRequest({
   switch (action) {
     case 'generateAccessCode':
       result = await handleGenerateAccessCode({
-        TablesDBCtor, adminClient, payload, databaseId, eventsTableId, randomBytes, error,
+        TablesDBCtor,
+        adminClient,
+        payload,
+        databaseId,
+        eventsTableId,
+        randomBytes,
+        error,
       });
       break;
     case 'resolveAccessCode':
       result = await handleResolveAccessCode({
-        TablesDBCtor, adminClient, payload, databaseId, eventsTableId, donationsTableId, error,
+        TablesDBCtor,
+        adminClient,
+        payload,
+        databaseId,
+        eventsTableId,
+        donationsTableId,
+        error,
       });
       break;
   }
