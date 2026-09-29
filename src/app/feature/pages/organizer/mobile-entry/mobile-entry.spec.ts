@@ -1,10 +1,13 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { MobileEntry } from './mobile-entry';
 import { appDb } from '../../../../data/dexie/app-db';
 import { DonationService } from '../../../../data/services/donation.service';
 import { ServiceError } from '../../../../core/services/service-error';
+import { AuthService } from '../../../../data/services/auth.service';
+import { EventService } from '../../../../data/services/event.service';
+import { OperatorEventContext } from '../operator-event-context';
 import type { Event } from '../../../../data/models/event';
 import type { Donation } from '../../../../data/models/donation';
 
@@ -38,17 +41,16 @@ const makeDonation = (overrides: Partial<Donation> = {}): Donation => ({
 
 async function setup(options: {
   event?: Event | null;
+  events?: Event[];
   donations?: Donation[];
   queryEventId?: string | null;
   createDonation?: ReturnType<typeof vi.fn>;
   outboxEntries?: Parameters<typeof appDb.outbox.add>[0][];
 }) {
   const { event = makeEvent(), donations = [], queryEventId = 'e1' } = options;
+  const events = options.events ?? (event ? [event] : []);
   await appDb.events.clear();
   await appDb.outbox.clear();
-  if (event) {
-    await appDb.events.put(event);
-  }
   for (const entry of options.outboxEntries ?? []) {
     await appDb.outbox.add(entry);
   }
@@ -68,18 +70,23 @@ async function setup(options: {
           createDonation,
         },
       },
-      {
-        provide: ActivatedRoute,
-        useValue: { snapshot: { queryParamMap: { get: () => queryEventId } } },
-      },
+      { provide: AuthService, useValue: { currentUser: () => ({ $id: 'op-1' }) } },
+      { provide: EventService, useValue: { events: signal(events), loadEvents: vi.fn() } },
+      OperatorEventContext,
     ],
   }).compileComponents();
 
+  const ctx = TestBed.inject(OperatorEventContext);
+  ctx.pick(queryEventId);
+  await ctx.load();
+
   const fixture = TestBed.createComponent(MobileEntry);
   const component = fixture.componentInstance;
-  await component.ngOnInit();
   fixture.detectChanges();
-  return { fixture, component, loadDonationsForEvent, createDonation };
+  await fixture.whenStable();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  fixture.detectChanges();
+  return { fixture, component, ctx, loadDonationsForEvent, createDonation };
 }
 
 describe('MobileEntry', () => {
@@ -96,10 +103,32 @@ describe('MobileEntry', () => {
     expect(loadDonationsForEvent).toHaveBeenCalledWith('e1');
   });
 
-  it('shows not-found when there is no event query param', async () => {
-    const { component } = await setup({ queryEventId: null });
+  it('shows not-found when the picked event is not assigned to this operator', async () => {
+    const { component } = await setup({ queryEventId: 'missing' });
     expect(component.notFound()).toBe(true);
     expect(component.eventName()).toBe('Event not found');
+  });
+
+  it('with 2+ active Events and no pick, Save stays enabled and points at the switcher (Story 6.6)', async () => {
+    const createDonation = vi.fn();
+    const { component, ctx, fixture } = await setup({
+      events: [makeEvent({ id: 'e1' }), makeEvent({ id: 'e2', name: 'Asante Funeral' })],
+      queryEventId: null,
+      createDonation,
+    });
+
+    expect(component.event()).toBeNull();
+    expect(component.eventName()).toBe('Pick an Event above');
+    const save = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '.save-btn',
+    )!;
+    expect(save.disabled).toBe(false);
+
+    save.click();
+
+    expect(ctx.focusRequest()).toBe(1);
+    expect(ctx.pickPrompt()).toContain('Pick an Event first');
+    expect(createDonation).not.toHaveBeenCalled();
   });
 
   it('shows not-found when the event does not exist locally', async () => {
@@ -109,12 +138,15 @@ describe('MobileEntry', () => {
 
   it('derives the header total from DonationService.donations', async () => {
     const { component } = await setup({
-      donations: [makeDonation({ amountMinor: 5000 }), makeDonation({ id: 'd2', amountMinor: 2500 })],
+      donations: [
+        makeDonation({ amountMinor: 5000 }),
+        makeDonation({ id: 'd2', amountMinor: 2500 }),
+      ],
     });
     expect(component.eventTotalMinor()).toBe(7500);
   });
 
-  it('counts this event\'s pending donation-create outbox entries', async () => {
+  it("counts this event's pending donation-create outbox entries", async () => {
     const { component } = await setup({
       outboxEntries: [
         {
@@ -138,7 +170,7 @@ describe('MobileEntry', () => {
       ],
     });
 
-    expect(component.pendingCount()).toBe(1);
+    await vi.waitFor(() => expect(component.pendingCount()).toBe(1));
   });
 
   it('save() rejects until name and amount are both valid', async () => {
@@ -148,7 +180,8 @@ describe('MobileEntry', () => {
     component.setName('Ama');
     expect(component.canSave()).toBe(false);
 
-    component.press('5'); component.press('0');
+    component.press('5');
+    component.press('0');
     expect(component.canSave()).toBe(true);
   });
 
@@ -157,7 +190,8 @@ describe('MobileEntry', () => {
     const { component } = await setup({ createDonation });
 
     component.setName('Ama');
-    component.press('5'); component.press('0');
+    component.press('5');
+    component.press('0');
     await component.save();
 
     expect(createDonation).toHaveBeenCalledWith(
@@ -169,13 +203,16 @@ describe('MobileEntry', () => {
   });
 
   it('save() surfaces a ServiceError instead of silently succeeding', async () => {
-    const createDonation = vi.fn().mockRejectedValueOnce(
-      new ServiceError('Cannot record a donation against a paused or closed event'),
-    );
+    const createDonation = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new ServiceError('Cannot record a donation against a paused or closed event'),
+      );
     const { component } = await setup({ createDonation });
 
     component.setName('Ama');
-    component.press('5'); component.press('0');
+    component.press('5');
+    component.press('0');
     await component.save();
 
     expect(component.saveError()).toContain('paused or closed');
