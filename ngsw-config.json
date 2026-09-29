@@ -21,23 +21,30 @@
       "installMode": "lazy",
       "updateMode": "prefetch",
       "resources": {
-        "files": [
-          "/**/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|gif|otf|ttf|woff|woff2)"
-        ]
+        "files": ["/**/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|gif|otf|ttf|woff|woff2)"]
       }
     }
   ],
   "dataGroups": [
     {
-      "name": "appwrite-tablesdb-reads",
-      "urls": [
-        "https://fra.cloud.appwrite.io/v1/tablesdb/**"
-      ],
+      "name": "google-fonts-stylesheets",
+      "urls": ["https://fonts.googleapis.com/**"],
       "cacheConfig": {
         "strategy": "freshness",
-        "maxSize": 100,
-        "maxAge": "1d",
-        "timeout": "5s"
+        "maxSize": 10,
+        "maxAge": "30d",
+        "timeout": "3s",
+        "cacheOpaqueResponses": false
+      }
+    },
+    {
+      "name": "google-fonts-files",
+      "urls": ["https://fonts.gstatic.com/**"],
+      "cacheConfig": {
+        "strategy": "performance",
+        "maxSize": 30,
+        "maxAge": "365d",
+        "cacheOpaqueResponses": false
       }
     }
   ]

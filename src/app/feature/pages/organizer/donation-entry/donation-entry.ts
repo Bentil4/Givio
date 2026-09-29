@@ -1,13 +1,13 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  OnInit,
   computed,
   effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import {
   ConnectionBanner,
@@ -16,12 +16,9 @@ import {
 import { DonationForm } from '../../../components/donation-form/donation-form';
 import { PendingQueue } from '../../../components/pending-queue/pending-queue';
 import { DonationRow } from '../../../components/donation-row/donation-row';
-import {
-  Donation,
-  DonationDraft,
-} from '../../../../data/models/donation';
+import { Donation, DonationDraft } from '../../../../data/models/donation';
 import { formatCedis, formatCedisShort, totalMinor } from '../../../../utils/donation.util';
-import type { Event, EventStatus } from '../../../../data/models/event';
+import type { EventStatus } from '../../../../data/models/event';
 import { appDb } from '../../../../data/dexie/app-db';
 import type { OutboxEntry } from '../../../../data/models/outbox-entry';
 import { DonationService } from '../../../../data/services/donation.service';
@@ -30,6 +27,7 @@ import { ConnectivityService } from '../../../../core/services/connectivity.serv
 import { SyncEngineService } from '../../../../data/services/sync-engine.service';
 import { ReceiptService } from '../../../../data/services/receipt.service';
 import { ServiceError } from '../../../../core/services/service-error';
+import { OperatorEventContext } from '../operator-event-context';
 
 /** A queued donation-create outbox entry, shaped for the PendingQueue drawer. */
 function draftFromOutboxEntry(entry: OutboxEntry): DonationDraft {
@@ -56,6 +54,10 @@ type Phase = 'entry' | 'confirming' | 'saved';
  * button's wording change. Two separate offline screens would mean an operator learning
  * the app twice, at the worst possible moment to be learning anything.
  *
+ * Story 6.6: the Event comes from OperatorEventContext (the layout's switcher, or the `event`
+ * query param it picks up), never a fallback — with 2+ active Events and none picked, the form
+ * stays usable and "Save donation" points the Operator at the switcher instead.
+ *
  * Real (Story 3.1): event load (Dexie, by the `event` query param), donation list for this
  * event, createDonation itself (Dexie + outbox + inline Appwrite push, DonationService), and
  * `online` (real navigator.onLine detection, ConnectivityService). The header's "live total"
@@ -76,18 +78,40 @@ type Phase = 'entry' | 'confirming' | 'saved';
   styleUrl: './donation-entry.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DonationEntry implements OnInit {
-  private readonly route = inject(ActivatedRoute);
+export class DonationEntry {
+  private readonly eventContext = inject(OperatorEventContext);
   private readonly donationService = inject(DonationService);
   private readonly authService = inject(AuthService);
   private readonly connectivityService = inject(ConnectivityService);
   private readonly syncEngine = inject(SyncEngineService);
   private readonly receiptService = inject(ReceiptService);
 
-  public readonly event = signal<Event | null>(null);
-  public readonly notFound = signal(false);
+  public readonly event = this.eventContext.activeEvent;
+  private readonly eventId = computed(() => this.event()?.id ?? null);
+  public readonly notFound = this.eventContext.pickNotFound;
   public readonly loadError = signal<string | null>(null);
-  public readonly donations = this.donationService.donations;
+  /** Filtered by Event so an in-flight load for a previously-picked Event can never show
+   *  under the current one. */
+  public readonly donations = computed(() =>
+    this.donationService.donations().filter((d) => d.eventId === this.eventId()),
+  );
+
+  public readonly needsPick = computed(() => this.eventContext.showSwitcher() && !this.event());
+  public readonly noActiveEvent = computed(
+    () =>
+      this.eventContext.loaded() &&
+      !this.event() &&
+      !this.notFound() &&
+      this.eventContext.activeEvents().length === 0,
+  );
+
+  public readonly heading = computed(() => {
+    if (this.notFound()) return 'Event not found';
+    const event = this.event();
+    if (event) return event.name;
+    if (!this.eventContext.loaded()) return 'Loading event…';
+    return 'Record a donation';
+  });
 
   public readonly online = this.connectivityService.online;
   public readonly syncing = this.syncEngine.syncing;
@@ -103,6 +127,14 @@ export class DonationEntry implements OnInit {
   public readonly saveError = signal<string | null>(null);
 
   public readonly canRecord = computed(() => this.event()?.status === 'active');
+  /** Unpicked is not blocked: Save stays enabled and explains itself (UX-DR6). */
+  public readonly formBlocked = computed(
+    () =>
+      !this.eventContext.loaded() ||
+      (!!this.event() && !this.canRecord()) ||
+      this.noActiveEvent() ||
+      this.notFound(),
+  );
 
   public readonly blocked = computed(() => {
     const status = this.event()?.status;
@@ -130,7 +162,11 @@ export class DonationEntry implements OnInit {
 
   public readonly eventMeta = computed(() => {
     const e = this.event();
-    if (!e) return '';
+    if (!e) {
+      if (this.needsPick()) return 'Pick an Event above to start recording.';
+      if (this.noActiveEvent()) return 'No active Event is assigned to you.';
+      return '';
+    }
     if (e.accessCode) return e.accessCode;
     return e.venue ? `${e.venue} · ${e.date}` : e.date;
   });
@@ -152,6 +188,11 @@ export class DonationEntry implements OnInit {
   public readonly myTotalLabel = computed(() => formatCedis(totalMinor(this.myDonations())));
 
   constructor() {
+    effect(() => {
+      const eventId = this.eventId();
+      untracked(() => void this.onEventChanged(eventId));
+    });
+
     // Once a drain finishes (syncing flips back to false), re-read this event's pending
     // donations from the outbox — some of them may have just synced. If the pending count
     // for THIS event dropped to zero, show the transient "synced" banner state briefly.
@@ -168,8 +209,28 @@ export class DonationEntry implements OnInit {
     });
   }
 
+  /** A draft or saved receipt belongs to the Event it was made under — switching Events
+   *  returns to a fresh entry rather than carrying either across. */
+  private async onEventChanged(eventId: string | null): Promise<void> {
+    if (this.phase() !== 'entry') {
+      this.draft.set(null);
+      this.lastSaved.set(null);
+      this.saveError.set(null);
+      this.phase.set('entry');
+    }
+    await this.refreshPending();
+    if (!eventId) return;
+
+    try {
+      await this.donationService.loadDonationsForEvent(eventId);
+      this.loadError.set(null);
+    } catch (err) {
+      this.loadError.set(err instanceof ServiceError ? err.message : 'Failed to load donations');
+    }
+  }
+
   private async refreshPending(): Promise<void> {
-    const eventId = this.event()?.id;
+    const eventId = this.eventId();
     if (!eventId) {
       this.pending.set([]);
       return;
@@ -193,30 +254,6 @@ export class DonationEntry implements OnInit {
     ];
   });
 
-  async ngOnInit(): Promise<void> {
-    const eventId = this.route.snapshot.queryParamMap.get('event');
-    if (!eventId) {
-      this.notFound.set(true);
-      return;
-    }
-
-    const event = await appDb.events.get(eventId);
-    if (!event) {
-      this.notFound.set(true);
-      return;
-    }
-
-    this.event.set(event);
-    await this.refreshPending();
-
-    try {
-      await this.donationService.loadDonationsForEvent(eventId);
-      this.loadError.set(null);
-    } catch (err) {
-      this.loadError.set(err instanceof ServiceError ? err.message : 'Failed to load donations');
-    }
-  }
-
   public statusLabel(status: EventStatus): string {
     return status.charAt(0).toUpperCase() + status.slice(1);
   }
@@ -227,6 +264,10 @@ export class DonationEntry implements OnInit {
     this.phase.set('confirming');
   }
 
+  public onEventMissing(): void {
+    if (this.needsPick()) this.eventContext.requestPick();
+  }
+
   public backToEdit(): void {
     this.phase.set('entry');
   }
@@ -234,11 +275,21 @@ export class DonationEntry implements OnInit {
   public async confirm(): Promise<void> {
     const draft = this.draft();
     if (!draft) return;
+    // FR-3: the draft is saved to the Event it was read back under, or not at all.
+    if (draft.eventId !== this.eventId()) {
+      this.saveError.set(
+        'This donation was started for a different Event than the one now picked. Go back and check it before saving.',
+      );
+      return;
+    }
 
     this.busy.set(true);
     this.saveError.set(null);
     try {
       const saved = await this.donationService.createDonation(draft);
+      // Switched mid-save: the donation is recorded against the Event it was read back under,
+      // but its receipt must not be offered under the newly-picked one.
+      if (saved.eventId !== this.eventId()) return;
       this.lastSaved.set(saved);
       this.phase.set('saved');
       await this.refreshPending();
