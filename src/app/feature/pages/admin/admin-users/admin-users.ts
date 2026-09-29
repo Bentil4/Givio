@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -16,6 +23,7 @@ export interface ManagedUser {
   initials: string;
   email: string;
   role: Role | null;
+  superAdmin: boolean;
   status: UserStatus;
   registeredAt: string;
 }
@@ -33,6 +41,7 @@ function toManaged(u: AdminUser): ManagedUser {
     initials: initialsOf(u.name),
     email: u.email,
     role: u.role,
+    superAdmin: u.superAdmin ?? false,
     status: u.active ? 'active' : 'deactivated',
     registeredAt: u.registeredAt,
   };
@@ -71,6 +80,7 @@ export class AdminUsers implements OnInit {
   public readonly loading = signal(true);
   public readonly loadError = signal<string | null>(null);
   public readonly currentUserId = computed(() => this.authService.currentUser()?.$id ?? '');
+  private readonly isSuperAdmin = this.authService.isSuperAdmin;
 
   public readonly roleFilter = signal<Role | 'all'>('all');
   public readonly search = signal('');
@@ -80,7 +90,10 @@ export class AdminUsers implements OnInit {
   public readonly busy = signal(false);
   public readonly formError = signal<string | null>(null);
   public readonly generatedPassword = signal<string | null>(null);
-  public readonly inviteStatus = signal<{ email?: 'sent' | 'failed'; sms?: 'sent' | 'failed' } | null>(null);
+  public readonly inviteStatus = signal<{
+    email?: 'sent' | 'failed';
+    sms?: 'sent' | 'failed';
+  } | null>(null);
   public readonly inviteEmail = signal(false);
   public readonly inviteSms = signal(false);
 
@@ -95,18 +108,24 @@ export class AdminUsers implements OnInit {
     role: ['operator' as Role, Validators.required],
   });
 
-  public readonly roleCards: { value: Role; label: string; desc: string }[] = [
+  // Granting Admin is Super-Admin-only (FR-26) — the Function rejects it from anyone else, so
+  // an ordinary Admin isn't offered a choice that can only fail.
+  public readonly roleCards = computed<{ value: Role; label: string; desc: string }[]>(() => [
     {
       value: 'operator',
       label: 'Operator',
       desc: 'Records donations at the desk. Sees only their assigned events.',
     },
-    {
-      value: 'admin',
-      label: 'Admin',
-      desc: 'Full oversight: events, users, corrections, exports, audit trail.',
-    },
-  ];
+    ...(this.isSuperAdmin()
+      ? [
+          {
+            value: 'admin' as const,
+            label: 'Admin',
+            desc: 'Full oversight: events, users, corrections, exports, audit trail.',
+          },
+        ]
+      : []),
+  ]);
 
   public readonly visible = computed(() => {
     const role = this.roleFilter();
@@ -136,8 +155,9 @@ export class AdminUsers implements OnInit {
 
     return {
       title: `Deactivate ${u.name}?`,
-      body: 'They will be signed out of every device immediately and cannot sign in again. '
-        + 'Donations they already recorded are untouched — nothing is deleted.',
+      body:
+        'They will be signed out of every device immediately and cannot sign in again. ' +
+        'Donations they already recorded are untouched — nothing is deleted.',
       cta: 'Deactivate',
       danger: true,
     };
@@ -149,15 +169,19 @@ export class AdminUsers implements OnInit {
       return "share it with them directly; it won't be shown again.";
     }
     const sent = (Object.keys(status) as ('email' | 'sms')[]).filter((c) => status[c] === 'sent');
-    const failed = (Object.keys(status) as ('email' | 'sms')[]).filter((c) => status[c] === 'failed');
+    const failed = (Object.keys(status) as ('email' | 'sms')[]).filter(
+      (c) => status[c] === 'failed',
+    );
     if (failed.length === 0) {
       return `Sent to them via ${sent.join(' and ')} — they can sign in with it now.`;
     }
     if (sent.length === 0) {
       return "Delivery failed — share it with them directly; it won't be shown again.";
     }
-    return `Sent via ${sent.join(' and ')}, but ${failed.join(' and ')} delivery failed — `
-      + 'share it with them directly as a backup.';
+    return (
+      `Sent via ${sent.join(' and ')}, but ${failed.join(' and ')} delivery failed — ` +
+      'share it with them directly as a backup.'
+    );
   });
 
   ngOnInit(): void {
@@ -190,13 +214,26 @@ export class AdminUsers implements OnInit {
     return status === 'active' ? 'tag-success' : 'tag-default';
   }
 
-  /** An Admin locking themselves out of their own event mid-service is unrecoverable. */
-  public canToggle(u: ManagedUser): boolean {
-    return u.id !== this.currentUserId();
+  /** Admin accounts are Super-Admin-managed (FR-26); the Super Admin row is out-of-band only. */
+  private managesAdminTier(u: ManagedUser): boolean {
+    return !u.superAdmin && (u.role !== 'admin' || this.isSuperAdmin());
   }
 
-  public setRoleFilter(r: Role | 'all'): void { this.roleFilter.set(r); }
-  public setSearch(v: string): void { this.search.set(v); }
+  public canEdit(u: ManagedUser): boolean {
+    return u.id === this.currentUserId() || this.managesAdminTier(u);
+  }
+
+  /** An Admin locking themselves out of their own event mid-service is unrecoverable. */
+  public canToggle(u: ManagedUser): boolean {
+    return u.id !== this.currentUserId() && this.managesAdminTier(u);
+  }
+
+  public setRoleFilter(r: Role | 'all'): void {
+    this.roleFilter.set(r);
+  }
+  public setSearch(v: string): void {
+    this.search.set(v);
+  }
 
   public clearFilters(): void {
     this.roleFilter.set('all');
@@ -236,7 +273,10 @@ export class AdminUsers implements OnInit {
   }
 
   public async save(): Promise<void> {
-    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
     this.busy.set(true);
     this.formError.set(null);
     const { name, email, phone, role } = this.form.getRawValue();
@@ -244,7 +284,13 @@ export class AdminUsers implements OnInit {
 
     try {
       if (editing) {
-        await this.userService.updateUser(editing.id, { name, email, role });
+        // Only send role when it actually changed — the Function rejects any self role write
+        // and any admin-tier role write from a non-Super-Admin, even an unchanged one.
+        await this.userService.updateUser(editing.id, {
+          name,
+          email,
+          ...(role !== editing.role ? { role } : {}),
+        });
       } else {
         const inviteChannels: ('email' | 'sms')[] = [
           ...(this.inviteEmail() ? (['email'] as const) : []),
@@ -274,8 +320,12 @@ export class AdminUsers implements OnInit {
     }
   }
 
-  public askToggle(u: ManagedUser): void { this.confirmingToggle.set(u); }
-  public dismissToggle(): void { this.confirmingToggle.set(null); }
+  public askToggle(u: ManagedUser): void {
+    this.confirmingToggle.set(u);
+  }
+  public dismissToggle(): void {
+    this.confirmingToggle.set(null);
+  }
 
   public async confirmToggle(): Promise<void> {
     const u = this.confirmingToggle();

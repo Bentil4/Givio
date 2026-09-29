@@ -58,14 +58,17 @@ export class AdminLayout {
     return 'online';
   });
 
-  public navItems: INavbarItem[] = [
+  public readonly navItems = computed<INavbarItem[]>(() => [
     { name: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
     { name: 'Events', icon: 'event', route: '/dashboard/events' },
     { name: 'Donations', icon: 'volunteer_activism', route: '/dashboard/donations' },
     { name: 'Reports', icon: 'bar_chart', route: '/dashboard/reports' },
     { name: 'Audit trail', icon: 'history', route: '/dashboard/audit' },
     { name: 'Users', icon: 'group', route: '/dashboard/users' },
-  ];
+    ...(this.authService.isSuperAdmin()
+      ? [{ name: 'Admins', icon: 'admin_panel_settings', route: '/dashboard/admins' }]
+      : []),
+  ]);
 
   constructor() {
     // The drawer (and its scrim) only exist below MOBILE_NAV_QUERY — if a resize or

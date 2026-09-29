@@ -156,7 +156,7 @@ Failure: she mistypes the code → the same generic "code not recognized" messag
 
 ### Flow 5 — Nana (Super Admin) suspends a rogue Admin
 
-1. Nana opens `/dashboard/admins` — a screen inside the existing Admin tree that an ordinary Admin can't reach (an additional `super_admin` guard layered on top of the existing admin guard, not just hidden from nav).
+1. Nana opens `/dashboard/admins` — a screen inside the existing Admin tree that an ordinary Admin can't reach (an additional `superadmin` guard layered on top of the existing admin guard, not just hidden from nav).
 2. The Admin list shows a tier badge, status pill, and a Suspend action per row — no Promote/Demote clutter for the common case, since those live behind a row-level menu.
 3. **Climax:** Nana suspends the account. The list re-renders that row's status pill to "suspended" instantly; the suspended Admin's historical audit-log entries (visible elsewhere in the platform-wide log) are untouched — Nana can still see everything that Admin ever did, just nothing they do next.
 
