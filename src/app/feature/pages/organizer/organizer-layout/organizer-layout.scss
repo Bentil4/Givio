@@ -14,8 +14,23 @@
   display: none;
 }
 
+.event-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: 0 calc(-1 * var(--space-lg));
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+}
+
 /* Story 5.1: matches the breakpoint sidebar.scss's off-canvas drawer switches on at. */
 @media (max-width: 720px) {
+  /* Clears the fixed menu toggle so it never covers the switcher. */
+  .event-bar {
+    padding-left: 68px;
+  }
+
   .mobile-nav-toggle {
     display: flex;
     align-items: center;

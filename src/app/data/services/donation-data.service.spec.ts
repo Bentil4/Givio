@@ -31,8 +31,11 @@ describe('DonationDataService', () => {
     getRow: ReturnType<typeof vi.fn>;
   };
   let realtime: { subscribe: ReturnType<typeof vi.fn> };
+  // No labels by default, so no pre-existing test sees an extra Story 8.2 access-log createRow.
+  let currentUser: { $id: string; labels?: string[] };
 
   beforeEach(async () => {
+    currentUser = { $id: 'op-1' };
     functions = { createExecution: vi.fn() };
     databases = {
       listRows: vi.fn().mockResolvedValue({ total: 0, rows: [] }),
@@ -42,13 +45,15 @@ describe('DonationDataService', () => {
       // (also undefined -> null) by default — individual conflict tests override this.
       getRow: vi.fn().mockResolvedValue({}),
     };
-    realtime = { subscribe: vi.fn().mockResolvedValue({ close: vi.fn().mockResolvedValue(undefined) }) };
+    realtime = {
+      subscribe: vi.fn().mockResolvedValue({ close: vi.fn().mockResolvedValue(undefined) }),
+    };
     TestBed.configureTestingModule({
       providers: [
         { provide: FUNCTIONS, useValue: functions },
         { provide: DATABASES, useValue: databases },
         { provide: REALTIME, useValue: realtime },
-        { provide: AuthService, useValue: { currentUser: () => ({ $id: 'op-1' }) } },
+        { provide: AuthService, useValue: { currentUser: () => currentUser } },
       ],
     });
     service = TestBed.inject(DonationDataService);
@@ -209,7 +214,7 @@ describe('DonationDataService', () => {
       ).rejects.toBeInstanceOf(ServiceError);
     });
 
-    it('assigns a provisional receipt number up front, and adopts the Function\'s canonical number once synced', async () => {
+    it("assigns a provisional receipt number up front, and adopts the Function's canonical number once synced", async () => {
       await appDb.events.put(makeEvent());
       functions.createExecution.mockResolvedValueOnce({
         responseStatusCode: 200,
@@ -322,7 +327,9 @@ describe('DonationDataService', () => {
       const pending = (await appDb.outbox.toArray()).filter((e) => e.entityId === donation.id);
       expect(pending).toHaveLength(0);
       expect(databases.createRow).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ entityType: 'donation', action: 'create' }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ entityType: 'donation', action: 'create' }),
+        }),
       );
     });
 
@@ -366,6 +373,111 @@ describe('DonationDataService', () => {
       expect(result.map((d) => d.id)).toEqual(['any-event']);
       const queries = databases.listRows.mock.calls[0][0].queries as string[];
       expect(queries.some((q) => q.includes('eventId'))).toBe(false);
+    });
+  });
+
+  describe('Admin access logging (Story 8.2)', () => {
+    const makeRow = (id: string, eventId: string) => ({
+      $id: id,
+      eventId,
+      receiptNumber: `R-${id}`,
+      donorName: 'Esi',
+      amountMinor: 3000,
+      donationType: 'cash',
+      recordedBy: 'op-2',
+      recordedAt: '2026-01-01T00:00:00.000Z',
+      syncStatus: 'synced',
+    });
+    const accessLogWrites = () =>
+      databases.createRow.mock.calls.filter(([arg]) => arg.data?.action === 'access');
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    beforeEach(() => {
+      currentUser = { $id: 'admin-1', labels: ['admin'] };
+    });
+
+    it('listAllDonations writes exactly one entry recording every tenant it touched', async () => {
+      await appDb.events.bulkPut([
+        makeEvent({ id: 'e1', tenantId: 'tenant-a' }),
+        makeEvent({ id: 'e2', tenantId: 'tenant-b' }),
+      ]);
+      databases.listRows.mockResolvedValueOnce({
+        total: 4,
+        rows: [makeRow('d1', 'e1'), makeRow('d2', 'e1'), makeRow('d3', 'e2'), makeRow('d4', 'e3')],
+      });
+
+      await service.listAllDonations();
+      await vi.waitFor(() => expect(accessLogWrites()).toHaveLength(1));
+      await flush();
+
+      expect(accessLogWrites()).toHaveLength(1);
+      const { data } = accessLogWrites()[0][0];
+      expect(data).toMatchObject({
+        entityType: 'donation',
+        entityId: '*',
+        action: 'access',
+        performedBy: 'admin-1',
+      });
+      expect(JSON.parse(data.newValues)).toEqual({
+        query: 'listAllDonations',
+        tenantId: null,
+        tenantIds: ['tenant-a', 'tenant-b'],
+        rowCount: 4,
+      });
+    });
+
+    it("listDonationsForEvent writes one entry naming the event's tenant", async () => {
+      await appDb.events.put(makeEvent({ id: 'e1', tenantId: 'tenant-a' }));
+      databases.listRows.mockResolvedValueOnce({
+        total: 2,
+        rows: [makeRow('d1', 'e1'), makeRow('d2', 'e1')],
+      });
+
+      await service.listDonationsForEvent('e1');
+      await vi.waitFor(() => expect(accessLogWrites()).toHaveLength(1));
+
+      const { data } = accessLogWrites()[0][0];
+      expect(data).toMatchObject({ entityType: 'donation', entityId: 'e1', action: 'access' });
+      expect(JSON.parse(data.newValues)).toEqual({
+        query: 'listDonationsForEvent',
+        tenantId: 'tenant-a',
+        tenantIds: ['tenant-a'],
+        eventId: 'e1',
+        eventName: 'Ama & Kojo',
+        rowCount: 2,
+      });
+    });
+
+    it('writes nothing for an Operator read', async () => {
+      currentUser = { $id: 'op-1', labels: ['operator'] };
+      databases.listRows.mockResolvedValue({ total: 1, rows: [makeRow('d1', 'e1')] });
+
+      await service.listDonationsForEvent('e1');
+      await service.listAllDonations();
+      await flush();
+
+      expect(databases.createRow).not.toHaveBeenCalled();
+    });
+
+    it('still returns the donations when the audit write fails', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      databases.createRow.mockRejectedValue(new Error('enum value not allowed'));
+      databases.listRows.mockResolvedValueOnce({ total: 1, rows: [makeRow('d1', 'e1')] });
+
+      const result = await service.listAllDonations();
+      await vi.waitFor(() => expect(consoleError).toHaveBeenCalled());
+
+      expect(result.map((d) => d.id)).toEqual(['d1']);
+      consoleError.mockRestore();
+    });
+
+    it('writes nothing when the read fell back to the offline local cache', async () => {
+      databases.listRows.mockRejectedValueOnce(new Error('offline'));
+
+      await service.listAllDonations();
+      await flush();
+
+      expect(databases.createRow).not.toHaveBeenCalled();
     });
   });
 
@@ -413,10 +525,15 @@ describe('DonationDataService', () => {
       expect(updated.updatedAt).toBeTruthy();
       expect((await appDb.donations.get('d1'))?.donorName).toBe('Ama Serwaa');
       expect(databases.updateRow).toHaveBeenCalledWith(
-        expect.objectContaining({ rowId: 'd1', data: expect.objectContaining({ donorName: 'Ama Serwaa' }) }),
+        expect.objectContaining({
+          rowId: 'd1',
+          data: expect.objectContaining({ donorName: 'Ama Serwaa' }),
+        }),
       );
       expect(databases.createRow).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ entityType: 'donation', action: 'edit' }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ entityType: 'donation', action: 'edit' }),
+        }),
       );
     });
 
@@ -424,7 +541,11 @@ describe('DonationDataService', () => {
       await seed();
       databases.updateRow.mockRejectedValueOnce(new Error('offline'));
 
-      const updated = await service.updateDonation('d1', { donorName: 'Offline Edit' }, 'reason text here');
+      const updated = await service.updateDonation(
+        'd1',
+        { donorName: 'Offline Edit' },
+        'reason text here',
+      );
 
       expect(updated.donorName).toBe('Offline Edit');
       expect(databases.createRow).not.toHaveBeenCalled();
@@ -452,7 +573,7 @@ describe('DonationDataService', () => {
       return donation;
     };
 
-    it('applies the update normally when the server row\'s updatedAt still matches baseUpdatedAt', async () => {
+    it("applies the update normally when the server row's updatedAt still matches baseUpdatedAt", async () => {
       await seed();
       databases.getRow.mockResolvedValueOnce({ updatedAt: '2026-02-01T00:00:00.000Z' });
 
@@ -469,7 +590,7 @@ describe('DonationDataService', () => {
         $id: 'd1',
         eventId: 'e1',
         receiptNumber: 'P-1',
-        donorName: 'Ama (someone else\'s edit)',
+        donorName: "Ama (someone else's edit)",
         recordedBy: 'op-1',
         recordedAt: '2026-01-01T00:00:00.000Z',
         syncStatus: 'synced',
@@ -491,7 +612,7 @@ describe('DonationDataService', () => {
       const body = JSON.parse(functions.createExecution.mock.calls[0][0].body);
       expect(body.receiptNumber).toBe('P-1');
       expect(body.localVersion.donorName).toBe('Ama Serwaa');
-      expect(body.serverVersion.donorName).toBe('Ama (someone else\'s edit)');
+      expect(body.serverVersion.donorName).toBe("Ama (someone else's edit)");
       // The conflict is on record — no audit log for an edit that was never actually applied.
       expect(databases.createRow).not.toHaveBeenCalled();
       // Filed successfully — nothing left to retry.

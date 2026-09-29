@@ -9,7 +9,12 @@ import type { Event } from '../models/event';
 import { eventShortCode, provisionalReceiptNumber } from '../../utils/receipt-numbering.util';
 import { AuthService } from './auth.service';
 import { ServiceError } from '../../core/services/service-error';
-import { writeAuditLog } from './audit-log-writer';
+import {
+  ALL_ROWS_ENTITY_ID,
+  distinctTenantIds,
+  logAdminAccess,
+  writeAuditLog,
+} from './audit-log-writer';
 import { environment } from '../../../environments/environment';
 
 interface RecordDonationResult {
@@ -83,20 +88,64 @@ export class DonationDataService {
    *
    * Never throws: offline/unreachable just means this device falls back to whatever it
    * already has locally (FR-OFF-002).
+   *
+   * Story 8.2: an Admin caller's read is access-logged only when the server pull succeeded —
+   * same reasoning as EventDataService.listEvents(). Donations carry no tenantId, so the
+   * tenant is resolved from the locally-cached Event after the read has already returned.
    */
   async listDonationsForEvent(eventId: string): Promise<Donation[]> {
-    await this.pullDonations(Query.equal('eventId', eventId));
+    const remote = await this.pullDonations(Query.equal('eventId', eventId));
+    if (remote) {
+      logAdminAccess(
+        this.databases,
+        this.authService.currentUser(),
+        { entityType: 'donation', entityId: eventId },
+        async () => {
+          const event = await appDb.events.get(eventId);
+          return {
+            query: 'listDonationsForEvent',
+            tenantId: event?.tenantId ?? null,
+            tenantIds: event ? distinctTenantIds([event]) : [],
+            eventId,
+            eventName: event?.name,
+            rowCount: remote.length,
+          };
+        },
+      );
+    }
     return appDb.donations.where('eventId').equals(eventId).toArray();
   }
 
   /** Admin-wide, unscoped by event (admin-donations/admin-trash) — Admin's Role.label('admin')
-   *  read permission already covers every donation row, no per-event query needed. */
+   *  read permission already covers every donation row, no per-event query needed.
+   *
+   *  Story 8.2: this is also the admin-dashboard's Realtime refetch path, so every live push
+   *  it reacts to logs its own entry. That's deliberate — each refetch is a fresh server read
+   *  of every tenant's donations, and AD-12 forbids coalescing above the Data layer. */
   async listAllDonations(): Promise<Donation[]> {
-    await this.pullDonations();
+    const remote = await this.pullDonations();
+    if (remote) {
+      logAdminAccess(
+        this.databases,
+        this.authService.currentUser(),
+        { entityType: 'donation', entityId: ALL_ROWS_ENTITY_ID },
+        async () => {
+          const eventIds = [...new Set(remote.map((d) => d.eventId))];
+          const events = await appDb.events.bulkGet(eventIds);
+          return {
+            query: 'listAllDonations',
+            tenantId: null,
+            tenantIds: distinctTenantIds(events.filter((e): e is Event => e !== undefined)),
+            rowCount: remote.length,
+          };
+        },
+      );
+    }
     return appDb.donations.toArray();
   }
 
-  private async pullDonations(filterQuery?: string): Promise<void> {
+  /** Resolves to the rows the server returned, or null when it couldn't be reached. */
+  private async pullDonations(filterQuery?: string): Promise<Donation[] | null> {
     try {
       const remoteDonations = await this.fetchAllDonationRows(filterQuery);
       const pendingIds = new Set(
@@ -109,8 +158,10 @@ export class DonationDataService {
         if (pendingIds.has(donation.id)) continue;
         await appDb.donations.put(donation);
       }
+      return remoteDonations;
     } catch {
       // Offline or unreachable — fall through to whatever's already local.
+      return null;
     }
   }
 
@@ -120,7 +171,9 @@ export class DonationDataService {
     let cursor: string | undefined;
 
     for (;;) {
-      const queries = filterQuery ? [filterQuery, Query.limit(PAGE_SIZE)] : [Query.limit(PAGE_SIZE)];
+      const queries = filterQuery
+        ? [filterQuery, Query.limit(PAGE_SIZE)]
+        : [Query.limit(PAGE_SIZE)];
       if (cursor) queries.push(Query.cursorAfter(cursor));
 
       const page = await this.databases.listRows<Models.DefaultRow>({
@@ -441,12 +494,17 @@ export class DonationDataService {
   private async fileConflict(entry: OutboxEntry, serverVersion: Donation): Promise<SyncOutcome> {
     const localVersion = entry.payload as Donation;
     try {
-      await invokeAdminFunction(this.functions, 'recordConflict', 'Failed to record sync conflict', {
-        receiptNumber: localVersion.receiptNumber,
-        eventId: localVersion.eventId,
-        localVersion,
-        serverVersion,
-      });
+      await invokeAdminFunction(
+        this.functions,
+        'recordConflict',
+        'Failed to record sync conflict',
+        {
+          receiptNumber: localVersion.receiptNumber,
+          eventId: localVersion.eventId,
+          localVersion,
+          serverVersion,
+        },
+      );
     } catch (error) {
       // Couldn't reach the Function to file it — leave the outbox entry in place so the next
       // drain re-checks and retries recordConflict, rather than silently discarding the edit.

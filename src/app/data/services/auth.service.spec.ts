@@ -83,6 +83,33 @@ describe('AuthService', () => {
     });
   });
 
+  describe('isSuperAdmin (AD-11)', () => {
+    it('is true only when the account holds both admin and superadmin, and still reads as admin', async () => {
+      account.get.mockResolvedValueOnce({ labels: ['admin', 'superadmin'] });
+
+      await store.restoreSession();
+
+      expect(store.isSuperAdmin()).toBe(true);
+      expect(store.role()).toBe('admin');
+    });
+
+    it('is false for an ordinary admin', async () => {
+      account.get.mockResolvedValueOnce({ labels: ['admin'] });
+
+      await store.restoreSession();
+
+      expect(store.isSuperAdmin()).toBe(false);
+    });
+
+    it('is false for a stray superadmin label without admin', async () => {
+      account.get.mockResolvedValueOnce({ labels: ['superadmin', 'operator'] });
+
+      await store.restoreSession();
+
+      expect(store.isSuperAdmin()).toBe(false);
+    });
+  });
+
   describe('logout', () => {
     it('clears the session and currentUser', async () => {
       account.deleteSession.mockResolvedValueOnce({});
@@ -122,7 +149,9 @@ describe('AuthService', () => {
     });
 
     it('sets currentUser to null on a 401 (no session)', async () => {
-      account.get.mockRejectedValueOnce(new AppwriteException('Unauthorized', 401, 'general_unauthorized_scope'));
+      account.get.mockRejectedValueOnce(
+        new AppwriteException('Unauthorized', 401, 'general_unauthorized_scope'),
+      );
 
       await store.restoreSession();
 
@@ -130,7 +159,9 @@ describe('AuthService', () => {
     });
 
     it('still resolves and treats an unexpected error as logged out, so app bootstrap never blocks', async () => {
-      account.get.mockRejectedValueOnce(new AppwriteException('Service unavailable', 503, 'general_service_disabled'));
+      account.get.mockRejectedValueOnce(
+        new AppwriteException('Service unavailable', 503, 'general_service_disabled'),
+      );
 
       await expect(store.restoreSession()).resolves.toBeUndefined();
       expect(store.currentUser()).toBeNull();

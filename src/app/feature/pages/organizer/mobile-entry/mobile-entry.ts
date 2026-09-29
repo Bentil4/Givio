@@ -1,14 +1,21 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { ActivatedRoute } from '@angular/router';
 import { Donation, DonationDraft, DonationType } from '../../../../data/models/donation';
 import { formatCedisShort, totalMinor } from '../../../../utils/donation.util';
-import type { Event } from '../../../../data/models/event';
 import { appDb } from '../../../../data/dexie/app-db';
 import { ConnectivityService } from '../../../../core/services/connectivity.service';
 import { DonationService } from '../../../../data/services/donation.service';
 import { SyncEngineService } from '../../../../data/services/sync-engine.service';
 import { ServiceError } from '../../../../core/services/service-error';
+import { OperatorEventContext } from '../operator-event-context';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'] as const;
 
@@ -26,7 +33,7 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'] as 
  *   - The live event total stays pinned in the header, because "how much so far?" is the
  *     question a collector is asked constantly and should never leave the form to answer.
  *
- * Same real wiring as donation-entry.ts (event load by the `event` query param,
+ * Same real wiring as donation-entry.ts (the Event from OperatorEventContext,
  * DonationService.createDonation, ConnectivityService, SyncEngineService for the pending
  * count) — just the phone-sized keypad UI instead of the full desk form.
  */
@@ -37,14 +44,14 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'] as 
   styleUrl: './mobile-entry.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MobileEntry implements OnInit {
-  private readonly route = inject(ActivatedRoute);
+export class MobileEntry {
+  private readonly eventContext = inject(OperatorEventContext);
   private readonly connectivityService = inject(ConnectivityService);
   private readonly donationService = inject(DonationService);
   private readonly syncEngine = inject(SyncEngineService);
 
-  public readonly event = signal<Event | null>(null);
-  public readonly notFound = signal(false);
+  public readonly event = this.eventContext.activeEvent;
+  public readonly notFound = this.eventContext.pickNotFound;
   public readonly busy = signal(false);
 
   public readonly online = this.connectivityService.online;
@@ -54,9 +61,14 @@ export class MobileEntry implements OnInit {
   public readonly eventId = computed(() => this.event()?.id ?? '');
   public readonly eventName = computed(() => {
     if (this.notFound()) return 'Event not found';
-    return this.event()?.name ?? 'Loading event…';
+    const event = this.event();
+    if (event) return event.name;
+    if (!this.eventContext.loaded()) return 'Loading event…';
+    return this.eventContext.showSwitcher() ? 'Pick an Event above' : 'No active Event';
   });
-  public readonly eventTotalMinor = computed(() => totalMinor(this.donationService.donations()));
+  public readonly eventTotalMinor = computed(() =>
+    totalMinor(this.donationService.donations().filter((d) => d.eventId === this.eventId())),
+  );
 
   public readonly donorName = signal('');
   public readonly amountText = signal('');
@@ -87,9 +99,14 @@ export class MobileEntry implements OnInit {
 
   private readonly nameValid = computed(() => this.donorName().trim().length >= 2);
 
-  public readonly canSave = computed(() =>
-    this.nameValid() && this.amountValid() && !this.busy() && !!this.eventId(),
-  );
+  /** Deliberately not gated on a picked Event — save() explains that instead (UX-DR6). */
+  public readonly canSave = computed(() => this.nameValid() && this.amountValid() && !this.busy());
+
+  public readonly saveDisabled = computed(() => {
+    const event = this.event();
+    if (!event) return !this.eventContext.showSwitcher();
+    return event.status !== 'active' || !this.canSave();
+  });
 
   public readonly hint = computed(() => {
     if (!this.touched()) return null;
@@ -105,6 +122,11 @@ export class MobileEntry implements OnInit {
   public readonly saveError = signal<string | null>(null);
 
   constructor() {
+    effect(() => {
+      const eventId = this.eventId();
+      untracked(() => void this.onEventChanged(eventId));
+    });
+
     // Mirrors donation-entry.ts: once a drain finishes, re-read this event's pending
     // donation-create outbox entries \u2014 some of them may have just synced.
     effect(() => {
@@ -113,21 +135,9 @@ export class MobileEntry implements OnInit {
     });
   }
 
-  async ngOnInit(): Promise<void> {
-    const eventId = this.route.snapshot.queryParamMap.get('event');
-    if (!eventId) {
-      this.notFound.set(true);
-      return;
-    }
-
-    const event = await appDb.events.get(eventId);
-    if (!event) {
-      this.notFound.set(true);
-      return;
-    }
-
-    this.event.set(event);
+  private async onEventChanged(eventId: string): Promise<void> {
     await this.refreshPending();
+    if (!eventId) return;
 
     try {
       await this.donationService.loadDonationsForEvent(eventId);
@@ -151,7 +161,9 @@ export class MobileEntry implements OnInit {
     this.pendingCount.set(count);
   }
 
-  public keyLabel(key: string): string { return key === 'back' ? '\u232B' : key; }
+  public keyLabel(key: string): string {
+    return key === 'back' ? '\u232B' : key;
+  }
 
   public press(key: string): void {
     this.touched.set(true);
@@ -173,8 +185,12 @@ export class MobileEntry implements OnInit {
     });
   }
 
-  public setName(value: string): void { this.donorName.set(value); }
-  public setType(type: DonationType): void { this.donationType.set(type); }
+  public setName(value: string): void {
+    this.donorName.set(value);
+  }
+  public setType(type: DonationType): void {
+    this.donationType.set(type);
+  }
 
   public draft(): DonationDraft | null {
     if (!this.canSave()) return null;
@@ -188,6 +204,10 @@ export class MobileEntry implements OnInit {
   }
 
   public async save(): Promise<void> {
+    if (!this.eventId()) {
+      if (this.eventContext.showSwitcher()) this.eventContext.requestPick();
+      return;
+    }
     this.touched.set(true);
     const draft = this.draft();
     if (!draft) return;

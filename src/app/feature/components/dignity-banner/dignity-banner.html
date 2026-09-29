@@ -1,0 +1,21 @@
+<div class="dignity" [class.dignity--modal]="modal()">
+  <section
+    class="dignity-banner"
+    [attr.role]="modal() ? 'dialog' : 'status'"
+    [attr.aria-modal]="modal() ? 'true' : null"
+    [attr.aria-labelledby]="headingId"
+    [attr.aria-describedby]="detail() ? detailId : null"
+    [cdkTrapFocus]="modal()"
+  >
+    <mat-icon class="dignity-icon" aria-hidden="true">{{ icon() }}</mat-icon>
+    <div class="dignity-copy">
+      <h2 class="dignity-heading" [id]="headingId">{{ heading() }}</h2>
+      @if (detail()) {
+      <p class="dignity-detail" [id]="detailId">{{ detail() }}</p>
+      }
+      <div class="dignity-actions">
+        <ng-content />
+      </div>
+    </div>
+  </section>
+</div>

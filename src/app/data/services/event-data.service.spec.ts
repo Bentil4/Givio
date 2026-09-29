@@ -15,8 +15,11 @@ describe('EventDataService', () => {
   };
   let functions: { createExecution: ReturnType<typeof vi.fn> };
   let tenantDataService: { getMyActiveMembership: ReturnType<typeof vi.fn> };
+  // No labels by default, so no pre-existing test sees an extra Story 8.2 access-log createRow.
+  let currentUser: { $id: string; labels?: string[] };
 
   beforeEach(async () => {
+    currentUser = { $id: 'admin-1' };
     databases = { createRow: vi.fn(), updateRow: vi.fn(), listRows: vi.fn() };
     functions = { createExecution: vi.fn() };
     // Story 6.2: no Membership by default — matches today's Admin caller, preserving every
@@ -28,7 +31,7 @@ describe('EventDataService', () => {
         { provide: FUNCTIONS, useValue: functions },
         {
           provide: AuthService,
-          useValue: { currentUser: () => ({ $id: 'admin-1' }) },
+          useValue: { currentUser: () => currentUser },
         },
         { provide: TenantDataService, useValue: tenantDataService },
       ],
@@ -305,6 +308,112 @@ describe('EventDataService', () => {
 
       expect(events).toHaveLength(1);
       expect(events[0].id).toBe('local-only');
+    });
+
+    describe('Admin access logging (Story 8.2)', () => {
+      const accessLogWrites = () =>
+        databases.createRow.mock.calls.filter(([arg]) => arg.data?.action === 'access');
+      const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+      it('writes exactly one access entry per call, regardless of row count', async () => {
+        currentUser = { $id: 'admin-1', labels: ['admin'] };
+        databases.createRow.mockResolvedValue({});
+        databases.listRows.mockResolvedValueOnce({
+          total: 3,
+          rows: [
+            makeRow({ $id: 'r1', tenantId: 'tenant-b' }),
+            makeRow({ $id: 'r2', tenantId: 'tenant-a' }),
+            makeRow({ $id: 'r3' }),
+          ],
+        });
+
+        await service.listEvents();
+        await flush();
+
+        expect(accessLogWrites()).toHaveLength(1);
+        const { data } = accessLogWrites()[0][0];
+        expect(data).toMatchObject({
+          entityType: 'event',
+          entityId: '*',
+          action: 'access',
+          performedBy: 'admin-1',
+        });
+        expect(typeof data.timestamp).toBe('string');
+        expect(JSON.parse(data.newValues)).toEqual({
+          query: 'listEvents',
+          tenantId: null,
+          tenantIds: ['tenant-a', 'tenant-b'],
+          rowCount: 3,
+        });
+      });
+
+      it('writes one entry per invocation — two calls, two entries', async () => {
+        currentUser = { $id: 'admin-1', labels: ['admin'] };
+        databases.createRow.mockResolvedValue({});
+        databases.listRows.mockResolvedValue({ total: 1, rows: [makeRow()] });
+
+        await service.listEvents();
+        await service.listEvents();
+        await flush();
+
+        expect(accessLogWrites()).toHaveLength(2);
+      });
+
+      it('logs a Super Admin read too (holds the admin Label, AD-11)', async () => {
+        currentUser = { $id: 'super-1', labels: ['admin', 'super_admin'] };
+        databases.createRow.mockResolvedValue({});
+        databases.listRows.mockResolvedValueOnce({ total: 1, rows: [makeRow()] });
+
+        await service.listEvents();
+        await flush();
+
+        expect(accessLogWrites()).toHaveLength(1);
+        expect(accessLogWrites()[0][0].data.performedBy).toBe('super-1');
+      });
+
+      it('writes nothing for an Operator read', async () => {
+        currentUser = { $id: 'op-1', labels: ['operator'] };
+        databases.listRows.mockResolvedValueOnce({ total: 1, rows: [makeRow()] });
+
+        await service.listEvents();
+        await flush();
+
+        expect(databases.createRow).not.toHaveBeenCalled();
+      });
+
+      it('still returns the events when the audit write fails', async () => {
+        currentUser = { $id: 'admin-1', labels: ['admin'] };
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        databases.createRow.mockRejectedValue(new Error('enum value not allowed'));
+        databases.listRows.mockResolvedValueOnce({ total: 1, rows: [makeRow()] });
+
+        const events = await service.listEvents();
+        await flush();
+
+        expect(events.map((e) => e.id)).toEqual(['remote-1']);
+        expect(consoleError).toHaveBeenCalled();
+        consoleError.mockRestore();
+      });
+
+      it('does not wait on the audit write before resolving the read', async () => {
+        currentUser = { $id: 'admin-1', labels: ['admin'] };
+        databases.createRow.mockReturnValue(new Promise(() => undefined));
+        databases.listRows.mockResolvedValueOnce({ total: 1, rows: [makeRow()] });
+
+        const events = await service.listEvents();
+
+        expect(events).toHaveLength(1);
+      });
+
+      it('writes nothing when the read fell back to the offline local cache', async () => {
+        currentUser = { $id: 'admin-1', labels: ['admin'] };
+        databases.listRows.mockRejectedValueOnce(new Error('offline'));
+
+        await service.listEvents();
+        await flush();
+
+        expect(databases.createRow).not.toHaveBeenCalled();
+      });
     });
   });
 
