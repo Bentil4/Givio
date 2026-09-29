@@ -7,6 +7,7 @@ import {
   redirectIfAuthenticatedGuard,
   roleGuard,
   sessionExpiryGuard,
+  superAdminGuard,
 } from './role.guard';
 
 describe('role.guard', () => {
@@ -56,21 +57,54 @@ describe('role.guard', () => {
     it('allows a user whose role is in the allowed list', async () => {
       await loginAs(['admin']);
       const guard = roleGuard(['admin']);
-      const result = TestBed.runInInjectionContext(() => guard({} as never, { url: '/admin' } as never));
+      const result = TestBed.runInInjectionContext(() =>
+        guard({} as never, { url: '/admin' } as never),
+      );
       expect(result).toBe(true);
     });
 
     it('denies a user whose role is not in the allowed list, even via a direct URL', async () => {
       await loginAs(['operator']);
       const guard = roleGuard(['admin']);
-      const result = TestBed.runInInjectionContext(() => guard({} as never, { url: '/admin' } as never));
+      const result = TestBed.runInInjectionContext(() =>
+        guard({} as never, { url: '/admin' } as never),
+      );
       expect(result).toBeInstanceOf(UrlTree);
       expect((result as UrlTree).toString()).toBe('/login');
     });
 
     it('denies an unauthenticated caller', () => {
       const guard = roleGuard(['admin']);
-      const result = TestBed.runInInjectionContext(() => guard({} as never, { url: '/admin' } as never));
+      const result = TestBed.runInInjectionContext(() =>
+        guard({} as never, { url: '/admin' } as never),
+      );
+      expect(result).toBeInstanceOf(UrlTree);
+    });
+  });
+
+  describe('superAdminGuard', () => {
+    it('allows the Super Admin through', async () => {
+      await loginAs(['admin', 'super_admin']);
+      const result = TestBed.runInInjectionContext(() =>
+        superAdminGuard({} as never, { url: '/dashboard/admins' } as never),
+      );
+      expect(result).toBe(true);
+    });
+
+    it('sends an ordinary Admin back to /dashboard, even via a direct URL', async () => {
+      await loginAs(['admin']);
+      const result = TestBed.runInInjectionContext(() =>
+        superAdminGuard({} as never, { url: '/dashboard/admins' } as never),
+      );
+      expect(result).toBeInstanceOf(UrlTree);
+      expect((result as UrlTree).toString()).toBe('/dashboard');
+    });
+
+    it('denies an operator', async () => {
+      await loginAs(['operator']);
+      const result = TestBed.runInInjectionContext(() =>
+        superAdminGuard({} as never, { url: '/dashboard/admins' } as never),
+      );
       expect(result).toBeInstanceOf(UrlTree);
     });
   });

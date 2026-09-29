@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { ACCOUNT } from '../../../../core/appwrite/client';
+import { AuthService } from '../../../../data/services/auth.service';
 
 import { AdminLayout } from './admin-layout';
 
@@ -42,6 +43,26 @@ describe('AdminLayout', () => {
     await component.onLogout();
 
     expect(router.navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  describe('Admins nav entry (Story 8.6)', () => {
+    const hasAdminsLink = () =>
+      component.navItems().some((item) => item.route === '/dashboard/admins');
+
+    it('is hidden from an ordinary Admin', async () => {
+      account.get.mockResolvedValueOnce({ labels: ['admin'] });
+      await TestBed.inject(AuthService).restoreSession();
+
+      expect(hasAdminsLink()).toBe(false);
+    });
+
+    it('is shown to the Super Admin, alongside every ordinary Admin entry', async () => {
+      account.get.mockResolvedValueOnce({ labels: ['admin', 'super_admin'] });
+      await TestBed.inject(AuthService).restoreSession();
+
+      expect(hasAdminsLink()).toBe(true);
+      expect(component.navItems().some((item) => item.route === '/dashboard/users')).toBe(true);
+    });
   });
 
   describe('mobile nav drawer (Story 5.1)', () => {
