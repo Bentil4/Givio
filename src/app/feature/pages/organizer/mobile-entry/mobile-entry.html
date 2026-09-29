@@ -12,9 +12,7 @@
       <span class="phone-total-caption">{{ totalCaption() }}</span>
     </div>
     @if (pendingCount() > 0) {
-      <span class="phone-pending">
-        {{ pendingCount() }} waiting to sync
-      </span>
+    <span class="phone-pending"> {{ pendingCount() }} waiting to sync </span>
     }
   </header>
 
@@ -28,7 +26,7 @@
         <span class="amount-caret" aria-hidden="true"></span>
       </div>
       @if (!amountRequired()) {
-        <span class="t-tertiary amount-note">Optional for in-kind gifts</span>
+      <span class="t-tertiary amount-note">Optional for in-kind gifts</span>
       }
     </div>
 
@@ -43,18 +41,23 @@
 
     <div class="type-row" role="radiogroup" aria-label="Donation type">
       @for (t of types; track t) {
-        <button type="button" class="type-seg" role="radio"
-                [attr.aria-checked]="donationType() === t"
-                [class.is-selected]="donationType() === t"
-                (click)="setType(t)">{{ shortLabels[t] }}</button>
+      <button
+        type="button"
+        class="type-seg"
+        role="radio"
+        [attr.aria-checked]="donationType() === t"
+        [class.is-selected]="donationType() === t"
+        (click)="setType(t)"
+      >
+        {{ shortLabels[t] }}
+      </button>
       }
     </div>
 
     @if (hint(); as msg) {
-      <p class="phone-hint" role="alert">{{ msg }}</p>
-    }
-    @if (saveError(); as msg) {
-      <p class="phone-hint" role="alert">{{ msg }}</p>
+    <p class="phone-hint" role="alert">{{ msg }}</p>
+    } @if (saveError(); as msg) {
+    <p class="phone-hint" role="alert">{{ msg }}</p>
     }
 
     <div class="phone-spacer"></div>
@@ -63,13 +66,19 @@
          and switching text/number modes per donor costs a second every time. -->
     <div class="keypad">
       @for (k of keys; track k) {
-        <button type="button" class="key" [class.is-back]="k === 'back'"
-                [attr.aria-label]="k === 'back' ? 'Delete last digit' : k"
-                (click)="press(k)">{{ keyLabel(k) }}</button>
+      <button
+        type="button"
+        class="key"
+        [class.is-back]="k === 'back'"
+        [attr.aria-label]="k === 'back' ? 'Delete last digit' : k"
+        (click)="press(k)"
+      >
+        {{ keyLabel(k) }}
+      </button>
       }
     </div>
 
-    <button type="button" class="save-btn" [disabled]="!canSave()" (click)="save()">
+    <button type="button" class="save-btn" [disabled]="saveDisabled()" (click)="save()">
       {{ busy() ? 'Saving…' : saveLabel() }}
     </button>
   </div>

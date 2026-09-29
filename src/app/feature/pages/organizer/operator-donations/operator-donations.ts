@@ -1,13 +1,23 @@
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnDestroy,
+  OnInit,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { DatePipe } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { Donation, DonationType, DONATION_TYPE_LABELS } from '../../../../data/models/donation';
 import { formatCedis, formatCedisShort, totalMinor } from '../../../../utils/donation.util';
 import { ConnectivityService } from '../../../../core/services/connectivity.service';
 import { DonationService } from '../../../../data/services/donation.service';
 import { AuthService } from '../../../../data/services/auth.service';
-import { appDb } from '../../../../data/dexie/app-db';
+import { OperatorEventContext } from '../operator-event-context';
 
 type Tab = 'all' | 'mine' | 'pending' | DonationType;
 
@@ -34,16 +44,23 @@ type Tab = 'all' | 'mine' | 'pending' | DonationType;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OperatorDonations implements OnInit, OnDestroy {
-  private readonly route = inject(ActivatedRoute);
+  private readonly eventContext = inject(OperatorEventContext);
   private readonly connectivityService = inject(ConnectivityService);
   private readonly donationService = inject(DonationService);
   private readonly authService = inject(AuthService);
   private unsubscribeRealtime: (() => void) | null = null;
 
-  public readonly donations = this.donationService.donations;
-  public readonly loading = signal(true);
-  public readonly eventName = signal('');
-  public readonly eventId = signal('');
+  public readonly eventId = computed(() => this.eventContext.activeEvent()?.id ?? '');
+  public readonly eventName = computed(() => this.eventContext.activeEvent()?.name ?? '');
+  /** Filtered by Event so switching Events can never show the previous one's rows. */
+  public readonly donations = computed(() =>
+    this.donationService.donations().filter((d) => d.eventId === this.eventId()),
+  );
+  private readonly loadedEventId = signal<string | null>(null);
+  public readonly loading = computed(
+    () =>
+      !this.eventContext.loaded() || (!!this.eventId() && this.loadedEventId() !== this.eventId()),
+  );
   public readonly currentUser = computed(() => this.authService.currentUser()?.$id ?? '');
 
   public readonly online = this.connectivityService.online;
@@ -74,23 +91,29 @@ export class OperatorDonations implements OnInit, OnDestroy {
     return this.donations().filter((d) => d.donationType === type);
   }
 
-  async ngOnInit(): Promise<void> {
-    const eventId = this.route.snapshot.queryParamMap.get('event');
-    if (!eventId) {
-      this.loading.set(false);
-      return;
-    }
-
-    this.eventId.set(eventId);
-    const event = await appDb.events.get(eventId);
-    this.eventName.set(event?.name ?? '');
-
-    await this.donationService.loadDonationsForEvent(eventId);
-    this.loading.set(false);
-
-    this.unsubscribeRealtime = await this.donationService.subscribeToChanges(() => {
-      void this.donationService.loadDonationsForEvent(eventId);
+  constructor() {
+    effect(() => {
+      const eventId = this.eventId();
+      untracked(() => void this.loadFor(eventId));
     });
+  }
+
+  async ngOnInit(): Promise<void> {
+    this.unsubscribeRealtime = await this.donationService.subscribeToChanges(() => {
+      const eventId = this.eventId();
+      if (eventId) void this.donationService.loadDonationsForEvent(eventId);
+    });
+  }
+
+  private async loadFor(eventId: string): Promise<void> {
+    if (!eventId) return;
+    try {
+      await this.donationService.loadDonationsForEvent(eventId);
+    } catch {
+      // Whatever this device already cached still renders — same fallback as mobile-entry.
+    } finally {
+      this.loadedEventId.set(eventId);
+    }
   }
 
   ngOnDestroy(): void {
@@ -103,10 +126,17 @@ export class OperatorDonations implements OnInit, OnDestroy {
 
     let rows: readonly Donation[];
     switch (t) {
-      case 'mine': rows = this.mine(); break;
-      case 'pending': rows = this.pending(); break;
-      case 'all': rows = this.donations(); break;
-      default: rows = this.byType(t);
+      case 'mine':
+        rows = this.mine();
+        break;
+      case 'pending':
+        rows = this.pending();
+        break;
+      case 'all':
+        rows = this.donations();
+        break;
+      default:
+        rows = this.byType(t);
     }
 
     rows = rows.filter((d) => !d.deletedAt);
@@ -159,28 +189,45 @@ export class OperatorDonations implements OnInit, OnDestroy {
     }
   });
 
-  public amountLabel(d: Donation): string { return formatCedis(d.amountMinor); }
+  public amountLabel(d: Donation): string {
+    return formatCedis(d.amountMinor);
+  }
 
-  public isPending(d: Donation): boolean { return d.syncStatus !== 'synced'; }
+  public isPending(d: Donation): boolean {
+    return d.syncStatus !== 'synced';
+  }
 
   public statusLabel(d: Donation): string {
     switch (d.syncStatus) {
-      case 'synced': return 'Synced';
-      case 'conflict': return 'Needs Admin';
-      case 'failed': return 'Retrying';
-      default: return 'Pending';
+      case 'synced':
+        return 'Synced';
+      case 'conflict':
+        return 'Needs Admin';
+      case 'failed':
+        return 'Retrying';
+      default:
+        return 'Pending';
     }
   }
 
   public statusChip(d: Donation): string {
     switch (d.syncStatus) {
-      case 'synced': return 'tag-success';
-      case 'conflict': return 'tag-error';
-      default: return 'tag-default';
+      case 'synced':
+        return 'tag-success';
+      case 'conflict':
+        return 'tag-error';
+      default:
+        return 'tag-default';
     }
   }
 
-  public setTab(t: Tab): void { this.tab.set(t); }
-  public setSearch(v: string): void { this.search.set(v); }
-  public clearSearch(): void { this.search.set(''); }
+  public setTab(t: Tab): void {
+    this.tab.set(t);
+  }
+  public setSearch(v: string): void {
+    this.search.set(v);
+  }
+  public clearSearch(): void {
+    this.search.set('');
+  }
 }
