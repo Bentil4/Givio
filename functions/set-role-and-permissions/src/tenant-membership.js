@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { Client, Account, Users, TablesDB, ID, Query, Permission, Role } from 'node-appwrite';
 import {
   buildClient,
@@ -10,7 +11,7 @@ import {
   isConflictError,
 } from './shared.js';
 
-const ACTIONS = ['createMembership', 'revokeMembership', 'setTenantStatus'];
+const ACTIONS = ['createMembership', 'revokeMembership', 'setTenantStatus', 'addTeamMember'];
 
 const MEMBERSHIP_ROLES = ['super_organizer', 'organizer', 'operator'];
 
@@ -46,6 +47,15 @@ const PAYLOAD_VALIDATORS = {
     }
     if (!TENANT_STATUSES.includes(status)) {
       return invalid(`status must be one of: ${TENANT_STATUSES.join(', ')}`);
+    }
+    return VALID;
+  },
+  addTeamMember: ({ name, email, tenantId, role }) => {
+    if (!hasValue(name) || !hasValue(email) || !hasValue(tenantId)) {
+      return invalid('Request must include name, email, and tenantId');
+    }
+    if (!MEMBERSHIP_ROLES.includes(role)) {
+      return invalid(`role must be one of: ${MEMBERSHIP_ROLES.join(', ')}`);
     }
     return VALID;
   },
@@ -120,6 +130,48 @@ async function sweepTenantEventPermissions({
   return { listed: true };
 }
 
+/**
+ * The bare Membership-row write, shared by handleCreateMembership (caller already has a
+ * resolved `userId`) and handleAddTeamMember (Story 6.3 — `userId` is a freshly-created
+ * Account, so no prior Membership can exist for it, but this stays the single place the
+ * row-shape/permissions/conflict-handling is defined either way).
+ */
+async function createMembershipRow({
+  databases,
+  databaseId,
+  membershipsCollectionId,
+  userId,
+  tenantId,
+  role,
+  grantedBy,
+  error,
+  errorContext,
+}) {
+  const now = new Date().toISOString();
+  let row;
+  try {
+    row = await databases.createRow({
+      databaseId,
+      tableId: membershipsCollectionId,
+      rowId: ID.unique(),
+      data: { userId, tenantId, role, status: 'active', grantedBy, grantedAt: now },
+      permissions: [Permission.read(Role.label('admin')), Permission.read(Role.user(userId))],
+    });
+  } catch (err) {
+    if (isConflictError(err)) {
+      error(`${errorContext}: userId_unique conflict for ${userId}: ${err.message}`);
+      return { status: 409, body: { error: 'User already holds an active membership' } };
+    }
+    error(`${errorContext}: createRow failed: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to create membership' } };
+  }
+
+  return {
+    status: 200,
+    body: { success: true, membershipId: row.$id, userId, tenantId, role, status: 'active' },
+  };
+}
+
 async function handleCreateMembership({
   DatabasesCtor,
   UsersCtor,
@@ -181,28 +233,106 @@ async function handleCreateMembership({
     return { status: 409, body: { error: 'User already holds an active membership' } };
   }
 
-  const now = new Date().toISOString();
-  let row;
+  return createMembershipRow({
+    databases,
+    databaseId,
+    membershipsCollectionId,
+    userId,
+    tenantId,
+    role,
+    grantedBy: caller.$id,
+    error,
+    errorContext: 'createMembership',
+  });
+}
+
+/**
+ * Story 6.3: the only Function action that provisions a *new* Account, and the sole place
+ * "distinct Account per tenant relationship" (FR-4/FR-5) is actually enforced end-to-end.
+ * Deliberately no invite-email/SMS delivery here (no AC needs it) — the generated password is
+ * returned in the response, the same shape admin-users.js's createUser already uses, so a
+ * later story that needs delivery can reuse that existing mechanism rather than a new one.
+ */
+async function handleAddTeamMember({
+  DatabasesCtor,
+  UsersCtor,
+  adminClient,
+  payload,
+  caller,
+  databaseId,
+  tenantsCollectionId,
+  membershipsCollectionId,
+  error,
+}) {
+  const { name, email, tenantId, role } = payload;
+  const databases = new DatabasesCtor(adminClient);
+
+  // Same existence-only (not approved-only) tenant check as createMembership — see that
+  // function's own comment for why 'pending' must be allowed.
   try {
-    row = await databases.createRow({
-      databaseId,
-      tableId: membershipsCollectionId,
-      rowId: ID.unique(),
-      data: { userId, tenantId, role, status: 'active', grantedBy: caller.$id, grantedAt: now },
-      permissions: [Permission.read(Role.label('admin')), Permission.read(Role.user(userId))],
+    await databases.getRow({ databaseId, tableId: tenantsCollectionId, rowId: tenantId });
+  } catch (err) {
+    error(`addTeamMember: tenant ${tenantId} not found: ${err.message}`);
+    return { status: 404, body: { error: 'Tenant not found' } };
+  }
+
+  // AC1/AC3's crux: create a brand-new Account for this exact call. If `email` already belongs
+  // to an existing Account, this throws (Appwrite's own email-uniqueness) *before* any
+  // Membership write is even attempted — there is no fallback path that looks up and reuses
+  // the existing Account instead, which is what makes the "no product surface attaches a
+  // second tenant's Membership to an existing Account" guarantee hold structurally, not just
+  // by convention.
+  const generatedPassword = randomBytes(12).toString('base64url');
+  const users = new UsersCtor(adminClient);
+  let account;
+  try {
+    account = await users.create({
+      userId: ID.unique(),
+      email,
+      password: generatedPassword,
+      name,
     });
   } catch (err) {
     if (isConflictError(err)) {
-      error(`createMembership: userId_unique conflict for ${userId}: ${err.message}`);
-      return { status: 409, body: { error: 'User already holds an active membership' } };
+      error(`addTeamMember: email ${email} already registered: ${err.message}`);
+      return { status: 409, body: { error: 'A user with this email already exists' } };
     }
-    error(`createMembership: createRow failed: ${err.message}`);
-    return { status: 502, body: { error: 'Failed to create membership' } };
+    error(`addTeamMember: users.create failed: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to create user account' } };
+  }
+
+  const membershipResult = await createMembershipRow({
+    databases,
+    databaseId,
+    membershipsCollectionId,
+    userId: account.$id,
+    tenantId,
+    role,
+    grantedBy: caller.$id,
+    error,
+    errorContext: 'addTeamMember',
+  });
+  if (membershipResult.status !== 200) {
+    // The Account already exists at this point (created above) even though the Membership
+    // write failed — surfaced via `error` for operator visibility; no automatic rollback of
+    // the Account creation (matches this Function's existing best-effort-on-partial-failure
+    // posture elsewhere, e.g. sweepTenantEventPermissions).
+    error(`addTeamMember: account ${account.$id} created but membership write failed`);
+    return membershipResult;
   }
 
   return {
     status: 200,
-    body: { success: true, membershipId: row.$id, userId, tenantId, role, status: 'active' },
+    body: {
+      success: true,
+      userId: account.$id,
+      membershipId: membershipResult.body.membershipId,
+      name,
+      email,
+      tenantId,
+      role,
+      generatedPassword,
+    },
   };
 }
 
@@ -462,6 +592,9 @@ export async function handleTenantMembershipRequest({
       break;
     case 'setTenantStatus':
       result = await handleSetTenantStatus(actionContext);
+      break;
+    case 'addTeamMember':
+      result = await handleAddTeamMember(actionContext);
       break;
   }
 

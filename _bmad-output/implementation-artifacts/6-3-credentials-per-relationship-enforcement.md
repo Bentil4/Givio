@@ -1,6 +1,10 @@
+---
+baseline_commit: 368457c41de86c834a3352fa7eaa62b1951c172b
+---
+
 # Story 6.3: Credentials-Per-Relationship Enforcement
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -18,29 +22,29 @@ so that revoking my access at one company can never affect my access at another.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Design decision: a new `addTeamMember` Function action is required (AC 1, 3)**
-  - [ ] Read Story 6.3's ACs literally: AC1 says a second tenant "tries to add that same person (**matched by email**)" — Story 6.2's existing `createMembership` action takes a pre-resolved `userId`, never an email, so it cannot be what's under test here. AC1/AC3 are testing an **email-based "add a person" flow** that doesn't exist yet. Per this epic's established "exercised directly for this story" precedent (Story 1.2→1.3, Story 6.2→6.3 itself), **this story builds that Function action**; Epic 7's Story 7.1 only wires a UI to it later — do not defer the action itself to 7.1.
-  - [ ] Do **not** rename/replace `createMembership` (Story 6.2, already shipped) — it still serves callers that already have a resolved `userId` (e.g. a future internal flow). Add a new, additional action `addTeamMember({ name, email, tenantId, role })` alongside it.
-  - [ ] Scope discipline (matches Story 6.2's own "Known interim gap" precedent): `addTeamMember` stays Admin-caller-gated for this story — Epic 7's Story 7.1 layers the real Organizer-caller + `super_organizer`-only-for-Organizer-role gate (FR-10/FR-11) on top later, and Story 7.2 layers the `IdentityFlags` cross-reference on top of that. Do not build either gate here. Also do **not** build invite-email/SMS delivery here — no AC tests it, and `admin-users.js`'s existing `createUser` invite mechanism is there to reuse whenever a story that actually needs it (delivering credentials to the new person) is built; `addTeamMember` just returns the generated password in its response, matching `createUser`'s own `generatedPassword` field shape.
+- [x] **Task 1 — Design decision: a new `addTeamMember` Function action is required (AC 1, 3)**
+  - [x] Confirmed: `createMembership` cannot satisfy AC1/AC3 (no email/account-creation surface). Built `addTeamMember` as a new, additional action.
+  - [x] `createMembership` left untouched externally — same action name, same payload shape, same tests passing unmodified.
+  - [x] `addTeamMember` is Admin-caller-gated only, no Organizer-caller/`super_organizer` gate, no `IdentityFlags` check, no invite-email/SMS delivery — exactly as scoped. Returns `generatedPassword` in the response, matching `createUser`'s field shape.
 
-- [ ] **Task 2 — Refactor: extract a shared internal Membership-row helper (AC 1, 3)**
-  - [ ] In `functions/set-role-and-permissions/src/tenant-membership.js`, extract the row-creation body of `handleCreateMembership` (the `databases.createRow(...)` call + its `isConflictError` handling) into a private helper, e.g. `createMembershipRow({ databases, databaseId, membershipsCollectionId, userId, tenantId, role, grantedBy })` returning `{ status, body }` or throwing — used by both the existing `handleCreateMembership` (unchanged external behavior/tests) and the new `handleAddTeamMember`.
-  - [ ] `handleAddTeamMember` does **not** need `createMembership`'s duplicate-active-Membership pre-check (Task 4 of Story 6.2) — the Account it's attaching a Membership to is *brand new* by construction (see Task 3), so no prior Membership can exist. Still safe/cheap to route through the same helper for consistency; do not re-derive a second copy of the row-creation logic.
+- [x] **Task 2 — Refactor: extract a shared internal Membership-row helper (AC 1, 3)**
+  - [x] Extracted `createMembershipRow({ databases, databaseId, membershipsCollectionId, userId, tenantId, role, grantedBy, error, errorContext })` from `handleCreateMembership`'s row-creation body (including its `isConflictError` → 409 handling). `handleCreateMembership` now calls it after its existing tenant/user/duplicate-membership checks — identical external behavior, verified by its own pre-existing tests passing unmodified.
+  - [x] `handleAddTeamMember` calls `createMembershipRow` directly (no duplicate-active-Membership pre-check) — the Account is always brand-new by construction.
 
-- [ ] **Task 3 — `handleAddTeamMember` (AC 1, 3)**
-  - [ ] New `PAYLOAD_VALIDATORS.addTeamMember`: requires `name`, `email`, `tenantId`, and `role` (one of `super_organizer|organizer|operator`, matching `MEMBERSHIP_ROLES`).
-  - [ ] Verify the tenant exists (reuse the same `getRow` check `handleCreateMembership` already does; same "existence required, `pending` allowed" reasoning — a self-signup Super Organizer's own account is provisioned before Admin's approval).
-  - [ ] Create the Account: mirror `admin-users.js`'s `createUser` pattern exactly — `users.create({ userId: ID.unique(), email, password: randomBytes(12).toString('base64url'), name })`. Needs a `UsersCtor` (already threaded through `tenant-membership.js` since Story 6.2's code review added it for `createMembership`'s user-existence check).
-  - [ ] **This is the crux of AC1/AC3**: if `users.create` rejects with a conflict (`isConflictError`, from `shared.js`), the email already belongs to an existing Account — return `409` **immediately, before ever calling `createMembershipRow`**. Never fall back to looking up the existing Account and attaching a Membership to it — "there is no product surface anywhere that attaches a second tenant's Membership to an existing Account" is the literal AC1 requirement, and the only way to guarantee it in code is to never write that code path at all, not to gate it behind a check that could be bypassed by a future edit.
-  - [ ] On successful Account creation, call `createMembershipRow` for the new `userId`. Return `{ success: true, userId, membershipId, email, name, tenantId, role, generatedPassword }`.
-  - [ ] Register `addTeamMember` in `ACTIONS`, wire it into `handleTenantMembershipRequest`'s action-context/switch (same pattern as the other three actions), pass `UsersCtor` through.
+- [x] **Task 3 — `handleAddTeamMember` (AC 1, 3)**
+  - [x] `PAYLOAD_VALIDATORS.addTeamMember` added: requires `name`, `email`, `tenantId`, and a valid `role`.
+  - [x] Tenant-existence check (same `getRow` pattern as `createMembership`, same `pending`-allowed reasoning).
+  - [x] Account creation via `users.create({ userId: ID.unique(), email, password: randomBytes(12).toString('base64url'), name })`.
+  - [x] On `isConflictError` from `users.create`, returns `409` immediately — `createMembershipRow` is never called on that path (verified by test: `calls.createRow` is `undefined`).
+  - [x] On success, calls `createMembershipRow` for the new Account, returns `{ success, userId, membershipId, name, email, tenantId, role, generatedPassword }`.
+  - [x] Registered in `ACTIONS`, wired into `handleTenantMembershipRequest`'s switch; `UsersCtor` already threaded through from Story 6.2.
 
-- [ ] **Task 4 — Tests (all 3 ACs)**
-  - [ ] `addTeamMember` creates both an Account and a Membership for a brand-new email; asserts `users.create` was called with the target `name`/`email` (never the caller's own), and the returned `membershipId` is wired to the new `userId`, not the caller's `$id` (AC3 — proves the flow never shares/forwards the Super Organizer's own credentials).
-  - [ ] `addTeamMember` returns `409` and **does not call `createRow` on the Memberships table at all** when `users.create` conflicts on an existing email (AC1 — the assertion that matters is the absent `createRow` call, not just the status code, since that's what actually proves no Membership got attached to the existing Account).
-  - [ ] `addTeamMember` rejects a non-admin caller with `403`, a missing/invalid role with `400`, and a nonexistent `tenantId` with `404` — same shape as `createMembership`'s existing tests, for consistency.
-  - [ ] Revoke-isolation test (AC2): two independent Membership fixtures (`membership-a` at `tenant-a` for `user-a`, `membership-b` at `tenant-b` for `user-b`, unrelated `userId`s). Revoke `membership-a`. Assert: exactly one Membership `updateRow` call (for `membership-a`), and the sweep's `listRows`/`updateRow` calls are scoped to `tenant-a` only — nothing in the mock's call log references `membership-b`, `user-b`, or `tenant-b`. This is a regression-proof for behavior `handleRevokeMembership` (Story 6.2) already has; this story adds the dedicated test Story 6.3 itself calls for, it does not change `handleRevokeMembership`.
-  - [ ] Run the full Function suite (`npm test` in `functions/set-role-and-permissions`) — zero regressions expected; `createMembership`'s own existing tests are unaffected by the Task 2 refactor (same external behavior).
+- [x] **Task 4 — Tests (all 3 ACs)**
+  - [x] `addTeamMember` creates Account + Membership for a new email; asserts `users.create`'s `email`/`name` match the target person (never `admin-1`, the caller), and the Membership's `userId` is the new Account's id, not the caller's (AC3).
+  - [x] `addTeamMember` returns `409` with **no** `createRow` call when `users.create` conflicts on an existing email (AC1).
+  - [x] `addTeamMember` rejects non-admin (403), invalid role (400, before any DB call), nonexistent tenant (404, before touching Users) — 3 tests.
+  - [x] Revoke-isolation test (AC2): revoking `membership-a` (`tenant-a`/`user-a`) produces exactly 2 `updateRow` calls (the Membership + its one swept Event) and zero references anywhere in the call log to `tenant-b`/`user-b`/`membership-b`.
+  - [x] Full Function suite: **122/122 passing** (was 116; +6 new), zero regressions — `createMembership`'s existing tests unaffected by the Task 2 refactor.
 
 ## Dev Notes
 
@@ -82,12 +86,20 @@ No conflicts with the existing brownfield structure — extends the same module 
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-5
 
 ### Debug Log References
 
 ### Completion Notes List
 
-- Ultimate context engine analysis completed - comprehensive developer guide created.
+- All 4 tasks implemented. `addTeamMember` is the only genuinely new code path — `createMembership`'s refactor (Task 2) preserves external behavior exactly, confirmed by its own pre-existing tests passing unmodified.
+- **Live Appwrite MCP verification was NOT available for this story** (the MCP server was disconnected at implementation time, unlike Story 6.2 where it was available) — this story's Cross-Cutting DoD note explicitly asked for this to be stated plainly rather than silently skipped. Verification here is unit-test-only (122/122 Function tests passing). The one live-verifiable assumption worth flagging for whoever next has Appwrite access: confirm `users.create`'s conflict error for a duplicate email actually surfaces as `err.code === 409` against the real Appwrite Cloud project (matches `admin-users.js`'s existing `isConflictError`/`resolveDuplicateField` pattern, already relied on elsewhere in production, so this is expected to hold — not a new assumption this story introduces, but not independently re-verified live either).
+- AC1's guarantee is enforced structurally (no code path exists that attaches a Membership to a pre-existing Account), not just by a runtime check — see Dev Notes "AC1's enforcement must be structural."
+- Confirmed the story's own note about `IdentityFlags`/Organizer-caller gating: neither was built here, exactly as scoped to Epic 7's Story 7.1/7.2.
 
 ### File List
+
+**Modified:**
+
+- `functions/set-role-and-permissions/src/tenant-membership.js` (new `addTeamMember` action; `createMembershipRow` helper extracted from `handleCreateMembership`)
+- `functions/set-role-and-permissions/tests/tenant-membership.test.js` (6 new tests; `UsersCtor` fixture mock gained a `create` method)
