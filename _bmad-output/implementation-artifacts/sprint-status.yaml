@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-07-26
-last_updated: 2026-09-29-story-6-3-created
+last_updated: 2026-09-29-story-6-3-done
 project: givio
 project_key: NOKEY
 tracking_system: file-system
@@ -400,7 +400,7 @@ development_status:
   # ID intentionally not reused.
   epic-6: in-progress
   6-2-tenant-membership-foundation: done
-  6-3-credentials-per-relationship-enforcement: ready-for-dev
+  6-3-credentials-per-relationship-enforcement: done
   6-4-organizer-onboarding-admin-invited-self-signup: backlog
   6-5-manual-verification-admin-approval-queue: backlog
   # 6-6 implemented 2026-09-29 (Wave 1, branch feature/6-6-operator-event-switcher; built on 6.2
