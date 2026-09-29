@@ -430,10 +430,10 @@ development_status:
   # 8-2 implemented 2026-09-29 (Wave 1, branch feature/8-2-admin-access-logging). logAdminAccess()
   # in audit-log-writer (reuses writeAuditLog - still one writer): one fire-and-forget 'access' entry
   # per Data-layer call (listEvents, listDonationsForEvent, listAllDonations) for admin-labelled
-  # callers only (covers super_admin via AD-11), recording actor, tenantId/tenantIds (newValues JSON)
+  # callers only (covers superadmin via AD-11), recording actor, tenantId/tenantIds (newValues JSON)
   # and rowCount; offline reads and Operators log nothing; admin-audit renders the rows.
   # BLOCKER before merge: add 'access' to the live audit_logs.action enum (currently create/edit/
-  # delete/restore) - until then entries are rejected and only console-logged. Open decision:
+  # delete/restore) - DONE 2026-09-29 via Appwrite MCP (enum now includes access). Open decision:
   # admin-dashboard Realtime refetches log one entry each (one per donation platform-wide while the
   # dashboard is open) - accept, or amend AD-12 to throttle/exempt them.
   # 260/260 unit, lint/tsc/build green. Status "review".
@@ -444,14 +444,16 @@ development_status:
   # 8-6 implemented 2026-09-29 (Wave 1, branch feature/8-6-super-admin-manages-admins).
   # SECURITY: before this, every admin-users.js action was gated only on the `admin` label, so any
   # Admin could create/promote/demote/suspend/expire another Admin (incl. the Super Admin) or change
-  # their email (account takeover). New server-side authorizeAdminTier() gate: only a super_admin-
+  # their email (account takeover). New server-side authorizeAdminTier() gate: only a superadmin-
   # labelled caller may act on an admin-tier target; the Super Admin account can't be changed in-app
   # (no zero-super-admin state); target lookup fails closed (502/404); suspended caller -> 403.
-  # super_admin can't be granted by any app path (400) - must be seeded. setStatus(false) on an Admin
+  # superadmin can't be granted by any app path (400) - must be seeded. setStatus(false) on an Admin
   # also revokes sessions (502 if that fails). /dashboard/admins page behind superAdminGuard; Admins
   # nav item Super-Admin-only; admin-users edit now sends role only when changed (fixed self-rename 400).
-  # 144/144 Function, 267/267 unit, lint/tsc/build green. Manual steps: seed super_admin label on
-  # exactly one account + Function redeploy (hole stays open live until deployed). Status "review".
+  # 144/144 Function, 267/267 unit, lint/tsc/build green. Manual steps: seed superadmin label on
+  # exactly one account + Function redeploy (hole stays open live until deployed). Label renamed
+  # from super_admin to superadmin (Appwrite labels must be alphanumeric; AD-11 amended); seeded
+  # 2026-09-29 on Emmanuel Mensah (69c276a2002a78d71222) via Appwrite MCP. Status "review".
   8-6-super-admin-manages-admin-accounts: review
   epic-8-retrospective: optional
 
