@@ -239,7 +239,12 @@ test(
       headers: ADMIN_HEADERS,
       getAccount: asAdmin,
       tablesDB: {
-        getRow: async () => ({ $id: 'e1', type: 'wedding', status: 'active', assignedUserIds: ['op-1'] }),
+        getRow: async () => ({
+          $id: 'e1',
+          type: 'wedding',
+          status: 'active',
+          assignedUserIds: ['op-1'],
+        }),
         incrementRowColumn: async () => ({ nextReceiptSeq: 1 }),
         createRow: async () => ({ $id: 'd1' }),
       },
@@ -260,7 +265,12 @@ test(
       headers: OPERATOR_HEADERS,
       getAccount: asOperator('op-1'),
       tablesDB: {
-        getRow: async () => ({ $id: 'e1', type: 'wedding', status: 'active', assignedUserIds: ['op-1', 'op-2'] }),
+        getRow: async () => ({
+          $id: 'e1',
+          type: 'wedding',
+          status: 'active',
+          assignedUserIds: ['op-1', 'op-2'],
+        }),
         incrementRowColumn: async () => ({ nextReceiptSeq: 7 }),
         createRow: async () => ({ $id: 'd1' }),
       },
@@ -294,7 +304,12 @@ test(
       headers: OPERATOR_HEADERS,
       getAccount: asOperator('op-1'),
       tablesDB: {
-        getRow: async () => ({ $id: 'e1', type: 'wedding', status: 'active', assignedUserIds: ['op-1'] }),
+        getRow: async () => ({
+          $id: 'e1',
+          type: 'wedding',
+          status: 'active',
+          assignedUserIds: ['op-1'],
+        }),
         incrementRowColumn: async () => {
           throw new Error('boom');
         },
@@ -320,7 +335,12 @@ test(
   '10 concurrent operators recording against the same event get unique receipt numbers and correct per-caller attribution',
   withEnv(async () => {
     const OPERATOR_COUNT = 10;
-    const event = { $id: 'e1', type: 'wedding', status: 'active', assignedUserIds: Array.from({ length: OPERATOR_COUNT }, (_, i) => `op-${i}`) };
+    const event = {
+      $id: 'e1',
+      type: 'wedding',
+      status: 'active',
+      assignedUserIds: Array.from({ length: OPERATOR_COUNT }, (_, i) => `op-${i}`),
+    };
     const donations = new Map();
     let nextReceiptSeq = 0;
 
@@ -358,12 +378,24 @@ test(
 
     assert.equal(donations.size, OPERATOR_COUNT);
     const receiptNumbers = [...donations.values()].map((d) => d.receiptNumber);
-    assert.equal(new Set(receiptNumbers).size, OPERATOR_COUNT, 'every receipt number must be unique');
+    assert.equal(
+      new Set(receiptNumbers).size,
+      OPERATOR_COUNT,
+      'every receipt number must be unique',
+    );
 
     for (let i = 0; i < OPERATOR_COUNT; i++) {
       const donation = donations.get(`d${i}`);
-      assert.equal(donation.recordedBy, `op-${i}`, `donation d${i} must be attributed to its own caller, not another concurrent one`);
-      assert.equal(donation.donorName, `Donor ${i}`, `donation d${i} must keep its own payload, not another concurrent one's`);
+      assert.equal(
+        donation.recordedBy,
+        `op-${i}`,
+        `donation d${i} must be attributed to its own caller, not another concurrent one`,
+      );
+      assert.equal(
+        donation.donorName,
+        `Donor ${i}`,
+        `donation d${i} must keep its own payload, not another concurrent one's`,
+      );
     }
   }),
 );
@@ -376,7 +408,12 @@ test(
       headers: OPERATOR_HEADERS,
       getAccount: asOperator('op-1'),
       tablesDB: {
-        getRow: async () => ({ $id: 'e1', type: 'wedding', status: 'active', assignedUserIds: ['op-1'] }),
+        getRow: async () => ({
+          $id: 'e1',
+          type: 'wedding',
+          status: 'active',
+          assignedUserIds: ['op-1'],
+        }),
         incrementRowColumn: async () => ({ nextReceiptSeq: 1 }),
         createRow: async () => {
           throw new Error('boom');
@@ -387,5 +424,61 @@ test(
     const result = await handleDonationRecordingRequest(ctx);
 
     assert.equal(result.status, 502);
+  }),
+);
+
+test(
+  'Story 6.6: rejects with 409, before assigning a receipt number, when the provisional receipt was minted for a different event than the claimed eventId',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: { ...BASE_PAYLOAD, receiptNumber: 'FUNZZZZ-P1' },
+      headers: OPERATOR_HEADERS,
+      getAccount: asOperator('op-1'),
+      tablesDB: {
+        getRow: async () => ({
+          $id: 'e1',
+          type: 'wedding',
+          status: 'active',
+          assignedUserIds: ['op-1'],
+        }),
+        incrementRowColumn: async () => ({ nextReceiptSeq: 1 }),
+        createRow: async () => ({ $id: 'd1' }),
+      },
+    });
+
+    const result = await handleDonationRecordingRequest(ctx);
+
+    assert.equal(result.status, 409);
+    assert.equal(calls.incrementRowColumn, undefined);
+    assert.equal(calls.createRow, undefined);
+  }),
+);
+
+test(
+  'Story 6.6: records against the claimed eventId, unchanged, when its provisional receipt matches that event',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: { ...BASE_PAYLOAD, receiptNumber: 'WEDE1-P3' },
+      headers: OPERATOR_HEADERS,
+      getAccount: asOperator('op-1'),
+      tablesDB: {
+        getRow: async () => ({
+          $id: 'e1',
+          type: 'wedding',
+          status: 'active',
+          assignedUserIds: ['op-1'],
+        }),
+        incrementRowColumn: async () => ({ nextReceiptSeq: 4 }),
+        createRow: async () => ({ $id: 'd1' }),
+      },
+    });
+
+    const result = await handleDonationRecordingRequest(ctx);
+
+    assert.equal(result.status, 200);
+    assert.equal(calls.getRow[0][0].rowId, 'e1');
+    const [create] = calls.createRow[0];
+    assert.equal(create.data.eventId, 'e1');
+    assert.equal(create.data.receiptNumber, 'WEDE1-4');
   }),
 );

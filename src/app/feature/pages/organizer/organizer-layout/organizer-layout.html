@@ -23,12 +23,16 @@
   />
   <div class="main-content">
     @if (showConnectionBanner()) {
-      <app-connection-banner
-        [state]="connection()"
-        [pendingCount]="pendingCount()"
-        [syncedCount]="syncedCount()"
-        (viewQueue)="openQueue()"
-      />
+    <app-connection-banner
+      [state]="connection()"
+      [pendingCount]="pendingCount()"
+      [syncedCount]="syncedCount()"
+      (viewQueue)="openQueue()"
+    />
+    } @if (showEventSwitcher()) {
+    <header class="event-bar">
+      <app-event-switcher (picked)="onEventPicked($event)" />
+    </header>
     }
     <app-breadcrumb />
     <router-outlet />

@@ -6,7 +6,7 @@
     </a>
 
     <div class="desk-event">
-      <h1 class="t-page-title">{{ notFound() ? 'Event not found' : (event()?.name || 'Loading event…') }}</h1>
+      <h1 class="t-page-title">{{ heading() }}</h1>
       <p class="desk-event-meta">{{ eventMeta() }}</p>
     </div>
 
@@ -16,10 +16,10 @@
     </div>
 
     @if (pending().length > 0) {
-      <button type="button" class="desk-pending" (click)="openQueue()">
-        <span class="desk-pending-dot" aria-hidden="true"></span>
-        {{ pending().length }} pending
-      </button>
+    <button type="button" class="desk-pending" (click)="openQueue()">
+      <span class="desk-pending-dot" aria-hidden="true"></span>
+      {{ pending().length }} pending
+    </button>
     }
   </header>
 
@@ -31,102 +31,117 @@
   />
 
   @if (loadError(); as err) {
-    <div class="desk-blocked">
-      <mat-icon>error_outline</mat-icon>
-      <p class="t-body">{{ err }}</p>
-    </div>
+  <div class="desk-blocked">
+    <mat-icon>error_outline</mat-icon>
+    <p class="t-body">{{ err }}</p>
+  </div>
   }
 
   <!-- A paused or closed event blocks entry outright, and says who can unblock it.
        "Save failed" with no explanation is what sends operators back to paper. -->
   @if (!canRecord() && event()) {
-    <div class="desk-blocked">
-      <mat-icon>lock</mat-icon>
-      <p class="t-body">{{ blocked() }}</p>
-    </div>
+  <div class="desk-blocked">
+    <mat-icon>lock</mat-icon>
+    <p class="t-body">{{ blocked() }}</p>
+  </div>
+  } @if (noActiveEvent()) {
+  <div class="desk-blocked">
+    <mat-icon>event_busy</mat-icon>
+    <p class="t-body">
+      You have no active Event to record against. Ask an Admin to assign you to one.
+    </p>
+  </div>
   }
 
   <div class="desk-body">
     <div class="desk-main">
-      @switch (phase()) {
-        @case ('entry') {
-          <div class="desk-main-head">
-            <h2 class="section-label">New donation</h2>
-            @if (event()) {
-              <span class="desk-receipt">Receipt {{ eventCodeLabel() }}-{{ myCount() + 1 }}</span>
-            }
-          </div>
-          <app-donation-form
-            class="glass"
-            [eventId]="event()?.id || ''"
-            [offline]="!online()"
-            [busy]="busy() || !canRecord()"
-            [initialValue]="draft()"
-            (submitted)="onSubmitted($event)"
-          />
+      @switch (phase()) { @case ('entry') {
+      <div class="desk-main-head">
+        <h2 class="section-label">New donation</h2>
+        @if (event()) {
+        <span class="desk-receipt">Receipt {{ eventCodeLabel() }}-{{ myCount() + 1 }}</span>
         }
-
-        @case ('confirming') {
-          <div class="confirm glass">
-            <h2 class="t-page-title">Save this donation?</h2>
-            <p class="t-secondary">Read it back to the donor before you confirm.</p>
-            <dl class="confirm-rows">
-              @for (row of confirmRows(); track row.label) {
-                <div class="confirm-row">
-                  <dt class="t-tertiary">{{ row.label }}</dt>
-                  <dd [class.confirm-amount]="row.emphasis" [class.t-body-em]="!row.emphasis">{{ row.value }}</dd>
-                </div>
-              }
-            </dl>
-            @if (saveError(); as err) {
-              <div class="desk-blocked">
-                <mat-icon>error_outline</mat-icon>
-                <p class="t-body">{{ err }}</p>
-              </div>
-            }
-            <div class="confirm-actions">
-              <button type="button" class="btn btn-secondary" (click)="backToEdit()">Go back and edit</button>
-              <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="confirm()">
-                Confirm and save
-              </button>
-            </div>
+      </div>
+      <app-donation-form
+        class="glass"
+        [eventId]="event()?.id || ''"
+        [offline]="!online()"
+        [busy]="busy() || formBlocked()"
+        [initialValue]="draft()"
+        (submitted)="onSubmitted($event)"
+        (eventMissing)="onEventMissing()"
+      />
+      } @case ('confirming') {
+      <div class="confirm glass">
+        <h2 class="t-page-title">Save this donation?</h2>
+        <p class="t-secondary">Read it back to the donor before you confirm.</p>
+        <dl class="confirm-rows">
+          @for (row of confirmRows(); track row.label) {
+          <div class="confirm-row">
+            <dt class="t-tertiary">{{ row.label }}</dt>
+            <dd [class.confirm-amount]="row.emphasis" [class.t-body-em]="!row.emphasis">
+              {{ row.value }}
+            </dd>
           </div>
+          }
+        </dl>
+        @if (saveError(); as err) {
+        <div class="desk-blocked">
+          <mat-icon>error_outline</mat-icon>
+          <p class="t-body">{{ err }}</p>
+        </div>
         }
-
-        @case ('saved') {
-          <div class="saved glass">
-            <div class="saved-flag">
-              <mat-icon>check_circle</mat-icon>
-              <div>
-                <p class="t-body-em">Donation saved</p>
-                <p class="t-caption">
-                  {{ online() ? "The family's live view already shows it." : 'Stored on this device — it will sync automatically.' }}
-                </p>
-              </div>
-            </div>
-            <div class="saved-actions">
-              <button type="button" class="btn btn-primary" (click)="printReceipt()">Print receipt</button>
-              <button type="button" class="btn btn-secondary" (click)="downloadReceipt()">Download PDF</button>
-              <button type="button" class="btn btn-secondary" (click)="nextDonation()">
-                Record the next donation
-              </button>
-            </div>
-            <p class="t-tertiary saved-note">
-              Receipts are generated on this device, so printing works even with no internet. Every
-              receipt number is sequential within the event.
+        <div class="confirm-actions">
+          <button type="button" class="btn btn-secondary" (click)="backToEdit()">
+            Go back and edit
+          </button>
+          <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="confirm()">
+            Confirm and save
+          </button>
+        </div>
+      </div>
+      } @case ('saved') {
+      <div class="saved glass">
+        <div class="saved-flag">
+          <mat-icon>check_circle</mat-icon>
+          <div>
+            <p class="t-body-em">Donation saved</p>
+            <p class="t-caption">
+              {{ online() ? "The family's live view already shows it." : 'Stored on this device — it
+              will sync automatically.' }}
             </p>
           </div>
-        }
-      }
+        </div>
+        <div class="saved-actions">
+          <button type="button" class="btn btn-primary" (click)="printReceipt()">
+            Print receipt
+          </button>
+          <button type="button" class="btn btn-secondary" (click)="downloadReceipt()">
+            Download PDF
+          </button>
+          <button type="button" class="btn btn-secondary" (click)="nextDonation()">
+            Record the next donation
+          </button>
+        </div>
+        <p class="t-tertiary saved-note">
+          Receipts are generated on this device, so printing works even with no internet. Every
+          receipt number is sequential within the event.
+        </p>
+      </div>
+      } }
     </div>
 
     <aside class="desk-aside glass">
       <div class="desk-aside-head">
         <h2 class="section-label">Recorded by you</h2>
         @if (event()) {
-          <a class="t-caption" routerLink="/organizer/donations" [queryParams]="{ event: event()!.id }">
-            View all
-          </a>
+        <a
+          class="t-caption"
+          routerLink="/organizer/donations"
+          [queryParams]="{ event: event()!.id }"
+        >
+          View all
+        </a>
         }
       </div>
       <div class="desk-stats">
@@ -141,26 +156,24 @@
       </div>
 
       @if (myEntries().length === 0) {
-        <p class="t-secondary desk-aside-empty">
-          Your entries will appear here as you record them.
-        </p>
+      <p class="t-secondary desk-aside-empty">Your entries will appear here as you record them.</p>
       } @else {
-        <div class="desk-aside-list">
-          @for (d of myEntries(); track d.id; let first = $first) {
-            <app-donation-row [donation]="d" [isNew]="first" [showRecordedBy]="false" />
-          }
-        </div>
+      <div class="desk-aside-list">
+        @for (d of myEntries(); track d.id; let first = $first) {
+        <app-donation-row [donation]="d" [isNew]="first" [showRecordedBy]="false" />
+        }
+      </div>
       }
     </aside>
   </div>
 
   @if (queueOpen()) {
-    <app-pending-queue
-      [drafts]="pending()"
-      [online]="online()"
-      [syncing]="syncing()"
-      (closed)="closeQueue()"
-      (syncNow)="syncNow()"
-    />
+  <app-pending-queue
+    [drafts]="pending()"
+    [online]="online()"
+    [syncing]="syncing()"
+    (closed)="closeQueue()"
+    (syncNow)="syncNow()"
+  />
   }
 </section>
