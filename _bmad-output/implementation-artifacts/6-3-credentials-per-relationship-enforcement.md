@@ -4,7 +4,7 @@ baseline_commit: 368457c41de86c834a3352fa7eaa62b1951c172b
 
 # Story 6.3: Credentials-Per-Relationship Enforcement
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -45,6 +45,28 @@ so that revoking my access at one company can never affect my access at another.
   - [x] `addTeamMember` rejects non-admin (403), invalid role (400, before any DB call), nonexistent tenant (404, before touching Users) — 3 tests.
   - [x] Revoke-isolation test (AC2): revoking `membership-a` (`tenant-a`/`user-a`) produces exactly 2 `updateRow` calls (the Membership + its one swept Event) and zero references anywhere in the call log to `tenant-b`/`user-b`/`membership-b`.
   - [x] Full Function suite: **122/122 passing** (was 116; +6 new), zero regressions — `createMembership`'s existing tests unaffected by the Task 2 refactor.
+
+### Review Findings
+
+Reviewed via `bmad-code-review` (Blind Hunter + Edge Case Hunter + Acceptance Auditor, parallel, against PR #89's merged diff). 17 raw findings merged to 14 unique after dedup; 0 decision-needed, 8 patch, 3 defer, 3 dismissed as noise/already-correctly-scoped.
+
+- [x] [Review][Patch] `addTeamMember`'s generated password is written to Function logs in plaintext — the shared post-dispatch `log()` call JSON-stringifies `result.body` on every `200`, and `addTeamMember`'s success body now includes `generatedPassword` [functions/set-role-and-permissions/src/tenant-membership.js] — fixed: the log call now redacts any `*password`-suffixed field generically (not just this one field name) before stringifying; the real value still reaches the caller in the actual response, only the log is scrubbed. New test asserts the logged string never contains the real password.
+- [x] [Review][Patch] Orphaned, unrecoverable Account on partial failure [functions/set-role-and-permissions/src/tenant-membership.js] — fixed: when `createMembershipRow` fails after `users.create` succeeded, the error response now includes `userId`/`generatedPassword` plus a `recovery` message pointing at retrying via `createMembership` with that `userId`. New test covers this path.
+- [x] [Review][Patch] No email format validation in `PAYLOAD_VALIDATORS.addTeamMember` — fixed: added an `EMAIL_PATTERN` check (same rigor bar as `admin-users.js`'s `isValidPhone` — good enough to catch a typo, not a security boundary; `users.create` remains the final validator).
+- [x] [Review][Patch] `addTeamMember` never checks `tenant.status` for `suspended`/`rejected` — fixed: `addTeamMember` now rejects with `409` for a suspended/rejected tenant (scoped to this action only; `createMembership` untouched). New test covers it.
+- [x] [Review][Patch] `createMembershipRow`'s conflict error message is nonsensical when reused by `addTeamMember` — fixed: added an optional `conflictMessage` param, defaulting to the existing message for `createMembership`, overridden to a sensible message for `addTeamMember`'s (practically unreachable) case.
+- [x] [Review][Patch] No test asserts the actual `permissions` array on the new Membership row — fixed: added the assertion to the existing "creates a new Account and Membership" test.
+- [x] [Review][Patch] The "invalid role rejected before DB" test doesn't assert `calls.usersCreate === undefined` — fixed: assertion added.
+- [x] [Review][Patch] AC2's regression test never creates a real second-tenant fixture — fixed: rewritten with an in-memory two-tenant fixture (`tenant-a`/`tenant-b`, `event-a1`/`event-b1`) whose mock `listRows` applies the *actual* query filters the production code sends, so the test would now fail if the `tenantId`/`assignedUserIds` filtering were ever dropped or broadened — not just if the test happened to mention `tenant-b`.
+- [x] [Review][Defer] AC1's core guarantee rests on an unverified assumption — whether `users.create`'s duplicate-email error actually surfaces as `err.code === 409` against the real Appwrite Cloud project was not independently re-verified live, since Appwrite MCP access was disconnected for this story (already disclosed plainly in Completion Notes, per this story's own Dev Notes instruction) — deferred until Appwrite MCP access is available again; not a code fix, a tooling-access constraint.
+- [x] [Review][Defer] No trimming/normalization of `name`/`email` before `users.create` — risk of near-duplicate accounts from whitespace/casing — deferred: `admin-users.js`'s existing `createUser` doesn't trim inputs either, so this is a cross-cutting input-hygiene decision better made consistently across every account-creation entry point in one pass, not unilaterally on just this one new action.
+- [x] [Review][Defer] Self-attested test results in the story file, no independent CI artifact — deferred: matches this project's existing practice for every prior story (no CI-gate-linked verification has been wired into any story file yet); a process change, not a defect in this diff.
+
+**Dismissed (noise / already correctly scoped, no action):**
+
+- Claim that Account creation "mirrors `admin-users.js`'s `createUser` pattern exactly" is unverifiable/untested — verified accurate as written: the call shape (`ID.unique()`, generated password, `name`, `email`) matches exactly; the claim was never about email-verification state, which `createUser` itself doesn't set either for a fresh account
+- Story/FR/AD references embedded in code comments (e.g. "AC1/AC3's crux", "(FR-4/FR-5)") — this is the codebase's own established, deliberate traceability convention, already used throughout `event-assignment.js`/`admin-users.js`/`shared.js` before this story; not a regression
+- `role` is fully caller-controlled with no ceiling (any Admin can grant `super_organizer` in one call) — correct as scoped: `addTeamMember` is Admin-only for this story (Admin already has standing platform-wide authority per FR-19/FR-25); the real ceiling this finding is reaching for (FR-11, non-Super-Organizer can't add an Organizer) applies to an *Organizer* caller, which is explicitly Epic 7 Story 7.1's job, not this story's
 
 ## Dev Notes
 
