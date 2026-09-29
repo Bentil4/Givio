@@ -1,10 +1,17 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { EventService } from '../../../../data/services/event.service';
-import { AuthService } from '../../../../data/services/auth.service';
 import { ServiceError } from '../../../../core/services/service-error';
 import type { Event, EventStatus } from '../../../../data/models/event';
 import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
+import { OperatorEventContext } from '../operator-event-context';
 
 /**
  * Operator overview — "what am I assigned to, at a glance" before diving into My Events or
@@ -22,18 +29,18 @@ import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
 })
 export class OperatorDashboard implements OnInit {
   private readonly eventService = inject(EventService);
-  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly eventContext = inject(OperatorEventContext);
 
   public readonly loading = signal(true);
   public readonly loadError = signal<string | null>(null);
 
   public readonly chipClass = EVENT_STATUS_CHIP;
 
-  public readonly assignedEvents = computed(() => {
-    const userId = this.authService.currentUser()?.$id;
-    if (!userId) return [];
-    return this.eventService.events().filter((e) => e.assignedUserIds.includes(userId));
-  });
+  public readonly assignedEvents = this.eventContext.assignedEvents;
+  public readonly activeEvent = this.eventContext.activeEvent;
+  public readonly showSwitcher = this.eventContext.showSwitcher;
+  public readonly canRecord = computed(() => this.eventContext.activeEvents().length > 0);
 
   /** A glance, not the full list — /organizer/events is the full picker. */
   public readonly previewEvents = computed(() => this.assignedEvents().slice(0, 3));
@@ -48,6 +55,15 @@ export class OperatorDashboard implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  public recordDonation(): void {
+    const event = this.activeEvent();
+    if (event) {
+      void this.router.navigate(['/organizer/entry'], { queryParams: { event: event.id } });
+      return;
+    }
+    this.eventContext.requestPick();
   }
 
   public eventMeta(e: Event): string {

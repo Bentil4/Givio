@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AppwriteException, Models } from 'appwrite';
 import { ACCOUNT } from '../../core/appwrite/client';
-import type { Role } from '../models/role';
+import { SUPER_ADMIN_LABEL, type Role } from '../models/role';
 
 export type { Role };
 
@@ -33,6 +33,12 @@ export class AuthService {
   public readonly role = computed<Role | null>(() => {
     const labels = this._currentUser()?.labels ?? [];
     return ROLE_LABELS.find((role) => labels.includes(role)) ?? null;
+  });
+
+  /** UI convenience only — the AD-9 Function independently enforces this gate (FR-26). */
+  public readonly isSuperAdmin = computed(() => {
+    const labels = this._currentUser()?.labels ?? [];
+    return labels.includes('admin') && labels.includes(SUPER_ADMIN_LABEL);
   });
 
   public readonly isAuthenticated = computed(() => this._currentUser() !== null);
@@ -73,7 +79,10 @@ export class AuthService {
       this._currentUser.set(null);
       const isExpectedNoSession = error instanceof AppwriteException && error.code === 401;
       if (!isExpectedNoSession) {
-        console.error('AuthService.restoreSession: unexpected error, treating as logged out', error);
+        console.error(
+          'AuthService.restoreSession: unexpected error, treating as logged out',
+          error,
+        );
       }
     }
     // Deliberately does NOT call recordActivity() — this runs on every app bootstrap

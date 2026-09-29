@@ -6,6 +6,8 @@ export interface AdminUser {
   name: string;
   email: string;
   role: Role | null;
+  /** Holds the `superadmin` Label on top of `admin` (AD-11). */
+  superAdmin?: boolean;
   active: boolean;
   registeredAt: string;
 }

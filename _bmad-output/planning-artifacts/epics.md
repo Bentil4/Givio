@@ -180,10 +180,10 @@ Brownfield state the epics must account for (from the Architecture Spine's recon
 
 AD-1, AD-2, and AD-9 above are **amended**, not superseded — their bullets are left as-written above since Epics 1–5's already-shipped stories were built against that wording; the amended text lives only in `ARCHITECTURE-SPINE.md` (cited here, not duplicated, to avoid the two copies drifting):
 
-- AD-1 (amended): Appwrite Labels narrow to platform-wide `admin`/`super_admin` only (AD-11). Tenant-scoped role (Super Organizer/Organizer/Operator) moves to a new `Memberships` collection (`{userId, tenantId, role, status, grantedBy, grantedAt}`), written only by the AD-9 Function.
+- AD-1 (amended): Appwrite Labels narrow to platform-wide `admin`/`superadmin` only (AD-11). Tenant-scoped role (Super Organizer/Organizer/Operator) moves to a new `Memberships` collection (`{userId, tenantId, role, status, grantedBy, grantedAt}`), written only by the AD-9 Function.
 - AD-2 (amended): `Event` gains a `tenantId`. The Function refuses to grant `Role.user(uid)` unless `uid` holds an *active* Membership matching the Event's own tenant — this is where FR-2's structural isolation is enforced. Revocation or Tenant suspension now immediately sweeps and retracts affected permissions, not just on an `assignedUserIds` edit.
 - AD-9 (amended, scope grown): the one Function is now also the sole writer of Memberships, Tenant approval state (`pending→approved/rejected/suspended`), the `IdentityFlags` banned/rejected cross-reference, and Admin/Super Admin account management — decomposed internally into per-concern files (extending the existing `admin-users.js`/`event-assignment.js` convention), still one deployable.
-- AD-11 (new): Super Admin is dual-Labeled (`admin` + `super_admin`), bootstrapped out-of-band; admin-account management gates exclusively on `super_admin`.
+- AD-11 (new): Super Admin is dual-Labeled (`admin` + `superadmin`), bootstrapped out-of-band; admin-account management gates exclusively on `superadmin`.
 - AD-12 (new): Admin/Super Admin read+write access logging is client-side (`AuditDataService`, extending the existing create/edit/delete pattern), at one-entry-per-Data-layer-method-invocation granularity — best-effort/accountability, not tamper-proof (deliberate trade-off, not a gap).
 - AD-13 (new): duplicate-event detection runs only inside the Function (the one cross-tenant-visible trust boundary), writing to a dedicated `DuplicateEventFlags` collection; never blocks Event creation.
 - New collections not covered above: `Tenants` (onboarding/approval state), a verification-document Storage bucket (Admin-only read), `SupportRequest` (Contact Admin form), and `audit_logs` gaining a `tenantId` column.
@@ -324,7 +324,7 @@ Organizer leadership can grow their team safely — add co-Organizers and Operat
 ### Epic 8: Admin Oversight, Reporting & Platform Administration (added 2026-09-23)
 Admin gets platform-wide oversight and support tooling; Super Organizer gets tenant-wide reporting; exactly one Super Admin can manage Admin accounts themselves.
 **FRs covered:** FR-19..FR-22, FR-25, FR-26
-**Implementation notes:** Implements AD-11 (Super Admin dual-Label) and AD-12 (client-side Admin access logging). Delivers `/dashboard/admins` inside the *existing* Admin route tree, gated by an additional `super_admin` check layered on the existing admin guard — no separate route tree/layout (this matches what the Architecture Spine's Capability Map already said; an earlier UX draft had introduced a redundant `/super-admin` tree, caught and dropped via Occam's Razor elicitation, 2026-09-25). This is where "suspend a Tenant" (consumed by FR-17 in Epic 9) actually gets built.
+**Implementation notes:** Implements AD-11 (Super Admin dual-Label) and AD-12 (client-side Admin access logging). Delivers `/dashboard/admins` inside the *existing* Admin route tree, gated by an additional `superadmin` check layered on the existing admin guard — no separate route tree/layout (this matches what the Architecture Spine's Capability Map already said; an earlier UX draft had introduced a redundant `/super-admin` tree, caught and dropped via Occam's Razor elicitation, 2026-09-25). This is where "suspend a Tenant" (consumed by FR-17 in Epic 9) actually gets built.
 
 ### Epic 9: Family Dignity & Access Safeguards (added 2026-09-23)
 A grieving family always sees their event's true, complete donation picture — safely, even from a borrowed device, even if their Organizer's account is suspended.
@@ -1248,13 +1248,13 @@ So that as more platform staff get Admin access, no single Admin can go unchecke
 
 **Acceptance Criteria:**
 
-**Given** the single designated Super Admin account, holding both `admin` and `super_admin` Appwrite Labels (AD-11)
+**Given** the single designated Super Admin account, holding both `admin` and `superadmin` Appwrite Labels (AD-11)
 **When** they access any existing Admin screen or action
 **Then** it works identically to an ordinary Admin's access — nothing withheld, no separate capability gate anywhere (FR-25)
 
 **Given** Super Admin on `/dashboard/admins`
 **When** they create, promote, demote, or suspend an Admin account
-**Then** the action succeeds and is gated exclusively on `Role.label('super_admin')`, enforced inside the Function — never a client-side-only check (FR-26)
+**Then** the action succeeds and is gated exclusively on `Role.label('superadmin')`, enforced inside the Function — never a client-side-only check (FR-26)
 
 **Given** any account other than the designated Super Admin (including another Admin)
 **When** it attempts a create/promote/demote/suspend action against an Admin account

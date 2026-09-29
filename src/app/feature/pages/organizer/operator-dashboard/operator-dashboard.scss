@@ -1,1 +1,13 @@
 @use '../../admin/admin-dashboard/admin-dashboard.scss';
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.page-head-event {
+  color: var(--text-secondary);
+}

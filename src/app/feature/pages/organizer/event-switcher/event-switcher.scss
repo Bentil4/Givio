@@ -1,0 +1,86 @@
+:host {
+  display: block;
+}
+
+.switcher {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm) var(--space-md);
+  font-family: var(--font-body);
+}
+
+.switcher-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.switcher-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+
+.switcher-dot {
+  position: absolute;
+  left: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--action-primary-bg);
+  pointer-events: none;
+}
+
+/* Brand-blue border sets it apart from an ordinary form Select: a wrong pick here is a
+   wrong-Event write, not a typo (DESIGN.md, tenant-switcher). */
+.switcher-select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 40px 10px 14px;
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-focus);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  appearance: none;
+
+  &:focus-visible {
+    outline: 3px solid var(--border-focus);
+    outline-offset: 2px;
+  }
+}
+
+.is-picked .switcher-select {
+  padding-left: 30px;
+  font-weight: 700;
+}
+
+.switcher-chevron {
+  position: absolute;
+  right: 14px;
+  width: 16px;
+  height: 16px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.switcher-live {
+  flex-basis: 100%;
+}
+
+.switcher-prompt {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--status-info-bg);
+  color: var(--status-info-fg);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}

@@ -1,0 +1,37 @@
+<div class="switcher" [class.is-picked]="!!activeEvent()" [class.is-prompting]="!!prompt()">
+  <label class="switcher-label" [for]="selectId">Recording for</label>
+  <div class="switcher-control">
+    @if (activeEvent()) {
+    <span class="switcher-dot" aria-hidden="true"></span>
+    }
+    <select
+      #select
+      class="switcher-select"
+      [id]="selectId"
+      [attr.aria-describedby]="prompt() ? promptId : null"
+      [attr.aria-invalid]="prompt() ? true : null"
+      (change)="onChange($any($event.target).value)"
+    >
+      <option value="" disabled [selected]="!activeEvent()">Pick an Event…</option>
+      @for (e of options(); track e.id) {
+      <option [value]="e.id" [selected]="e.id === activeEvent()?.id">{{ e.name }}</option>
+      }
+    </select>
+    <svg
+      class="switcher-chevron"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      stroke-width="2"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6" />
+    </svg>
+  </div>
+  <div class="switcher-live" aria-live="assertive">
+    @if (prompt(); as msg) {
+    <p class="switcher-prompt" [id]="promptId">{{ msg }}</p>
+    }
+  </div>
+</div>

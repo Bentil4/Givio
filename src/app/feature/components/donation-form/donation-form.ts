@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DonationDraft, DonationType, DONATION_TYPE_LABELS } from '../../../data/models/donation';
 
@@ -32,15 +41,20 @@ export class DonationForm {
   public initialValue = input<DonationDraft | null>(null);
 
   public submitted = output<DonationDraft>();
+  /** Save activated with no Event to record against (UX-DR6) — the caller explains and points
+   *  the Operator at the switcher; checked before field validation so that's the first thing
+   *  they're told. */
+  public eventMissing = output<void>();
   public cleared = output<void>();
 
   private readonly fb = inject(FormBuilder);
 
-  public readonly types: { value: DonationType; label: string }[] =
-    (Object.keys(DONATION_TYPE_LABELS) as DonationType[]).map((value) => ({
-      value,
-      label: DONATION_TYPE_LABELS[value],
-    }));
+  public readonly types: { value: DonationType; label: string }[] = (
+    Object.keys(DONATION_TYPE_LABELS) as DonationType[]
+  ).map((value) => ({
+    value,
+    label: DONATION_TYPE_LABELS[value],
+  }));
 
   public readonly form = this.fb.nonNullable.group({
     donorName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]],
@@ -100,6 +114,10 @@ export class DonationForm {
   }
 
   public submit(): void {
+    if (!this.eventId()) {
+      this.eventMissing.emit();
+      return;
+    }
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
