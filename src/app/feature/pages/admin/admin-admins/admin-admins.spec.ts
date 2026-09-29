@@ -52,7 +52,7 @@ describe('AdminAdmins', () => {
       setUserActive: vi.fn().mockResolvedValue(undefined),
     };
     const account = {
-      get: vi.fn().mockResolvedValue({ $id: 'super-1', labels: ['admin', 'super_admin'] }),
+      get: vi.fn().mockResolvedValue({ $id: 'super-1', labels: ['admin', 'superadmin'] }),
     };
 
     await TestBed.configureTestingModule({

@@ -57,7 +57,7 @@ describe('AdminLayout', () => {
     });
 
     it('is shown to the Super Admin, alongside every ordinary Admin entry', async () => {
-      account.get.mockResolvedValueOnce({ labels: ['admin', 'super_admin'] });
+      account.get.mockResolvedValueOnce({ labels: ['admin', 'superadmin'] });
       await TestBed.inject(AuthService).restoreSession();
 
       expect(hasAdminsLink()).toBe(true);

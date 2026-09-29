@@ -25,9 +25,10 @@ function isValidPhone(phone) {
   return /^\+[1-9]\d{6,14}$/.test(phone);
 }
 
-// Deliberately not in VALID_ROLES: super_admin is never grantable through any action here —
+// Deliberately not in VALID_ROLES: superadmin is never grantable through any action here —
 // it's seeded out-of-band at deploy time onto the one Account that also holds `admin` (AD-11).
-const SUPER_ADMIN_LABEL = 'super_admin';
+// No underscore: Appwrite rejects any label that isn't purely alphanumeric.
+const SUPER_ADMIN_LABEL = 'superadmin';
 
 const ADMIN_TIER_FORBIDDEN = {
   status: 403,
@@ -142,7 +143,7 @@ const TARGETED_ACTIONS = new Set(['updateUser', 'setStatus', 'forceExpireSession
  * FR-26 / AD-11: any action that creates an Admin, touches an existing Admin account, or
  * promotes someone into the Admin tier is Super-Admin-only. This has to look the target up
  * server-side — the client's idea of "is this user an Admin" is never trusted — and it also
- * refuses to change the standing (role/status) of a super_admin holder at all, since
+ * refuses to change the standing (role/status) of a superadmin holder at all, since
  * handleUpdateUser's updateLabels([role]) would silently strip that Label and succession is an
  * out-of-band operation (PRD §4.8). Self-targeting never reaches here for role/status/session
  * changes: PAYLOAD_VALIDATORS already rejects those, which is also what stops the Super Admin

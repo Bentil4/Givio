@@ -90,7 +90,7 @@ function fakeContext({ body, headers = {}, getAccount, users = {}, messaging = {
 
 const ADMIN_HEADERS = { 'x-appwrite-user-jwt': 'admin-jwt', 'x-appwrite-key': 'dynamic-key' };
 const asAdmin = async () => ({ $id: 'admin-1', labels: ['admin'] });
-const asSuperAdmin = async () => ({ $id: 'super-1', labels: ['admin', 'super_admin'] });
+const asSuperAdmin = async () => ({ $id: 'super-1', labels: ['admin', 'superadmin'] });
 // Default fake: users.get() returns a different email than any update payload, so the
 // "did the email actually change" check passes through to a real update unless a test
 // overrides `users.get` to simulate "no change".
@@ -887,7 +887,7 @@ test('never trusts x-appwrite-user-id alone — only a successful JWT-verified a
 
 const adminTarget = () => ({ $id: 'admin-2', email: 'a2@givio.test', labels: ['admin'] });
 const operatorTarget = () => ({ $id: 'op-9', email: 'op9@givio.test', labels: ['operator'] });
-const superAdminTarget = () => ({ $id: 'super-2', labels: ['admin', 'super_admin'] });
+const superAdminTarget = () => ({ $id: 'super-2', labels: ['admin', 'superadmin'] });
 
 async function run({ body, getAccount, users }) {
   const context = fakeContext({ body, headers: ADMIN_HEADERS, getAccount, users });
@@ -905,7 +905,7 @@ test('FR-25: a Super Admin passes the ordinary admin gate — listUsers works un
   assert.equal(result.status, 200);
 });
 
-test('listUsers flags the super_admin holder so the client can render the tier badge', async () => {
+test('listUsers flags the superadmin holder so the client can render the tier badge', async () => {
   const { result } = await run({
     body: { action: 'listUsers' },
     getAccount: asSuperAdmin,
@@ -916,7 +916,7 @@ test('listUsers flags the super_admin holder so the client can render the tier b
             $id: 's',
             name: 'N',
             email: 'n@g.test',
-            labels: ['admin', 'super_admin'],
+            labels: ['admin', 'superadmin'],
             status: true,
           },
         ],
@@ -960,9 +960,9 @@ test('an ordinary Admin can still create an Operator (Story 1.3 unchanged)', asy
   assert.equal(result.status, 200);
 });
 
-test('super_admin can never be granted through createUser', async () => {
+test('superadmin can never be granted through createUser', async () => {
   const { result, calls } = await run({
-    body: { action: 'createUser', name: 'X', email: 'x@givio.test', role: 'super_admin' },
+    body: { action: 'createUser', name: 'X', email: 'x@givio.test', role: 'superadmin' },
     getAccount: asSuperAdmin,
   });
 
@@ -970,9 +970,9 @@ test('super_admin can never be granted through createUser', async () => {
   assert.equal(calls.create, undefined);
 });
 
-test('super_admin can never be granted through updateUser', async () => {
+test('superadmin can never be granted through updateUser', async () => {
   const { result, calls } = await run({
-    body: { action: 'updateUser', userId: 'admin-2', role: 'super_admin' },
+    body: { action: 'updateUser', userId: 'admin-2', role: 'superadmin' },
     getAccount: asSuperAdmin,
     users: { get: adminTarget },
   });
@@ -1163,7 +1163,7 @@ test('an ordinary Admin cannot act on the Super Admin account at all', async () 
   }
 });
 
-test('the super_admin holder’s standing can’t be changed in-app, even by a Super Admin', async () => {
+test('the superadmin holder’s standing can’t be changed in-app, even by a Super Admin', async () => {
   const { result, calls } = await run({
     body: { action: 'updateUser', userId: 'super-2', role: 'operator' },
     getAccount: asSuperAdmin,
@@ -1189,7 +1189,7 @@ test('Super Admin cannot demote or suspend themself into a zero-Super-Admin stat
 test('a suspended caller is rejected even if their JWT still verifies', async () => {
   const { result, calls } = await run({
     body: { action: 'listUsers' },
-    getAccount: async () => ({ $id: 'super-1', labels: ['admin', 'super_admin'], status: false }),
+    getAccount: async () => ({ $id: 'super-1', labels: ['admin', 'superadmin'], status: false }),
   });
 
   assert.equal(result.status, 403);

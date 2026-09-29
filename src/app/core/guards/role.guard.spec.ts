@@ -84,7 +84,7 @@ describe('role.guard', () => {
 
   describe('superAdminGuard', () => {
     it('allows the Super Admin through', async () => {
-      await loginAs(['admin', 'super_admin']);
+      await loginAs(['admin', 'superadmin']);
       const result = TestBed.runInInjectionContext(() =>
         superAdminGuard({} as never, { url: '/dashboard/admins' } as never),
       );

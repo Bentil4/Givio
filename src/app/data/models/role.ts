@@ -6,6 +6,7 @@ export type Role = 'admin' | 'operator';
 
 /**
  * Not a Role: the one Super Admin holds both this and `admin` (AD-11), so every existing admin
- * check includes them for free. Seeded out-of-band, never granted in-app.
+ * check includes them for free. Seeded out-of-band, never granted in-app. No underscore:
+ * Appwrite rejects any label that isn't purely alphanumeric.
  */
-export const SUPER_ADMIN_LABEL = 'super_admin';
+export const SUPER_ADMIN_LABEL = 'superadmin';

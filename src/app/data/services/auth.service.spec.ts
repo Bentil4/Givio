@@ -84,8 +84,8 @@ describe('AuthService', () => {
   });
 
   describe('isSuperAdmin (AD-11)', () => {
-    it('is true only when the account holds both admin and super_admin, and still reads as admin', async () => {
-      account.get.mockResolvedValueOnce({ labels: ['admin', 'super_admin'] });
+    it('is true only when the account holds both admin and superadmin, and still reads as admin', async () => {
+      account.get.mockResolvedValueOnce({ labels: ['admin', 'superadmin'] });
 
       await store.restoreSession();
 
@@ -101,8 +101,8 @@ describe('AuthService', () => {
       expect(store.isSuperAdmin()).toBe(false);
     });
 
-    it('is false for a stray super_admin label without admin', async () => {
-      account.get.mockResolvedValueOnce({ labels: ['super_admin', 'operator'] });
+    it('is false for a stray superadmin label without admin', async () => {
+      account.get.mockResolvedValueOnce({ labels: ['superadmin', 'operator'] });
 
       await store.restoreSession();
 
