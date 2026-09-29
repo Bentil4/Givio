@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
@@ -16,10 +24,13 @@ import { ConnectivityService } from '../../../../core/services/connectivity.serv
 import { ThemeService } from '../../../../core/services/theme.service';
 import { SyncEngineService } from '../../../../data/services/sync-engine.service';
 import { MOBILE_NAV_QUERY } from '../../../../utils/breakpoints.util';
+import { OperatorEventContext } from '../operator-event-context';
+import { EventSwitcher } from '../event-switcher/event-switcher';
 
 @Component({
   selector: 'app-organizer-layout',
-  imports: [RouterOutlet, Sidebar, MatIconModule, ConnectionBanner, Breadcrumb],
+  imports: [RouterOutlet, Sidebar, MatIconModule, ConnectionBanner, Breadcrumb, EventSwitcher],
+  providers: [OperatorEventContext],
   templateUrl: './organizer-layout.html',
   styleUrl: './organizer-layout.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,6 +42,9 @@ export class OrganizerLayout {
   private readonly connectivityService = inject(ConnectivityService);
   private readonly syncEngine = inject(SyncEngineService);
   private readonly themeService = inject(ThemeService);
+  private readonly eventContext = inject(OperatorEventContext);
+
+  public readonly showEventSwitcher = this.eventContext.showSwitcher;
 
   public readonly theme = this.themeService.theme;
   public isSidebarCollapsed = signal(false);
@@ -50,6 +64,12 @@ export class OrganizerLayout {
       map(() => this.router.url),
     ),
     { initialValue: this.router.url },
+  );
+
+  /** Deep links and event-select's "Open desk" carry the Event as `?event=` — an explicit
+   *  pick, so it becomes the active Event. */
+  private readonly urlEventId = computed(() =>
+    this.router.parseUrl(this.currentUrl()).queryParamMap.get('event'),
   );
 
   /** /organizer/entry and /organizer/entry/phone render their own connectivity indicator
@@ -77,6 +97,13 @@ export class OrganizerLayout {
   ];
 
   constructor() {
+    void this.eventContext.load();
+
+    effect(() => {
+      const eventId = this.urlEventId();
+      if (eventId) untracked(() => this.eventContext.pick(eventId));
+    });
+
     // The drawer (and its scrim) only exist below MOBILE_NAV_QUERY — if a resize or
     // orientation change carries the viewport back past it while open, close it. Otherwise
     // .sidebar-scrim (styled only inside that same media query) is left as a stale, unstyled
@@ -101,6 +128,19 @@ export class OrganizerLayout {
       }
       this.previousPendingCount = count;
     });
+  }
+
+  /** Keeps an Event-scoped page's URL agreeing with the switcher, so a reload or back
+   *  navigation can't resurface the previous Event. */
+  public onEventPicked(eventId: string): void {
+    this.eventContext.pick(eventId);
+    if (this.urlEventId()) {
+      void this.router.navigate([], {
+        queryParams: { event: eventId },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    }
   }
 
   public toggleSidebar(): void {

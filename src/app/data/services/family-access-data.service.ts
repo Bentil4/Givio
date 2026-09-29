@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { FUNCTIONS } from '../../core/appwrite/client';
 import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
+import { ServiceError } from '../../core/services/service-error';
 import type { Donation } from '../models/donation';
 import type { FamilyEventSummary } from '../models/family-access';
 
@@ -16,6 +17,18 @@ interface SanitizedDonation {
 interface ResolveAccessCodeResult {
   event: FamilyEventSummary;
   donations: SanitizedDonation[];
+}
+
+/**
+ * The Function answered and said no — the code is wrong or was regenerated. Distinct from a
+ * network failure (whose ServiceError cause is the thrown transport error, not a response
+ * body), so an open family view can tell "revoked" apart from "offline for a moment".
+ */
+export class FamilyCodeRejectedError extends ServiceError {
+  constructor(cause: unknown) {
+    super('Code not recognised', cause);
+    this.name = 'FamilyCodeRejectedError';
+  }
 }
 
 export interface FamilyAccessResult {
@@ -59,15 +72,33 @@ export class FamilyAccessDataService {
    * the code was wrong (family-code.ts's own design intent).
    */
   async resolveByCode(code: string): Promise<FamilyAccessResult> {
-    const result = await invokeAdminFunction<ResolveAccessCodeResult>(
-      this.functions,
-      'resolveAccessCode',
-      'Code not recognised',
-      { code },
-    );
+    let result: ResolveAccessCodeResult;
+    try {
+      result = await invokeAdminFunction<ResolveAccessCodeResult>(
+        this.functions,
+        'resolveAccessCode',
+        'Code not recognised',
+        { code },
+      );
+    } catch (error) {
+      if (error instanceof ServiceError && isCodeRejection(error)) {
+        throw new FamilyCodeRejectedError(error.cause);
+      }
+      throw error;
+    }
     return {
       event: result.event,
       donations: result.donations.map(toDonation),
     };
+  }
+}
+
+/** invokeAdminFunction puts the raw response body in `cause` only when the Function responded. */
+function isCodeRejection(error: ServiceError): boolean {
+  if (typeof error.cause !== 'string') return false;
+  try {
+    return (JSON.parse(error.cause) as { error?: unknown }).error === 'Code not recognised';
+  } catch {
+    return false;
   }
 }

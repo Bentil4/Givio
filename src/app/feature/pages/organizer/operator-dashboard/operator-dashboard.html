@@ -1,9 +1,22 @@
 <section class="page">
   <header class="page-head">
     <div>
-      <h1 class="t-page-title">Overview</h1>
-      <p class="t-secondary">What you're assigned to, at a glance.</p>
+      <h1 class="t-page-title">
+        Overview @if (activeEvent(); as event) {
+        <span class="page-head-event">— {{ event.name }}</span>
+        }
+      </h1>
+      <p class="t-secondary">
+        @if (activeEvent(); as event) { Recording for <strong>{{ event.name }}</strong>. } @else if
+        (showSwitcher()) { No Event picked yet — choose one above before recording. } @else { What
+        you're assigned to, at a glance. }
+      </p>
     </div>
+    @if (canRecord()) {
+    <button type="button" class="btn btn-primary" (click)="recordDonation()">
+      Record a donation
+    </button>
+    }
   </header>
 
   <div class="stat-grid">
@@ -33,27 +46,25 @@
     </header>
 
     @if (loading()) {
-      <div class="panel-body">
-        @for (i of [0, 1, 2]; track i) {
-          <div class="skel-row"><span class="skel skel--lg"></span></div>
-        }
-      </div>
-    } @else if (loadError(); as err) {
-      <p class="panel-empty t-caption">{{ err }}</p>
-    } @else if (previewEvents().length === 0) {
-      <p class="panel-empty t-caption">Nothing assigned yet. Ask an Admin to add you to an event.</p>
-    } @else {
-      @for (e of previewEvents(); track e.id) {
-        <a class="event-row" routerLink="/organizer/events">
-          <div class="event-main">
-            <div class="event-name-row">
-              <span class="t-body-em">{{ e.name }}</span>
-              <span class="tag" [class]="chipClass[e.status]">{{ statusLabel(e.status) }}</span>
-            </div>
-            <div class="event-meta t-caption">{{ eventMeta(e) }}</div>
-          </div>
-        </a>
+    <div class="panel-body">
+      @for (i of [0, 1, 2]; track i) {
+      <div class="skel-row"><span class="skel skel--lg"></span></div>
       }
-    }
+    </div>
+    } @else if (loadError(); as err) {
+    <p class="panel-empty t-caption">{{ err }}</p>
+    } @else if (previewEvents().length === 0) {
+    <p class="panel-empty t-caption">Nothing assigned yet. Ask an Admin to add you to an event.</p>
+    } @else { @for (e of previewEvents(); track e.id) {
+    <a class="event-row" routerLink="/organizer/events">
+      <div class="event-main">
+        <div class="event-name-row">
+          <span class="t-body-em">{{ e.name }}</span>
+          <span class="tag" [class]="chipClass[e.status]">{{ statusLabel(e.status) }}</span>
+        </div>
+        <div class="event-meta t-caption">{{ eventMeta(e) }}</div>
+      </div>
+    </a>
+    } }
   </article>
 </section>

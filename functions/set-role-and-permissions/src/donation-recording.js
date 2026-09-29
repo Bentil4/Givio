@@ -33,8 +33,25 @@ function validatePayload(action, payload) {
  */
 function eventShortCode(event) {
   const prefix = event.type === 'wedding' ? 'WED' : 'FUN';
-  const suffix = (event.id ?? '').replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase();
+  const suffix = (event.id ?? '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(-4)
+    .toUpperCase();
   return `${prefix}${suffix}`;
+}
+
+const PROVISIONAL_RECEIPT = /^(.+)-P\d+$/;
+
+/**
+ * Story 6.6/FR-3: a provisional receipt (AD-8, `<short code>-P<n>`) was minted on the device
+ * for the Event the Operator had picked at the time, independently of the `eventId` field
+ * sent alongside it. If the two disagree, the client's claim is internally inconsistent — the
+ * donor may already hold a receipt printed under another Event — so it is rejected, never
+ * re-homed to whichever Event looks right.
+ */
+function provisionalReceiptMismatch(receiptNumber, event) {
+  const match = PROVISIONAL_RECEIPT.exec(receiptNumber);
+  return !!match && match[1] !== eventShortCode(event);
 }
 
 /**
@@ -78,6 +95,7 @@ async function handleRecordDonation({
   const {
     donationId,
     eventId,
+    receiptNumber,
     donorName,
     amountMinor,
     donationType,
@@ -102,7 +120,21 @@ async function handleRecordDonation({
     return { status: 403, body: { error: 'You are not assigned to this event' } };
   }
   if (event.status !== 'active') {
-    return { status: 400, body: { error: 'Cannot record a donation against a paused or closed event' } };
+    return {
+      status: 400,
+      body: { error: 'Cannot record a donation against a paused or closed event' },
+    };
+  }
+  if (provisionalReceiptMismatch(receiptNumber, { id: eventId, type: event.type })) {
+    error(
+      `recordDonation: provisional receipt ${receiptNumber} was not issued for event ${eventId}`,
+    );
+    return {
+      status: 409,
+      body: {
+        error: 'This donation was recorded for a different event than the one it was sent to',
+      },
+    };
   }
 
   let updatedEvent;
@@ -115,7 +147,9 @@ async function handleRecordDonation({
       value: 1,
     });
   } catch (err) {
-    error(`recordDonation: failed to increment nextReceiptSeq for event ${eventId}: ${err.message}`);
+    error(
+      `recordDonation: failed to increment nextReceiptSeq for event ${eventId}: ${err.message}`,
+    );
     return { status: 502, body: { error: 'Failed to assign a receipt number' } };
   }
   const canonicalReceiptNumber = `${eventShortCode({ id: eventId, type: event.type })}-${updatedEvent.nextReceiptSeq}`;
@@ -191,12 +225,16 @@ export async function handleDonationRecordingRequest({
 
   const dynamicKey = req.headers['x-appwrite-key'];
   if (!dynamicKey) {
-    error('Missing x-appwrite-key — the Function\'s execution API key scopes are likely misconfigured.');
+    error(
+      "Missing x-appwrite-key — the Function's execution API key scopes are likely misconfigured.",
+    );
     return res.json({ error: 'Server misconfiguration: missing execution API key' }, 500);
   }
 
   if (!hasValue(databaseId) || !hasValue(eventsTableId) || !hasValue(donationsTableId)) {
-    error('Missing APPWRITE_DATABASE_ID/APPWRITE_EVENTS_COLLECTION_ID/APPWRITE_DONATIONS_COLLECTION_ID function variables.');
+    error(
+      'Missing APPWRITE_DATABASE_ID/APPWRITE_EVENTS_COLLECTION_ID/APPWRITE_DONATIONS_COLLECTION_ID function variables.',
+    );
     return res.json({ error: 'Server misconfiguration: missing database/table ID' }, 500);
   }
 

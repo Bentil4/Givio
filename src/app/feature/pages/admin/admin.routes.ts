@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { roleGuard, sessionExpiryGuard } from '../../../core/guards/role.guard';
+import { roleGuard, sessionExpiryGuard, superAdminGuard } from '../../../core/guards/role.guard';
 import type { BreadcrumbItem } from '../../../shared/components/breadcrumb/breadcrumb';
 
 export const ADMIN_ROUTES: Routes = [
@@ -24,6 +24,12 @@ export const ADMIN_ROUTES: Routes = [
         path: 'users',
         loadComponent: () => import('./admin-users/admin-users').then((m) => m.AdminUsers),
         title: 'Users',
+      },
+      {
+        path: 'admins',
+        canActivate: [superAdminGuard],
+        loadComponent: () => import('./admin-admins/admin-admins').then((m) => m.AdminAdmins),
+        title: 'Admin accounts',
       },
       {
         path: 'events',

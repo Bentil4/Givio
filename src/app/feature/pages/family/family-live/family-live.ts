@@ -1,13 +1,29 @@
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  DOCUMENT,
+  ElementRef,
+  Injector,
+  OnDestroy,
+  OnInit,
+  afterNextRender,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { DatePipe } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { DatePipe, Location } from '@angular/common';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DonationRow } from '../../../components/donation-row/donation-row';
+import { DignityBanner } from '../../../components/dignity-banner/dignity-banner';
 import { Donation, DonationType } from '../../../../data/models/donation';
 import { formatCedis, formatCedisShort, totalMinor } from '../../../../utils/donation.util';
 import { base64UrlDecode } from '../../../../utils/base64-url.util';
 import { FAMILY_CODE_LENGTH, type FamilyEventSummary } from '../../../../data/models/family-access';
 import { FamilyAccessService } from '../../../../data/services/family-access.service';
+import { FamilyCodeRejectedError } from '../../../../data/services/family-access-data.service';
 import { ReportService } from '../../../../data/services/report.service';
 
 interface Slice {
@@ -18,6 +34,9 @@ interface Slice {
 }
 
 const POLL_INTERVAL_MS = 15_000;
+const CODE_ENTRY_URL = '/family';
+
+export type DeviceAnswer = 'personal' | 'shared';
 
 /**
  * The family's read-only live view, reached with an event code and no account.
@@ -32,18 +51,35 @@ const POLL_INTERVAL_MS = 15_000;
  * subscription is possible — this polls on an interval instead. Stated explicitly as the
  * pragmatic v1, not a silent gap: Story 4.3's AC doesn't require sub-second updates, and a
  * 15s poll is far cheaper than holding a socket open on a borrowed phone's data plan.
+ *
+ * FR-16: before the total is shown, the viewer is asked whether this is their own phone.
+ * Anything but "yes" means the view is torn down the moment the page is hidden
+ * (visibilitychange — the one signal mobile Safari fires reliably), left (pagehide), or
+ * restored from the back/forward cache. The code-bearing URL is the only persisted copy of the
+ * "session", so a "no" also overwrites that history entry straight away.
  */
 @Component({
   selector: 'app-family-live',
-  imports: [MatIconModule, DonationRow, RouterLink, DatePipe],
+  imports: [MatIconModule, DonationRow, RouterLink, DatePipe, DignityBanner],
   templateUrl: './family-live.html',
   styleUrl: './family-live.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:visibilitychange)': 'onVisibilityChange()',
+    '(window:pagehide)': 'leaveIfNotPersonal()',
+    '(window:pageshow)': 'onPageShow($event)',
+  },
 })
 export class FamilyLive implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly familyAccessService = inject(FamilyAccessService);
   private readonly reportService = inject(ReportService);
+  private readonly router = inject(Router);
+  private readonly location = inject(Location);
+  private readonly document = inject(DOCUMENT);
+  private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly injector = inject(Injector);
+  private readonly familyTitle = viewChild<ElementRef<HTMLElement>>('familyTitle');
 
   private code = '';
   private pollHandle: ReturnType<typeof setInterval> | undefined;
@@ -54,6 +90,12 @@ export class FamilyLive implements OnInit, OnDestroy {
   public readonly connected = signal(true);
   public readonly notFound = signal(false);
   public readonly lastUpdated = signal<string>('just now');
+  public readonly deviceAnswer = signal<DeviceAnswer | null>(null);
+  public readonly cleared = signal(false);
+
+  public readonly promptOpen = computed(
+    () => !this.loading() && !this.notFound() && this.deviceAnswer() === null,
+  );
 
   public readonly exportOpen = signal(false);
 
@@ -108,8 +150,10 @@ export class FamilyLive implements OnInit, OnDestroy {
       this.loading.set(false);
       return;
     }
+    if (this.familyAccessService.isPersonalDevice(this.code)) this.deviceAnswer.set('personal');
 
     await this.refresh();
+    if (this.cleared()) return;
     this.loading.set(false);
 
     if (!this.notFound()) {
@@ -118,20 +162,34 @@ export class FamilyLive implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.stopPolling();
+  }
+
+  private stopPolling(): void {
     if (this.pollHandle !== undefined) clearInterval(this.pollHandle);
+    this.pollHandle = undefined;
   }
 
   private async refresh(): Promise<void> {
+    const code = this.code;
     try {
-      const result = await this.familyAccessService.resolveByCode(this.code);
+      const result = await this.familyAccessService.resolveByCode(code);
+      if (this.cleared() || code !== this.code) return;
       this.event.set(result.event);
       this.donations.set(result.donations);
       this.connected.set(true);
       this.lastUpdated.set('just now');
-    } catch {
-      // A poll failure (network blip, code revoked mid-session) shouldn't blank out an
-      // already-loaded summary — surface it as "Reconnecting…" instead, unless this was the
-      // very first load, in which case there's nothing to fall back to.
+    } catch (error) {
+      if (this.cleared() || code !== this.code) return;
+      // A regenerated code must stop showing the family's data at once, rather than sitting
+      // on a stale summary behind "Reconnecting…" forever.
+      if (error instanceof FamilyCodeRejectedError) {
+        this.revoke();
+        return;
+      }
+      // A network blip shouldn't blank out an already-loaded summary — surface it as
+      // "Reconnecting…" instead, unless this was the very first load, in which case there's
+      // nothing to fall back to.
       if (this.event() === null) {
         this.notFound.set(true);
       } else {
@@ -140,8 +198,64 @@ export class FamilyLive implements OnInit, OnDestroy {
     }
   }
 
-  public openExport(): void { this.exportOpen.set(true); }
-  public closeExport(): void { this.exportOpen.set(false); }
+  private revoke(): void {
+    this.stopPolling();
+    this.familyAccessService.forget(this.code);
+    this.event.set(null);
+    this.donations.set([]);
+    this.exportOpen.set(false);
+    this.notFound.set(true);
+  }
+
+  public answerDevice(answer: DeviceAnswer): void {
+    this.deviceAnswer.set(answer);
+    if (answer === 'personal') {
+      this.familyAccessService.markPersonalDevice(this.code);
+    } else {
+      this.familyAccessService.forget(this.code);
+      // Back/forward and a restored tab must not land on the code-bearing URL again.
+      this.location.replaceState(CODE_ENTRY_URL);
+    }
+    afterNextRender(() => this.familyTitle()?.nativeElement.focus(), { injector: this.injector });
+  }
+
+  public onVisibilityChange(): void {
+    if (this.document.visibilityState === 'hidden') this.leaveIfNotPersonal();
+  }
+
+  public onPageShow(event: PageTransitionEvent): void {
+    if (event.persisted) this.leaveIfNotPersonal();
+  }
+
+  /** An unanswered prompt counts as "not my phone": the safe default on a borrowed device. */
+  public leaveIfNotPersonal(): void {
+    if (this.deviceAnswer() === 'personal') return;
+    this.clearSession();
+  }
+
+  private clearSession(): void {
+    if (!this.cleared()) {
+      this.cleared.set(true);
+      this.stopPolling();
+      this.familyAccessService.forget(this.code);
+      this.code = '';
+      this.event.set(null);
+      this.donations.set([]);
+      this.exportOpen.set(false);
+      this.location.replaceState(CODE_ENTRY_URL);
+      // Render the empty view synchronously: the page may be frozen (or snapshotted into the
+      // back/forward cache) before the next scheduled change detection would run.
+      this.changeDetector.detectChanges();
+    }
+    void this.router.navigateByUrl(CODE_ENTRY_URL, { replaceUrl: true });
+  }
+
+  public openExport(): void {
+    this.exportOpen.set(true);
+  }
+  public closeExport(): void {
+    this.exportOpen.set(false);
+  }
 
   public downloadExport(): void {
     const eventName = this.event()?.name ?? 'Event';
