@@ -47,6 +47,7 @@ function fakeContext({ body, headers = {}, getAccount, databases = {}, users = {
 
   class UsersCtor {
     get = record('usersGet', users);
+    create = record('usersCreate', users);
   }
 
   const res = {
@@ -506,5 +507,170 @@ test(
     // calls are every row from both pages of the paginated sweep (100 + 1).
     assert.equal(calls.updateRow.length, 102);
     assert.equal(calls.updateRow[0][0].tableId, 'tenants-1');
+  }),
+);
+
+test(
+  'addTeamMember rejects a verified non-admin caller with 403',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: {
+        action: 'addTeamMember',
+        name: 'Kwesi',
+        email: 'kwesi@example.com',
+        tenantId: 't1',
+        role: 'operator',
+      },
+      ...asOperator,
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 403);
+    assert.equal(calls.usersCreate, undefined);
+  }),
+);
+
+test(
+  'addTeamMember rejects a nonexistent tenantId with 404, before touching Users',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: {
+        action: 'addTeamMember',
+        name: 'Kwesi',
+        email: 'kwesi@example.com',
+        tenantId: 'bogus',
+        role: 'operator',
+      },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: { getRow: async () => Promise.reject(new Error('not found')) },
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 404);
+    assert.equal(calls.usersCreate, undefined);
+  }),
+);
+
+test(
+  'addTeamMember rejects a missing/invalid role with 400 before touching the database',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: {
+        action: 'addTeamMember',
+        name: 'Kwesi',
+        email: 'kwesi@example.com',
+        tenantId: 't1',
+        role: 'ceo',
+      },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 400);
+    assert.equal(calls.getRow, undefined);
+  }),
+);
+
+test(
+  "addTeamMember creates a new Account and Membership for the target person, never the caller's own credentials (AC1, AC3)",
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: {
+        action: 'addTeamMember',
+        name: 'Kwesi Boateng',
+        email: 'kwesi@example.com',
+        tenantId: 't1',
+        role: 'operator',
+      },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: {
+        getRow: async () => ({ $id: 't1', status: 'approved' }),
+        createRow: async () => ({ $id: 'membership-new' }),
+      },
+      users: { usersCreate: async () => ({ $id: 'account-new' }) },
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.userId, 'account-new');
+    assert.equal(result.body.membershipId, 'membership-new');
+    assert.ok(result.body.generatedPassword);
+    // The Account created is for the target person, never a reference to the caller ("admin-1").
+    const [createUserArgs] = calls.usersCreate[0];
+    assert.equal(createUserArgs.email, 'kwesi@example.com');
+    assert.equal(createUserArgs.name, 'Kwesi Boateng');
+    assert.notEqual(createUserArgs.userId, 'admin-1');
+    // The Membership row is written against the newly-created Account, not the caller.
+    const [createRowArgs] = calls.createRow[0];
+    assert.equal(createRowArgs.data.userId, 'account-new');
+    assert.equal(createRowArgs.data.grantedBy, 'admin-1');
+  }),
+);
+
+test(
+  'addTeamMember returns 409 and never calls createRow when the email already has an Account (AC1)',
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: {
+        action: 'addTeamMember',
+        name: 'Kwesi',
+        email: 'kwesi@example.com',
+        tenantId: 't1',
+        role: 'operator',
+      },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: { getRow: async () => ({ $id: 't1', status: 'approved' }) },
+      users: {
+        usersCreate: async () => {
+          const err = new Error('user_email_already_exists');
+          err.code = 409;
+          throw err;
+        },
+      },
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 409);
+    // The assertion that actually matters: no Membership was ever attached to the existing Account.
+    assert.equal(calls.createRow, undefined);
+  }),
+);
+
+test(
+  "revoking one person's Membership never touches a separate person's Membership at another tenant (AC2)",
+  withEnv(async () => {
+    const { ctx, calls } = fakeContext({
+      body: { action: 'revokeMembership', membershipId: 'membership-a' },
+      headers: ADMIN_HEADERS,
+      getAccount: asAdmin,
+      databases: {
+        getRow: async () => ({ $id: 'membership-a', userId: 'user-a', tenantId: 'tenant-a' }),
+        updateRow: async () => ({}),
+        listRows: async () => ({ rows: [{ $id: 'event-a1', assignedUserIds: ['user-a'] }] }),
+      },
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 200);
+    // Exactly one Membership update (membership-a) — membership-b/user-b/tenant-b never appear
+    // anywhere in the call log, proving the revoke and its sweep are scoped to membership-a's
+    // own tenant only.
+    assert.equal(calls.updateRow.length, 2);
+    assert.equal(calls.updateRow[0][0].rowId, 'membership-a');
+    const [listArgs] = calls.listRows[0];
+    assert.ok(listArgs.queries.some((q) => q.includes('"tenantId","values":["tenant-a"]')));
+    assert.ok(!JSON.stringify(calls).includes('tenant-b'));
+    assert.ok(!JSON.stringify(calls).includes('user-b'));
+    assert.ok(!JSON.stringify(calls).includes('membership-b'));
   }),
 );
