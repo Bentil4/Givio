@@ -8,7 +8,12 @@ import type { Event } from '../models/event';
 import { AuthService } from './auth.service';
 import { TenantDataService } from './tenant-data.service';
 import { ServiceError } from '../../core/services/service-error';
-import { writeAuditLog } from './audit-log-writer';
+import {
+  ALL_ROWS_ENTITY_ID,
+  distinctTenantIds,
+  logAdminAccess,
+  writeAuditLog,
+} from './audit-log-writer';
 import { environment } from '../../../environments/environment';
 
 interface CreateEventInput {
@@ -65,10 +70,25 @@ export class EventDataService {
    *
    * Never throws: offline/unreachable just means this device falls back to whatever it
    * already has locally (FR-OFF-002), same "never block the caller" rule as trySyncNow.
+   *
+   * Story 8.2: an Admin caller's read is access-logged only once the server actually returned
+   * rows — an offline fallback re-serves data whose pull was already logged, and the audit
+   * write couldn't reach Appwrite then anyway (audit entries have no outbox).
    */
   async listEvents(): Promise<Event[]> {
     try {
       const remoteEvents = await this.fetchAllEventRows();
+      logAdminAccess(
+        this.databases,
+        this.authService.currentUser(),
+        { entityType: 'event', entityId: ALL_ROWS_ENTITY_ID },
+        () => ({
+          query: 'listEvents',
+          tenantId: null,
+          tenantIds: distinctTenantIds(remoteEvents),
+          rowCount: remoteEvents.length,
+        }),
+      );
       const pendingIds = new Set(
         (await appDb.outbox.where('entityType').equals('event').toArray()).map((e) => e.entityId),
       );
