@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-07-26
-last_updated: 2026-09-29-story-6-3-done
+last_updated: 2026-09-29-wave-1-in-review
 project: givio
 project_key: NOKEY
 tracking_system: file-system
@@ -331,7 +331,18 @@ development_status:
   # "done" until a human actually resizes the app across that width range on real screens
   # (including touch devices) and runs the AXE/Lighthouse sweep the AC calls for.
   5-1-responsive-layout-across-all-screens: review
-  5-2-installable-pwa: backlog
+  # 5-2 implemented 2026-09-29 (Wave 1 parallel worktree, branch feature/5-2-installable-pwa).
+  # AC2 was already met (single provideServiceWorker since 2e75c76). Manifest icons split into
+  # any/maskable (was the combined "maskable any" anti-pattern), manifest `id` added, opaque 180px
+  # apple-touch-icon plus 10 iPhone apple-touch-startup-image splash screens (generated via sips).
+  # AC3 decision (pending user confirmation): the existing appwrite-tablesdb-reads dataGroup was
+  # REMOVED, not extended - ngsw returned stale cached rows into the network-first-then-Dexie path,
+  # could feed trySyncUpdate a stale updatedAt (false conflict), and was URL-keyed so shared across
+  # users on one device. Only Google Fonts are cached now. AC4 can't be met as worded: Lighthouse
+  # 12+ removed the PWA category; needs a DevTools installability check / Lighthouse 11 run and a
+  # real-device install. Icons are still the Angular placeholder (no >=512px Givio source asset).
+  # 250/250 unit, lint/tsc/build green. Status "review" - not device-verified.
+  5-2-installable-pwa: review
   # Scoped 2026-09-12 via a code survey (not a blind implementation pass) against all 3 ACs:
   # AC1 (no data race, entries isolated by recording Operator's user ID) and AC3 (one Operator on
   # two devices, no conflict) were both already satisfied by prior stories, not new work:
@@ -392,7 +403,18 @@ development_status:
   6-3-credentials-per-relationship-enforcement: done
   6-4-organizer-onboarding-admin-invited-self-signup: backlog
   6-5-manual-verification-admin-approval-queue: backlog
-  6-6-operator-event-switcher: backlog
+  # 6-6 implemented 2026-09-29 (Wave 1, branch feature/6-6-operator-event-switcher; built on 6.2
+  # only, independent of 6.3). OperatorEventContext (provided on OrganizerLayout, not root) holds the
+  # explicit pick; EventSwitcher header renders only for 2+ active Events, nothing pre-selected, and a
+  # pick matching no assigned Event stays empty rather than falling back. Save with no pick stays
+  # enabled and focuses the switcher with "Pick an Event first". Active Event named in the page head
+  # and the switcher. AC4: recordDonation already validated eventId independently (404/403/400);
+  # added a 409 when the provisional receipt's short code contradicts the claimed eventId (was
+  # silently overwritten before). Client silent-correction paths removed (draft reset on switch,
+  # confirm() mismatch refusal, stale-save receipt, per-Event filtering).
+  # 276/276 unit, 118/118 Function, lint/tsc/build green. Needs Function redeploy.
+  # Status "review" - not browser-verified.
+  6-6-operator-event-switcher: review
   epic-6-retrospective: optional
 
   epic-7: backlog
@@ -405,15 +427,54 @@ development_status:
 
   epic-8: backlog
   8-1-admin-suspends-a-tenant: backlog
-  8-2-admin-super-admin-access-logging: backlog
+  # 8-2 implemented 2026-09-29 (Wave 1, branch feature/8-2-admin-access-logging). logAdminAccess()
+  # in audit-log-writer (reuses writeAuditLog - still one writer): one fire-and-forget 'access' entry
+  # per Data-layer call (listEvents, listDonationsForEvent, listAllDonations) for admin-labelled
+  # callers only (covers superadmin via AD-11), recording actor, tenantId/tenantIds (newValues JSON)
+  # and rowCount; offline reads and Operators log nothing; admin-audit renders the rows.
+  # BLOCKER before merge: add 'access' to the live audit_logs.action enum (currently create/edit/
+  # delete/restore) - DONE 2026-09-29 via Appwrite MCP (enum now includes access). Open decision:
+  # admin-dashboard Realtime refetches log one entry each (one per donation platform-wide while the
+  # dashboard is open) - accept, or amend AD-12 to throttle/exempt them.
+  # 260/260 unit, lint/tsc/build green. Status "review".
+  8-2-admin-super-admin-access-logging: review
   8-3-contact-admin-support-form: backlog
   8-4-consolidated-cross-event-total: backlog
   8-5-periodic-settlement-export-report: backlog
-  8-6-super-admin-manages-admin-accounts: backlog
+  # 8-6 implemented 2026-09-29 (Wave 1, branch feature/8-6-super-admin-manages-admins).
+  # SECURITY: before this, every admin-users.js action was gated only on the `admin` label, so any
+  # Admin could create/promote/demote/suspend/expire another Admin (incl. the Super Admin) or change
+  # their email (account takeover). New server-side authorizeAdminTier() gate: only a superadmin-
+  # labelled caller may act on an admin-tier target; the Super Admin account can't be changed in-app
+  # (no zero-super-admin state); target lookup fails closed (502/404); suspended caller -> 403.
+  # superadmin can't be granted by any app path (400) - must be seeded. setStatus(false) on an Admin
+  # also revokes sessions (502 if that fails). /dashboard/admins page behind superAdminGuard; Admins
+  # nav item Super-Admin-only; admin-users edit now sends role only when changed (fixed self-rename 400).
+  # 144/144 Function, 267/267 unit, lint/tsc/build green. Manual steps: seed superadmin label on
+  # exactly one account + Function redeploy (hole stays open live until deployed). Label renamed
+  # from super_admin to superadmin (Appwrite labels must be alphanumeric; AD-11 amended); seeded
+  # 2026-09-29 on Emmanuel Mensah (69c276a2002a78d71222) via Appwrite MCP. Status "review".
+  8-6-super-admin-manages-admin-accounts: review
   epic-8-retrospective: optional
 
   epic-9: backlog
-  9-1-personal-device-prompt-auto-logout: backlog
+  # 9-1 implemented 2026-09-29 (Wave 1, branch feature/9-1-personal-device-prompt). Family
+  # "session" is only the /family/:code URL + in-memory state (no storage). New DignityBanner (modal:
+  # cdkTrapFocus, no dismiss; non-modal variant ready for 9.2). family-live shows the personal-phone
+  # prompt before the total; on "no" (or unanswered when hidden), visibilitychange/pagehide/bfcache
+  # restore clear all state, stop polling and replace the code-bearing history entry. "Yes" is held
+  # in memory only (a reload asks again). AC4: server regenerate already invalidates the old code
+  # (verified by reading); an open tab previously kept showing stale data forever - now a
+  # FamilyCodeRejectedError (404 'Code not recognised' only) ends the session.
+  # 263/263 unit, lint/tsc/build green. Status "review" - not device-verified.
+  9-1-personal-device-prompt-auto-logout: review
   9-2-family-view-survives-organizer-suspension: backlog
-  9-3-full-donation-visibility-for-family: backlog
+  # 9-3 implemented 2026-09-29 (Wave 1, branch feature/9-3-full-family-visibility). Real bug:
+  # resolveAccessCode read a single page capped at 200, so larger events showed families a partial
+  # total - now paginates via listAllRows. A failed donations read now returns 502 instead of 200 with
+  # an empty list (which rendered as a false GH₵0). Exclusion rule (deletedAt/conflict) and money
+  # summing already matched the Operator/Admin totalMinor(); unsynced device-local rows are an
+  # inherent gap until they sync. recordedBy/notes stay hidden (notes visibility is an open product
+  # question). 120/120 Function, lint green. Needs Function redeploy. Status "review".
+  9-3-full-donation-visibility-for-family: review
   epic-9-retrospective: optional
