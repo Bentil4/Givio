@@ -17,6 +17,11 @@ const MEMBERSHIP_ROLES = ['super_organizer', 'organizer', 'operator'];
 
 const TENANT_STATUSES = ['approved', 'rejected', 'suspended'];
 
+// Deliberately permissive (not RFC 5322) — same "good enough to catch a typo, not a security
+// boundary" bar as admin-users.js's isValidPhone; Appwrite's own users.create is still the
+// final validator.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // Story 6.2's own scope: Tenant creation itself (the initial 'pending' row at self-signup) is
 // Story 6.4's job, not this one — so 'pending' is a starting state this Function reads, never
 // a transition target this module writes to.
@@ -53,6 +58,9 @@ const PAYLOAD_VALIDATORS = {
   addTeamMember: ({ name, email, tenantId, role }) => {
     if (!hasValue(name) || !hasValue(email) || !hasValue(tenantId)) {
       return invalid('Request must include name, email, and tenantId');
+    }
+    if (!EMAIL_PATTERN.test(email)) {
+      return invalid('email must be a valid email address');
     }
     if (!MEMBERSHIP_ROLES.includes(role)) {
       return invalid(`role must be one of: ${MEMBERSHIP_ROLES.join(', ')}`);
@@ -146,6 +154,11 @@ async function createMembershipRow({
   grantedBy,
   error,
   errorContext,
+  // handleCreateMembership's userId is caller-supplied and can legitimately already hold a
+  // Membership (that's the case this message describes). handleAddTeamMember's userId is
+  // always a same-call ID.unique() Account, so that message would be nonsensical if this
+  // conflict branch somehow fired — override it there instead of reusing a misleading default.
+  conflictMessage = 'User already holds an active membership',
 }) {
   const now = new Date().toISOString();
   let row;
@@ -160,7 +173,7 @@ async function createMembershipRow({
   } catch (err) {
     if (isConflictError(err)) {
       error(`${errorContext}: userId_unique conflict for ${userId}: ${err.message}`);
-      return { status: 409, body: { error: 'User already holds an active membership' } };
+      return { status: 409, body: { error: conflictMessage } };
     }
     error(`${errorContext}: createRow failed: ${err.message}`);
     return { status: 502, body: { error: 'Failed to create membership' } };
@@ -267,13 +280,22 @@ async function handleAddTeamMember({
   const { name, email, tenantId, role } = payload;
   const databases = new DatabasesCtor(adminClient);
 
-  // Same existence-only (not approved-only) tenant check as createMembership — see that
-  // function's own comment for why 'pending' must be allowed.
+  // Existence-required, 'pending'-allowed — same as createMembership (Story 6.4's self-signup
+  // creates the applicant's own Super Organizer Membership while still 'pending'). Unlike
+  // createMembership, this *does* reject 'suspended'/'rejected': those states mean the tenant
+  // has no business growing its team, and unlike 'pending' there's no legitimate in-flight
+  // flow that needs to add a member to an already-suspended/rejected tenant. Scoped to this
+  // action only — createMembership's own (already-shipped, already-tested) behavior is
+  // untouched.
+  let tenant;
   try {
-    await databases.getRow({ databaseId, tableId: tenantsCollectionId, rowId: tenantId });
+    tenant = await databases.getRow({ databaseId, tableId: tenantsCollectionId, rowId: tenantId });
   } catch (err) {
     error(`addTeamMember: tenant ${tenantId} not found: ${err.message}`);
     return { status: 404, body: { error: 'Tenant not found' } };
+  }
+  if (tenant.status === 'suspended' || tenant.status === 'rejected') {
+    return { status: 409, body: { error: `Tenant is ${tenant.status}` } };
   }
 
   // AC1/AC3's crux: create a brand-new Account for this exact call. If `email` already belongs
@@ -311,14 +333,32 @@ async function handleAddTeamMember({
     grantedBy: caller.$id,
     error,
     errorContext: 'addTeamMember',
+    // The default message ("User already holds an active membership") describes
+    // handleCreateMembership's caller-supplied-userId case — nonsensical here, where the
+    // userId was minted by this same call and can't have a prior Membership.
+    conflictMessage: 'Failed to create membership for newly created account',
   });
   if (membershipResult.status !== 200) {
     // The Account already exists at this point (created above) even though the Membership
-    // write failed — surfaced via `error` for operator visibility; no automatic rollback of
-    // the Account creation (matches this Function's existing best-effort-on-partial-failure
-    // posture elsewhere, e.g. sweepTenantEventPermissions).
-    error(`addTeamMember: account ${account.$id} created but membership write failed`);
-    return membershipResult;
+    // write failed — no automatic rollback (matches this Function's existing
+    // best-effort-on-partial-failure posture elsewhere, e.g. sweepTenantEventPermissions).
+    // Code-review fix: without returning userId/generatedPassword here, this Account would be
+    // permanently orphaned — its password lost, and a retry with the same email would hit
+    // users.create's own conflict branch instead of ever reaching this point again. Returning
+    // them lets the caller manually complete the Membership via the existing createMembership
+    // action (which takes a userId directly) instead of losing access to the Account entirely.
+    error(
+      `addTeamMember: account ${account.$id} created but membership write failed — recoverable via createMembership`,
+    );
+    return {
+      status: membershipResult.status,
+      body: {
+        ...membershipResult.body,
+        userId: account.$id,
+        generatedPassword,
+        recovery: 'Account was created; retry via the createMembership action with this userId.',
+      },
+    };
   }
 
   return {
@@ -599,7 +639,16 @@ export async function handleTenantMembershipRequest({
   }
 
   if (result.status === 200) {
-    log(`${action} succeeded (by admin ${caller.$id}): ${JSON.stringify(result.body)}`);
+    // Code-review fix: addTeamMember's success body carries generatedPassword — logging it
+    // verbatim would write a new Account's plaintext password into the Function's execution
+    // logs. Redact any *Password-suffixed field generically, so a future action returning a
+    // similarly-named secret doesn't reopen the same leak.
+    const loggableBody = Object.fromEntries(
+      Object.entries(result.body).map(([key, value]) =>
+        key.toLowerCase().endsWith('password') ? [key, '[redacted]'] : [key, value],
+      ),
+    );
+    log(`${action} succeeded (by admin ${caller.$id}): ${JSON.stringify(loggableBody)}`);
   }
   return res.json(result.body, result.status);
 }
