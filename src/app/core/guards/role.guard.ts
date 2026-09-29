@@ -18,6 +18,16 @@ export function roleGuard(allowedRoles: readonly Role[]): CanActivateFn {
 }
 
 /**
+ * Layered on top of roleGuard(['admin']) for the Super-Admin-only screen (AD-11) — an ordinary
+ * Admin is bounced back to their own dashboard rather than to /login, since they're signed in.
+ */
+export const superAdminGuard: CanActivateFn = () => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+  return authService.isSuperAdmin() || router.createUrlTree([ROLE_HOME.admin]);
+};
+
+/**
  * Applied to the login route: an already-authenticated user is sent straight to their
  * own dashboard instead of being shown the login form again.
  */
