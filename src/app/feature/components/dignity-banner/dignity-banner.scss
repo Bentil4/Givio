@@ -1,0 +1,54 @@
+// Uses only the tokens already defined in src/styles.scss :root.
+.dignity--modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(18, 38, 43, 0.55);
+  z-index: 60;
+}
+
+.dignity-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 460px;
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  background: var(--status-info-bg);
+  color: var(--status-info-fg);
+  font-family: var(--font-body);
+}
+
+.dignity-icon {
+  flex: none;
+}
+
+.dignity-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.dignity-heading {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.dignity-detail {
+  margin: var(--space-xs) 0 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.dignity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
