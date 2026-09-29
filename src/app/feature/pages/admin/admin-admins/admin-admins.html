@@ -1,0 +1,274 @@
+<section class="page" aria-labelledby="admins-title">
+  <header class="page-head">
+    <div>
+      <h1 id="admins-title" class="t-page-title">Admin accounts</h1>
+      <p class="t-secondary">
+        Only you, as Super Admin, can create, promote, demote, or suspend an Admin. The server
+        enforces this — no other account can make these changes, even another Admin. Suspending
+        never deletes anyone, so their past actions stay in the audit trail under their name.
+      </p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-secondary" (click)="openPromote()">
+        <mat-icon aria-hidden="true">upgrade</mat-icon>
+        Promote operator
+      </button>
+      <button type="button" class="btn btn-primary" (click)="openCreate()">
+        <mat-icon aria-hidden="true">person_add</mat-icon>
+        Create admin
+      </button>
+    </div>
+  </header>
+
+  @if (generatedPassword(); as pwd) {
+  <div class="code-note" role="status">
+    <mat-icon aria-hidden="true">vpn_key</mat-icon>
+    <p class="t-caption">
+      Generated password: <strong>{{ pwd }}</strong> — share it with them directly if the invite
+      didn't arrive; it won't be shown again.
+    </p>
+    <button type="button" class="btn-ghost" (click)="dismissGeneratedPassword()">Dismiss</button>
+  </div>
+  } @if (loadError(); as err) {
+  <div class="code-note" role="alert">
+    <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <p class="t-caption">{{ err }}</p>
+  </div>
+  } @if (loading()) {
+  <div class="table-wrap glass" aria-busy="true">
+    @for (i of skeletons; track i) {
+    <div class="skel-row">
+      <span class="skel skel--md"></span>
+      <span class="skel skel--lg"></span>
+      <span class="skel skel--sm"></span>
+    </div>
+    }
+  </div>
+  } @else {
+  <div class="table-wrap glass">
+    <table class="table">
+      <caption class="visually-hidden">
+        Admin accounts
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Email</th>
+          <th scope="col">Tier</th>
+          <th scope="col">Status</th>
+          <th scope="col">Registered</th>
+          <th scope="col" class="is-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (u of admins(); track u.id) {
+        <tr>
+          <td class="t-body-em">{{ u.name }}</td>
+          <td class="is-muted">{{ u.email }}</td>
+          <td>
+            <span class="tier-badge">
+              <mat-icon aria-hidden="true"
+                >{{ u.superAdmin ? 'workspace_premium' : 'shield' }}</mat-icon
+              >
+              {{ u.superAdmin ? 'Super Admin' : 'Admin' }}
+            </span>
+          </td>
+          <td>
+            <span class="tag" [class]="u.active ? 'tag-success' : 'tag-default'">
+              {{ u.active ? 'Active' : 'Suspended' }}
+            </span>
+          </td>
+          <td class="is-muted">{{ u.registeredAt | date: 'mediumDate' }}</td>
+          <td class="is-actions">
+            @if (canManage(u)) { @if (u.active) {
+            <button type="button" class="btn-ghost is-danger" (click)="ask('suspend', u)">
+              Suspend<span class="visually-hidden"> {{ u.name }}</span>
+            </button>
+            } @else {
+            <button type="button" class="btn-ghost" (click)="ask('reinstate', u)">
+              Reinstate<span class="visually-hidden"> {{ u.name }}</span>
+            </button>
+            }
+            <button type="button" class="btn-ghost" (click)="ask('demote', u)">
+              Demote<span class="visually-hidden"> {{ u.name }}</span>
+            </button>
+            } @else {
+            <span class="t-tertiary"
+              >{{ u.id === currentUserId() ? "That's you" : 'Managed out-of-band' }}</span
+            >
+            } @if (rowErrorFor(u); as err) {
+            <p class="row-error" role="alert">{{ err }}</p>
+            }
+          </td>
+        </tr>
+        } @empty {
+        <tr>
+          <td colspan="6" class="t-caption">No Admin accounts yet.</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }
+</section>
+
+@if (creating()) {
+<!-- Backdrop click is a pointer convenience only; (keydown.escape) is the keyboard equivalent. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="closeCreate()" (keydown.escape)="closeCreate()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <form
+    class="dialog glass glass-thick"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="create-admin-title"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    [formGroup]="createForm"
+    (ngSubmit)="create()"
+    (click)="$event.stopPropagation()"
+    novalidate
+  >
+    <header class="dialog-head">
+      <h2 id="create-admin-title" class="t-page-title">Create admin</h2>
+      <p class="t-secondary">They get full platform-wide Admin access as soon as they sign in.</p>
+    </header>
+
+    @if (formError(); as err) {
+    <p class="field-error" role="alert">{{ err }}</p>
+    }
+
+    <div class="dialog-body">
+      <div class="field">
+        <label class="field-label" for="aName"
+          >Full name <span class="req" aria-hidden="true">*</span></label
+        >
+        <input
+          id="aName"
+          class="input"
+          type="text"
+          formControlName="name"
+          autocomplete="name"
+          [attr.aria-invalid]="invalid('name')"
+          [class.is-invalid]="invalid('name')"
+        />
+        @if (invalid('name')) {
+        <p class="field-error">Enter their full name.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="aEmail"
+          >Work email <span class="req" aria-hidden="true">*</span></label
+        >
+        <input
+          id="aEmail"
+          class="input"
+          type="email"
+          formControlName="email"
+          autocomplete="email"
+          [attr.aria-invalid]="invalid('email')"
+          [class.is-invalid]="invalid('email')"
+        />
+        @if (invalid('email')) {
+        <p class="field-error">Enter a valid email address.</p>
+        }
+      </div>
+
+      <label class="invite-check">
+        <input type="checkbox" formControlName="inviteEmail" />
+        Send login details via email
+      </label>
+    </div>
+
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="closeCreate()">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="busy()">Create admin</button>
+    </footer>
+  </form>
+</div>
+} @if (promoting()) {
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="closePromote()" (keydown.escape)="closePromote()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <form
+    class="dialog dialog--sm glass glass-thick"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="promote-title"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    [formGroup]="promoteForm"
+    (ngSubmit)="promote()"
+    (click)="$event.stopPropagation()"
+    novalidate
+  >
+    <header class="dialog-head">
+      <h2 id="promote-title" class="t-page-title">Promote an operator</h2>
+      <p class="t-secondary">They keep their account and history, and gain full Admin access.</p>
+    </header>
+
+    @if (formError(); as err) {
+    <p class="field-error" role="alert">{{ err }}</p>
+    }
+
+    <div class="dialog-body">
+      @if (promotable().length > 0) {
+      <div class="field">
+        <label class="field-label" for="promoteUser"
+          >Operator <span class="req" aria-hidden="true">*</span></label
+        >
+        <select id="promoteUser" class="select-field" formControlName="userId">
+          <option value="" disabled>Choose an operator</option>
+          @for (o of promotable(); track o.id) {
+          <option [value]="o.id">{{ o.name }} ({{ o.email }})</option>
+          }
+        </select>
+      </div>
+      } @else {
+      <p class="t-caption">There are no active operators to promote.</p>
+      }
+    </div>
+
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="closePromote()">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="busy() || promoteForm.invalid">
+        Promote
+      </button>
+    </footer>
+  </form>
+</div>
+} @if (pendingCopy(); as c) {
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="dismissPending()" (keydown.escape)="dismissPending()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <div
+    class="dialog dialog--sm glass glass-thick"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="pending-title"
+    aria-describedby="pending-body"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="dialog-head">
+      <h2 id="pending-title" class="t-page-title">{{ c.title }}</h2>
+    </header>
+    <div class="dialog-body">
+      <p id="pending-body" class="t-body confirm-body">{{ c.body }}</p>
+    </div>
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="dismissPending()">Cancel</button>
+      <button
+        type="button"
+        [class]="c.danger ? 'btn btn-danger' : 'btn btn-primary'"
+        [disabled]="busy()"
+        (click)="confirmPending()"
+      >
+        {{ c.cta }}
+      </button>
+    </footer>
+  </div>
+</div>
+}

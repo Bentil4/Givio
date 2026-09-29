@@ -25,12 +25,26 @@ function isValidPhone(phone) {
   return /^\+[1-9]\d{6,14}$/.test(phone);
 }
 
+// Deliberately not in VALID_ROLES: super_admin is never grantable through any action here —
+// it's seeded out-of-band at deploy time onto the one Account that also holds `admin` (AD-11).
+const SUPER_ADMIN_LABEL = 'super_admin';
+
+const ADMIN_TIER_FORBIDDEN = {
+  status: 403,
+  body: { error: 'Only the Super Admin can create, promote, demote, or suspend an Admin account' },
+};
+
+function hasLabel(user, label) {
+  return (user?.labels ?? []).includes(label);
+}
+
 function mapUser(u) {
   return {
     id: u.$id,
     name: u.name,
     email: u.email,
     role: VALID_ROLES.find((r) => (u.labels ?? []).includes(r)) ?? null,
+    superAdmin: hasLabel(u, SUPER_ADMIN_LABEL),
     active: u.status,
     registeredAt: u.registration,
   };
@@ -120,6 +134,63 @@ function validatePayload(action, payload, caller) {
     return invalid(`action must be one of: ${ACTIONS.join(', ')}`);
   }
   return validator(payload ?? {}, caller);
+}
+
+const TARGETED_ACTIONS = new Set(['updateUser', 'setStatus', 'forceExpireSessions']);
+
+/**
+ * FR-26 / AD-11: any action that creates an Admin, touches an existing Admin account, or
+ * promotes someone into the Admin tier is Super-Admin-only. This has to look the target up
+ * server-side — the client's idea of "is this user an Admin" is never trusted — and it also
+ * refuses to change the standing (role/status) of a super_admin holder at all, since
+ * handleUpdateUser's updateLabels([role]) would silently strip that Label and succession is an
+ * out-of-band operation (PRD §4.8). Self-targeting never reaches here for role/status/session
+ * changes: PAYLOAD_VALIDATORS already rejects those, which is also what stops the Super Admin
+ * demoting or suspending themself into a zero-Super-Admin state.
+ */
+async function authorizeAdminTier({ action, payload, caller, UsersCtor, adminClient, error }) {
+  const callerIsSuperAdmin = hasLabel(caller, SUPER_ADMIN_LABEL);
+  const reject = (reason) => {
+    // Feeds SM-8 (unauthorized Admin-account-management attempts blocked).
+    error(`FR-26 rejected ${action} by non-Super-Admin ${caller.$id}: ${reason}`);
+    return { denial: ADMIN_TIER_FORBIDDEN };
+  };
+
+  if (action === 'createUser') {
+    return payload.role === 'admin' && !callerIsSuperAdmin ? reject('create Admin') : {};
+  }
+  if (!TARGETED_ACTIONS.has(action) || payload.userId === caller.$id) {
+    return {};
+  }
+
+  let target;
+  try {
+    target = await new UsersCtor(adminClient).get({ userId: payload.userId });
+  } catch (err) {
+    if (err?.code === 404) {
+      return { denial: { status: 404, body: { error: 'User not found' } } };
+    }
+    error(`${action}: target lookup failed: ${err.message}`);
+    return { denial: { status: 502, body: { error: 'Failed to look up user' } } };
+  }
+
+  const promotesToAdmin = action === 'updateUser' && payload.role === 'admin';
+  if ((hasLabel(target, 'admin') || promotesToAdmin) && !callerIsSuperAdmin) {
+    return reject(`target ${payload.userId}`);
+  }
+
+  const changesStanding =
+    action === 'setStatus' || (action === 'updateUser' && payload.role !== undefined);
+  if (changesStanding && hasLabel(target, SUPER_ADMIN_LABEL)) {
+    return {
+      denial: {
+        status: 403,
+        body: { error: 'The Super Admin designation can only be changed out-of-band' },
+      },
+    };
+  }
+
+  return { target };
 }
 
 async function handleListUsers({ UsersCtor, adminClient, error }) {
@@ -360,14 +431,36 @@ async function handleUpdateUser({ UsersCtor, adminClient, payload, error }) {
   return { status: 200, body: { success: true, userId, appliedFields } };
 }
 
-async function handleSetStatus({ UsersCtor, adminClient, payload, error }) {
+/**
+ * Suspending an Admin also revokes every live session in the same request (FR-26: "immediately
+ * loses" approval/suspension authority and audit visibility) rather than relying on the client
+ * to follow up with forceExpireSessions. The account itself is never deleted, so every audit
+ * entry it ever authored stays attributed to it (FR-13).
+ */
+async function handleSetStatus({ UsersCtor, adminClient, payload, target, error }) {
   const { userId, active } = payload ?? {};
+  const users = new UsersCtor(adminClient);
 
   try {
-    await new UsersCtor(adminClient).updateStatus({ userId, status: active });
+    await users.updateStatus({ userId, status: active });
   } catch (err) {
     error(`updateStatus failed: ${err.message}`);
     return { status: 502, body: { error: 'Failed to update user status' } };
+  }
+
+  if (!active && hasLabel(target, 'admin')) {
+    try {
+      await users.deleteSessions({ userId });
+    } catch (err) {
+      error(`deleteSessions failed after suspending admin ${userId}: ${err.message}`);
+      return {
+        status: 502,
+        body: {
+          error: 'Admin suspended, but revoking their active sessions failed — retry to finish',
+          active: false,
+        },
+      };
+    }
   }
 
   return { status: 200, body: { success: true, userId, active } };
@@ -419,6 +512,11 @@ export async function handleAdminUsersRequest({
   if (errorResponse) {
     return res.json(errorResponse.body, errorResponse.status);
   }
+  // Defense in depth for a suspended Admin whose JWT is still within its lifetime — Appwrite
+  // itself should already refuse a blocked user's account.get().
+  if (caller.status === false) {
+    return res.json({ error: 'Forbidden' }, 403);
+  }
 
   let body;
   try {
@@ -443,6 +541,19 @@ export async function handleAdminUsersRequest({
   }
 
   const adminClient = buildClient(ClientCtor, endpoint, projectId).setKey(dynamicKey);
+
+  const { denial, target } = await authorizeAdminTier({
+    action,
+    payload,
+    caller,
+    UsersCtor,
+    adminClient,
+    error,
+  });
+  if (denial) {
+    return res.json(denial.body, denial.status);
+  }
+
   const actionContext = {
     UsersCtor,
     MessagingCtor,
@@ -450,6 +561,7 @@ export async function handleAdminUsersRequest({
     adminClient,
     payload,
     caller,
+    target,
     error,
   };
 

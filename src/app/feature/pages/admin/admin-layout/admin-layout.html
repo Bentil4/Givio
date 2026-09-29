@@ -11,7 +11,7 @@
     <mat-icon>menu</mat-icon>
   </button>
   <app-sidebar
-    [navItems]="navItems"
+    [navItems]="navItems()"
     [userProfile]="userProfile"
     [collapsed]="isSidebarCollapsed()"
     [mobileOpen]="isMobileNavOpen()"
