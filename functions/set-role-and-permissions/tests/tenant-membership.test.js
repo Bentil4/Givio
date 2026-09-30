@@ -1075,6 +1075,8 @@ test(
           status: 'pending',
           ...COMPANY,
           verificationDocumentId: 'file-1',
+          verifiedBy: 'admin-1',
+          verifiedAt: '2026-09-30T10:00:00.000Z',
         }),
         updateRow: async () => ({}),
       },
