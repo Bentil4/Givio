@@ -35,6 +35,7 @@ export class CompanyLayout {
 
   public readonly navItems = computed<INavbarItem[]>(() => [
     { name: 'Dashboard', icon: 'dashboard', route: '/company' },
+    { name: 'Team', icon: 'group', route: '/company/team' },
   ]);
 
   constructor() {

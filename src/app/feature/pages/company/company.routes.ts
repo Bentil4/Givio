@@ -15,6 +15,11 @@ export const COMPANY_CHILD_ROUTES: Routes = [
       import('./company-dashboard/company-dashboard').then((m) => m.CompanyDashboard),
     title: 'Company dashboard',
   },
+  {
+    path: 'team',
+    loadComponent: () => import('./company-team/company-team').then((m) => m.CompanyTeam),
+    title: 'Team',
+  },
 ];
 
 export const COMPANY_ROUTES: Routes = [

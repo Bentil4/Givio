@@ -1,0 +1,235 @@
+<section class="page" aria-labelledby="team-title">
+  <header class="page-head">
+    <div>
+      <h1 id="team-title" class="t-page-title" tabindex="-1" #heading>Team</h1>
+      <p class="t-secondary">
+        Everyone you add gets their own login for {{ companyName() }} — never a shared one. They
+        can't see any Event until you assign them to it.
+      </p>
+    </div>
+    @if (!isEmpty()) {
+    <div class="page-actions">
+      @if (isSuperOrganizer()) {
+      <button type="button" class="btn btn-secondary" (click)="openAdd('organizer')">
+        <mat-icon aria-hidden="true">person_add</mat-icon>
+        Add co-Organizer
+      </button>
+      }
+      <button type="button" class="btn btn-primary" (click)="openAdd('operator')">
+        <mat-icon aria-hidden="true">person_add</mat-icon>
+        Add Operator
+      </button>
+    </div>
+    }
+  </header>
+
+  @if (newMember(); as added) {
+  <div class="code-note" role="status">
+    <mat-icon aria-hidden="true">vpn_key</mat-icon>
+    <p class="t-caption">
+      {{ added.name }}'s password: <strong class="is-mono">{{ added.password }}</strong> — share it
+      with them directly; it won't be shown again. @if (added.setupIncomplete) { Their account was
+      created, but their access isn't fully set up yet — contact Givio support before they sign in.
+      }
+    </p>
+    <button type="button" class="btn-ghost" (click)="dismissNewMember()">Dismiss</button>
+  </div>
+  } @if (actionError(); as err) {
+  <div class="code-note is-error" role="alert">
+    <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <p class="t-caption">{{ err }}</p>
+  </div>
+  } @if (loading()) {
+  <div class="table-wrap glass" aria-busy="true">
+    <span class="visually-hidden">Loading your team…</span>
+    @for (i of skeletons; track i) {
+    <div class="skel-row">
+      <span class="skel skel--md"></span>
+      <span class="skel skel--lg"></span>
+      <span class="skel skel--sm"></span>
+    </div>
+    }
+  </div>
+  } @else if (loadError(); as err) {
+  <div class="code-note is-error" role="alert">
+    <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <p class="t-caption">{{ err }}</p>
+    <button type="button" class="btn-ghost" (click)="load()">Try again</button>
+  </div>
+  } @else if (isEmpty()) {
+  <article class="empty glass" aria-labelledby="team-empty-title">
+    <mat-icon class="empty-icon" aria-hidden="true">group_add</mat-icon>
+    <h2 id="team-empty-title" class="t-card-title">You haven't added anyone yet</h2>
+    <p class="t-caption">
+      Add the people who help you run Events. Each one signs in with their own account.
+    </p>
+    <div class="empty-actions">
+      @if (isSuperOrganizer()) {
+      <button type="button" class="btn btn-primary" (click)="openAdd('organizer')">
+        Add co-Organizer
+      </button>
+      }
+      <button type="button" class="btn btn-primary" (click)="openAdd('operator')">
+        Add Operator
+      </button>
+    </div>
+  </article>
+  } @else {
+  <div class="table-wrap glass">
+    <table class="table">
+      <caption class="visually-hidden">
+        Your team
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Email</th>
+          <th scope="col">Tier</th>
+          <th scope="col">Added</th>
+          <th scope="col" class="is-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (m of team(); track m.membershipId) {
+        <tr>
+          <td class="t-body-em">{{ m.name }}</td>
+          <td class="is-muted">{{ m.email }}</td>
+          <td>
+            <span
+              class="tier-badge"
+              [attr.title]="tierLabel(m.role) + ' — ' + tierDescription(m.role)"
+            >
+              {{ tierLabel(m.role) }}
+              <span class="visually-hidden"> — {{ tierDescription(m.role) }}</span>
+            </span>
+          </td>
+          <td class="is-muted">{{ m.grantedAt | date: 'mediumDate' }}</td>
+          <td class="is-actions">
+            @if (canRevoke(m)) {
+            <button type="button" class="btn-ghost is-danger" (click)="askRevoke(m)">
+              Revoke<span class="visually-hidden"> {{ m.name }}</span>
+            </button>
+            } @else if (m.isSelf) {
+            <span class="t-tertiary">That's you</span>
+            }
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }
+</section>
+
+@if (addCopy(); as c) {
+<!-- Backdrop click is a pointer convenience only; (keydown.escape) is the keyboard equivalent. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="closeAdd()" (keydown.escape)="closeAdd()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <form
+    class="dialog glass glass-thick"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="add-member-title"
+    aria-describedby="add-member-desc"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    [formGroup]="form"
+    (ngSubmit)="add()"
+    (click)="$event.stopPropagation()"
+    novalidate
+  >
+    <header class="dialog-head">
+      <h2 id="add-member-title" class="t-page-title">{{ c.title }}</h2>
+      <p id="add-member-desc" class="t-secondary">{{ c.body }}</p>
+    </header>
+
+    @if (formError(); as err) {
+    <p class="field-error form-error" role="alert">{{ err }}</p>
+    }
+
+    <div class="dialog-body">
+      <div class="field">
+        <label class="field-label" for="teamName"
+          >Full name <span class="req" aria-hidden="true">*</span></label
+        >
+        <input
+          id="teamName"
+          class="input"
+          type="text"
+          formControlName="name"
+          autocomplete="off"
+          required
+          [attr.aria-invalid]="invalid('name')"
+          [attr.aria-describedby]="invalid('name') ? 'teamName-error' : null"
+          [class.is-invalid]="invalid('name')"
+        />
+        @if (invalid('name')) {
+        <p id="teamName-error" class="field-error">Enter their full name.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="teamEmail"
+          >Email <span class="req" aria-hidden="true">*</span></label
+        >
+        <input
+          id="teamEmail"
+          class="input"
+          type="email"
+          formControlName="email"
+          autocomplete="off"
+          required
+          [attr.aria-invalid]="invalid('email')"
+          [attr.aria-describedby]="invalid('email') ? 'teamEmail-error' : 'teamEmail-hint'"
+          [class.is-invalid]="invalid('email')"
+        />
+        @if (invalid('email')) {
+        <p id="teamEmail-error" class="field-error">Enter a valid email address.</p>
+        } @else {
+        <p id="teamEmail-hint" class="field-note t-caption">
+          Use an address they don't already sign in to Givio with — every company relationship gets
+          its own login.
+        </p>
+        }
+      </div>
+    </div>
+
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="closeAdd()">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="busy()">{{ c.title }}</button>
+    </footer>
+  </form>
+</div>
+} @if (revoking(); as m) {
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="dismissRevoke()" (keydown.escape)="dismissRevoke()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <div
+    class="dialog dialog--sm glass glass-thick"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="revoke-title"
+    aria-describedby="revoke-body"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="dialog-head">
+      <h2 id="revoke-title" class="t-page-title">Revoke {{ m.name }}'s access?</h2>
+    </header>
+    <div class="dialog-body">
+      <p id="revoke-body" class="t-body confirm-body">
+        They lose access to {{ companyName() }} and every Event they're assigned to right away.
+        Nothing is deleted — every donation they recorded keeps their name.
+      </p>
+    </div>
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="dismissRevoke()">Cancel</button>
+      <button type="button" class="btn btn-danger" [disabled]="busy()" (click)="confirmRevoke()">
+        Revoke access
+      </button>
+    </footer>
+  </div>
+</div>
+}
