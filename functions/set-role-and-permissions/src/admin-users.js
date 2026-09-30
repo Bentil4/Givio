@@ -8,6 +8,7 @@ import {
   invalid,
   hasValue,
   isConflictError,
+  isValidPhone,
 } from './shared.js';
 import { renderInviteEmail } from './invite-email-template.js';
 
@@ -20,10 +21,6 @@ const INVITE_CHANNELS = new Set(['email', 'sms']);
 // Arkesel isn't an Appwrite Messaging provider, so SMS invites bypass Messaging entirely and
 // hit Arkesel's own REST API directly.
 const ARKESEL_SMS_ENDPOINT = 'https://sms.arkesel.com/api/v2/sms/send';
-
-function isValidPhone(phone) {
-  return /^\+[1-9]\d{6,14}$/.test(phone);
-}
 
 // Deliberately not in VALID_ROLES: superadmin is never grantable through any action here —
 // it's seeded out-of-band at deploy time onto the one Account that also holds `admin` (AD-11).

@@ -20,6 +20,8 @@ import {
   hasValue,
   listAllRows,
   isConflictError,
+  isValidPhone,
+  normalizePhone,
 } from './shared.js';
 import { sendInviteEmail } from './admin-users.js';
 import { recomputeTenantReadGrants } from './tenant-grants.js';
@@ -156,7 +158,7 @@ const PAYLOAD_VALIDATORS = {
     if (!isValidEmail(email)) {
       return invalid('email must be a valid email address');
     }
-    return validateCompanyIntake(company);
+    return validateCompanyContact(company, { phoneRequired: false });
   },
   recordTenantVerification: ({ tenantId, documentReviewed, phoneVerified }) => {
     if (!hasValue(tenantId)) {
@@ -181,7 +183,7 @@ const PAYLOAD_VALIDATORS = {
     if (!hasValue(payload.verificationDocumentId)) {
       return invalid('Request must include verificationDocumentId');
     }
-    return validateCompanyIntake(payload.company);
+    return validateCompanyContact(payload.company, { phoneRequired: true });
   },
 };
 
@@ -216,6 +218,25 @@ function validateCompanyIntake(company) {
   return VALID;
 }
 
+// contactPhone is checked here rather than in validateCompanyIntake so the approval
+// precondition below still passes for applications submitted before the field existed.
+function validateCompanyContact(company, { phoneRequired }) {
+  const intake = validateCompanyIntake(company);
+  if (!intake.valid) {
+    return intake;
+  }
+  const { contactPhone } = company;
+  if (contactPhone === undefined || contactPhone === null || contactPhone === '') {
+    return phoneRequired ? invalid('company.contactPhone is required') : VALID;
+  }
+  if (typeof contactPhone !== 'string' || !isValidPhone(normalizePhone(contactPhone))) {
+    return invalid(
+      'company.contactPhone must be an international phone number, e.g. +233241234567',
+    );
+  }
+  return VALID;
+}
+
 /**
  * FR-7's approval precondition: every intake field from the signup wizard is present and
  * valid, including the verification document (FR-8). Story 6.5's approval UI reads the same
@@ -240,6 +261,9 @@ function companyRowData(company) {
     size: company.size,
     type: company.type,
     estimatedUserCount: company.estimatedUserCount,
+    ...(hasValue(company.contactPhone)
+      ? { contactPhone: normalizePhone(company.contactPhone) }
+      : {}),
   };
 }
 

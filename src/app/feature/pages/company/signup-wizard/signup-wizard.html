@@ -77,6 +77,30 @@
           </div>
 
           <div class="field">
+            <label class="field-label" for="companyPhone">Contact phone</label>
+            <input
+              id="companyPhone"
+              class="input"
+              type="tel"
+              inputmode="tel"
+              formControlName="contactPhone"
+              placeholder="+233 24 123 4567"
+              autocomplete="tel"
+              [class.is-invalid]="invalid('company', 'contactPhone')"
+              [attr.aria-invalid]="invalid('company', 'contactPhone')"
+              [attr.aria-describedby]="invalid('company', 'contactPhone') ? 'companyPhone-hint companyPhone-error' : 'companyPhone-hint'"
+            />
+            <p id="companyPhone-hint" class="field-hint">
+              We'll call this number to verify your company. Include the country code.
+            </p>
+            @if (invalid('company', 'contactPhone')) {
+            <p id="companyPhone-error" class="field-error">
+              Enter a phone number with its country code, e.g. +233 24 123 4567.
+            </p>
+            }
+          </div>
+
+          <div class="field">
             <label class="field-label" for="companySize">Company size</label>
             <select
               id="companySize"
@@ -257,6 +281,10 @@
           <div>
             <dt>Location</dt>
             <dd>{{ companyForm.controls.location.value }}</dd>
+          </div>
+          <div>
+            <dt>Contact phone</dt>
+            <dd>{{ contactPhone() }}</dd>
           </div>
           <div>
             <dt>Company size</dt>

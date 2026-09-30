@@ -14,6 +14,7 @@ import { UserService } from '../../../../data/services/user.service';
 import { ServiceError } from '../../../../core/services/service-error';
 import type { AdminUser } from '../../../../data/models/admin-user';
 import type { Role } from '../../../../data/models/role';
+import { E164_PHONE_PATTERN } from '../../../../utils/phone.util';
 
 export type UserStatus = 'active' | 'deactivated';
 
@@ -104,7 +105,7 @@ export class AdminUsers implements OnInit {
   public readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]],
     email: ['', [Validators.required, Validators.email]],
-    phone: ['', [Validators.pattern(/^\+[1-9]\d{6,14}$/)]],
+    phone: ['', [Validators.pattern(E164_PHONE_PATTERN)]],
     role: ['operator' as Role, Validators.required],
   });
 

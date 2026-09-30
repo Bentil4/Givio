@@ -198,3 +198,13 @@ export const EMAIL_MAX_LENGTH = 254;
 export function isValidEmail(email) {
   return typeof email === 'string' && email.length <= EMAIL_MAX_LENGTH && EMAIL_PATTERN.test(email);
 }
+
+// E.164. Linear-time: a literal '+' then one bounded digit run, so there's nothing to backtrack.
+export function isValidPhone(phone) {
+  return /^\+[1-9]\d{6,14}$/.test(phone);
+}
+
+/** Drops the spaces, dashes and parentheses people type into a phone number. */
+export function normalizePhone(phone) {
+  return phone.replace(/[\s()-]/g, '');
+}

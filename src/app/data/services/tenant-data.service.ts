@@ -52,6 +52,7 @@ function rowToTenant(row: Models.DefaultRow): Tenant {
     size: row['size'],
     type: row['type'],
     estimatedUserCount: row['estimatedUserCount'],
+    contactPhone: row['contactPhone'] ?? undefined,
     status: row['status'],
     superOrganizerId: row['superOrganizerId'],
     verificationDocumentId: row['verificationDocumentId'] ?? undefined,
@@ -129,7 +130,7 @@ export class TenantDataService {
   }
 
   async submitTenantApplication(input: {
-    company: CompanyIntake;
+    company: CompanyIntake & { contactPhone: string };
     verificationDocumentId: string;
   }): Promise<{ tenantId: string; membershipId: string }> {
     return invokeAdminFunction(
