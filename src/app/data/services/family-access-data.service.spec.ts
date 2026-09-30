@@ -102,6 +102,21 @@ describe('FamilyAccessDataService', () => {
       );
     });
 
+    it('rejects a wrong-length code as FamilyCodeRejectedError without calling the Function', async () => {
+      await expect(service.resolveByCode('ABC')).rejects.toBeInstanceOf(FamilyCodeRejectedError);
+      expect(functions.createExecution).not.toHaveBeenCalled();
+    });
+
+    it('does not mark a failed donations read (502) as a code rejection', async () => {
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 502,
+        responseBody: JSON.stringify({ error: 'Failed to load donations, try again' }),
+      });
+      await expect(service.resolveByCode('ABCD2345')).rejects.not.toBeInstanceOf(
+        FamilyCodeRejectedError,
+      );
+    });
+
     it('propagates a network-level execution failure as ServiceError', async () => {
       functions.createExecution.mockRejectedValueOnce(new Error('network down'));
 
