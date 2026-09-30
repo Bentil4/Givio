@@ -67,14 +67,19 @@ function guardList(obj, key) {
   );
 }
 
+// Resolves an identifier that names a routes array (`...ADMIN_ROUTES`, `children: CHILD_ROUTES`)
+// to the file declaring it, following a named import when there is one.
+function resolveRoutesRef(file, name) {
+  const target = resolveImport(file, name) ?? file;
+  const array = findRoutesArray(target, name);
+  return array ? readRoutes(target, array) : [];
+}
+
 function readRoutes(file, array) {
   const routes = [];
   for (const el of array.elements) {
     if (ts.isSpreadElement(el) && ts.isIdentifier(el.expression)) {
-      const name = el.expression.text;
-      const target = resolveImport(file, name) ?? file;
-      const nested = findRoutesArray(target, name);
-      if (nested) routes.push(...readRoutes(target, nested));
+      routes.push(...resolveRoutesRef(file, el.expression.text));
       continue;
     }
     if (!ts.isObjectLiteralExpression(el)) continue;
@@ -82,10 +87,18 @@ function readRoutes(file, array) {
     routes.push({
       path: stringProp(el, 'path') ?? '',
       title: stringProp(el, 'title'),
+      // `redirectTo: ''` is a real redirect (to the parent route), so presence matters, not truthiness.
       redirectTo: stringProp(el, 'redirectTo'),
+      matchers: guardList(el, 'canMatch'),
       guards: [...new Set([...guardList(el, 'canActivate'), ...guardList(el, 'canMatch')])],
       source: relative(ROOT, file),
-      children: children && ts.isArrayLiteralExpression(children) ? readRoutes(file, children) : [],
+      children: !children
+        ? []
+        : ts.isArrayLiteralExpression(children)
+          ? readRoutes(file, children)
+          : ts.isIdentifier(children)
+            ? resolveRoutesRef(file, children.text)
+            : [],
     });
   }
   return routes;
@@ -100,48 +113,79 @@ function label(url, title) {
 }
 
 // Links a route to the sibling whose path is its longest segment prefix
-// (events -> events/:id), so the diagram reads as navigation, not a flat list.
+// (events -> events/:id), so the diagram reads as navigation, not a flat list. When that prefix
+// is shared by several canMatch variants the parent is ambiguous, so the route stays unlinked.
 function parentAmong(route, siblings) {
   const segments = route.path.split('/');
   for (let n = segments.length - 1; n > 0; n--) {
     const prefix = segments.slice(0, n).join('/');
-    const match = siblings.find((s) => s.path === prefix && !s.redirectTo);
-    if (match) return match;
+    const matches = siblings.filter((s) => s.path === prefix && s.redirectTo === undefined);
+    if (matches.length) return matches.length === 1 ? matches[0] : null;
   }
   return null;
+}
+
+// Sibling routes that share a path (canMatch variants such as approved/pending /company) need
+// distinct node ids; the suffix is carried down so their children stay distinct too.
+function variantSuffixes(list, base) {
+  const suffixes = new Map();
+  for (const [i, route] of list.entries()) {
+    const url = join(base, route.path);
+    const twins = list.filter((r) => r.redirectTo === undefined && join(base, r.path) === url);
+    if (route.redirectTo !== undefined || twins.length < 2) continue;
+    const byMatcher = route.matchers.join('_');
+    const unique =
+      byMatcher && twins.filter((r) => r.matchers.join('_') === byMatcher).length === 1;
+    suffixes.set(route, `__${unique ? byMatcher.replace(/[^a-zA-Z0-9]/g, '_') : i}`);
+  }
+  return suffixes;
 }
 
 function render(routes, linkedId) {
   const lines = [];
   const edges = [];
 
-  function emit(list, base, parentId, indent) {
+  const declared = new Set();
+
+  function declare(id) {
+    if (declared.has(id)) throw new Error(`Duplicate Mermaid node id ${id}`);
+    declared.add(id);
+  }
+
+  function emit(list, base, parentId, indent, variant) {
+    const suffixes = variantSuffixes(list, base);
+    const idOf = (route) => nodeId(join(base, route.path)) + variant + (suffixes.get(route) ?? '');
     for (const route of list) {
       const url = join(base, route.path);
-      if (route.redirectTo) {
-        edges.push(
-          `${parentId} -->|"${escape(url)} redirects"| ${nodeId(join('', route.redirectTo))}`,
-        );
+      if (route.redirectTo !== undefined) {
+        const absolute = route.redirectTo.startsWith('/');
+        const target =
+          nodeId(join(absolute ? '' : base, route.redirectTo)) + (absolute ? '' : variant);
+        edges.push(`${parentId} -->|"${escape(url)} redirects"| ${target}`);
         continue;
       }
-      const id = nodeId(url);
+      const id = idOf(route);
       const from = parentAmong(route, list);
-      const fromId = from ? nodeId(join(base, from.path)) : parentId;
+      const fromId = from ? idOf(from) : parentId;
 
       if (route.children.length) {
         const guards = route.guards.length ? ` — ${route.guards.join(' + ')}` : '';
+        declare(`sg${id}`);
         lines.push(`${indent}subgraph sg${id}["${escape(url)}${escape(guards)}"]`);
-        const home = route.children.find((c) => c.path === '');
+        const home = route.children.find((c) => c.path === '' && c.redirectTo === undefined);
+        declare(id);
         lines.push(`${indent}  ${id}[${label(url, home?.title ?? route.title)}]`);
         emit(
           route.children.filter((c) => c !== home),
           url,
           id,
           `${indent}  `,
+          id.slice(nodeId(url).length),
         );
         lines.push(`${indent}end`);
       } else {
         const guards = route.guards.length ? `<br/><i>${escape(route.guards.join(' + '))}</i>` : '';
+        declare(id);
         lines.push(`${indent}${id}[${label(url, route.title).replace(/"$/, `${guards}"`)}]`);
       }
       const redirected = edges.some((e) => e.startsWith(`${fromId} -->|`) && e.endsWith(` ${id}`));
@@ -149,7 +193,7 @@ function render(routes, linkedId) {
     }
   }
 
-  emit(routes, '', 'app', '  ');
+  emit(routes, '', 'app', '  ', '');
   const sources = [...new Set(collectSources(routes))].sort();
 
   return [
