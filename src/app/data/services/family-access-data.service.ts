@@ -3,7 +3,7 @@ import { FUNCTIONS } from '../../core/appwrite/client';
 import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
 import { ServiceError } from '../../core/services/service-error';
 import type { Donation } from '../models/donation';
-import type { FamilyEventSummary } from '../models/family-access';
+import { FAMILY_CODE_LENGTH, type FamilyEventSummary } from '../models/family-access';
 
 interface SanitizedDonation {
   id: string;
@@ -68,16 +68,21 @@ export class FamilyAccessDataService {
    * this Function still requires a signed-in user, enforced both by Appwrite and by the
    * Function's own per-action checks.
    *
-   * Throws ServiceError('Code not recognised') on any miss — never reveals which half of
-   * the code was wrong (family-code.ts's own design intent).
+   * Throws FamilyCodeRejectedError on any miss — never reveals which half of the code was
+   * wrong (family-code.ts's own design intent). Any other failure (offline, a 5xx) is a plain
+   * ServiceError, so callers can retry it instead of telling the family their code is wrong.
    */
   async resolveByCode(code: string): Promise<FamilyAccessResult> {
+    // The Function's only 400 for this action is a wrong-length code; answering it here keeps
+    // that a rejection rather than letting it read as a server fault that's worth retrying.
+    if (code.length !== FAMILY_CODE_LENGTH) throw new FamilyCodeRejectedError(undefined);
+
     let result: ResolveAccessCodeResult;
     try {
       result = await invokeAdminFunction<ResolveAccessCodeResult>(
         this.functions,
         'resolveAccessCode',
-        'Code not recognised',
+        'Could not reach the server, try again',
         { code },
       );
     } catch (error) {

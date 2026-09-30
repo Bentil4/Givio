@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
 import { FamilyAccessService } from '../../../../data/services/family-access.service';
+import { FamilyCodeRejectedError } from '../../../../data/services/family-access-data.service';
 import { FAMILY_CODE_LENGTH } from '../../../../data/models/family-access';
 import { formatCedisShort, totalMinor } from '../../../../utils/donation.util';
 import { base64UrlEncode } from '../../../../utils/base64-url.util';
@@ -10,7 +11,7 @@ const CODE_LENGTH = FAMILY_CODE_LENGTH;
 const MAX_TRIES = 5;
 const COOLDOWN_MINUTES = 10;
 
-type CodeError = 'not-found' | 'paused' | 'closed' | 'cooldown' | null;
+type CodeError = 'not-found' | 'unavailable' | 'paused' | 'closed' | 'cooldown' | null;
 
 /**
  * Family access. No account, no password — an 8-character code IS the credential.
@@ -60,8 +61,8 @@ export class FamilyCode {
     return until !== null && until > Date.now();
   });
 
-  public readonly canSubmit = computed(() =>
-    this.complete() && !this.checking() && !this.cooling(),
+  public readonly canSubmit = computed(
+    () => this.complete() && !this.checking() && !this.cooling(),
   );
 
   public readonly errorCopy = computed(() => {
@@ -71,12 +72,17 @@ export class FamilyCode {
           title: 'That code did not work',
           body: 'Check the code with whoever shared it and try again.',
         };
+      case 'unavailable':
+        return {
+          title: "We couldn't check the code just now",
+          body: 'The connection may be slow. Wait a moment, then tap "View the event" again.',
+        };
       case 'paused':
         return {
           title: 'Giving is paused right now',
           body: this.lastKnownTotal()
-            ? `The family has received ${this.lastKnownTotal()} so far. The organisers have paused `
-              + 'new entries — this page will come back to life when they resume.'
+            ? `The family has received ${this.lastKnownTotal()} so far. The organisers have paused ` +
+              'new entries — this page will come back to life when they resume.'
             : 'The organisers have paused new entries. Try again shortly.',
         };
       case 'closed':
@@ -87,8 +93,9 @@ export class FamilyCode {
       case 'cooldown':
         return {
           title: 'Too many tries',
-          body: `For everyone's privacy, this device has to wait ${COOLDOWN_MINUTES} minutes before `
-            + 'trying another code. Ask the organiser to confirm the code in the meantime.',
+          body:
+            `For everyone's privacy, this device has to wait ${COOLDOWN_MINUTES} minutes before ` +
+            'trying another code. Ask the organiser to confirm the code in the meantime.',
         };
       default:
         return null;
@@ -97,9 +104,12 @@ export class FamilyCode {
 
   /** Uppercase, strip anything that is not a letter or digit, cap at the code length. */
   public onInput(raw: string): void {
-    const cleaned = raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LENGTH);
+    const cleaned = raw
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, CODE_LENGTH);
     this.code.set(cleaned);
-    if (this.error() === 'not-found') this.error.set(null);
+    if (this.error() === 'not-found' || this.error() === 'unavailable') this.error.set(null);
 
     // Resolve the event as soon as the code is complete, so the name appears before submit.
     if (cleaned.length === CODE_LENGTH) void this.peek();
@@ -138,7 +148,13 @@ export class FamilyCode {
       }
       this.tries.set(0);
       void this.router.navigate(['/family', base64UrlEncode(this.code())]);
-    } catch {
+    } catch (error) {
+      // Only the server's verdict on the code counts toward the lockout; an outage must not
+      // lock out a family holding a good code, nor hint either way at whether it was good.
+      if (!(error instanceof FamilyCodeRejectedError)) {
+        this.error.set('unavailable');
+        return;
+      }
       const tries = this.tries() + 1;
       this.tries.set(tries);
 
