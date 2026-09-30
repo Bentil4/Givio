@@ -204,7 +204,7 @@ export class OperatorDonations implements OnInit, OnDestroy {
       case 'conflict':
         return 'Needs Admin';
       case 'failed':
-        return 'Retrying';
+        return 'Rejected';
       default:
         return 'Pending';
     }
@@ -215,6 +215,7 @@ export class OperatorDonations implements OnInit, OnDestroy {
       case 'synced':
         return 'tag-success';
       case 'conflict':
+      case 'failed':
         return 'tag-error';
       default:
         return 'tag-default';

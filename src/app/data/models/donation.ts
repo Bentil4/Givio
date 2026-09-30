@@ -51,6 +51,10 @@ export interface DonationDraft {
   notes?: string;
   queuedAt?: string;
   attempts?: number;
+  /** Pending-queue only: the provisional receipt already issued for this queued record. */
+  receiptNumber?: string;
+  /** Pending-queue only: set when the server definitively rejected this record. */
+  rejectionReason?: string;
 }
 
 /** Two versions of one record after an offline desk syncs. Neither is discarded automatically. */

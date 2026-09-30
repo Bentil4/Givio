@@ -10,13 +10,19 @@ import type { OutboxEntry } from '../models/outbox-entry';
 describe('SyncEngineService', () => {
   let online: ReturnType<typeof signal<boolean>>;
   let eventDataService: { retryOutboxEntry: ReturnType<typeof vi.fn> };
-  let donationDataService: { retryOutboxEntry: ReturnType<typeof vi.fn> };
+  let donationDataService: {
+    retryOutboxEntry: ReturnType<typeof vi.fn>;
+    dismissRejected: ReturnType<typeof vi.fn>;
+  };
   let service: SyncEngineService;
 
   beforeEach(async () => {
     online = signal(true);
     eventDataService = { retryOutboxEntry: vi.fn().mockResolvedValue(true) };
-    donationDataService = { retryOutboxEntry: vi.fn().mockResolvedValue('synced') };
+    donationDataService = {
+      retryOutboxEntry: vi.fn().mockResolvedValue('synced'),
+      dismissRejected: vi.fn().mockResolvedValue(undefined),
+    };
 
     TestBed.configureTestingModule({
       providers: [
@@ -82,21 +88,55 @@ describe('SyncEngineService', () => {
   });
 
   it('does not start a second drain while one is already in progress', async () => {
-    let resolveFirst!: (value: string) => void;
-    donationDataService.retryOutboxEntry.mockImplementationOnce(
-      () => new Promise((resolve) => { resolveFirst = resolve; }),
-    );
+    // The gate exists before the drain starts, so releasing it never depends on how long
+    // Dexie's toArray() takes to reach retryOutboxEntry.
+    let releaseFirst!: (value: string) => void;
+    const gate = new Promise<string>((resolve) => (releaseFirst = resolve));
+    donationDataService.retryOutboxEntry.mockImplementationOnce(() => gate);
     await addOutboxEntry();
 
     const first = service.drainOutbox();
-    // Let the async chain reach the point where retryOutboxEntry has actually been called
-    // (appDb.outbox.toArray() is a real Dexie promise, not a synchronous step) before the
-    // second call and the resolve.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // drainOutbox sets `syncing` synchronously, before its first await.
+    expect(service.syncing()).toBe(true);
     const second = service.drainOutbox();
-    resolveFirst('synced');
+    await vi.waitFor(() => expect(donationDataService.retryOutboxEntry).toHaveBeenCalled());
+    releaseFirst('synced');
     await Promise.all([first, second]);
 
     expect(donationDataService.retryOutboxEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it('pendingCount excludes server-rejected (failed) entries', async () => {
+    await addOutboxEntry();
+    await addOutboxEntry({ entityId: 'd2', status: 'failed', lastError: 'Event not found' });
+
+    await service.refreshPendingCount();
+
+    expect(service.pendingCount()).toBe(1);
+  });
+
+  it('drainOutbox never retries a server-rejected entry', async () => {
+    await addOutboxEntry({ entityId: 'd1' });
+    await addOutboxEntry({ entityId: 'd2', status: 'failed', lastError: 'Not assigned' });
+
+    await service.drainOutbox();
+
+    expect(donationDataService.retryOutboxEntry).toHaveBeenCalledTimes(1);
+    expect(donationDataService.retryOutboxEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ entityId: 'd1' }),
+    );
+  });
+
+  it('dismissRejected delegates to the donation data service and refreshes the count', async () => {
+    const localId = await addOutboxEntry({ status: 'failed', lastError: 'Not assigned' });
+    await addOutboxEntry({ entityId: 'd2' });
+    donationDataService.dismissRejected.mockImplementationOnce(async (id: number) => {
+      await appDb.outbox.delete(id);
+    });
+
+    await service.dismissRejected(localId);
+
+    expect(donationDataService.dismissRejected).toHaveBeenCalledWith(localId);
+    expect(service.pendingCount()).toBe(1);
   });
 });

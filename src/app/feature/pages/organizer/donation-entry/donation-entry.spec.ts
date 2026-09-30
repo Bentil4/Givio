@@ -10,6 +10,7 @@ import { EventService } from '../../../../data/services/event.service';
 import { OperatorEventContext } from '../operator-event-context';
 import type { Event } from '../../../../data/models/event';
 import type { Donation } from '../../../../data/models/donation';
+import type { OutboxEntry } from '../../../../data/models/outbox-entry';
 
 const makeEvent = (overrides: Partial<Event> = {}): Event => ({
   id: 'e1',
@@ -44,6 +45,7 @@ async function setup(options: {
   events?: Event[];
   donations?: Donation[];
   queryEventId?: string | null;
+  outbox?: OutboxEntry[];
   createDonation?: ReturnType<typeof vi.fn>;
   receiptService?: {
     downloadReceipt: ReturnType<typeof vi.fn>;
@@ -54,6 +56,7 @@ async function setup(options: {
   const events = options.events ?? (event ? [event] : []);
   await appDb.events.clear();
   await appDb.outbox.clear();
+  if (options.outbox) await appDb.outbox.bulkAdd(options.outbox);
 
   const loadDonationsForEvent = vi.fn().mockResolvedValue(undefined);
   const createDonation = options.createDonation ?? vi.fn();
@@ -248,6 +251,33 @@ describe('DonationEntry', () => {
 
     expect(component.myCount()).toBe(1);
     expect(component.myEntries().map((d) => d.id)).toEqual(['mine']);
+  });
+
+  it('splits server-rejected creates out of pending, keeping their reason for the queue', async () => {
+    const entry = (entityId: string, overrides: Partial<OutboxEntry> = {}): OutboxEntry => ({
+      entityType: 'donation',
+      entityId,
+      op: 'create',
+      payload: makeDonation({ id: entityId, syncStatus: 'pending' }),
+      status: 'pending',
+      retries: 0,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      ...overrides,
+    });
+    const { component } = await setup({
+      outbox: [
+        entry('queued'),
+        entry('refused', {
+          status: 'failed',
+          lastError: 'This donation was recorded for a different event than the one it was sent to',
+        }),
+      ],
+    });
+
+    await vi.waitFor(() => expect(component.rejected()).toHaveLength(1));
+    expect(component.pending()).toHaveLength(1);
+    expect(component.rejected()[0].rejectionReason).toContain('different event');
+    expect(component.rejected()[0].receiptNumber).toBe('P-1');
   });
 
   it('confirm() saves via DonationService and moves to the saved phase', async () => {
