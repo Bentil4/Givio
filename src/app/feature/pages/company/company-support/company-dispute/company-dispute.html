@@ -1,0 +1,102 @@
+<main class="dispute">
+  <section class="dispute-card glass" aria-labelledby="dispute-title">
+    <img
+      class="dispute-logo"
+      ngSrc="assets/images/Givio-logo.png"
+      width="183"
+      height="51"
+      alt="Givio"
+      priority
+    />
+
+    <h1 id="dispute-title" class="t-page-title" tabindex="-1" #heading>Dispute a suspension</h1>
+    <p class="t-secondary">
+      If your company account was suspended and you think that's a mistake, tell a Givio admin here.
+      You don't need to sign in.
+    </p>
+
+    @if (sent()) {
+    <div class="support-sent" role="status" tabindex="-1" #confirmation>
+      <mat-icon>check_circle</mat-icon>
+      <p class="t-body-em">Sent — Admin will follow up.</p>
+    </div>
+    } @else {
+    <form class="support-form" [formGroup]="form" novalidate (ngSubmit)="submit()">
+      <div class="field">
+        <label class="field-label" for="dispute-email">Your email</label>
+        <input
+          class="input"
+          type="email"
+          autocomplete="email"
+          formControlName="email"
+          id="dispute-email"
+          [attr.maxlength]="maxLength.email"
+          [class.is-invalid]="invalid('email')"
+          [attr.aria-invalid]="invalid('email')"
+          [attr.aria-describedby]="invalid('email') ? 'dispute-email-error' : 'dispute-email-hint'"
+        />
+        @if (invalid('email')) {
+        <p id="dispute-email-error" class="field-error">Enter a valid email address.</p>
+        } @else {
+        <p id="dispute-email-hint" class="field-hint">The email you use to sign in to Givio.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="dispute-tenant">Company name</label>
+        <input
+          class="input"
+          type="text"
+          autocomplete="organization"
+          formControlName="tenantName"
+          id="dispute-tenant"
+          [attr.maxlength]="maxLength.tenantName"
+          [class.is-invalid]="invalid('tenantName')"
+          [attr.aria-invalid]="invalid('tenantName')"
+          [attr.aria-describedby]="invalid('tenantName') ? 'dispute-tenant-error' : null"
+        />
+        @if (invalid('tenantName')) {
+        <p id="dispute-tenant-error" class="field-error">Enter your company's name.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="dispute-message">What happened?</label>
+        <textarea
+          class="input"
+          rows="6"
+          formControlName="message"
+          id="dispute-message"
+          [attr.maxlength]="maxLength.message"
+          [class.is-invalid]="invalid('message')"
+          [attr.aria-invalid]="invalid('message')"
+          [attr.aria-describedby]="invalid('message') ? 'dispute-message-error dispute-message-hint' : 'dispute-message-hint'"
+        ></textarea>
+        <p id="dispute-message-hint" class="field-hint">
+          Up to {{ maxLength.message }} characters.
+        </p>
+        @if (invalid('message')) {
+        <p id="dispute-message-error" class="field-error">Tell Admin why you're disputing it.</p>
+        }
+      </div>
+
+      @if (error(); as err) {
+      <div class="support-error" role="alert">
+        <mat-icon>error_outline</mat-icon>
+        <p class="t-body">{{ err }}</p>
+      </div>
+      }
+
+      <div class="support-actions">
+        <button type="submit" class="btn btn-primary" [attr.aria-disabled]="sending()">
+          {{ sending() ? 'Sending…' : 'Send dispute' }}
+        </button>
+      </div>
+    </form>
+    }
+
+    <footer class="dispute-footer">
+      <a routerLink="/login">Back to sign in</a>
+    </footer>
+  </section>
+</main>

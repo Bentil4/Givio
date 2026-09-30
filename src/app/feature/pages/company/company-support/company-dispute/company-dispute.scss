@@ -1,0 +1,37 @@
+.dispute {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-xl) var(--space-md);
+  background: var(--bg-canvas);
+}
+
+.dispute-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: 560px;
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+
+  h1:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 4px;
+  }
+
+  > p {
+    margin: 0;
+  }
+}
+
+.dispute-logo {
+  width: 110px;
+  height: auto;
+}
+
+.dispute-footer a {
+  color: var(--primary-deep);
+  font-weight: 600;
+}

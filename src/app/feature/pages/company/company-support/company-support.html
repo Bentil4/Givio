@@ -1,0 +1,57 @@
+<section class="page support" aria-labelledby="support-title">
+  <header class="page-head">
+    <h1 id="support-title" class="t-page-title">Contact Admin</h1>
+    <p class="t-secondary">
+      Ask a Givio admin about your company account. Your message is sent with your company and
+      sign-in details, so Admin knows who to follow up with.
+    </p>
+  </header>
+
+  <article class="support-card glass">
+    @if (sent()) {
+    <div class="support-sent" role="status" tabindex="-1" #confirmation>
+      <mat-icon>check_circle</mat-icon>
+      <p class="t-body-em">Sent — Admin will follow up.</p>
+    </div>
+    <div class="support-actions">
+      <button type="button" class="btn btn-secondary" (click)="startAnother()">
+        Send another message
+      </button>
+    </div>
+    } @else {
+    <form class="support-form" [formGroup]="form" novalidate (ngSubmit)="submit()">
+      <div class="field">
+        <label class="field-label" for="support-message">Your message</label>
+        <textarea
+          id="support-message"
+          class="input"
+          rows="6"
+          formControlName="message"
+          #messageField
+          [attr.maxlength]="maxLength"
+          [class.is-invalid]="messageInvalid()"
+          [attr.aria-invalid]="messageInvalid()"
+          [attr.aria-describedby]="messageInvalid() ? 'support-message-error support-message-hint' : 'support-message-hint'"
+        ></textarea>
+        <p id="support-message-hint" class="field-hint">Up to {{ maxLength }} characters.</p>
+        @if (messageInvalid()) {
+        <p id="support-message-error" class="field-error">Enter a message for Admin.</p>
+        }
+      </div>
+
+      @if (error(); as err) {
+      <div class="support-error" role="alert">
+        <mat-icon>error_outline</mat-icon>
+        <p class="t-body">{{ err }}</p>
+      </div>
+      }
+
+      <div class="support-actions">
+        <button type="submit" class="btn btn-primary" [attr.aria-disabled]="sending()">
+          {{ sending() ? 'Sending…' : 'Send to Admin' }}
+        </button>
+      </div>
+    </form>
+    }
+  </article>
+</section>

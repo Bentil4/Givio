@@ -185,3 +185,12 @@ export async function rejectUnapprovedTenantMember({
     return { status: 502, body: { error: 'Failed to verify tenant access' } };
   }
 }
+
+// Same linear-time pattern and RFC 5321 cap as tenant-membership.js's private copy (CodeQL
+// js/polynomial-redos): domain labels exclude '.', so any input has exactly one way to match.
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
+export const EMAIL_MAX_LENGTH = 254;
+
+export function isValidEmail(email) {
+  return typeof email === 'string' && email.length <= EMAIL_MAX_LENGTH && EMAIL_PATTERN.test(email);
+}
