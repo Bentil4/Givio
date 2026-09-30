@@ -53,7 +53,6 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Use the `providedIn: 'root'` option for singleton services
 - Use the `inject()` function instead of constructor injection
 
-
 ### Semantic HTML
 
 Use the element that describes the content — not `<div>` by default:
@@ -100,6 +99,44 @@ Use the element that describes the content — not `<div>` by default:
 - Do not add abstractions beyond what the current task requires.
 - Do not duplicate a component or service that already exists elsewhere in the codebase — search first.
 - Do not leave raw `.subscribe()` calls without `takeUntilDestroyed` or `toSignal`.
+
+---
+
+## Clean Code standards
+
+These apply to every line of code written for this project — Angular app, Appwrite Function, scripts and tests. They come from two articles in Pabashani Herath's Clean Code series (after Robert C. Martin's _Clean Code_): [Writing Functions or Methods](https://medium.com/swlh/clean-code-writing-functions-or-methods-4e6e53ff4ac2) and [Formatting / Source Code Structure](https://medium.com/@pabashani.herath/clean-code-formatting-source-code-structure-f3021575d79).
+
+### Functions
+
+1. **Small — then smaller.** Functions should not be longer than 20 lines and mostly under 10. Over 40 lines is a hard stop (ESLint `max-lines-per-function`, app code). Arguments: as few as possible, ideally none; three at most (ESLint `max-params`), otherwise pass an options object — this codebase's existing convention for Function handlers.
+2. **Blocks and indenting.** The body of an `if`, `else`, `switch` case or loop should be one or two lines, ideally a single function call. Don't nest control structures: move the nested logic into its own well-named function (ESLint `max-depth`).
+3. **Do one thing** (Single Responsibility). A function does one thing, does it well, and does only that. If it does more, split it. A class or service has one reason to change.
+4. **Descriptive names.** A name says why it exists, what it does and how it's used — if it needs a comment, rename it. Long and descriptive beats short and vague (`createDeduplicatedListOfContacts()`, not `process()`); never `do`/`action`/`handle` alone. Try a few names and read the code with each.
+5. **Remove duplicate code** — Don't Repeat Yourself, Once and Only Once, Single Point of Truth. Search before writing and extract shared logic, as `shared.js`, `phone.util.ts` and `isValidEmail` already do.
+6. **Avoid side effects.** Don't mutate globals, module state or arguments; take inputs and return a new value. When a side effect is the point (a write, a network call), centralize it in one place and say so in the function's name.
+7. **Remove dead code.** No unused variables, parameters, functions, imports or unreachable branches (ESLint `no-unused-vars`). Don't comment code out — version history keeps it.
+
+### Formatting and source structure
+
+1. **Separate concepts vertically.** One blank line between concepts — imports, each function, each logical group of statements.
+2. **Related code is vertically dense.** Lines that belong together stay together; don't break them apart with blank lines or pointless comments.
+3. **Declare variables close to their usage** — not at the top of a function and used 15 lines later.
+4. **Dependent functions are close.** If one function calls another, keep them vertically close, caller above callee.
+5. **Similar functions are close.** Functions with conceptual affinity (same naming family, same job) sit next to each other.
+6. **Downward direction (newspaper order).** The top of a file states what it is — exports, the class, the handler entry point — and detail increases further down, so a reader gets the gist from the first few functions.
+7. **Keep lines short.** Within Prettier's 100-character `printWidth`.
+8. **No horizontal alignment.** Don't pad declarations or assignments into columns; let the formatter set spacing.
+9. **Use white space deliberately.** Spaces around operators and around `=>`, none between a function name and its opening parenthesis — Prettier's defaults.
+10. **Don't break indentation.** Never collapse a scope (an `if`, loop or function body) onto one line.
+
+### File size
+
+- **At most 500 code lines per file** (blank lines and comments not counted), for every file type: app, Function, tests and scripts. Enforced in CI by `npm run lint:size` (`scripts/check-file-length.mjs`). Split a file by responsibility before it reaches the limit.
+- Files that were already over the limit are listed as legacy exceptions in that script: they may shrink but never grow, and each gets split in its own task.
+
+### Tools
+
+Prettier and ESLint are the team's formatting rules; don't format by hand against them. Run `npx prettier --write` on the files you change and `npm run lint` + `npm run lint:size` before pushing. The VS Code **CodeMetrics** extension is recommended for spotting complex functions early.
 
 ---
 

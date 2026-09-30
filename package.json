@@ -8,6 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "ng lint",
+    "lint:size": "node scripts/check-file-length.mjs",
     "diagrams": "node scripts/generate-route-diagram.mjs"
   },
   "prettier": {
