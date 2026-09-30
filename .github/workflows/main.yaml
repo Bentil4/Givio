@@ -31,6 +31,8 @@ jobs:
         run: npm ci
       - name: Lint
         run: npm run lint
+      - name: File length (max 500 code lines, CLAUDE.md)
+        run: npm run lint:size
 
   test:
     name: Test
