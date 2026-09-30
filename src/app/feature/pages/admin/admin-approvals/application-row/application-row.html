@@ -102,6 +102,17 @@
 
     <div #verifySection class="verify" tabindex="-1" [id]="ids().verify">
       <h3 class="verify-title">Verification</h3>
+      <p class="verify-contact" [id]="ids().verify + '-contact'">
+        @if (tenant().contactPhone; as phone) {
+        <span>Verification call:</span>
+        <a class="contact-link" [href]="'tel:' + phone">{{ phone }}</a>
+        } @else {
+        <span>No phone on file.</span>
+        @if (application().applicantEmail; as email) {
+        <span>Email the applicant for a number:</span>
+        <a class="contact-link" [href]="'mailto:' + email">{{ email }}</a>
+        } }
+      </p>
       @if (isVerified()) {
       <p class="verify-done">
         <mat-icon aria-hidden="true">verified</mat-icon>
@@ -126,7 +137,11 @@
             I reviewed the verification document
           </label>
           <label class="verify-check">
-            <input type="checkbox" formControlName="phoneVerified" />
+            <input
+              type="checkbox"
+              formControlName="phoneVerified"
+              [attr.aria-describedby]="ids().verify + '-contact'"
+            />
             I completed the phone verification call
           </label>
         </fieldset>

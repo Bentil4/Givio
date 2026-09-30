@@ -169,7 +169,8 @@
   }
 }
 
-.doc-link {
+.doc-link,
+.contact-link {
   color: var(--primary-deep);
   font-weight: 600;
   text-decoration: underline;
@@ -207,6 +208,11 @@
   mat-icon {
     flex: none;
   }
+}
+
+.verify-contact {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .verify-hint {

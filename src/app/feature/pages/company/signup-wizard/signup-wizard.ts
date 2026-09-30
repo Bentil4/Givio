@@ -25,6 +25,7 @@ import {
   type TenantSize,
   type TenantType,
 } from '../../../../data/models/tenant';
+import { normalizePhone, phoneValidator } from '../../../../utils/phone.util';
 
 export type WizardStep = 1 | 2 | 3;
 
@@ -94,6 +95,7 @@ export class SignupWizard {
   public readonly companyForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(128)]],
     location: ['', [Validators.required, Validators.maxLength(128)]],
+    contactPhone: ['', [Validators.required, phoneValidator]],
     size: ['' as TenantSize | '', Validators.required],
     type: ['' as TenantType | '', Validators.required],
     estimatedUserCount: [
@@ -110,6 +112,10 @@ export class SignupWizard {
   public sizeLabel(): string {
     const size = this.companyForm.controls.size.value;
     return size ? TENANT_SIZE_LABELS[size] : '';
+  }
+
+  public contactPhone(): string {
+    return normalizePhone(this.companyForm.controls.contactPhone.value);
   }
 
   public typeLabel(): string {
@@ -231,11 +237,12 @@ export class SignupWizard {
     this.uploadedFileName.set(null);
   }
 
-  private companyIntake(): CompanyIntake {
+  private companyIntake(): CompanyIntake & { contactPhone: string } {
     const { name, location, size, type, estimatedUserCount } = this.companyForm.getRawValue();
     return {
       name: name.trim(),
       location: location.trim(),
+      contactPhone: this.contactPhone(),
       size: size as TenantSize,
       type: type as TenantType,
       estimatedUserCount: Number(estimatedUserCount),

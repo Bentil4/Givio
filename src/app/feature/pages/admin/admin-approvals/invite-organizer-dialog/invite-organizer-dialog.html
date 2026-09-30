@@ -66,6 +66,26 @@
           <p id="ioEmail-error" class="field-error">Enter a valid email address.</p>
           }
         </div>
+        <div class="field">
+          <label class="field-label" for="ioPhone">Contact phone (optional)</label>
+          <input
+            id="ioPhone"
+            class="input"
+            type="tel"
+            inputmode="tel"
+            formControlName="contactPhone"
+            placeholder="+233 24 123 4567"
+            autocomplete="off"
+            [attr.aria-invalid]="invalid('contactPhone')"
+            [attr.aria-describedby]="invalid('contactPhone') ? 'ioPhone-error' : null"
+            [class.is-invalid]="invalid('contactPhone')"
+          />
+          @if (invalid('contactPhone')) {
+          <p id="ioPhone-error" class="field-error">
+            Enter a phone number with its country code, e.g. +233 24 123 4567.
+          </p>
+          }
+        </div>
       </fieldset>
 
       <fieldset class="group">

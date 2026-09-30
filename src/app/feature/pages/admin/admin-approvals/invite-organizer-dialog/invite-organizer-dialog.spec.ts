@@ -25,10 +25,12 @@ describe('InviteOrganizerDialog', () => {
     fixture.detectChanges();
   });
 
-  const fill = () =>
+  const fill = (overrides: { contactPhone?: string } = {}) =>
     component.form.setValue({
       name: ' Kofi Boateng ',
       email: 'kofi@boateng.example',
+      contactPhone: '',
+      ...overrides,
       companyName: 'Boateng Funerals ',
       location: 'Accra',
       size: '1-10',
@@ -88,5 +90,28 @@ describe('InviteOrganizerDialog', () => {
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')?.textContent,
     ).toContain('A user with this email already exists');
+  });
+
+  it('sends the optional contact phone normalized when one is given', async () => {
+    fill({ contactPhone: '+233 (24) 123-4567' });
+
+    await component.submit();
+
+    expect(inviteOrganizer.mock.calls[0][0].company.contactPhone).toBe('+233241234567');
+  });
+
+  it('refuses an invalid contact phone and links the error to the field', async () => {
+    fill({ contactPhone: '024 123 4567' });
+
+    await component.submit();
+    fixture.detectChanges();
+
+    expect(inviteOrganizer).not.toHaveBeenCalled();
+    const el = fixture.nativeElement as HTMLElement;
+    const input = el.querySelector<HTMLInputElement>('#ioPhone')!;
+    expect(input.type).toBe('tel');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.getAttribute('aria-describedby')).toBe('ioPhone-error');
+    expect(el.querySelector('#ioPhone-error')).not.toBeNull();
   });
 });

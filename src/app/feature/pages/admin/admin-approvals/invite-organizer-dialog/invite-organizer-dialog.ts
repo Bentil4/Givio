@@ -14,6 +14,7 @@ import {
   type TenantSize,
   type TenantType,
 } from '../../../../../data/models/tenant';
+import { normalizePhone, phoneValidator } from '../../../../../utils/phone.util';
 
 export interface OrganizerInvited {
   readonly name: string;
@@ -22,7 +23,14 @@ export interface OrganizerInvited {
 }
 
 type InviteControl =
-  'name' | 'email' | 'companyName' | 'location' | 'size' | 'type' | 'estimatedUserCount';
+  | 'name'
+  | 'email'
+  | 'contactPhone'
+  | 'companyName'
+  | 'location'
+  | 'size'
+  | 'type'
+  | 'estimatedUserCount';
 
 /**
  * FR-6 path (a): Admin vouches for the company, so the invite skips the approval queue and
@@ -57,6 +65,7 @@ export class InviteOrganizerDialog {
   public readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]],
     email: ['', [Validators.required, Validators.email]],
+    contactPhone: ['', phoneValidator],
     companyName: ['', [Validators.required, Validators.maxLength(128)]],
     location: ['', [Validators.required, Validators.maxLength(128)]],
     size: ['' as TenantSize | '', Validators.required],
@@ -83,8 +92,9 @@ export class InviteOrganizerDialog {
       this.form.markAllAsTouched();
       return;
     }
-    const { name, email, companyName, location, size, type, estimatedUserCount } =
+    const { name, email, contactPhone, companyName, location, size, type, estimatedUserCount } =
       this.form.getRawValue();
+    const phone = normalizePhone(contactPhone);
     if (!size || !type) {
       return;
     }
@@ -100,6 +110,7 @@ export class InviteOrganizerDialog {
           size,
           type,
           estimatedUserCount: Number(estimatedUserCount),
+          ...(phone ? { contactPhone: phone } : {}),
         },
       });
       this.invited.emit({ name: name.trim(), companyName: companyName.trim(), result });

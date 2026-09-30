@@ -22,7 +22,10 @@ export const TENANT_TYPE_LABELS: Record<TenantType, string> = {
   other: 'Other events',
 };
 
-/** Mirrors the `tenants` table row shape exactly (Story 6.2; verificationDocumentId, 6.4). */
+/**
+ * Mirrors the `tenants` table row shape exactly (Story 6.2; verificationDocumentId, 6.4).
+ * contactPhone is optional because applications submitted before it existed have none.
+ */
 export interface Tenant {
   id: string;
   name: string;
@@ -30,6 +33,7 @@ export interface Tenant {
   size: string;
   type: string;
   estimatedUserCount: number;
+  contactPhone?: string;
   status: TenantStatus;
   superOrganizerId: string;
   verificationDocumentId?: string;
@@ -45,4 +49,6 @@ export interface CompanyIntake {
   size: TenantSize;
   type: TenantType;
   estimatedUserCount: number;
+  /** E.164; required by self-signup, optional on an Admin invite. */
+  contactPhone?: string;
 }

@@ -149,6 +149,7 @@ describe('TenantDataService', () => {
         size: '11-50' as const,
         type: 'funeral' as const,
         estimatedUserCount: 12,
+        contactPhone: '+233241234567',
       };
 
       const result = await service.submitTenantApplication({
@@ -223,6 +224,20 @@ describe('TenantDataService', () => {
       expect(
         second.queries.some((q: string) => q.includes('cursorAfter') && q.includes('p99')),
       ).toBe(true);
+    });
+
+    it('listPendingTenants maps contactPhone, leaving it undefined on older applications', async () => {
+      databases.listRows.mockResolvedValueOnce({
+        rows: [
+          { ...row('with', '2026-09-01T00:00:00.000Z'), contactPhone: '+233241234567' },
+          { ...row('without', '2026-09-02T00:00:00.000Z'), contactPhone: null },
+        ],
+      });
+
+      const [withPhone, withoutPhone] = await service.listPendingTenants();
+
+      expect(withPhone.contactPhone).toBe('+233241234567');
+      expect(withoutPhone.contactPhone).toBeUndefined();
     });
 
     it('listPendingTenants wraps a failed read in a ServiceError', async () => {

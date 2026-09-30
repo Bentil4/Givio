@@ -852,7 +852,7 @@ const COMPANY = {
 };
 const applicationBody = (overrides = {}) => ({
   action: 'submitTenantApplication',
-  company: COMPANY,
+  company: { ...COMPANY, contactPhone: '+233241234567' },
   verificationDocumentId: 'file-1',
   ...overrides,
 });
