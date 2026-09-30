@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { ACCOUNT } from '../../../core/appwrite/client';
+import { ACCOUNT, DATABASES } from '../../../core/appwrite/client';
 
 import { Login } from './login';
 
@@ -12,9 +12,11 @@ describe('Login', () => {
     createEmailPasswordSession: ReturnType<typeof vi.fn>;
     get: ReturnType<typeof vi.fn>;
   };
+  let databases: { listRows: ReturnType<typeof vi.fn>; getRow: ReturnType<typeof vi.fn> };
   let router: Router;
 
   beforeEach(async () => {
+    databases = { listRows: vi.fn(), getRow: vi.fn() };
     account = {
       deleteSession: vi.fn(),
       createEmailPasswordSession: vi.fn(),
@@ -23,7 +25,11 @@ describe('Login', () => {
 
     await TestBed.configureTestingModule({
       imports: [Login],
-      providers: [provideRouter([]), { provide: ACCOUNT, useValue: account }],
+      providers: [
+        provideRouter([]),
+        { provide: ACCOUNT, useValue: account },
+        { provide: DATABASES, useValue: databases },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(Login);
@@ -47,6 +53,7 @@ describe('Login', () => {
 
     expect(router.navigate).toHaveBeenCalledWith(['/dashboard']);
     expect(component.serverError()).toBeNull();
+    expect(databases.listRows).not.toHaveBeenCalled();
   });
 
   it('navigates to /organizer on successful login with an operator label', async () => {
@@ -58,6 +65,68 @@ describe('Login', () => {
     await component.submit();
 
     expect(router.navigate).toHaveBeenCalledWith(['/organizer']);
+    expect(databases.listRows).not.toHaveBeenCalled();
+  });
+
+  it('keeps an Operator on /organizer even if a Membership row also exists (Labels win)', async () => {
+    account.deleteSession.mockResolvedValueOnce({});
+    account.createEmailPasswordSession.mockResolvedValueOnce({});
+    account.get.mockResolvedValueOnce({ $id: 'op-1', labels: ['operator'] });
+    databases.listRows.mockResolvedValue({ rows: [membershipRow({ userId: 'op-1' })] });
+
+    component.form.setValue({ email: 'op@givio.test', password: 'correct-password' });
+    await component.submit();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/organizer']);
+  });
+
+  function membershipRow(overrides: Record<string, unknown> = {}) {
+    return {
+      $id: 'm1',
+      userId: 'org-1',
+      tenantId: 't1',
+      role: 'super_organizer',
+      status: 'active',
+      grantedBy: 'org-1',
+      grantedAt: '2026-09-30T00:00:00.000Z',
+      ...overrides,
+    };
+  }
+
+  async function loginWithoutLabel(): Promise<void> {
+    account.deleteSession.mockResolvedValue({});
+    account.createEmailPasswordSession.mockResolvedValueOnce({});
+    account.get.mockResolvedValueOnce({ $id: 'org-1', labels: [] });
+    component.form.setValue({ email: 'org@givio.test', password: 'correct-password' });
+    await component.submit();
+  }
+
+  it('sends an Organizer with an active Membership to /company', async () => {
+    databases.listRows.mockResolvedValueOnce({ rows: [membershipRow()] });
+    databases.getRow.mockResolvedValueOnce({ $id: 't1', status: 'pending' });
+
+    await loginWithoutLabel();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/company']);
+    expect(component.serverError()).toBeNull();
+  });
+
+  it('resumes the signup wizard for an Account with no Label and no Membership', async () => {
+    databases.listRows.mockResolvedValueOnce({ rows: [] });
+
+    await loginWithoutLabel();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/auth/signup']);
+  });
+
+  it('treats a revoked Membership like a failed sign-in', async () => {
+    databases.listRows.mockResolvedValueOnce({ rows: [membershipRow({ status: 'revoked' })] });
+    databases.getRow.mockResolvedValueOnce({ $id: 't1', status: 'approved' });
+
+    await loginWithoutLabel();
+
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(component.serverError()).toBe('Email or password is incorrect');
   });
 
   it('shows a generic error message on invalid credentials, never which field was wrong', async () => {
@@ -72,10 +141,11 @@ describe('Login', () => {
     expect(component.failedAttempts()).toBe(1);
   });
 
-  it('logs out and shows a generic error when the session is created but no role label is present', async () => {
+  it('logs out and shows a generic error when there is no role label and the Membership lookup fails', async () => {
     account.deleteSession.mockResolvedValueOnce({}); // the pre-login clear
     account.createEmailPasswordSession.mockResolvedValueOnce({});
-    account.get.mockResolvedValueOnce({ labels: [] });
+    account.get.mockResolvedValueOnce({ $id: 'u1', labels: [] });
+    databases.listRows.mockRejectedValueOnce(new Error('offline'));
     account.deleteSession.mockResolvedValueOnce({}); // the post-login-no-role logout
 
     component.form.setValue({ email: 'nolabel@givio.test', password: 'correct-password' });
