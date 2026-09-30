@@ -85,22 +85,17 @@ export function isConflictError(err) {
 }
 
 /**
- * Recomputes an Event document's Appwrite permissions from its assignedUserIds (AD-2): Admin
- * keeps full CRUD via the Label; each assigned uid gets read-only document access. Relocated
- * here from event-assignment.js (Story 6.2) so tenant-membership.js's sweep can share it
- * without a circular import between the two action modules. Donation-row permissions aren't
- * touched here — Story 3.1 sets those directly at creation from the assignedUserIds already
- * known at that moment. Known gap: if assignedUserIds ever changes *after* donations already
- * exist for that event, this function does not retroactively rewrite their permissions — a
- * re-assigned/unassigned uid's access to already-existing Donations won't reflect the change
- * until this is extended to do that bulk rewrite too.
+ * The Appwrite permissions for an Event or Donation row, given its derived read set (AD-2):
+ * Admin keeps full CRUD via the Label; each uid gets read-only access. Who belongs in the read
+ * set is tenant-grants.js's readUserIdsFor — this only shapes it. Relocated here from
+ * event-assignment.js (Story 6.2) so every module writing either row type shares one shape.
  */
-export function computeEventPermissions(assignedUserIds) {
+export function computeEventPermissions(readUserIds) {
   return [
     Permission.read(Role.label('admin')),
     Permission.update(Role.label('admin')),
     Permission.delete(Role.label('admin')),
-    ...assignedUserIds.map((userId) => Permission.read(Role.user(userId))),
+    ...[...new Set(readUserIds)].map((userId) => Permission.read(Role.user(userId))),
   ];
 }
 
@@ -113,9 +108,20 @@ export function computeEventPermissions(assignedUserIds) {
  * handful of rows.
  */
 export async function listAllRows({ DatabasesCtor, adminClient, databaseId, tableId, queries }) {
+  const rows = [];
+  for await (const page of pageRows({ DatabasesCtor, adminClient, databaseId, tableId, queries })) {
+    rows.push(...page);
+  }
+  return rows;
+}
+
+/**
+ * The cursor loop behind listAllRows, yielding one page at a time — for fan-outs (a tenant's
+ * Donations) too large to hold in memory at once. A failed page throws out of the iteration.
+ */
+export async function* pageRows({ DatabasesCtor, adminClient, databaseId, tableId, queries }) {
   const PAGE_SIZE = 100;
   const databases = new DatabasesCtor(adminClient);
-  const rows = [];
   let cursor;
 
   for (;;) {
@@ -124,14 +130,12 @@ export async function listAllRows({ DatabasesCtor, adminClient, databaseId, tabl
       pageQueries.push(Query.cursorAfter(cursor));
     }
     const page = await databases.listRows({ databaseId, tableId, queries: pageQueries });
-    rows.push(...page.rows);
+    yield page.rows;
     if (page.rows.length < PAGE_SIZE) {
-      break;
+      return;
     }
     cursor = page.rows[page.rows.length - 1].$id;
   }
-
-  return rows;
 }
 
 /**
