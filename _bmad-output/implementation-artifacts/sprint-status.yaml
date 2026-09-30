@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-07-26
-last_updated: 2026-09-30-wave-2-in-review
+last_updated: 2026-09-30-wave-3-in-review
 project: givio
 project_key: NOKEY
 tracking_system: file-system
@@ -419,7 +419,14 @@ development_status:
   # 201/201 Function, 416/416 unit. No Admin invite UI yet (6.5). Status "review" - merge after the
   # other Wave 2 PRs; not yet verified end-to-end live.
   6-4-organizer-onboarding-admin-invited-self-signup: review
-  6-5-manual-verification-admin-approval-queue: backlog
+  # 6-5 implemented 2026-09-30 (Wave 3, branch feature/6-5-approval-queue). /dashboard/approvals: tabbed
+  # screen (7.4 adds the duplicates tab), collapsible application rows (aria-expanded, focus in/out)
+  # with intake details and the verification document (getFileView, missing-file state).
+  # recordTenantVerification stamps verifiedBy/verifiedAt only when both the document review and phone
+  # call are confirmed (first verifier kept); setTenantStatus('approved') refuses server-side until they
+  # are set. Invite organizer dialog on 6.4's inviteOrganizer. Live: tenants.status index added.
+  # Function 218/218, 445/445 unit. Status "review".
+  6-5-manual-verification-admin-approval-queue: review
   # 6-6 implemented 2026-09-29 (Wave 1, branch feature/6-6-operator-event-switcher; built on 6.2
   # only, independent of 6.3). OperatorEventContext (provided on OrganizerLayout, not root) holds the
   # explicit pick; EventSwitcher header renders only for 2+ active Events, nothing pre-selected, and a
@@ -432,10 +439,21 @@ development_status:
   # 276/276 unit, 118/118 Function, lint/tsc/build green. Needs Function redeploy.
   # Status "review" - not browser-verified.
   6-6-operator-event-switcher: review
+  # 6-7 added 2026-09-30 (user decision during Wave 3): no Epic 6-9 story let an Organizer create a
+  # tenant-owned Event, so 8.4/8.5 would always show GH₵0. Drafted in epics.md; depends on the AD-2
+  # tenant-read amendment (feature/ad2-tenant-wide-read-grants). Schedule before 7.5/8.4/8.5.
+  6-7-organizer-creates-and-manages-events: backlog
   epic-6-retrospective: optional
 
   epic-7: backlog
-  7-1-add-manage-team-members: backlog
+  # 7-1 implemented 2026-09-30 (Wave 3, branch feature/7-1-team-management). addTeamMember,
+  # revokeMembership and new listTeamMembers accept Organizer-tier callers of an approved tenant (tenant
+  # from the caller's Membership; a foreign tenantId -> 403). super_organizer manages organizer+operator,
+  # organizer manages operator only, nobody adds super_organizer here. Team-added operators get the
+  # operator Label (removed on revoke). Tenant row read derived from active organizer-tier members
+  # (fixes 6.4's gap). /company/team screen. AC1 amended to "zero Event write/assignment access" per
+  # the AD-2 2026-09-30 amendment. Function 229/229, 426/426 unit. Status "review".
+  7-1-add-manage-team-members: review
   7-2-identity-check-on-team-additions: backlog
   7-3-revocation-preserves-attribution-for-cause-revocations-feed-the-bypass-list: backlog
   7-4-platform-wide-duplicate-event-detection: backlog
@@ -455,7 +473,15 @@ development_status:
   # dashboard is open) - accept, or amend AD-12 to throttle/exempt them.
   # 260/260 unit, lint/tsc/build green. Status "review".
   8-2-admin-super-admin-access-logging: review
-  8-3-contact-admin-support-form: backlog
+  # 8-3 implemented 2026-09-30 (Wave 3, branch feature/8-3-contact-admin-support). New
+  # support-requests.js: submitSupportRequest (signed-in organizer-tier, allowed for pending/rejected/
+  # suspended tenants) and public submitDispute (8 KB body cap, field caps, linear-time email check,
+  # 3/email/24h silently absorbed, 60/hour global 429, never reveals whether an account exists).
+  # /company/support, public /company/dispute, Contact Admin link on the pending shell. Live infra DONE
+  # 2026-09-30: support_requests table (Admin read only, row security), 3 indexes, Function variable
+  # APPWRITE_SUPPORT_REQUESTS_COLLECTION_ID. Function 237/237, 441/441 unit. No Admin viewer yet.
+  # Status "review".
+  8-3-contact-admin-support-form: review
   8-4-consolidated-cross-event-total: backlog
   8-5-periodic-settlement-export-report: backlog
   # 8-6 implemented 2026-09-29 (Wave 1, branch feature/8-6-super-admin-manages-admins).
