@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { AppwriteException, Models } from 'appwrite';
+import { AppwriteException, ID, Models } from 'appwrite';
 import { ACCOUNT } from '../../core/appwrite/client';
 import { SUPER_ADMIN_LABEL, type Role } from '../models/role';
 
@@ -52,6 +52,15 @@ export class AuthService {
     await this.account.createEmailPasswordSession({ email, password });
     this._currentUser.set(await this.account.get());
     this.recordActivity();
+  }
+
+  /**
+   * Self-signup (Story 6.4): creates a brand-new Account and signs straight into it. The
+   * Account carries no Label and no Membership until the Function accepts the application.
+   */
+  async register(name: string, email: string, password: string): Promise<void> {
+    await this.account.create({ userId: ID.unique(), email, password, name });
+    await this.login(email, password);
   }
 
   /**

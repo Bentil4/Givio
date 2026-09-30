@@ -1,5 +1,5 @@
 import { InjectionToken } from '@angular/core';
-import { Account, Client, Functions, Realtime, TablesDB } from 'appwrite';
+import { Account, Client, Functions, Realtime, Storage, TablesDB } from 'appwrite';
 import { environment } from '../../../environments/environment';
 
 export const client = new Client()
@@ -24,4 +24,9 @@ export const DATABASES = new InjectionToken<TablesDB>('DATABASES', {
 export const REALTIME = new InjectionToken<Realtime>('REALTIME', {
   providedIn: 'root',
   factory: () => new Realtime(client),
+});
+
+export const STORAGE = new InjectionToken<Storage>('STORAGE', {
+  providedIn: 'root',
+  factory: () => new Storage(client),
 });

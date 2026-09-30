@@ -1,0 +1,48 @@
+.pending-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-xl) var(--space-md);
+  background: var(--bg-canvas);
+}
+
+.pending-card {
+  width: 100%;
+  max-width: 520px;
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+
+  h1:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 4px;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.pending-logo {
+  width: 110px;
+  height: auto;
+  margin-bottom: var(--space-md);
+}
+
+.pending-company {
+  color: var(--text-primary);
+}
+
+.pending-checked:empty {
+  display: none;
+}
+
+.pending-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}

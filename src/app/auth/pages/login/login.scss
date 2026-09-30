@@ -272,6 +272,18 @@
   color: var(--data-4);
 }
 
+.auth-signup {
+  margin: var(--space-lg) 0 0;
+  font-size: 0.85rem;
+  text-align: center;
+  color: var(--data-4);
+
+  a {
+    font-weight: 600;
+    color: var(--primary-deep);
+  }
+}
+
 .auth-foot {
   margin: var(--space-xl) 0 0;
   font-size: 0.75rem;

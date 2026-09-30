@@ -133,3 +133,55 @@ export async function listAllRows({ DatabasesCtor, adminClient, databaseId, tabl
 
   return rows;
 }
+
+/**
+ * Story 6.4 (FR-9): the server-side half of the pending-state boundary for every action a
+ * non-Admin caller can reach. A caller holding a Membership row may act only while that
+ * Membership is active AND its Tenant is `approved` — a pending/rejected/suspended tenant's
+ * people are refused here regardless of what the UI shows. A caller with no Membership row at
+ * all passes (today's Label-based Operators — see Story 6.2's "Known interim gap"), as does an
+ * environment without the tenant tables configured (pre-Story-6.2 deployments). A failed
+ * lookup fails closed. Returns `null` when allowed, otherwise a `{ status, body }` response.
+ */
+export async function rejectUnapprovedTenantMember({
+  DatabasesCtor,
+  adminClient,
+  databaseId,
+  caller,
+  error,
+}) {
+  const tenantsCollectionId = process.env.APPWRITE_TENANTS_COLLECTION_ID;
+  const membershipsCollectionId = process.env.APPWRITE_MEMBERSHIPS_COLLECTION_ID;
+  if ((caller.labels ?? []).includes('admin')) {
+    return null;
+  }
+  if (!hasValue(tenantsCollectionId) || !hasValue(membershipsCollectionId)) {
+    return null;
+  }
+
+  const forbidden = { status: 403, body: { error: 'Forbidden' } };
+  try {
+    const databases = new DatabasesCtor(adminClient);
+    const { rows } = await databases.listRows({
+      databaseId,
+      tableId: membershipsCollectionId,
+      queries: [Query.equal('userId', [caller.$id]), Query.limit(1)],
+    });
+    if (rows.length === 0) {
+      return null;
+    }
+    const [membership] = rows;
+    if (membership.status !== 'active') {
+      return forbidden;
+    }
+    const tenant = await databases.getRow({
+      databaseId,
+      tableId: tenantsCollectionId,
+      rowId: membership.tenantId,
+    });
+    return tenant.status === 'approved' ? null : forbidden;
+  } catch (err) {
+    error(`rejectUnapprovedTenantMember: lookup failed for ${caller.$id}: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to verify tenant access' } };
+  }
+}

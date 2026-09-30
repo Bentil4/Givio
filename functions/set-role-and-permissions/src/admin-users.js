@@ -234,7 +234,7 @@ function resolveAppUrl(error) {
   return appUrl;
 }
 
-async function sendInviteEmail({
+export async function sendInviteEmail({
   MessagingCtor,
   adminClient,
   userId,

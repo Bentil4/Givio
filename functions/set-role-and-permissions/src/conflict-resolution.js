@@ -1,5 +1,13 @@
 import { Client, Account, TablesDB, ID, Permission, Role } from 'node-appwrite';
-import { buildClient, verifyCaller, verifyAdminCaller, VALID, invalid, hasValue } from './shared.js';
+import {
+  buildClient,
+  verifyCaller,
+  verifyAdminCaller,
+  VALID,
+  invalid,
+  hasValue,
+  rejectUnapprovedTenantMember,
+} from './shared.js';
 
 const ACTIONS = ['recordConflict', 'resolveConflict'];
 const RESOLUTIONS = ['keep-local', 'keep-server', 'keep-both'];
@@ -226,6 +234,17 @@ export async function handleConflictResolutionRequest({
   }
 
   const adminClient = buildClient(ClientCtor, endpoint, projectId).setKey(dynamicKey);
+
+  const tenantRejection = await rejectUnapprovedTenantMember({
+    DatabasesCtor: TablesDBCtor,
+    adminClient,
+    databaseId,
+    caller,
+    error,
+  });
+  if (tenantRejection) {
+    return res.json(tenantRejection.body, tenantRejection.status);
+  }
 
   let result;
   switch (action) {

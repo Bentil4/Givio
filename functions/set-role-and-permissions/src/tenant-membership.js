@@ -1,8 +1,20 @@
 import { randomBytes } from 'node:crypto';
-import { Client, Account, Users, TablesDB, ID, Query, Permission, Role } from 'node-appwrite';
+import {
+  Client,
+  Account,
+  Users,
+  TablesDB,
+  Storage,
+  Messaging,
+  ID,
+  Query,
+  Permission,
+  Role,
+} from 'node-appwrite';
 import {
   buildClient,
   verifyAdminCaller,
+  verifyCaller,
   VALID,
   invalid,
   hasValue,
@@ -10,8 +22,44 @@ import {
   listAllRows,
   isConflictError,
 } from './shared.js';
+import { sendInviteEmail } from './admin-users.js';
 
-const ACTIONS = ['createMembership', 'revokeMembership', 'setTenantStatus', 'addTeamMember'];
+const ACTIONS = [
+  'createMembership',
+  'revokeMembership',
+  'setTenantStatus',
+  'addTeamMember',
+  'inviteOrganizer',
+  'submitTenantApplication',
+];
+
+// Story 6.4: the one action here a non-Admin reaches — the applicant's own brand-new Account
+// submitting their intake. Every other action stays Admin-gated.
+const SELF_SERVICE_ACTIONS = new Set(['submitTenantApplication']);
+
+// Keep in sync with src/app/data/models/tenant.ts's TENANT_SIZES/TENANT_TYPES — separate
+// deployments with no shared module system, same arrangement as VALID_ROLES in shared.js.
+export const TENANT_SIZES = ['1-10', '11-50', '51-200', '201+'];
+export const TENANT_TYPES = ['funeral', 'wedding', 'funeral_and_wedding', 'other'];
+const TENANT_TEXT_MAX = 128;
+const MAX_ESTIMATED_USERS = 100000;
+
+// Matches the tenant_documents bucket's own allowed extensions (pdf/jpg/jpeg/png). The bucket
+// enforces this at upload; re-checked here because the Function is the one place a file is
+// accepted as evidence.
+const DOCUMENT_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+
+// A self-signup applicant must never be able to choose their own trust state.
+const SERVER_OWNED_TENANT_FIELDS = [
+  'status',
+  'role',
+  'superOrganizerId',
+  'verifiedBy',
+  'verifiedAt',
+  'tenantId',
+  'userId',
+  'createdAt',
+];
 
 const MEMBERSHIP_ROLES = ['super_organizer', 'organizer', 'operator'];
 
@@ -67,7 +115,90 @@ const PAYLOAD_VALIDATORS = {
     }
     return VALID;
   },
+  inviteOrganizer: ({ name, email, company }) => {
+    if (!hasValue(name) || !hasValue(email)) {
+      return invalid('Request must include name and email');
+    }
+    if (!EMAIL_PATTERN.test(email)) {
+      return invalid('email must be a valid email address');
+    }
+    return validateCompanyIntake(company);
+  },
+  submitTenantApplication: (payload) => {
+    const smuggled = SERVER_OWNED_TENANT_FIELDS.filter(
+      (field) =>
+        field in payload ||
+        (typeof payload.company === 'object' &&
+          payload.company !== null &&
+          field in payload.company),
+    );
+    if (smuggled.length > 0) {
+      return invalid(`Request must not include: ${smuggled.join(', ')}`);
+    }
+    if (!hasValue(payload.verificationDocumentId)) {
+      return invalid('Request must include verificationDocumentId');
+    }
+    return validateCompanyIntake(payload.company);
+  },
 };
+
+function validateCompanyIntake(company) {
+  if (typeof company !== 'object' || company === null) {
+    return invalid('Request must include company');
+  }
+  const { name, location, size, type, estimatedUserCount } = company;
+  for (const [field, value] of [
+    ['name', name],
+    ['location', location],
+  ]) {
+    if (!hasValue(value?.trim?.()) || value.trim().length > TENANT_TEXT_MAX) {
+      return invalid(`company.${field} is required (max ${TENANT_TEXT_MAX} characters)`);
+    }
+  }
+  if (!TENANT_SIZES.includes(size)) {
+    return invalid(`company.size must be one of: ${TENANT_SIZES.join(', ')}`);
+  }
+  if (!TENANT_TYPES.includes(type)) {
+    return invalid(`company.type must be one of: ${TENANT_TYPES.join(', ')}`);
+  }
+  if (
+    !Number.isInteger(estimatedUserCount) ||
+    estimatedUserCount < 1 ||
+    estimatedUserCount > MAX_ESTIMATED_USERS
+  ) {
+    return invalid(
+      `company.estimatedUserCount must be a whole number from 1 to ${MAX_ESTIMATED_USERS}`,
+    );
+  }
+  return VALID;
+}
+
+/**
+ * FR-7's approval precondition: every intake field from the signup wizard is present and
+ * valid, including the verification document (FR-8). Story 6.5's approval UI reads the same
+ * answer; setTenantStatus enforces it so a direct call can't approve an incomplete intake.
+ */
+export function isTenantIntakeComplete(tenant) {
+  return (
+    validateCompanyIntake({
+      name: tenant?.name,
+      location: tenant?.location,
+      size: tenant?.size,
+      type: tenant?.type,
+      estimatedUserCount: tenant?.estimatedUserCount,
+    }).valid && hasValue(tenant?.verificationDocumentId)
+  );
+}
+
+function companyRowData(company) {
+  return {
+    name: company.name.trim(),
+    location: company.location.trim(),
+    size: company.size,
+    type: company.type,
+    estimatedUserCount: company.estimatedUserCount,
+  };
+}
 
 function validatePayload(action, payload) {
   const validator = PAYLOAD_VALIDATORS[action];
@@ -376,6 +507,281 @@ async function handleAddTeamMember({
   };
 }
 
+function tenantRowPermissions(superOrganizerId) {
+  return [Permission.read(Role.label('admin')), Permission.read(Role.user(superOrganizerId))];
+}
+
+/** Undo steps for a multi-write action — each is best-effort and logged, never thrown. */
+async function compensate(steps, error, errorContext) {
+  const failures = [];
+  for (const [label, run] of steps) {
+    try {
+      await run();
+    } catch (err) {
+      failures.push(label);
+      error(`${errorContext}: compensation "${label}" failed: ${err.message}`);
+    }
+  }
+  return failures;
+}
+
+/**
+ * Story 6.4, FR-6 path (a): Admin vouches for the company, so the Tenant is written straight to
+ * `approved` (verifiedBy/verifiedAt = this Admin, now) with an active super_organizer
+ * Membership on a brand-new Account — the same end state path (b) reaches after Story 6.5's
+ * approval, so both paths converge on one account shape. Any failure after the Account exists
+ * rolls back what was already written rather than leaving a half-provisioned Organizer.
+ */
+async function handleInviteOrganizer({
+  DatabasesCtor,
+  UsersCtor,
+  MessagingCtor,
+  adminClient,
+  payload,
+  caller,
+  databaseId,
+  tenantsCollectionId,
+  membershipsCollectionId,
+  error,
+}) {
+  const { name, email, company } = payload;
+  const databases = new DatabasesCtor(adminClient);
+  const users = new UsersCtor(adminClient);
+  const generatedPassword = randomBytes(12).toString('base64url');
+
+  let account;
+  try {
+    account = await users.create({ userId: ID.unique(), email, password: generatedPassword, name });
+  } catch (err) {
+    if (isConflictError(err)) {
+      error(`inviteOrganizer: email ${email} already registered: ${err.message}`);
+      return { status: 409, body: { error: 'A user with this email already exists' } };
+    }
+    error(`inviteOrganizer: users.create failed: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to create user account' } };
+  }
+
+  const now = new Date().toISOString();
+  let tenant;
+  try {
+    tenant = await databases.createRow({
+      databaseId,
+      tableId: tenantsCollectionId,
+      rowId: ID.unique(),
+      data: {
+        ...companyRowData(company),
+        status: 'approved',
+        superOrganizerId: account.$id,
+        verifiedBy: caller.$id,
+        verifiedAt: now,
+        createdAt: now,
+      },
+      permissions: tenantRowPermissions(account.$id),
+    });
+  } catch (err) {
+    error(`inviteOrganizer: tenant createRow failed: ${err.message}`);
+    await compensate(
+      [['delete account', () => users.delete({ userId: account.$id })]],
+      error,
+      'inviteOrganizer',
+    );
+    return { status: 502, body: { error: 'Failed to create the company' } };
+  }
+
+  const membershipResult = await createMembershipRow({
+    databases,
+    databaseId,
+    membershipsCollectionId,
+    userId: account.$id,
+    tenantId: tenant.$id,
+    role: 'super_organizer',
+    grantedBy: caller.$id,
+    error,
+    errorContext: 'inviteOrganizer',
+    conflictMessage: 'Failed to create membership for newly created account',
+  });
+  if (membershipResult.status !== 200) {
+    await compensate(
+      [
+        [
+          'delete tenant',
+          () =>
+            databases.deleteRow({ databaseId, tableId: tenantsCollectionId, rowId: tenant.$id }),
+        ],
+        ['delete account', () => users.delete({ userId: account.$id })],
+      ],
+      error,
+      'inviteOrganizer',
+    );
+    return membershipResult;
+  }
+
+  // Delivery failure never fails the invite — the Organizer already exists, and the password
+  // stays in the response as the Admin's fallback (same contract as admin-users.js createUser).
+  const inviteStatus = {
+    email: await sendInviteEmail({
+      MessagingCtor,
+      adminClient,
+      userId: account.$id,
+      name,
+      role: 'Organizer',
+      email,
+      generatedPassword,
+      error,
+    }),
+  };
+
+  return {
+    status: 200,
+    body: {
+      success: true,
+      userId: account.$id,
+      tenantId: tenant.$id,
+      membershipId: membershipResult.body.membershipId,
+      tenantStatus: 'approved',
+      generatedPassword,
+      inviteStatus,
+    },
+  };
+}
+
+/**
+ * Story 6.4, FR-6 path (b) / FR-7: the applicant's own just-created Account submits the
+ * wizard's intake. Writes a `pending` Tenant (superOrganizerId = the verified caller, never a
+ * client value) plus their active super_organizer Membership. Refuses any caller that already
+ * holds a platform relationship — a Label or any Membership row — since FR-4/FR-5 give every
+ * tenant relationship its own Account. The document must already sit in the tenant-documents
+ * bucket, uploaded by this caller; once accepted it is locked to read-only for the applicant
+ * so the evidence Admin reviews can't be swapped or deleted afterwards.
+ */
+async function handleSubmitTenantApplication({
+  DatabasesCtor,
+  StorageCtor,
+  adminClient,
+  payload,
+  caller,
+  databaseId,
+  tenantsCollectionId,
+  membershipsCollectionId,
+  documentsBucketId,
+  error,
+}) {
+  const { company, verificationDocumentId } = payload;
+  const databases = new DatabasesCtor(adminClient);
+  const alreadyRelated = { status: 409, body: { error: "We couldn't process this application" } };
+
+  if ((caller.labels ?? []).length > 0) {
+    return alreadyRelated;
+  }
+
+  let existingMemberships;
+  try {
+    existingMemberships = await listAllRows({
+      DatabasesCtor,
+      adminClient,
+      databaseId,
+      tableId: membershipsCollectionId,
+      queries: [Query.equal('userId', [caller.$id])],
+    });
+  } catch (err) {
+    error(`submitTenantApplication: membership lookup failed: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to verify existing memberships' } };
+  }
+  if (existingMemberships.length > 0) {
+    return alreadyRelated;
+  }
+
+  const storage = new StorageCtor(adminClient);
+  let file;
+  try {
+    file = await storage.getFile({ bucketId: documentsBucketId, fileId: verificationDocumentId });
+  } catch (err) {
+    error(`submitTenantApplication: document ${verificationDocumentId} not found: ${err.message}`);
+    return { status: 400, body: { error: 'The uploaded document could not be found' } };
+  }
+  // A client can only grant permissions for roles it holds itself, so update("user:<caller>")
+  // on the file means the caller uploaded it (and it hasn't been claimed/locked yet).
+  const uploadedByCaller = (file.$permissions ?? []).includes(
+    Permission.update(Role.user(caller.$id)),
+  );
+  if (!uploadedByCaller) {
+    return { status: 400, body: { error: 'The uploaded document could not be found' } };
+  }
+  if (!DOCUMENT_MIME_TYPES.includes(file.mimeType)) {
+    return { status: 400, body: { error: 'The document must be a PDF, JPG, or PNG file' } };
+  }
+
+  const now = new Date().toISOString();
+  let tenant;
+  try {
+    tenant = await databases.createRow({
+      databaseId,
+      tableId: tenantsCollectionId,
+      rowId: ID.unique(),
+      data: {
+        ...companyRowData(company),
+        status: 'pending',
+        superOrganizerId: caller.$id,
+        verificationDocumentId,
+        createdAt: now,
+      },
+      permissions: tenantRowPermissions(caller.$id),
+    });
+  } catch (err) {
+    error(`submitTenantApplication: tenant createRow failed: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to submit the application' } };
+  }
+
+  const membershipResult = await createMembershipRow({
+    databases,
+    databaseId,
+    membershipsCollectionId,
+    userId: caller.$id,
+    tenantId: tenant.$id,
+    role: 'super_organizer',
+    grantedBy: caller.$id,
+    error,
+    errorContext: 'submitTenantApplication',
+  });
+  if (membershipResult.status !== 200) {
+    await compensate(
+      [
+        [
+          'delete tenant',
+          () =>
+            databases.deleteRow({ databaseId, tableId: tenantsCollectionId, rowId: tenant.$id }),
+        ],
+      ],
+      error,
+      'submitTenantApplication',
+    );
+    return membershipResult.status === 409 ? alreadyRelated : membershipResult;
+  }
+
+  try {
+    await storage.updateFile({
+      bucketId: documentsBucketId,
+      fileId: verificationDocumentId,
+      permissions: [Permission.read(Role.label('admin')), Permission.read(Role.user(caller.$id))],
+    });
+  } catch (err) {
+    // Non-fatal: the application is complete; the file just stays applicant-editable.
+    error(
+      `submitTenantApplication: locking document ${verificationDocumentId} failed: ${err.message}`,
+    );
+  }
+
+  return {
+    status: 200,
+    body: {
+      success: true,
+      tenantId: tenant.$id,
+      membershipId: membershipResult.body.membershipId,
+      tenantStatus: 'pending',
+    },
+  };
+}
+
 async function handleRevokeMembership({
   DatabasesCtor,
   adminClient,
@@ -470,6 +876,9 @@ async function handleSetTenantStatus({
       body: { error: `Cannot change tenant status from ${from} to ${status}` },
     };
   }
+  if (status === 'approved' && !isTenantIntakeComplete(tenant)) {
+    return { status: 409, body: { error: 'Tenant intake is incomplete' } };
+  }
 
   if (!isSweepRetry) {
     try {
@@ -536,14 +945,16 @@ async function handleSetTenantStatus({
 }
 
 /**
- * Story 6.2 (AD-1/AD-9 amended): the sole writer of Memberships and Tenant status transitions.
- * Every action here is Admin-caller-gated for this story — Epic 7 layers an Organizer-caller
- * (FR-11's super_organizer-only gate) plus IdentityFlags cross-referencing (FR-12/FR-23) on
- * top of createMembership later; that gating is deliberately not built here (see Story 6.2 Dev
- * Notes, "Known interim gap").
+ * Story 6.2 (AD-1/AD-9 amended): the sole writer of Memberships, Tenants and Tenant status
+ * transitions. Every action is Admin-caller-gated except submitTenantApplication (Story 6.4),
+ * which any verified Account may call for itself — the handler then refuses anyone who already
+ * holds a platform relationship. Epic 7 layers an Organizer-caller (FR-11's
+ * super_organizer-only gate) plus IdentityFlags cross-referencing (FR-12/FR-23) on top of
+ * createMembership later; any such Organizer-callable action must also pass
+ * shared.js's rejectUnapprovedTenantMember (FR-9).
  *
- * ClientCtor/AccountCtor/DatabasesCtor are injectable so tests can substitute fakes without
- * module-mocking node-appwrite.
+ * ClientCtor/AccountCtor/UsersCtor/DatabasesCtor/StorageCtor/MessagingCtor are injectable so
+ * tests can substitute fakes without module-mocking node-appwrite.
  */
 export async function handleTenantMembershipRequest({
   req,
@@ -554,6 +965,8 @@ export async function handleTenantMembershipRequest({
   AccountCtor = Account,
   UsersCtor = Users,
   DatabasesCtor = TablesDB,
+  StorageCtor = Storage,
+  MessagingCtor = Messaging,
 }) {
   const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT;
   const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID;
@@ -561,8 +974,18 @@ export async function handleTenantMembershipRequest({
   const eventsCollectionId = process.env.APPWRITE_EVENTS_COLLECTION_ID;
   const tenantsCollectionId = process.env.APPWRITE_TENANTS_COLLECTION_ID;
   const membershipsCollectionId = process.env.APPWRITE_MEMBERSHIPS_COLLECTION_ID;
+  const documentsBucketId = process.env.APPWRITE_TENANT_DOCUMENTS_BUCKET_ID;
 
-  const { errorResponse, caller } = await verifyAdminCaller({
+  let body;
+  try {
+    body = JSON.parse(req.bodyRaw || '{}');
+  } catch {
+    body = undefined;
+  }
+  const { action, ...payload } = body ?? {};
+
+  const verify = SELF_SERVICE_ACTIONS.has(action) ? verifyCaller : verifyAdminCaller;
+  const { errorResponse, caller } = await verify({
     req,
     ClientCtor,
     AccountCtor,
@@ -573,15 +996,9 @@ export async function handleTenantMembershipRequest({
   if (errorResponse) {
     return res.json(errorResponse.body, errorResponse.status);
   }
-
-  let body;
-  try {
-    body = JSON.parse(req.bodyRaw || '{}');
-  } catch {
+  if (body === undefined) {
     return res.json({ error: 'Invalid JSON body' }, 400);
   }
-
-  const { action, ...payload } = body ?? {};
 
   const validation = validatePayload(action, payload);
   if (!validation.valid) {
@@ -607,11 +1024,17 @@ export async function handleTenantMembershipRequest({
     );
     return res.json({ error: 'Server misconfiguration: missing database/collection ID' }, 500);
   }
+  if (action === 'submitTenantApplication' && !hasValue(documentsBucketId)) {
+    error('Missing APPWRITE_TENANT_DOCUMENTS_BUCKET_ID function variable.');
+    return res.json({ error: 'Server misconfiguration: missing document bucket ID' }, 500);
+  }
 
   const adminClient = buildClient(ClientCtor, endpoint, projectId).setKey(dynamicKey);
   const actionContext = {
     DatabasesCtor,
     UsersCtor,
+    StorageCtor,
+    MessagingCtor,
     adminClient,
     payload,
     caller,
@@ -619,6 +1042,7 @@ export async function handleTenantMembershipRequest({
     eventsCollectionId,
     tenantsCollectionId,
     membershipsCollectionId,
+    documentsBucketId,
     error,
   };
 
@@ -636,6 +1060,12 @@ export async function handleTenantMembershipRequest({
     case 'addTeamMember':
       result = await handleAddTeamMember(actionContext);
       break;
+    case 'inviteOrganizer':
+      result = await handleInviteOrganizer(actionContext);
+      break;
+    case 'submitTenantApplication':
+      result = await handleSubmitTenantApplication(actionContext);
+      break;
   }
 
   if (result.status === 200) {
@@ -648,7 +1078,7 @@ export async function handleTenantMembershipRequest({
         key.toLowerCase().endsWith('password') ? [key, '[redacted]'] : [key, value],
       ),
     );
-    log(`${action} succeeded (by admin ${caller.$id}): ${JSON.stringify(loggableBody)}`);
+    log(`${action} succeeded (by ${caller.$id}): ${JSON.stringify(loggableBody)}`);
   }
   return res.json(result.body, result.status);
 }
