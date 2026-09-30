@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { ID, Models, Permission, Query, Role } from 'appwrite';
+import { AppwriteException, ID, Models, Permission, Query, Role } from 'appwrite';
 import { DATABASES, FUNCTIONS, STORAGE } from '../../core/appwrite/client';
 import { ServiceError } from '../../core/services/service-error';
 import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
@@ -15,6 +15,22 @@ export interface InviteOrganizerResult {
   generatedPassword: string;
   inviteStatus: { email?: 'sent' | 'failed' };
 }
+
+export interface TenantVerification {
+  verifiedBy: string;
+  verifiedAt: string;
+}
+
+export interface VerificationDocument {
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  viewUrl: string;
+}
+
+export type TenantDecision = 'approved' | 'rejected';
+
+const PENDING_PAGE_SIZE = 100;
 
 function rowToMembership(row: Models.DefaultRow): Membership {
   return {
@@ -135,6 +151,78 @@ export class TenantDataService {
       'inviteOrganizer',
       'Failed to invite organizer',
       input,
+    );
+  }
+
+  /**
+   * Admin-only (Story 6.5): every pending application, oldest first so the queue is worked in
+   * the order people applied. Admin reads the tenants table through its collection-level
+   * read("label:admin") permission.
+   */
+  async listPendingTenants(): Promise<Tenant[]> {
+    const tenants: Tenant[] = [];
+    let cursor: string | undefined;
+    try {
+      for (;;) {
+        const queries = [Query.equal('status', ['pending']), Query.limit(PENDING_PAGE_SIZE)];
+        if (cursor) queries.push(Query.cursorAfter(cursor));
+        const page = await this.databases.listRows<Models.DefaultRow>({
+          databaseId: environment.appwriteDatabaseId,
+          tableId: environment.tenantsCollectionId,
+          queries,
+        });
+        tenants.push(...page.rows.map(rowToTenant));
+        if (page.rows.length < PENDING_PAGE_SIZE) break;
+        cursor = page.rows[page.rows.length - 1].$id;
+      }
+    } catch (error) {
+      throw new ServiceError('Failed to load pending applications', error);
+    }
+    return tenants.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  /**
+   * Admin-only. `null` means the file is gone from the bucket — a distinct, reviewable state,
+   * not a load failure; any other failure throws.
+   */
+  async getVerificationDocument(fileId: string): Promise<VerificationDocument | null> {
+    const bucketId = environment.tenantDocumentsBucketId;
+    try {
+      const file = await this.storage.getFile({ bucketId, fileId });
+      return {
+        name: file.name,
+        mimeType: file.mimeType,
+        sizeBytes: file.sizeOriginal,
+        viewUrl: this.storage.getFileView({ bucketId, fileId }),
+      };
+    } catch (error) {
+      if (error instanceof AppwriteException && error.code === 404) {
+        return null;
+      }
+      throw new ServiceError('Failed to load the verification document', error);
+    }
+  }
+
+  /** Admin-only (FR-8): attests that both the document review and the phone call are done. */
+  async recordTenantVerification(tenantId: string): Promise<TenantVerification> {
+    const body = await invokeAdminFunction<TenantVerification>(
+      this.functions,
+      'recordTenantVerification',
+      'Failed to record the verification',
+      { tenantId, documentReviewed: true, phoneVerified: true },
+    );
+    return { verifiedBy: body.verifiedBy, verifiedAt: body.verifiedAt };
+  }
+
+  /** Admin-only. The Function refuses 'approved' until verification is recorded (FR-8). */
+  async decideTenantApplication(tenantId: string, status: TenantDecision): Promise<void> {
+    await invokeAdminFunction(
+      this.functions,
+      'setTenantStatus',
+      status === 'approved'
+        ? 'Failed to approve the application'
+        : 'Failed to reject the application',
+      { tenantId, status },
     );
   }
 

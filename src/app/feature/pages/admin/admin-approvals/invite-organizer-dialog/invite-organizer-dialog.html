@@ -1,0 +1,181 @@
+<!-- Backdrop click is a pointer convenience only; (keydown.escape) is the keyboard equivalent. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="close()" (keydown.escape)="close()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <form
+    class="dialog glass glass-thick"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="invite-organizer-title"
+    aria-describedby="invite-organizer-desc"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    (click)="$event.stopPropagation()"
+    novalidate
+  >
+    <header class="dialog-head">
+      <h2 id="invite-organizer-title" class="t-page-title">Invite organizer</h2>
+      <p id="invite-organizer-desc" class="t-secondary">
+        You're vouching for this company, so it's approved straight away — it won't go through the
+        approvals queue. We email them their login details.
+      </p>
+    </header>
+
+    @if (formError(); as err) {
+    <p class="field-error dialog-error" role="alert">{{ err }}</p>
+    }
+
+    <div class="dialog-body">
+      <fieldset class="group">
+        <legend class="group-title">Organizer</legend>
+        <div class="field">
+          <label class="field-label" for="ioName"
+            >Full name <span class="req" aria-hidden="true">*</span></label
+          >
+          <input
+            id="ioName"
+            class="input"
+            type="text"
+            formControlName="name"
+            autocomplete="off"
+            [attr.aria-invalid]="invalid('name')"
+            [attr.aria-describedby]="invalid('name') ? 'ioName-error' : null"
+            [class.is-invalid]="invalid('name')"
+          />
+          @if (invalid('name')) {
+          <p id="ioName-error" class="field-error">Enter their full name.</p>
+          }
+        </div>
+        <div class="field">
+          <label class="field-label" for="ioEmail"
+            >Email <span class="req" aria-hidden="true">*</span></label
+          >
+          <input
+            id="ioEmail"
+            class="input"
+            type="email"
+            formControlName="email"
+            autocomplete="off"
+            [attr.aria-invalid]="invalid('email')"
+            [attr.aria-describedby]="invalid('email') ? 'ioEmail-error' : null"
+            [class.is-invalid]="invalid('email')"
+          />
+          @if (invalid('email')) {
+          <p id="ioEmail-error" class="field-error">Enter a valid email address.</p>
+          }
+        </div>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend class="group-title">Company</legend>
+        <div class="field">
+          <label class="field-label" for="ioCompany"
+            >Company name <span class="req" aria-hidden="true">*</span></label
+          >
+          <input
+            id="ioCompany"
+            class="input"
+            type="text"
+            formControlName="companyName"
+            autocomplete="off"
+            [attr.aria-invalid]="invalid('companyName')"
+            [attr.aria-describedby]="invalid('companyName') ? 'ioCompany-error' : null"
+            [class.is-invalid]="invalid('companyName')"
+          />
+          @if (invalid('companyName')) {
+          <p id="ioCompany-error" class="field-error">Enter the company's name.</p>
+          }
+        </div>
+        <div class="field">
+          <label class="field-label" for="ioLocation"
+            >Location <span class="req" aria-hidden="true">*</span></label
+          >
+          <input
+            id="ioLocation"
+            class="input"
+            type="text"
+            formControlName="location"
+            autocomplete="off"
+            [attr.aria-invalid]="invalid('location')"
+            [attr.aria-describedby]="invalid('location') ? 'ioLocation-error' : null"
+            [class.is-invalid]="invalid('location')"
+          />
+          @if (invalid('location')) {
+          <p id="ioLocation-error" class="field-error">Enter where the company is based.</p>
+          }
+        </div>
+        <div class="field">
+          <label class="field-label" for="ioSize"
+            >Company size <span class="req" aria-hidden="true">*</span></label
+          >
+          <select
+            id="ioSize"
+            class="select-field"
+            formControlName="size"
+            [attr.aria-invalid]="invalid('size')"
+            [attr.aria-describedby]="invalid('size') ? 'ioSize-error' : null"
+          >
+            <option value="" disabled>Choose a size</option>
+            @for (opt of sizeOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+          @if (invalid('size')) {
+          <p id="ioSize-error" class="field-error">Choose the company's size.</p>
+          }
+        </div>
+        <div class="field">
+          <label class="field-label" for="ioType"
+            >Company type <span class="req" aria-hidden="true">*</span></label
+          >
+          <select
+            id="ioType"
+            class="select-field"
+            formControlName="type"
+            [attr.aria-invalid]="invalid('type')"
+            [attr.aria-describedby]="invalid('type') ? 'ioType-error' : null"
+          >
+            <option value="" disabled>Choose a type</option>
+            @for (opt of typeOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+          @if (invalid('type')) {
+          <p id="ioType-error" class="field-error">Choose the kind of events they run.</p>
+          }
+        </div>
+        <div class="field">
+          <label class="field-label" for="ioUsers"
+            >Estimated platform users <span class="req" aria-hidden="true">*</span></label
+          >
+          <input
+            id="ioUsers"
+            class="input"
+            type="number"
+            inputmode="numeric"
+            min="1"
+            max="100000"
+            formControlName="estimatedUserCount"
+            [attr.aria-invalid]="invalid('estimatedUserCount')"
+            [attr.aria-describedby]="invalid('estimatedUserCount') ? 'ioUsers-error' : null"
+            [class.is-invalid]="invalid('estimatedUserCount')"
+          />
+          @if (invalid('estimatedUserCount')) {
+          <p id="ioUsers-error" class="field-error">Enter a whole number from 1 to 100,000.</p>
+          }
+        </div>
+      </fieldset>
+    </div>
+
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="close()">
+        Cancel
+      </button>
+      <button type="submit" class="btn btn-primary" [disabled]="busy()">
+        {{ busy() ? 'Inviting…' : 'Invite organizer' }}
+      </button>
+    </footer>
+  </form>
+</div>
