@@ -68,7 +68,15 @@ const TENANT_STATUSES = ['approved', 'rejected', 'suspended'];
 // Deliberately permissive (not RFC 5322) — same "good enough to catch a typo, not a security
 // boundary" bar as admin-users.js's isValidPhone; Appwrite's own users.create is still the
 // final validator.
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Domain labels exclude '.', so there is only one way to match any input — the earlier
+// /^[^\s@]+@[^\s@]+\.[^\s@]+$/ backtracked quadratically on dot-heavy domains (CodeQL
+// js/polynomial-redos). The length cap is RFC 5321's maximum.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
+const EMAIL_MAX_LENGTH = 254;
+
+function isValidEmail(email) {
+  return typeof email === 'string' && email.length <= EMAIL_MAX_LENGTH && EMAIL_PATTERN.test(email);
+}
 
 // Story 6.2's own scope: Tenant creation itself (the initial 'pending' row at self-signup) is
 // Story 6.4's job, not this one — so 'pending' is a starting state this Function reads, never
@@ -107,7 +115,7 @@ const PAYLOAD_VALIDATORS = {
     if (!hasValue(name) || !hasValue(email) || !hasValue(tenantId)) {
       return invalid('Request must include name, email, and tenantId');
     }
-    if (!EMAIL_PATTERN.test(email)) {
+    if (!isValidEmail(email)) {
       return invalid('email must be a valid email address');
     }
     if (!MEMBERSHIP_ROLES.includes(role)) {
@@ -119,7 +127,7 @@ const PAYLOAD_VALIDATORS = {
     if (!hasValue(name) || !hasValue(email)) {
       return invalid('Request must include name and email');
     }
-    if (!EMAIL_PATTERN.test(email)) {
+    if (!isValidEmail(email)) {
       return invalid('email must be a valid email address');
     }
     return validateCompanyIntake(company);
