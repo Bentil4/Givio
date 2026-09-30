@@ -1,4 +1,4 @@
-import { Client, Account, TablesDB, Permission, Role } from 'node-appwrite';
+import { Client, Account, TablesDB } from 'node-appwrite';
 import {
   buildClient,
   verifyCaller,
@@ -7,6 +7,7 @@ import {
   hasValue,
   rejectUnapprovedTenantMember,
 } from './shared.js';
+import { resolveEventReadPermissions } from './tenant-grants.js';
 
 const ACTIONS = ['recordDonation'];
 const DONATION_TYPES = ['cash', 'mobile_money', 'in_kind'];
@@ -59,20 +60,6 @@ const PROVISIONAL_RECEIPT = /^(.+)-P\d+$/;
 function provisionalReceiptMismatch(receiptNumber, event) {
   const match = PROVISIONAL_RECEIPT.exec(receiptNumber);
   return !!match && match[1] !== eventShortCode(event);
-}
-
-/**
- * Same permission shape as event-assignment.js's computeEventPermissions (AD-2): Admin full
- * CRUD via the Label, each of the event's assigned Operators gets read-only access to the
- * Donation.
- */
-function computeDonationPermissions(assignedUserIds) {
-  return [
-    Permission.read(Role.label('admin')),
-    Permission.update(Role.label('admin')),
-    Permission.delete(Role.label('admin')),
-    ...assignedUserIds.map((userId) => Permission.read(Role.user(userId))),
-  ];
 }
 
 /**
@@ -144,6 +131,20 @@ async function handleRecordDonation({
     };
   }
 
+  // A Donation is readable by exactly who can read its Event (AD-2, amended 2026-09-30).
+  // Resolved before the receipt increment so a failed lookup never burns a receipt number.
+  let permissions;
+  try {
+    permissions = await resolveEventReadPermissions({
+      DatabasesCtor: TablesDBCtor,
+      adminClient,
+      event,
+    });
+  } catch (err) {
+    error(`recordDonation: resolving read grants for event ${eventId} failed: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to resolve who can read this donation' } };
+  }
+
   let updatedEvent;
   try {
     updatedEvent = await tablesDB.incrementRowColumn({
@@ -180,7 +181,7 @@ async function handleRecordDonation({
         recordedAt,
         syncStatus: 'synced',
       },
-      permissions: computeDonationPermissions(assignedUserIds),
+      permissions,
     });
     return { status: 200, body: { success: true, donation: row } };
   } catch (err) {

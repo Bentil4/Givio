@@ -1,0 +1,148 @@
+<article class="row" [attr.aria-labelledby]="ids().trigger">
+  <div class="row-head">
+    <button
+      #trigger
+      type="button"
+      class="row-trigger"
+      [id]="ids().trigger"
+      [attr.aria-expanded]="expanded()"
+      [attr.aria-controls]="ids().details"
+      (click)="toggle()"
+    >
+      <mat-icon class="row-chevron" aria-hidden="true"
+        >{{ expanded() ? 'expand_less' : 'expand_more' }}</mat-icon
+      >
+      <span class="row-main">
+        <span class="row-name">{{ title() }}</span>
+        <span class="row-meta">Submitted {{ tenant().createdAt | date: 'mediumDate' }}</span>
+      </span>
+    </button>
+    <span class="tier-badge">
+      <mat-icon aria-hidden="true">apartment</mat-icon>
+      Super Organizer (pending)
+    </span>
+    <span class="status-pill is-pending">Pending</span>
+    <div class="row-actions">
+      <button
+        type="button"
+        class="btn btn-primary btn-compact"
+        [class.is-blocked]="!isVerified()"
+        [attr.aria-disabled]="!isVerified()"
+        [attr.aria-describedby]="isVerified() ? null : ids().verify + '-why'"
+        [disabled]="busy()"
+        (click)="onApprove()"
+      >
+        Approve<span class="visually-hidden"> {{ tenant().name }}</span>
+      </button>
+      <button
+        type="button"
+        class="btn btn-secondary btn-compact is-danger"
+        [disabled]="busy()"
+        (click)="reject.emit()"
+      >
+        Reject<span class="visually-hidden"> {{ tenant().name }}</span>
+      </button>
+    </div>
+  </div>
+  @if (!isVerified()) {
+  <p class="visually-hidden" [id]="ids().verify + '-why'">
+    Needs the document review and phone call recorded first.
+  </p>
+  } @if (error(); as err) {
+  <p class="row-error" role="alert">{{ err }}</p>
+  } @if (expanded()) {
+  <section
+    #details
+    class="row-details"
+    tabindex="-1"
+    [id]="ids().details"
+    [attr.aria-label]="'Application details for ' + tenant().name"
+  >
+    <dl class="fields">
+      <div>
+        <dt>Location</dt>
+        <dd>{{ tenant().location }}</dd>
+      </div>
+      <div>
+        <dt>Company size</dt>
+        <dd>{{ sizeLabel() }}</dd>
+      </div>
+      <div>
+        <dt>Company type</dt>
+        <dd>{{ typeLabel() }}</dd>
+      </div>
+      <div>
+        <dt>Estimated platform users</dt>
+        <dd>{{ tenant().estimatedUserCount }}</dd>
+      </div>
+      <div>
+        <dt>Applicant email</dt>
+        <dd>{{ application().applicantEmail ?? 'Not available' }}</dd>
+      </div>
+      <div>
+        <dt>Verification document</dt>
+        <dd>
+          @switch (documentState().kind) { @case ('loading') {
+          <span class="t-caption">Loading document…</span>
+          } @case ('missing') {
+          <span class="doc-problem">
+            The document can't be found. Don't approve until the applicant sends it again.
+          </span>
+          } @case ('error') {
+          <span class="doc-problem">The document couldn't be loaded.</span>
+          <button type="button" class="btn-ghost" (click)="loadDocument()">Try again</button>
+          } @case ('ready') { @if (readyDocument(); as doc) {
+          <a class="doc-link" [href]="doc.viewUrl" target="_blank" rel="noopener"
+            >{{ doc.name }}<span class="visually-hidden"> (opens in a new tab)</span></a
+          >
+          } } }
+        </dd>
+      </div>
+    </dl>
+
+    <div #verifySection class="verify" tabindex="-1" [id]="ids().verify">
+      <h3 class="verify-title">Verification</h3>
+      @if (isVerified()) {
+      <p class="verify-done">
+        <mat-icon aria-hidden="true">verified</mat-icon>
+        Verified by {{ application().verifierName ?? tenant().verifiedBy }} on {{
+        tenant().verifiedAt | date: 'medium' }}
+      </p>
+      } @else { @if (approveBlocked()) {
+      <p class="verify-hint" role="status">
+        Record the document review and phone call before approving.
+      </p>
+      }
+      <form
+        class="verify-form"
+        [formGroup]="verifyForm"
+        (ngSubmit)="recordVerification()"
+        novalidate
+      >
+        <fieldset>
+          <legend class="visually-hidden">Checks completed for {{ tenant().name }}</legend>
+          <label class="verify-check">
+            <input type="checkbox" formControlName="documentReviewed" />
+            I reviewed the verification document
+          </label>
+          <label class="verify-check">
+            <input type="checkbox" formControlName="phoneVerified" />
+            I completed the phone verification call
+          </label>
+        </fieldset>
+        @if (verifyError(); as err) {
+        <p class="row-error" role="alert">{{ err }}</p>
+        }
+        <button type="submit" class="btn btn-secondary btn-compact" [disabled]="verifying()">
+          {{ verifying() ? 'Recording…' : 'Record verification' }}
+        </button>
+      </form>
+      }
+    </div>
+
+    <button type="button" class="btn-ghost" (click)="collapse()">
+      Hide details<span class="visually-hidden"> for {{ tenant().name }}</span>
+    </button>
+  </section>
+  }
+</article>

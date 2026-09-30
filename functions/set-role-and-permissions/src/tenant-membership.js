@@ -18,11 +18,11 @@ import {
   VALID,
   invalid,
   hasValue,
-  computeEventPermissions,
   listAllRows,
   isConflictError,
 } from './shared.js';
 import { sendInviteEmail } from './admin-users.js';
+import { recomputeTenantReadGrants } from './tenant-grants.js';
 
 const ACTIONS = [
   'createMembership',
@@ -32,6 +32,7 @@ const ACTIONS = [
   'inviteOrganizer',
   'submitTenantApplication',
   'listTeamMembers',
+  'recordTenantVerification',
 ];
 
 // Story 6.4: the one action here a non-Admin reaches — the applicant's own brand-new Account
@@ -156,6 +157,15 @@ const PAYLOAD_VALIDATORS = {
       return invalid('email must be a valid email address');
     }
     return validateCompanyIntake(company);
+  },
+  recordTenantVerification: ({ tenantId, documentReviewed, phoneVerified }) => {
+    if (!hasValue(tenantId)) {
+      return invalid('Request must include tenantId');
+    }
+    if (documentReviewed !== true || phoneVerified !== true) {
+      return invalid('Verification needs both the document review and the phone call confirmed');
+    }
+    return VALID;
   },
   submitTenantApplication: (payload) => {
     const smuggled = SERVER_OWNED_TENANT_FIELDS.filter(
@@ -368,64 +378,59 @@ async function setOperatorLabel({ UsersCtor, adminClient, userId, enabled }) {
 }
 
 /**
- * Retracts the derived Role.user() grant for `userIds` from every Event owned by `tenantId`
- * that currently grants at least one of them — called on both a single Membership revoke
- * (userIds = [that one uid]) and a whole-Tenant suspend/reject (userIds = every currently
- * granted uid across the tenant's Events). assignedUserIds itself is left untouched (AD-2:
- * it stays the record of who was assigned; only the *permission grant* is retracted) — only
- * each affected Event's `permissions` are recomputed to drop the swept uid(s).
+ * Membership revoke's hook into AD-2 (name and call signature kept from Story 6.2 so
+ * revokeMembership's call site is unchanged): re-derives read grants on every Event and Donation
+ * the tenant owns, which drops the revoked uid wherever it was granted — as an assigned
+ * Operator or as an organizer-tier member. assignedUserIds itself is left untouched (AD-2: it
+ * stays the record of who was assigned; only the *permission grant* is retracted). `listed`
+ * is false when any row could not be brought in line, not only when the listing failed.
  */
-async function sweepTenantEventPermissions({
+async function sweepTenantEventPermissions({ DatabasesCtor, adminClient, tenantId, error }) {
+  const grants = await recomputeTenantReadGrants({ DatabasesCtor, adminClient, tenantId, error });
+  return { listed: grants.ok, grants };
+}
+
+// Every action after which a newly active Membership may be owed AD-2 read grants.
+const MEMBERSHIP_ACTIVATING_ACTIONS = new Set(['createMembership', 'addTeamMember']);
+
+/**
+ * Membership activation's hook into AD-2, run once from the dispatcher after the action's own
+ * handler so the handlers themselves don't change: a new active organizer-tier member of an
+ * approved tenant gains read on its Events and Donations (and a new Operator on any Event it
+ * was already assigned to). A pending tenant grants nobody until setTenantStatus approves it.
+ * The Membership already exists when this fails, so the action's body (including any
+ * generatedPassword) is kept in the 502 — the grant is retried via recomputeTenantReadGrants.
+ */
+async function grantTenantReadAfterMembershipWrite({
+  action,
+  result,
+  payload,
   DatabasesCtor,
   adminClient,
-  databaseId,
-  eventsCollectionId,
-  tenantId,
-  userIds,
   error,
 }) {
-  if (userIds.length === 0) {
-    return { listed: true };
+  if (!MEMBERSHIP_ACTIVATING_ACTIONS.has(action) || result.status !== 200) {
+    return result;
   }
-
-  const databases = new DatabasesCtor(adminClient);
-
-  let affectedEvents;
-  try {
-    affectedEvents = await listAllRows({
-      DatabasesCtor,
-      adminClient,
-      databaseId,
-      tableId: eventsCollectionId,
-      queries: [Query.equal('tenantId', [tenantId]), Query.contains('assignedUserIds', userIds)],
-    });
-  } catch (err) {
-    error(`sweepTenantEventPermissions: listRows failed for tenant ${tenantId}: ${err.message}`);
-    return { listed: false };
+  const grants = await recomputeTenantReadGrants({
+    DatabasesCtor,
+    adminClient,
+    // The handler's resolved tenant, not the request's: an Organizer caller never sends one.
+    tenantId: result.body?.tenantId ?? payload.tenantId,
+    error,
+  });
+  if (grants.ok) {
+    return result;
   }
-
-  const sweptUserIds = new Set(userIds);
-  for (const event of affectedEvents) {
-    const remainingUserIds = (event.assignedUserIds ?? []).filter((uid) => !sweptUserIds.has(uid));
-    try {
-      await databases.updateRow({
-        databaseId,
-        tableId: eventsCollectionId,
-        rowId: event.$id,
-        data: {},
-        permissions: computeEventPermissions(remainingUserIds),
-      });
-    } catch (err) {
-      // Best-effort per-event: one failed sweep must not abort the others (a partially-swept
-      // tenant is still strictly safer than an unswept one) — surfaced via `error` for
-      // operator visibility, per the Architecture Spine's Deferred operations-envelope note.
-      // (Deferred, not patched — see Story 6.2's code-review findings: this matches the
-      // Architecture Spine's own explicit Deferred note on the AD-9 Function's ops envelope.)
-      error(`sweepTenantEventPermissions: updateRow failed for event ${event.$id}: ${err.message}`);
-    }
-  }
-
-  return { listed: true };
+  return {
+    status: 502,
+    body: {
+      ...result.body,
+      success: false,
+      error: 'Membership was created, but granting its tenant read access failed',
+      grants,
+    },
+  };
 }
 
 /**
@@ -979,6 +984,84 @@ async function handleSubmitTenantApplication({
   };
 }
 
+function isTenantVerificationRecorded(tenant) {
+  return hasValue(tenant?.verifiedBy) && hasValue(tenant?.verifiedAt);
+}
+
+/**
+ * Story 6.5 (FR-8): Admin attests that they reviewed the verification document AND completed
+ * the phone call — both in one act, so verifiedBy/verifiedAt only ever mean "both checks done".
+ * The first attestation stands: a repeat call returns the existing record rather than
+ * re-attributing it to whoever clicked last.
+ */
+async function handleRecordTenantVerification({
+  DatabasesCtor,
+  StorageCtor,
+  adminClient,
+  payload,
+  caller,
+  databaseId,
+  tenantsCollectionId,
+  documentsBucketId,
+  error,
+}) {
+  const { tenantId } = payload;
+  const databases = new DatabasesCtor(adminClient);
+
+  let tenant;
+  try {
+    tenant = await databases.getRow({ databaseId, tableId: tenantsCollectionId, rowId: tenantId });
+  } catch (err) {
+    error(`recordTenantVerification: tenant ${tenantId} not found: ${err.message}`);
+    return { status: 404, body: { error: 'Tenant not found' } };
+  }
+
+  if (tenant.status !== 'pending') {
+    return { status: 409, body: { error: `Tenant is already ${tenant.status}` } };
+  }
+  if (isTenantVerificationRecorded(tenant)) {
+    return {
+      status: 200,
+      body: {
+        success: true,
+        tenantId,
+        verifiedBy: tenant.verifiedBy,
+        verifiedAt: tenant.verifiedAt,
+      },
+    };
+  }
+  if (!isTenantIntakeComplete(tenant)) {
+    return { status: 409, body: { error: 'Tenant intake is incomplete' } };
+  }
+
+  try {
+    await new StorageCtor(adminClient).getFile({
+      bucketId: documentsBucketId,
+      fileId: tenant.verificationDocumentId,
+    });
+  } catch (err) {
+    error(
+      `recordTenantVerification: document ${tenant.verificationDocumentId} not found: ${err.message}`,
+    );
+    return { status: 409, body: { error: 'The verification document could not be found' } };
+  }
+
+  const verifiedAt = new Date().toISOString();
+  try {
+    await databases.updateRow({
+      databaseId,
+      tableId: tenantsCollectionId,
+      rowId: tenantId,
+      data: { verifiedBy: caller.$id, verifiedAt },
+    });
+  } catch (err) {
+    error(`recordTenantVerification: updateRow failed: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to record the verification' } };
+  }
+
+  return { status: 200, body: { success: true, tenantId, verifiedBy: caller.$id, verifiedAt } };
+}
+
 async function handleRevokeMembership({
   DatabasesCtor,
   UsersCtor,
@@ -1167,6 +1250,14 @@ async function handleSetTenantStatus({
   if (status === 'approved' && !isTenantIntakeComplete(tenant)) {
     return { status: 409, body: { error: 'Tenant intake is incomplete' } };
   }
+  // Story 6.5 (FR-8): the server, not the disabled button, is what makes approval impossible
+  // before recordTenantVerification has stamped who verified the application and when.
+  if (status === 'approved' && !isTenantVerificationRecorded(tenant)) {
+    return {
+      status: 409,
+      body: { error: 'Record the document review and phone verification before approving' },
+    };
+  }
 
   if (!isSweepRetry) {
     try {
@@ -1182,51 +1273,27 @@ async function handleSetTenantStatus({
     }
   }
 
-  if (status === 'suspended' || status === 'rejected') {
-    // Every one of this tenant's Events loses every currently-granted uid — not a
-    // targeted-by-uid sweep (that's sweepTenantEventPermissions's job for a single
-    // Membership revoke), so this lists and clears the tenant's Events directly rather than
-    // computing a uid list and re-querying by it (avoids a redundant round trip, and means
-    // there is exactly one place this can fail, not two).
-    let tenantEvents;
-    try {
-      tenantEvents = await listAllRows({
-        DatabasesCtor,
-        adminClient,
-        databaseId,
-        tableId: eventsCollectionId,
-        queries: [Query.equal('tenantId', [tenantId])],
-      });
-    } catch (err) {
-      error(`setTenantStatus: listing tenant's events failed: ${err.message}`);
-      // Story 6.2 code review (fail-closed, not fail-open): the tenant's status row was
-      // already written above, but the sweep could not even be attempted — report that
-      // honestly rather than a 200 that implies every Event grant was revoked.
-      return {
-        status: 502,
-        body: {
-          error: 'Tenant status was changed, but sweeping its Event permissions failed',
-          tenantId,
-          status,
-        },
-      };
-    }
-
-    for (const event of tenantEvents) {
-      try {
-        await databases.updateRow({
-          databaseId,
-          tableId: eventsCollectionId,
-          rowId: event.$id,
-          data: {},
-          permissions: computeEventPermissions([]),
-        });
-      } catch (err) {
-        // Deferred, not patched — matches sweepTenantEventPermissions's own per-event
-        // best-effort behavior and the Architecture Spine's Deferred ops-envelope note.
-        error(`setTenantStatus: updateRow failed for event ${event.$id}: ${err.message}`);
-      }
-    }
+  // AD-2: approval grants every active organizer-tier member read on the tenant's Events and
+  // Donations; suspend/reject removes every Membership-derived grant (Family access is by
+  // accessCode, AD-10, and is unaffected). A sweep that leaves any row stale reports 502 — the
+  // status is already written, and the same call (or recomputeTenantReadGrants) retries it.
+  const grants = await recomputeTenantReadGrants({
+    DatabasesCtor,
+    adminClient,
+    tenantId,
+    tenantStatus: status,
+    error,
+  });
+  if (!grants.ok) {
+    return {
+      status: 502,
+      body: {
+        error: 'Tenant status was changed, but sweeping its Event permissions failed',
+        tenantId,
+        status,
+        grants,
+      },
+    };
   }
 
   return { status: 200, body: { success: true, tenantId, status } };
@@ -1318,7 +1385,10 @@ export async function handleTenantMembershipRequest({
     );
     return res.json({ error: 'Server misconfiguration: missing database/collection ID' }, 500);
   }
-  if (action === 'submitTenantApplication' && !hasValue(documentsBucketId)) {
+  if (
+    (action === 'submitTenantApplication' || action === 'recordTenantVerification') &&
+    !hasValue(documentsBucketId)
+  ) {
     error('Missing APPWRITE_TENANT_DOCUMENTS_BUCKET_ID function variable.');
     return res.json({ error: 'Server misconfiguration: missing document bucket ID' }, 500);
   }
@@ -1371,7 +1441,11 @@ export async function handleTenantMembershipRequest({
     case 'listTeamMembers':
       result = await handleListTeamMembers(actionContext);
       break;
+    case 'recordTenantVerification':
+      result = await handleRecordTenantVerification(actionContext);
+      break;
   }
+  result = await grantTenantReadAfterMembershipWrite({ action, result, ...actionContext });
 
   if (result.status === 200) {
     // Code-review fix: addTeamMember's success body carries generatedPassword — logging it
