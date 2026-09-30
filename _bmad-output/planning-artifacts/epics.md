@@ -996,6 +996,41 @@ So that I never fire a scoped action against an Event I didn't mean to.
 **When** they open their dashboard
 **Then** the switcher does not render at all — the single-Event case has no ambiguity to resolve, per the underlying v1 assignment model this extends (FR-3)
 
+
+### Story 6.7: Organizer Creates & Manages Events
+
+*(Added 2026-09-30. No earlier Epic 6–9 story let an Organizer create a tenant-owned Event, so a newly approved tenant could never own one and Stories 8.4/8.5 would always show GH₵0.)*
+
+As a Super Organizer or co-Organizer,
+I want to create and manage my company's Events myself,
+So that my team can start recording donations without waiting on Admin.
+
+**Acceptance Criteria:**
+
+**Given** I am an organizer-tier member of an **approved** Tenant on `/company/events`
+**When** I create an Event
+**Then** it is created through the AD-9 Function, which stamps `tenantId` from my own active Membership server-side — never from the client — and applies AD-2's derived permissions (including the 2026-09-30 tenant-wide organizer read) at creation (FR-2, AD-2, AD-9)
+
+**Given** my Tenant is `pending`, `rejected` or `suspended`
+**When** I (or a direct API call on my behalf) attempt to create or edit an Event
+**Then** it is refused server-side (FR-9)
+
+**Given** an Event my tenant owns
+**When** I edit its details, change its status (pause/resume/close/reopen) or assign Operators
+**Then** only Operators from my own tenant can be assigned, status transitions follow Story 2.2's rules, and every change is audit-logged the same way Admin's are
+
+**Given** an Event my tenant owns
+**When** I generate or regenerate its family access code
+**Then** it reuses Story 2.4's action, now callable by organizer-tier members for their own tenant's Events (FR-16's leak recovery from the Organizer side)
+
+**Given** another tenant's Event, or an Admin-created Event with no `tenantId`
+**When** I list, open or modify Events
+**Then** I can never see or change it, and "not found" is indistinguishable from "not yours" (FR-2)
+
+**Given** Event creation now runs in the Function
+**When** this story ships
+**Then** the deferred `createEvent`/`getMyActiveMembership` tri-state issue is resolved (tenant resolved at write time, not cached in the outbox), and the creation path exposes a single hook Story 7.4's platform-wide duplicate-event check (AD-13) can call without blocking creation
+
 ## Epic 7: Team Lifecycle & Trust
 
 Organizer leadership can grow their team safely — add co-Organizers and Operators with fraud checks built in, revoke access without erasing history — while the platform catches duplicate-event fraud across companies.
