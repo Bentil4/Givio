@@ -9,7 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { DatePipe, NgOptimizedImage } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../../data/services/auth.service';
 import { TenantService } from '../../../../data/services/tenant.service';
 
@@ -26,7 +26,7 @@ interface ShellCopy {
  */
 @Component({
   selector: 'app-pending-shell',
-  imports: [DatePipe, NgOptimizedImage],
+  imports: [DatePipe, NgOptimizedImage, RouterLink],
   templateUrl: './pending-shell.html',
   styleUrl: './pending-shell.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

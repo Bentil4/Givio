@@ -1,0 +1,110 @@
+// Shared by the Contact Admin form (CompanySupport) and the public dispute form (CompanyDispute).
+.support-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+.field-label {
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.field-hint,
+.field-error {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+}
+
+.field-hint {
+  color: var(--text-secondary);
+}
+
+.field-error {
+  color: var(--func-error);
+}
+
+.input {
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border: var(--border-width-default) solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--text-primary);
+
+  &:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 1px;
+  }
+
+  &.is-invalid {
+    border-color: var(--func-error);
+  }
+}
+
+textarea.input {
+  min-height: 140px;
+  padding: var(--space-sm) var(--space-md);
+  resize: vertical;
+}
+
+// Mirrors donation-entry's save-failure block (.desk-blocked): icon + message, above the action.
+.support-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border: 1.5px solid rgba(220, 38, 38, 0.25);
+  border-radius: var(--radius-md);
+  background: var(--func-error-soft);
+  color: var(--func-error);
+
+  p {
+    margin: 0;
+    color: var(--text-primary);
+  }
+}
+
+.support-sent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
+  background: var(--func-success-soft);
+  color: var(--func-success);
+
+  p {
+    margin: 0;
+    color: var(--text-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+  }
+}
+
+.support-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.support-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  max-width: 640px;
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+}

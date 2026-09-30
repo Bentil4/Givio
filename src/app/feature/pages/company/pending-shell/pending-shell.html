@@ -25,6 +25,7 @@
       <button type="button" class="btn btn-primary" [disabled]="checking()" (click)="checkAgain()">
         {{ checking() ? 'Checking…' : 'Check status again' }}
       </button>
+      <a routerLink="/company/support" class="btn btn-secondary">Contact Admin</a>
       <button type="button" class="btn btn-secondary" (click)="signOut()">Sign out</button>
     </footer>
   </section>

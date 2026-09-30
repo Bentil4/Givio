@@ -79,6 +79,31 @@ describe('COMPANY_ROUTES', () => {
     expect(el.querySelector('app-pending-shell')).toBeNull();
   });
 
+  for (const status of ['pending', 'rejected', 'suspended'] as const) {
+    it(`lets a ${status} tenant reach the Contact Admin form without the company layout`, async () => {
+      const { el } = await navigate('/company/support', contextFor(status));
+
+      expect(TestBed.inject(Router).url).toBe('/company/support');
+      expect(el.querySelector('app-pending-support app-company-support')).not.toBeNull();
+      expect(el.querySelector('app-company-layout')).toBeNull();
+    });
+  }
+
+  it('renders the Contact Admin form inside the company layout for an approved tenant', async () => {
+    const { el } = await navigate('/company/support', contextFor('approved'));
+
+    expect(el.querySelector('app-company-layout app-company-support')).not.toBeNull();
+    expect(el.querySelector('app-pending-support')).toBeNull();
+  });
+
+  it('serves the dispute form to an anonymous visitor with no tenant — no redirect to /login', async () => {
+    const { el } = await navigate('/company/dispute', null);
+
+    expect(TestBed.inject(Router).url).toBe('/company/dispute');
+    expect(el.querySelector('app-company-dispute')).not.toBeNull();
+    expect(TestBed.inject(TenantService).load).not.toHaveBeenCalled();
+  });
+
   it('sends a person with no Organizer-tier Membership to /login', async () => {
     const { el } = await navigate('/company', null);
 

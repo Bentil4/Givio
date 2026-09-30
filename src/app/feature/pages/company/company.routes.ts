@@ -15,9 +15,27 @@ export const COMPANY_CHILD_ROUTES: Routes = [
       import('./company-dashboard/company-dashboard').then((m) => m.CompanyDashboard),
     title: 'Company dashboard',
   },
+  {
+    path: 'team',
+    loadComponent: () => import('./company-team/company-team').then((m) => m.CompanyTeam),
+    title: 'Team',
+  },
+  {
+    path: 'support',
+    loadComponent: () => import('./company-support/company-support').then((m) => m.CompanySupport),
+    title: 'Contact Admin',
+  },
 ];
 
 export const COMPANY_ROUTES: Routes = [
+  {
+    // Deliberately unguarded and listed first (FR-20): a suspended tenant's Organizer can't sign
+    // in, and both /company matchers below would send an anonymous visitor to /login.
+    path: 'company/dispute',
+    loadComponent: () =>
+      import('./company-support/company-dispute/company-dispute').then((m) => m.CompanyDispute),
+    title: 'Dispute a suspension',
+  },
   {
     path: 'company',
     canMatch: [approvedCompanyMatch],
@@ -38,6 +56,12 @@ export const COMPANY_ROUTES: Routes = [
         path: '',
         loadComponent: () => import('./pending-shell/pending-shell').then((m) => m.PendingShell),
         title: 'Application status',
+      },
+      {
+        path: 'support',
+        loadComponent: () =>
+          import('./company-support/pending-support').then((m) => m.PendingSupport),
+        title: 'Contact Admin',
       },
       { path: '**', redirectTo: '' },
     ],

@@ -65,6 +65,10 @@ describe('AdminLayout', () => {
     });
   });
 
+  it('links every Admin to the Approvals queue (Story 6.5)', () => {
+    expect(component.navItems().some((item) => item.route === '/dashboard/approvals')).toBe(true);
+  });
+
   describe('mobile nav drawer (Story 5.1)', () => {
     it('toggleMobileNav flips isMobileNavOpen', () => {
       expect(component.isMobileNavOpen()).toBe(false);

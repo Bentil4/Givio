@@ -8,6 +8,7 @@ import {
   hasValue,
   rejectUnapprovedTenantMember,
 } from './shared.js';
+import { resolveEventReadPermissions } from './tenant-grants.js';
 
 const ACTIONS = ['recordConflict', 'resolveConflict'];
 const RESOLUTIONS = ['keep-local', 'keep-server', 'keep-both'];
@@ -39,16 +40,6 @@ function validatePayload(action, payload) {
     return invalid(`action must be one of: ${ACTIONS.join(', ')}`);
   }
   return validator(payload ?? {});
-}
-
-/** Same shape as donation-recording.js's computeDonationPermissions (AD-2). */
-function computeDonationPermissions(assignedUserIds) {
-  return [
-    Permission.read(Role.label('admin')),
-    Permission.update(Role.label('admin')),
-    Permission.delete(Role.label('admin')),
-    ...assignedUserIds.map((userId) => Permission.read(Role.user(userId))),
-  ];
 }
 
 /**
@@ -143,6 +134,18 @@ async function handleResolveConflict({
       return { status: 404, body: { error: 'Event not found' } };
     }
 
+    let permissions;
+    try {
+      permissions = await resolveEventReadPermissions({
+        DatabasesCtor: TablesDBCtor,
+        adminClient,
+        event,
+      });
+    } catch (err) {
+      error(`resolveConflict: resolving read grants for event ${event.$id} failed: ${err.message}`);
+      return { status: 502, body: { error: 'Failed to save the second version' } };
+    }
+
     const newId = ID.unique();
     try {
       resultDonation = await tablesDB.createRow({
@@ -155,7 +158,7 @@ async function handleResolveConflict({
           receiptNumber: `${local.receiptNumber}-B`,
           syncStatus: 'synced',
         },
-        permissions: computeDonationPermissions(event.assignedUserIds ?? []),
+        permissions,
       });
     } catch (err) {
       error(`resolveConflict: keep-both createRow failed: ${err.message}`);

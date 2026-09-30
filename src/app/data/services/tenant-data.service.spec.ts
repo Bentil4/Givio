@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { AppwriteException } from 'appwrite';
 import { TenantDataService } from './tenant-data.service';
 import { AuthService } from './auth.service';
 import { DATABASES, FUNCTIONS, STORAGE } from '../../core/appwrite/client';
@@ -182,6 +183,124 @@ describe('TenantDataService', () => {
           },
         }),
       ).rejects.toThrow('A user with this email already exists');
+    });
+  });
+
+  describe('Admin approval queue (Story 6.5)', () => {
+    const row = (id: string, createdAt: string) => ({
+      $id: id,
+      name: `Company ${id}`,
+      location: 'Accra',
+      size: '1-10',
+      type: 'other',
+      estimatedUserCount: 3,
+      status: 'pending',
+      superOrganizerId: `owner-${id}`,
+      verificationDocumentId: `file-${id}`,
+      verifiedBy: null,
+      verifiedAt: null,
+      createdAt,
+    });
+
+    it('listPendingTenants pages through every pending Tenant and sorts oldest first', async () => {
+      const firstPage = Array.from({ length: 100 }, (_, i) =>
+        row(`p${i}`, `2026-09-${String(10 + (i % 10)).padStart(2, '0')}T00:00:00.000Z`),
+      );
+      databases.listRows
+        .mockResolvedValueOnce({ rows: firstPage })
+        .mockResolvedValueOnce({ rows: [row('early', '2026-09-01T00:00:00.000Z')] });
+
+      const tenants = await service.listPendingTenants();
+
+      expect(tenants).toHaveLength(101);
+      expect(tenants[0].id).toBe('early');
+      expect(tenants[0].verifiedBy).toBeUndefined();
+      const [first, second] = databases.listRows.mock.calls.map((c) => c[0]);
+      expect(first.tableId).toBe(environment.tenantsCollectionId);
+      expect(
+        first.queries.some((q: string) => q.includes('"status"') && q.includes('pending')),
+      ).toBe(true);
+      expect(
+        second.queries.some((q: string) => q.includes('cursorAfter') && q.includes('p99')),
+      ).toBe(true);
+    });
+
+    it('listPendingTenants wraps a failed read in a ServiceError', async () => {
+      databases.listRows.mockRejectedValueOnce(new Error('offline'));
+
+      await expect(service.listPendingTenants()).rejects.toBeInstanceOf(ServiceError);
+    });
+
+    it('getVerificationDocument returns the file name and a view URL', async () => {
+      Object.assign(storage, {
+        getFile: vi
+          .fn()
+          .mockResolvedValue({ name: 'reg.pdf', mimeType: 'application/pdf', sizeOriginal: 2048 }),
+        getFileView: vi.fn().mockReturnValue('https://files.example/view'),
+      });
+
+      const doc = await service.getVerificationDocument('file-1');
+
+      expect(doc).toEqual({
+        name: 'reg.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 2048,
+        viewUrl: 'https://files.example/view',
+      });
+    });
+
+    it('getVerificationDocument returns null when the file is gone, and throws otherwise', async () => {
+      const getFile = vi
+        .fn()
+        .mockRejectedValueOnce(new AppwriteException('File not found', 404))
+        .mockRejectedValueOnce(new Error('offline'));
+      Object.assign(storage, { getFile, getFileView: vi.fn() });
+
+      await expect(service.getVerificationDocument('file-1')).resolves.toBeNull();
+      await expect(service.getVerificationDocument('file-1')).rejects.toBeInstanceOf(ServiceError);
+    });
+
+    it('recordTenantVerification attests both checks in one call', async () => {
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 200,
+        responseBody: JSON.stringify({
+          success: true,
+          tenantId: 't1',
+          verifiedBy: 'admin-1',
+          verifiedAt: '2026-09-30T10:00:00.000Z',
+        }),
+      });
+
+      const result = await service.recordTenantVerification('t1');
+
+      expect(result).toEqual({ verifiedBy: 'admin-1', verifiedAt: '2026-09-30T10:00:00.000Z' });
+      expect(JSON.parse(functions.createExecution.mock.calls[0][0].body)).toEqual({
+        action: 'recordTenantVerification',
+        tenantId: 't1',
+        documentReviewed: true,
+        phoneVerified: true,
+      });
+    });
+
+    it('decideTenantApplication sends setTenantStatus and surfaces a refusal', async () => {
+      functions.createExecution
+        .mockResolvedValueOnce({ responseStatusCode: 200, responseBody: '{"success":true}' })
+        .mockResolvedValueOnce({
+          responseStatusCode: 409,
+          responseBody: JSON.stringify({
+            error: 'Record the document review and phone verification before approving',
+          }),
+        });
+
+      await service.decideTenantApplication('t1', 'rejected');
+      expect(JSON.parse(functions.createExecution.mock.calls[0][0].body)).toEqual({
+        action: 'setTenantStatus',
+        tenantId: 't1',
+        status: 'rejected',
+      });
+      await expect(service.decideTenantApplication('t1', 'approved')).rejects.toThrow(
+        'Record the document review and phone verification before approving',
+      );
     });
   });
 });

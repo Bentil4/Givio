@@ -121,6 +121,7 @@ function withEnv(fn) {
   return async () => {
     process.env.APPWRITE_DATABASE_ID = 'db-1';
     process.env.APPWRITE_EVENTS_COLLECTION_ID = 'events-1';
+    process.env.APPWRITE_DONATIONS_COLLECTION_ID = 'donations-1';
     process.env.APPWRITE_TENANTS_COLLECTION_ID = 'tenants-1';
     process.env.APPWRITE_MEMBERSHIPS_COLLECTION_ID = 'memberships-1';
     process.env.APPWRITE_TENANT_DOCUMENTS_BUCKET_ID = 'tenant-docs-1';
@@ -129,6 +130,7 @@ function withEnv(fn) {
     } finally {
       delete process.env.APPWRITE_DATABASE_ID;
       delete process.env.APPWRITE_EVENTS_COLLECTION_ID;
+      delete process.env.APPWRITE_DONATIONS_COLLECTION_ID;
       delete process.env.APPWRITE_TENANTS_COLLECTION_ID;
       delete process.env.APPWRITE_MEMBERSHIPS_COLLECTION_ID;
       delete process.env.APPWRITE_TENANT_DOCUMENTS_BUCKET_ID;
@@ -314,9 +316,20 @@ test(
       headers: ADMIN_HEADERS,
       getAccount: asAdmin,
       databases: {
-        getRow: async () => ({ $id: 'membership-1', userId: 'u1', tenantId: 't1' }),
+        getRow: async ({ tableId }) =>
+          tableId === 'tenants-1'
+            ? { $id: 't1', status: 'approved' }
+            : { $id: 'membership-1', userId: 'u1', tenantId: 't1' },
         updateRow: async () => ({}),
-        listRows: async () => ({ rows: [{ $id: 'event-1', assignedUserIds: ['u1', 'u2'] }] }),
+        listRows: async ({ tableId }) => {
+          if (tableId === 'memberships-1') {
+            return { rows: [{ userId: 'u2', tenantId: 't1', role: 'operator', status: 'active' }] };
+          }
+          if (tableId === 'events-1') {
+            return { rows: [{ $id: 'event-1', tenantId: 't1', assignedUserIds: ['u1', 'u2'] }] };
+          }
+          return { rows: [] };
+        },
       },
     });
 
@@ -332,11 +345,12 @@ test(
     // u1 (revoked) is dropped from the derived permissions; u2 (unaffected) is retained.
     assert.ok(eventUpdate.permissions.some((p) => p.includes('u2')));
     assert.ok(!eventUpdate.permissions.some((p) => p.includes('"user:u1"')));
-    // The sweep's listRows call is scoped to this membership's own tenant+userId, not a blanket query.
-    const [listArgs] = calls.listRows[0];
-    assert.deepEqual(listArgs.queries.slice(0, 2), [
+    // The sweep's Event listing is scoped to this membership's own tenant, not a blanket query
+    // (AD-2 amended 2026-09-30: every tenant Event is re-derived, since an organizer-tier uid
+    // is granted on Events it isn't assigned to).
+    const [listArgs] = calls.listRows.find(([args]) => args.tableId === 'events-1');
+    assert.deepEqual(listArgs.queries.slice(0, 1), [
       JSON.stringify({ method: 'equal', attribute: 'tenantId', values: ['t1'] }),
-      JSON.stringify({ method: 'contains', attribute: 'assignedUserIds', values: ['u1'] }),
     ]);
   }),
 );
@@ -476,7 +490,9 @@ test(
         // Tenant is ALREADY suspended — the earlier attempt's status write succeeded but its
         // sweep must have failed (the previous test's scenario), leaving stale Event grants.
         getRow: async () => ({ $id: 't1', status: 'suspended' }),
-        listRows: async () => ({ rows: [{ $id: 'event-1', assignedUserIds: ['u1'] }] }),
+        listRows: async ({ tableId }) => ({
+          rows: tableId === 'events-1' ? [{ $id: 'event-1', assignedUserIds: ['u1'] }] : [],
+        }),
         updateRow: async () => ({}),
       },
     });
@@ -508,7 +524,8 @@ test(
       databases: {
         getRow: async () => ({ $id: 't1', status: 'approved' }),
         updateRow: async () => ({}),
-        listRows: async () => {
+        listRows: async ({ tableId }) => {
+          if (tableId !== 'events-1') return { rows: [] };
           callCount += 1;
           return { rows: callCount === 1 ? page1 : page2 };
         },
@@ -520,7 +537,7 @@ test(
     assert.equal(result.status, 200);
     assert.equal(callCount, 2);
     // The second listRows call carries a cursorAfter for the last row of page 1.
-    const [secondCallArgs] = calls.listRows[1];
+    const [secondCallArgs] = calls.listRows.filter(([args]) => args.tableId === 'events-1')[1];
     assert.ok(
       secondCallArgs.queries.some(
         (q) => q.includes('"method":"cursorAfter"') && q.includes('event-99'),
@@ -639,6 +656,7 @@ test(
       databases: {
         getRow: async () => ({ $id: 't1', status: 'approved' }),
         createRow: async () => ({ $id: 'membership-new' }),
+        listRows: async () => ({ rows: [] }),
       },
       users: { usersCreate: async () => ({ $id: 'account-new' }) },
     });
@@ -711,6 +729,7 @@ test(
       databases: {
         getRow: async () => ({ $id: 't1', status: 'approved' }),
         createRow: async () => ({ $id: 'membership-new' }),
+        listRows: async () => ({ rows: [] }),
       },
       users: { usersCreate: async () => ({ $id: 'account-new' }) },
     });
@@ -778,9 +797,10 @@ test(
       headers: ADMIN_HEADERS,
       getAccount: asAdmin,
       databases: {
-        getRow: async ({ rowId }) => membershipsById[rowId],
+        getRow: async ({ rowId }) => membershipsById[rowId] ?? { $id: rowId, status: 'approved' },
         updateRow: async () => ({}),
-        listRows: async ({ queries }) => {
+        listRows: async ({ tableId, queries }) => {
+          if (tableId !== 'events-1') return { rows: [] };
           const parsed = queries.map((q) => JSON.parse(q));
           const tenantFilter = parsed.find(
             (q) => q.method === 'equal' && q.attribute === 'tenantId',
@@ -1075,8 +1095,11 @@ test(
           status: 'pending',
           ...COMPANY,
           verificationDocumentId: 'file-1',
+          verifiedBy: 'admin-1',
+          verifiedAt: '2026-09-30T10:00:00.000Z',
         }),
         updateRow: async () => ({}),
+        listRows: async () => ({ rows: [] }),
       },
     });
 
@@ -1206,8 +1229,8 @@ test(
 test(
   'a pending applicant (no Label) is refused every Admin-gated tenant action with 403',
   withEnv(async () => {
+    // addTeamMember is Organizer-callable since Story 7.1 — see team-management.test.js.
     for (const body of [
-      { action: 'addTeamMember', name: 'X', email: 'x@y.co', tenantId: 't1', role: 'operator' },
       { action: 'createMembership', userId: 'u2', tenantId: 't1', role: 'operator' },
       { action: 'setTenantStatus', tenantId: 't1', status: 'approved' },
       inviteBody(),
