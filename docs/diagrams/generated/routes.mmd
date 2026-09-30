@@ -24,6 +24,7 @@ flowchart TD
     r__dashboard_donations["/dashboard/donations<br/>Donation oversight"]
     r__dashboard_donations_conflicts["/dashboard/donations/conflicts<br/>Resolve sync conflicts"]
     r__dashboard_donations_deleted["/dashboard/donations/deleted<br/>Deleted donations"]
+    r__dashboard_approvals["/dashboard/approvals<br/>Approvals"]
     r__dashboard_reports["/dashboard/reports<br/>Reports"]
     r__dashboard_audit["/dashboard/audit<br/>Audit trail"]
   end
@@ -36,11 +37,15 @@ flowchart TD
   end
   r__family["/family<br/>Enter your event code"]
   r__family__code["/family/:code<br/>Live giving"]
+  r__company_dispute["/company/dispute<br/>Dispute a suspension"]
   subgraph sgr__company__approvedCompanyMatch["/company — sessionExpiryGuard + approvedCompanyMatch"]
     r__company__approvedCompanyMatch["/company<br/>Company dashboard"]
+    r__company_team__approvedCompanyMatch["/company/team<br/>Team"]
+    r__company_support__approvedCompanyMatch["/company/support<br/>Contact Admin"]
   end
   subgraph sgr__company__pendingCompanyMatch["/company — sessionExpiryGuard + pendingCompanyMatch"]
     r__company__pendingCompanyMatch["/company<br/>Application status"]
+    r__company_support__pendingCompanyMatch["/company/support<br/>Contact Admin"]
   end
   app -->|"/ redirects"| r__login
   app --> r__auth_signup
@@ -52,6 +57,7 @@ flowchart TD
   r__dashboard --> r__dashboard_donations
   r__dashboard_donations --> r__dashboard_donations_conflicts
   r__dashboard_donations --> r__dashboard_donations_deleted
+  r__dashboard --> r__dashboard_approvals
   r__dashboard --> r__dashboard_reports
   r__dashboard --> r__dashboard_audit
   app --> r__dashboard
@@ -62,6 +68,10 @@ flowchart TD
   app --> r__organizer
   app --> r__family
   r__family --> r__family__code
+  app --> r__company_dispute
+  r__company__approvedCompanyMatch --> r__company_team__approvedCompanyMatch
+  r__company__approvedCompanyMatch --> r__company_support__approvedCompanyMatch
   app --> r__company__approvedCompanyMatch
+  r__company__pendingCompanyMatch --> r__company_support__pendingCompanyMatch
   r__company__pendingCompanyMatch -->|"/company/** redirects"| r__company__pendingCompanyMatch
   app --> r__company__pendingCompanyMatch
