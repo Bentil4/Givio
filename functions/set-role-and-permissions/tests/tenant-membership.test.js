@@ -1206,8 +1206,8 @@ test(
 test(
   'a pending applicant (no Label) is refused every Admin-gated tenant action with 403',
   withEnv(async () => {
+    // addTeamMember is Organizer-callable since Story 7.1 — see team-management.test.js.
     for (const body of [
-      { action: 'addTeamMember', name: 'X', email: 'x@y.co', tenantId: 't1', role: 'operator' },
       { action: 'createMembership', userId: 'u2', tenantId: 't1', role: 'operator' },
       { action: 'setTenantStatus', tenantId: 't1', status: 'approved' },
       inviteBody(),
