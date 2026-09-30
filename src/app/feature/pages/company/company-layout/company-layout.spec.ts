@@ -25,6 +25,16 @@ describe('CompanyLayout', () => {
     expect(link?.getAttribute('href')).toBe('/company');
   });
 
+  it('lists Contact Admin in the sidebar', async () => {
+    const fixture = TestBed.createComponent(CompanyLayout);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+
+    const link = el.querySelector('app-sidebar nav a[href="/company/support"]');
+    expect(link?.textContent).toContain('Contact Admin');
+  });
+
   it('logs out to /login', async () => {
     const fixture = TestBed.createComponent(CompanyLayout);
     const router = TestBed.inject(Router);
