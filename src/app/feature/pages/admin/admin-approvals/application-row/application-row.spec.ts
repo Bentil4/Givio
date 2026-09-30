@@ -226,4 +226,43 @@ describe('ApplicationRow', () => {
 
     expect(rejected).toHaveBeenCalledTimes(1);
   });
+
+  describe('verification contact', () => {
+    async function expandRow(application: ApplicationView): Promise<HTMLElement> {
+      await render(application);
+      trigger().click();
+      await settle();
+      return el().querySelector<HTMLElement>('.verify-contact')!;
+    }
+
+    it('shows the contact phone as a tel: link beside the phone-call check', async () => {
+      const contact = await expandRow(view({ contactPhone: '+233241234567' }));
+
+      const link = contact.querySelector<HTMLAnchorElement>('a')!;
+      expect(link.getAttribute('href')).toBe('tel:+233241234567');
+      expect(link.textContent?.trim()).toBe('+233241234567');
+      expect(contact.textContent).not.toContain('No phone on file');
+      const phoneCheck = el().querySelector<HTMLInputElement>(
+        'input[formControlName="phoneVerified"]',
+      )!;
+      expect(phoneCheck.getAttribute('aria-describedby')).toBe(contact.id);
+    });
+
+    it('falls back to "No phone on file" and a mailto: link when the Tenant has no phone', async () => {
+      const contact = await expandRow(view());
+
+      expect(contact.textContent).toContain('No phone on file');
+      expect(contact.querySelector('a[href^="tel:"]')).toBeNull();
+      const link = contact.querySelector<HTMLAnchorElement>('a')!;
+      expect(link.getAttribute('href')).toBe('mailto:kwame@asante.example');
+      expect(link.textContent?.trim()).toBe('kwame@asante.example');
+    });
+
+    it('still says "No phone on file" when the applicant email could not be resolved', async () => {
+      const contact = await expandRow({ ...view(), applicantEmail: null });
+
+      expect(contact.textContent).toContain('No phone on file');
+      expect(contact.querySelector('a')).toBeNull();
+    });
+  });
 });

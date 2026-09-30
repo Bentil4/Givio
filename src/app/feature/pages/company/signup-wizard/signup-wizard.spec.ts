@@ -10,6 +10,7 @@ import { SignupWizard } from './signup-wizard';
 const COMPANY = {
   name: 'Asante Events',
   location: 'Kumasi',
+  contactPhone: '+233 24 123 4567',
   size: '11-50' as const,
   type: 'funeral' as const,
   estimatedUserCount: '12',
@@ -194,7 +195,7 @@ describe('SignupWizard', () => {
     await wizard.submit();
 
     expect(submitApplication).toHaveBeenCalledWith({
-      company: { ...COMPANY, estimatedUserCount: 12 },
+      company: { ...COMPANY, contactPhone: '+233241234567', estimatedUserCount: 12 },
       verificationDocumentId: 'file-1',
     });
     expect(load).toHaveBeenCalledWith(true);
@@ -216,5 +217,62 @@ describe('SignupWizard', () => {
     );
     expect(router.navigateByUrl).not.toHaveBeenCalled();
     expect(wizard.step()).toBe(3);
+  });
+
+  describe('contact phone', () => {
+    it('is a labelled tel field with autocomplete and the verification-call hint', async () => {
+      const { el } = await render();
+      const input = el.querySelector<HTMLInputElement>('#companyPhone')!;
+
+      expect(el.querySelector('label[for="companyPhone"]')?.textContent).toContain('Contact phone');
+      expect(input.type).toBe('tel');
+      expect(input.getAttribute('inputmode')).toBe('tel');
+      expect(input.getAttribute('autocomplete')).toBe('tel');
+      expect(input.placeholder).toMatch(/^\+233/);
+      expect(input.getAttribute('aria-describedby')).toBe('companyPhone-hint');
+      expect(el.querySelector('#companyPhone-hint')?.textContent).toContain(
+        "We'll call this number to verify your company",
+      );
+    });
+
+    it('blocks step 1 on a missing or local-format number and links the error to the field', async () => {
+      const { wizard, fixture, el } = await render();
+
+      for (const contactPhone of ['', '024 123 4567']) {
+        wizard.companyForm.setValue({ ...COMPANY, contactPhone });
+        wizard.accountForm.setValue({
+          fullName: 'Kwame Asante',
+          email: 'kwame@asante.example',
+          password: 'long-enough-pw',
+        });
+        await wizard.continueFromCompany();
+        fixture.detectChanges();
+
+        expect(wizard.step()).toBe(1);
+        expect(register).not.toHaveBeenCalled();
+        const input = el.querySelector<HTMLInputElement>('#companyPhone')!;
+        expect(input.getAttribute('aria-invalid')).toBe('true');
+        expect(input.getAttribute('aria-describedby')).toBe('companyPhone-hint companyPhone-error');
+        expect(el.querySelector('#companyPhone-error')).not.toBeNull();
+      }
+    });
+
+    it('survives the upload-step retry and is shown, normalized, on the confirmation step', async () => {
+      const { wizard, fixture, el } = await render();
+      await completeStepOne(wizard);
+      upload.mockRejectedValueOnce(new Error('network dropped'));
+      chooseFile(wizard, pdf());
+      await wizard.continueFromDocument();
+
+      expect(wizard.companyForm.controls.contactPhone.value).toBe('+233 24 123 4567');
+
+      upload.mockResolvedValueOnce('file-1');
+      chooseFile(wizard, pdf());
+      await wizard.continueFromDocument();
+      fixture.detectChanges();
+
+      expect(wizard.step()).toBe(3);
+      expect(el.querySelector('.signup-summary')?.textContent).toContain('+233241234567');
+    });
   });
 });
