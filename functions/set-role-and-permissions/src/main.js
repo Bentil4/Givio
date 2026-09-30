@@ -10,10 +10,11 @@ import {
 } from './conflict-resolution.js';
 import { handleFamilyAccessRequest, FAMILY_ACCESS_ACTIONS } from './family-access.js';
 import { handleTenantMembershipRequest, TENANT_MEMBERSHIP_ACTIONS } from './tenant-membership.js';
+import { handleTenantGrantsRequest, TENANT_GRANT_ACTIONS } from './tenant-grants.js';
 import { handleSupportRequestsRequest, SUPPORT_REQUEST_ACTIONS } from './support-requests.js';
 
 /**
- * One deployed Function, routed by `action` in the request body — all six modules share the
+ * One deployed Function, routed by `action` in the request body — all seven modules share the
  * same "sole trusted writer" role (AD-9): admin-users.js for user Labels, event-assignment.js
  * for Event.assignedUserIds and the Appwrite permissions derived from it (AD-2),
  * donation-recording.js for creating a Donation with those same derived permissions
@@ -21,7 +22,7 @@ import { handleSupportRequestsRequest, SUPPORT_REQUEST_ACTIONS } from './support
  * family-access.js for the Family access-code flow (Story 2.4) — the one module with a
  * genuinely public, unauthenticated action (resolveAccessCode), since a Family Member has no
  * account at all (AD-10) — and tenant-membership.js for Memberships/Tenant status (AD-1/AD-9
- * amended, Story 6.2).
+ * amended, Story 6.2), plus tenant-grants.js's Admin backfill of AD-2's tenant-wide read grants.
  */
 export default async (context) => {
   let action;
@@ -45,6 +46,9 @@ export default async (context) => {
   }
   if (TENANT_MEMBERSHIP_ACTIONS.includes(action)) {
     return handleTenantMembershipRequest(context);
+  }
+  if (TENANT_GRANT_ACTIONS.includes(action)) {
+    return handleTenantGrantsRequest(context);
   }
   if (SUPPORT_REQUEST_ACTIONS.includes(action)) {
     return handleSupportRequestsRequest(context);

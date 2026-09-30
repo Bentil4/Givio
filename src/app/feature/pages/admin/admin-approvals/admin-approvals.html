@@ -1,0 +1,149 @@
+<section class="page" aria-labelledby="approvals-title">
+  <header class="page-head">
+    <div>
+      <h1 id="approvals-title" class="t-page-title">Approvals</h1>
+      <p class="t-secondary">
+        Organizer applications awaiting your review. Approve only after you've checked their
+        verification document and called them — the server refuses an approval until both are
+        recorded.
+      </p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" (click)="openInvite()">
+        <mat-icon aria-hidden="true">domain_add</mat-icon>
+        Invite organizer
+      </button>
+    </div>
+  </header>
+
+  <p class="visually-hidden" role="status">{{ announcement() }}</p>
+
+  @if (invitedCopy(); as c) {
+  <div class="code-note" role="status">
+    <mat-icon aria-hidden="true">vpn_key</mat-icon>
+    <p class="t-caption">
+      {{ c.summary }} Generated password: <strong>{{ c.password }}</strong> — {{ c.delivery }}
+    </p>
+    <button type="button" class="btn-ghost" (click)="dismissInvited()">Dismiss</button>
+  </div>
+  }
+
+  <div class="tabs" role="tablist" aria-label="Approval queues">
+    @for (tab of tabs(); track tab.id; let i = $index) {
+    <button
+      #tabButton
+      type="button"
+      role="tab"
+      class="tab"
+      [id]="'approvals-tab-' + tab.id"
+      [class.is-active]="activeTab() === tab.id"
+      [attr.aria-selected]="activeTab() === tab.id"
+      [attr.aria-controls]="'approvals-panel-' + tab.id"
+      [attr.tabindex]="activeTab() === tab.id ? 0 : -1"
+      (click)="selectTab(tab.id)"
+      (keydown)="onTabKeydown($event, i)"
+    >
+      {{ tab.label }}@if (tab.count !== null) { ({{ tab.count }})}
+    </button>
+    }
+  </div>
+
+  @switch (activeTab()) { @case ('applications') {
+  <div
+    class="tab-panel"
+    role="tabpanel"
+    id="approvals-panel-applications"
+    aria-labelledby="approvals-tab-applications"
+  >
+    <h2 #queueHeading class="visually-hidden" tabindex="-1">Pending organizer applications</h2>
+
+    @if (loading()) {
+    <div class="queue" aria-busy="true">
+      @for (i of skeletons; track i) {
+      <div class="skel-card">
+        <span class="skel skel--lg"></span>
+        <span class="skel skel--sm"></span>
+        <span class="skel skel--md"></span>
+      </div>
+      }
+    </div>
+    } @else if (loadError(); as err) {
+    <div class="empty" role="alert">
+      <mat-icon class="empty-icon" aria-hidden="true">error_outline</mat-icon>
+      <p class="t-card-title">We couldn't load the queue</p>
+      <p class="t-caption">{{ err }}</p>
+      <button type="button" class="btn btn-secondary" (click)="load()">Try again</button>
+    </div>
+    } @else if (applications().length === 0) {
+    <div class="empty">
+      <mat-icon class="empty-icon" aria-hidden="true">how_to_reg</mat-icon>
+      <p class="t-card-title">No applications waiting</p>
+      <p class="t-caption">
+        New Organizer signups appear here for review. To onboard a company you already trust, use
+        Invite organizer.
+      </p>
+    </div>
+    } @else {
+    <ul class="queue" aria-label="Pending organizer applications">
+      @for (application of applications(); track application.tenant.id) {
+      <li>
+        <app-application-row
+          [application]="application"
+          [busy]="deciding() && pending()?.application?.tenant?.id === application.tenant.id"
+          [error]="rowErrorFor(application)"
+          (approve)="ask('approved', application)"
+          (reject)="ask('rejected', application)"
+          (verified)="onVerified(application, $event)"
+        />
+      </li>
+      }
+    </ul>
+    }
+  </div>
+  } }
+</section>
+
+@if (inviting()) {
+<app-invite-organizer-dialog (invited)="onInvited($event)" (closed)="closeInvite()" />
+} @if (pendingCopy(); as c) {
+<!-- Backdrop click is a pointer convenience only; (keydown.escape) is the keyboard equivalent. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="dismissPending()" (keydown.escape)="dismissPending()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <div
+    class="dialog dialog--sm glass glass-thick"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="decision-title"
+    aria-describedby="decision-body"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="dialog-head">
+      <h2 id="decision-title" class="t-page-title">{{ c.title }}</h2>
+    </header>
+    <div class="dialog-body">
+      <p id="decision-body" class="t-body confirm-body">{{ c.body }}</p>
+    </div>
+    <footer class="dialog-foot">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        [disabled]="deciding()"
+        (click)="dismissPending()"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        [class]="c.danger ? 'btn btn-danger' : 'btn btn-primary'"
+        [disabled]="deciding()"
+        (click)="confirmPending()"
+      >
+        {{ deciding() ? 'Working…' : c.cta }}
+      </button>
+    </footer>
+  </div>
+</div>
+}
