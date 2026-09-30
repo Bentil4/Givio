@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-07-26
-last_updated: 2026-09-29-wave-1-in-review
+last_updated: 2026-09-30-wave-2-in-review
 project: givio
 project_key: NOKEY
 tracking_system: file-system
@@ -401,7 +401,24 @@ development_status:
   epic-6: in-progress
   6-2-tenant-membership-foundation: done
   6-3-credentials-per-relationship-enforcement: done
-  6-4-organizer-onboarding-admin-invited-self-signup: backlog
+  # 6-4 implemented 2026-09-30 (Wave 2, branch feature/6-4-organizer-onboarding). Function:
+  # submitTenantApplication (verifyCaller; refuses a caller with any Label or Membership, refuses any
+  # client-sent status/role/ids; validates the uploaded file is in tenant_documents and carries
+  # update(user:<caller>), then writes a pending Tenant + super_organizer Membership with rollback)
+  # and Admin-only inviteOrganizer (Account + approved Tenant verifiedBy/verifiedAt + active
+  # Membership + invite email, with rollback). isTenantIntakeComplete gates approval (409).
+  # New shared rejectUnapprovedTenantMember gate on recordDonation/recordConflict - also closes a
+  # hole where a suspended tenant's assigned users could still record (the sweep removes grants,
+  # not assignedUserIds). Client: /auth/signup 3-step wizard (upload step resets alone), /company
+  # route tree (approved -> CompanyLayout + COMPANY_CHILD_ROUTES; pending/rejected/unreadable ->
+  # full-page PendingShell, no sidebar), tenant guards, login routing (Label holders unchanged).
+  # Live infra DONE 2026-09-30 via Appwrite MCP: tenant_documents bucket (file security, 10 MB,
+  # pdf/jpg/jpeg/png, encryption+antivirus), tenants.verificationDocumentId, Function var
+  # APPWRITE_TENANT_DOCUMENTS_BUCKET_ID, Function scopes files.read/files.write.
+  # Function 194/194, 377/377 unit, lint/tsc/build green; all five Wave 2 branches combined:
+  # 201/201 Function, 416/416 unit. No Admin invite UI yet (6.5). Status "review" - merge after the
+  # other Wave 2 PRs; not yet verified end-to-end live.
+  6-4-organizer-onboarding-admin-invited-self-signup: review
   6-5-manual-verification-admin-approval-queue: backlog
   # 6-6 implemented 2026-09-29 (Wave 1, branch feature/6-6-operator-event-switcher; built on 6.2
   # only, independent of 6.3). OperatorEventContext (provided on OrganizerLayout, not root) holds the
@@ -468,7 +485,14 @@ development_status:
   # FamilyCodeRejectedError (404 'Code not recognised' only) ends the session.
   # 263/263 unit, lint/tsc/build green. Status "review" - not device-verified.
   9-1-personal-device-prompt-auto-logout: review
-  9-2-family-view-survives-organizer-suspension: backlog
+  # 9-2 AC1/AC2 verified 2026-09-30 (Wave 2, branch feature/9-2-family-view-survives-suspension) -
+  # tests only, no production change: resolveAccessCode uses the Function key and never reads
+  # Tenant/Membership, and the suspension sweep only rewrites Event permissions (never accessCode,
+  # status or Donations), so a suspended tenant's family view resolves identically (proved against
+  # the real sweep, 120 donations across pages) and has no suspension-specific error path. Also added
+  # the old-code-404-after-regeneration test. AC3 (suspended members blocked at login) is NOT done -
+  # belongs to Story 8.1; nothing blocks it today. 163/163 Function. Status "review" until AC3 lands.
+  9-2-family-view-survives-organizer-suspension: review
   # 9-3 implemented 2026-09-29 (Wave 1, branch feature/9-3-full-family-visibility). Real bug:
   # resolveAccessCode read a single page capped at 200, so larger events showed families a partial
   # total - now paginates via listAllRows. A failed donations read now returns 502 instead of 200 with
