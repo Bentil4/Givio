@@ -2,13 +2,14 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService, ROLE_HOME } from '../../../data/services/auth.service';
+import { TenantService } from '../../../data/services/tenant.service';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 
 /**
- * Staff sign in — Admin and Operator. Family members never reach this screen; they use
- * /family and an event code.
+ * Staff sign in — Admin and Operator by Label, Organizers by Membership (/company). Family
+ * members never reach this screen; they use /family and an event code.
  *
  * Rate limiting is surfaced honestly: the user is told how many attempts remain BEFORE the
  * lockout, and the lockout screen offers a route forward rather than being a dead end. The
@@ -27,6 +28,7 @@ export class Login {
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
+  private readonly tenantService = inject(TenantService);
 
   public readonly busy = signal(false);
   public readonly showPassword = signal(false);
@@ -94,8 +96,14 @@ export class Login {
         this.router.navigate([ROLE_HOME[role]]);
         return;
       }
-      // Authenticated with Appwrite, but no admin/operator label — don't leave a
-      // dangling session behind what looks like a failed login.
+      const destination = await this.labellessDestination();
+      if (destination) {
+        this.failedAttempts.set(0);
+        this.router.navigate([destination]);
+        return;
+      }
+      // Authenticated with Appwrite, but no usable role — don't leave a dangling session
+      // behind what looks like a failed login.
       await this.authService.logout();
       this.onFailedAttempt();
     } catch {
@@ -103,6 +111,26 @@ export class Login {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  /**
+   * No platform Label: an Organizer-tier Membership goes to /company (its guards pick the
+   * pending shell or the dashboard); an Account with no Membership at all is a self-signup
+   * abandoned after step 1, so it resumes the wizard. A revoked or Operator-only Membership,
+   * or a failed lookup, gets no destination.
+   */
+  private async labellessDestination(): Promise<string | null> {
+    let context;
+    try {
+      context = await this.tenantService.load(true);
+    } catch {
+      return null;
+    }
+    if (context === null) {
+      return '/auth/signup';
+    }
+    const { status, role } = context.membership;
+    return status === 'active' && role !== 'operator' ? '/company' : null;
   }
 
   private onFailedAttempt(): void {

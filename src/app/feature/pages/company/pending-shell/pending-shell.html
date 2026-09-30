@@ -1,0 +1,31 @@
+<main class="pending-shell">
+  <section class="pending-card glass" aria-labelledby="pending-title">
+    <img
+      class="pending-logo"
+      ngSrc="assets/images/Givio-logo.png"
+      width="183"
+      height="51"
+      alt="Givio"
+      priority
+    />
+
+    <h1 id="pending-title" class="t-page-title" tabindex="-1" #heading>{{ copy().title }}</h1>
+    @if (tenant(); as t) {
+    <p class="pending-company t-body-em">{{ t.name }}</p>
+    }
+    <p class="t-secondary">{{ copy().body }}</p>
+
+    @if (copy().showSubmitted && tenant(); as t) {
+    <p class="t-caption">Submitted {{ t.createdAt | date: 'mediumDate' }}</p>
+    }
+
+    <p class="pending-checked t-caption" role="status">{{ checkedMessage() }}</p>
+
+    <footer class="pending-actions">
+      <button type="button" class="btn btn-primary" [disabled]="checking()" (click)="checkAgain()">
+        {{ checking() ? 'Checking…' : 'Check status again' }}
+      </button>
+      <button type="button" class="btn btn-secondary" (click)="signOut()">Sign out</button>
+    </footer>
+  </section>
+</main>

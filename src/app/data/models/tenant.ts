@@ -1,6 +1,28 @@
 export type TenantStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 
-/** Mirrors the `tenants` table row shape exactly (Story 6.2). */
+// Keep in sync with functions/set-role-and-permissions/src/tenant-membership.js's
+// TENANT_SIZES/TENANT_TYPES — the Function validates against its own copy.
+export const TENANT_SIZES = ['1-10', '11-50', '51-200', '201+'] as const;
+export const TENANT_TYPES = ['funeral', 'wedding', 'funeral_and_wedding', 'other'] as const;
+
+export type TenantSize = (typeof TENANT_SIZES)[number];
+export type TenantType = (typeof TENANT_TYPES)[number];
+
+export const TENANT_SIZE_LABELS: Record<TenantSize, string> = {
+  '1-10': '1–10 people',
+  '11-50': '11–50 people',
+  '51-200': '51–200 people',
+  '201+': 'More than 200 people',
+};
+
+export const TENANT_TYPE_LABELS: Record<TenantType, string> = {
+  funeral: 'Funeral services',
+  wedding: 'Wedding services',
+  funeral_and_wedding: 'Funerals and weddings',
+  other: 'Other events',
+};
+
+/** Mirrors the `tenants` table row shape exactly (Story 6.2; verificationDocumentId, 6.4). */
 export interface Tenant {
   id: string;
   name: string;
@@ -10,7 +32,17 @@ export interface Tenant {
   estimatedUserCount: number;
   status: TenantStatus;
   superOrganizerId: string;
+  verificationDocumentId?: string;
   verifiedBy?: string;
   verifiedAt?: string;
   createdAt: string;
+}
+
+/** The self-signup wizard's step-1 intake (FR-7) — the Function sets every other Tenant field. */
+export interface CompanyIntake {
+  name: string;
+  location: string;
+  size: TenantSize;
+  type: TenantType;
+  estimatedUserCount: number;
 }

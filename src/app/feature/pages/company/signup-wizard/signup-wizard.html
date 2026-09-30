@@ -1,0 +1,300 @@
+<main class="signup">
+  <section class="signup-panel" aria-labelledby="signup-title">
+    <header class="signup-head">
+      <a routerLink="/login" class="signup-back-link">Back to sign in</a>
+      <h1 id="signup-title" class="t-page-title">Register your company</h1>
+      <p class="t-secondary">
+        Givio reviews every company before it can record donations for families.
+      </p>
+    </header>
+
+    <nav aria-label="Signup progress">
+      <p class="t-caption signup-step-count">Step {{ step() }} of 3</p>
+      <app-progress [value]="step()" [max]="3" />
+      <ol class="signup-steps">
+        <li [attr.aria-current]="step() === 1 ? 'step' : null" [class.is-done]="step() > 1">
+          Company
+        </li>
+        <li [attr.aria-current]="step() === 2 ? 'step' : null" [class.is-done]="step() > 2">
+          Document
+        </li>
+        <li [attr.aria-current]="step() === 3 ? 'step' : null">Confirm</li>
+      </ol>
+    </nav>
+
+    <article class="signup-card glass">
+      <h2 class="t-card-title" tabindex="-1" #stepHeading>{{ stepTitle() }}</h2>
+
+      @switch (step()) { @case (1) {
+      <form
+        class="signup-form"
+        novalidate
+        (submit)="$event.preventDefault(); continueFromCompany()"
+      >
+        @if (accountError(); as err) {
+        <p class="signup-error" role="alert">
+          {{ err }} @if (accountEmailTaken()) {
+          <a routerLink="/login">Go to sign in</a>
+          }
+        </p>
+        }
+
+        <fieldset class="signup-fieldset" [formGroup]="companyForm">
+          <legend class="field-legend">Company details</legend>
+          <div class="field">
+            <label class="field-label" for="companyName">Company name</label>
+            <input
+              id="companyName"
+              class="input"
+              type="text"
+              formControlName="name"
+              autocomplete="organization"
+              [class.is-invalid]="invalid('company', 'name')"
+              [attr.aria-invalid]="invalid('company', 'name')"
+              [attr.aria-describedby]="invalid('company', 'name') ? 'companyName-error' : null"
+            />
+            @if (invalid('company', 'name')) {
+            <p id="companyName-error" class="field-error">Enter your company's name.</p>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="companyLocation">Location</label>
+            <input
+              id="companyLocation"
+              class="input"
+              type="text"
+              formControlName="location"
+              placeholder="City or region"
+              autocomplete="address-level2"
+              [class.is-invalid]="invalid('company', 'location')"
+              [attr.aria-invalid]="invalid('company', 'location')"
+              [attr.aria-describedby]="invalid('company', 'location') ? 'companyLocation-error' : null"
+            />
+            @if (invalid('company', 'location')) {
+            <p id="companyLocation-error" class="field-error">Enter where your company is based.</p>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="companySize">Company size</label>
+            <select
+              id="companySize"
+              class="input"
+              formControlName="size"
+              [class.is-invalid]="invalid('company', 'size')"
+              [attr.aria-invalid]="invalid('company', 'size')"
+              [attr.aria-describedby]="invalid('company', 'size') ? 'companySize-error' : null"
+            >
+              <option value="" disabled>Choose a size</option>
+              @for (opt of sizeOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+            @if (invalid('company', 'size')) {
+            <p id="companySize-error" class="field-error">Choose your company's size.</p>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="companyUsers">Estimated number of Givio users</label>
+            <input
+              id="companyUsers"
+              class="input"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              formControlName="estimatedUserCount"
+              [class.is-invalid]="invalid('company', 'estimatedUserCount')"
+              [attr.aria-invalid]="invalid('company', 'estimatedUserCount')"
+              [attr.aria-describedby]="invalid('company', 'estimatedUserCount') ? 'companyUsers-hint companyUsers-error' : 'companyUsers-hint'"
+            />
+            <p id="companyUsers-hint" class="field-hint">
+              Everyone who will sign in: organizers and door staff.
+            </p>
+            @if (invalid('company', 'estimatedUserCount')) {
+            <p id="companyUsers-error" class="field-error">Enter a whole number of 1 or more.</p>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="companyType">Company type</label>
+            <select
+              id="companyType"
+              class="input"
+              formControlName="type"
+              [class.is-invalid]="invalid('company', 'type')"
+              [attr.aria-invalid]="invalid('company', 'type')"
+              [attr.aria-describedby]="invalid('company', 'type') ? 'companyType-error' : null"
+            >
+              <option value="" disabled>Choose a type</option>
+              @for (opt of typeOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+            @if (invalid('company', 'type')) {
+            <p id="companyType-error" class="field-error">Choose what kind of events you run.</p>
+            }
+          </div>
+        </fieldset>
+
+        @if (hasAccount()) {
+        <p class="t-caption">Signed in as {{ accountEmail() }}.</p>
+        } @else {
+        <fieldset class="signup-fieldset" [formGroup]="accountForm">
+          <legend class="field-legend">Your sign-in</legend>
+          <div class="field">
+            <label class="field-label" for="applicantName">Your full name</label>
+            <input
+              id="applicantName"
+              class="input"
+              type="text"
+              formControlName="fullName"
+              autocomplete="name"
+              [class.is-invalid]="invalid('account', 'fullName')"
+              [attr.aria-invalid]="invalid('account', 'fullName')"
+              [attr.aria-describedby]="invalid('account', 'fullName') ? 'applicantName-error' : null"
+            />
+            @if (invalid('account', 'fullName')) {
+            <p id="applicantName-error" class="field-error">Enter your full name.</p>
+            }
+          </div>
+          <div class="field">
+            <label class="field-label" for="applicantEmail">Email address</label>
+            <input
+              id="applicantEmail"
+              class="input"
+              type="email"
+              formControlName="email"
+              autocomplete="email"
+              [class.is-invalid]="invalid('account', 'email')"
+              [attr.aria-invalid]="invalid('account', 'email')"
+              [attr.aria-describedby]="invalid('account', 'email') ? 'applicantEmail-error' : null"
+            />
+            @if (invalid('account', 'email')) {
+            <p id="applicantEmail-error" class="field-error">Enter a valid email address.</p>
+            }
+          </div>
+          <div class="field">
+            <label class="field-label" for="applicantPassword">Password</label>
+            <input
+              id="applicantPassword"
+              class="input"
+              type="password"
+              formControlName="password"
+              autocomplete="new-password"
+              [class.is-invalid]="invalid('account', 'password')"
+              [attr.aria-invalid]="invalid('account', 'password')"
+              aria-describedby="applicantPassword-hint"
+            />
+            <p
+              id="applicantPassword-hint"
+              class="field-hint"
+              [class.field-error]="invalid('account', 'password')"
+            >
+              At least 8 characters.
+            </p>
+          </div>
+        </fieldset>
+        }
+
+        <footer class="signup-actions">
+          <button type="submit" class="btn btn-primary" [disabled]="busy()">
+            {{ busy() ? 'Creating your account…' : 'Continue' }}
+          </button>
+        </footer>
+      </form>
+      } @case (2) {
+      <form
+        class="signup-form"
+        novalidate
+        (submit)="$event.preventDefault(); continueFromDocument()"
+      >
+        <p class="t-secondary">
+          Upload your business registration certificate or a government-issued ID. Only Givio admins
+          can see it.
+        </p>
+
+        @if (uploadedFileName(); as name) {
+        <p class="t-caption" role="status">Uploaded: {{ name }}</p>
+        }
+
+        <div class="field">
+          <label class="field-label" for="verificationDocument">
+            Document (PDF, JPG or PNG, up to 10 MB)
+          </label>
+          <input
+            id="verificationDocument"
+            class="input input-file"
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+            #fileInput
+            (change)="onFileSelected($event)"
+            [attr.aria-invalid]="!!documentError()"
+            [attr.aria-describedby]="documentError() ? 'verificationDocument-error' : null"
+          />
+          @if (documentError(); as err) {
+          <p id="verificationDocument-error" class="field-error" role="alert">{{ err }}</p>
+          }
+        </div>
+
+        <footer class="signup-actions">
+          <button type="button" class="btn btn-secondary" (click)="back()" [disabled]="busy()">
+            Back
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="busy()">
+            {{ busy() ? 'Uploading…' : 'Continue' }}
+          </button>
+        </footer>
+      </form>
+      } @case (3) {
+      <div class="signup-form">
+        <dl class="signup-summary">
+          <div>
+            <dt>Company name</dt>
+            <dd>{{ companyForm.controls.name.value }}</dd>
+          </div>
+          <div>
+            <dt>Location</dt>
+            <dd>{{ companyForm.controls.location.value }}</dd>
+          </div>
+          <div>
+            <dt>Company size</dt>
+            <dd>{{ sizeLabel() }}</dd>
+          </div>
+          <div>
+            <dt>Estimated users</dt>
+            <dd>{{ companyForm.controls.estimatedUserCount.value }}</dd>
+          </div>
+          <div>
+            <dt>Company type</dt>
+            <dd>{{ typeLabel() }}</dd>
+          </div>
+          <div>
+            <dt>Document</dt>
+            <dd>{{ uploadedFileName() }}</dd>
+          </div>
+        </dl>
+
+        <p class="t-secondary">
+          What happens next: a Givio admin reviews your details and document, then calls you to
+          verify them. Until then you can sign in and check your application's status.
+        </p>
+
+        @if (submitError(); as err) {
+        <p class="signup-error" role="alert">{{ err }}</p>
+        }
+
+        <footer class="signup-actions">
+          <button type="button" class="btn btn-secondary" (click)="back()" [disabled]="busy()">
+            Back
+          </button>
+          <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="busy()">
+            {{ busy() ? 'Submitting…' : 'Submit application' }}
+          </button>
+        </footer>
+      </div>
+      } }
+    </article>
+  </section>
+</main>

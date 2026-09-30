@@ -1,5 +1,12 @@
 import { Client, Account, TablesDB, Permission, Role } from 'node-appwrite';
-import { buildClient, verifyCaller, VALID, invalid, hasValue } from './shared.js';
+import {
+  buildClient,
+  verifyCaller,
+  VALID,
+  invalid,
+  hasValue,
+  rejectUnapprovedTenantMember,
+} from './shared.js';
 
 const ACTIONS = ['recordDonation'];
 const DONATION_TYPES = ['cash', 'mobile_money', 'in_kind'];
@@ -239,6 +246,17 @@ export async function handleDonationRecordingRequest({
   }
 
   const adminClient = buildClient(ClientCtor, endpoint, projectId).setKey(dynamicKey);
+
+  const tenantRejection = await rejectUnapprovedTenantMember({
+    DatabasesCtor: TablesDBCtor,
+    adminClient,
+    databaseId,
+    caller,
+    error,
+  });
+  if (tenantRejection) {
+    return res.json(tenantRejection.body, tenantRejection.status);
+  }
 
   let result;
   switch (action) {
