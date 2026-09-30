@@ -9,6 +9,17 @@
     <a class="btn btn-secondary" routerLink="/family">Enter a code</a>
   </div>
 </main>
+} @else if (retrying()) {
+<main class="family">
+  <div class="family-empty glass" role="status">
+    <mat-icon class="family-empty-icon" aria-hidden="true">cloud_off</mat-icon>
+    <h1 class="t-card-title">We couldn't load the giving just yet</h1>
+    <p class="t-caption">
+      The connection may be slow. We'll keep trying — this page will update by itself.
+    </p>
+    <button type="button" class="btn btn-secondary" (click)="refresh()">Try again now</button>
+  </div>
+</main>
 } @else if (promptOpen()) {
 <!-- Painted in place of the total, not over it: nothing about the giving reaches the screen
      until the viewer has said whose phone this is. -->

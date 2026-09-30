@@ -264,3 +264,94 @@ describe('FamilyLive — code regenerated mid-session (FR-16 leak recovery)', ()
     expect(component.donations().length).toBe(1);
   });
 });
+
+describe('FamilyLive — first load fails for a reason other than the code', () => {
+  afterEach(() => vi.useRealTimers());
+
+  const serverError = () =>
+    new ServiceError(
+      'Failed to load donations, try again',
+      '{"error":"Failed to load donations, try again"}',
+    );
+
+  it('shows a retrying notice, not "That code did not work", and keeps polling', async () => {
+    const resolveByCode = vi.fn().mockRejectedValue(serverError());
+    const { fixture, component, el, dialog } = await setup(resolveByCode);
+    fixture.detectChanges();
+
+    expect(component.notFound()).toBe(false);
+    expect(component.retrying()).toBe(true);
+    expect(el.textContent).not.toContain('That code did not work');
+    expect(el.querySelector('[role="status"]')?.textContent).toContain(
+      "We couldn't load the giving just yet",
+    );
+    expect(dialog()).toBeNull();
+  });
+
+  it('turns into the device prompt, then the summary, once a load succeeds', async () => {
+    const resolveByCode = vi.fn().mockRejectedValueOnce(new Error('offline'));
+    const { fixture, component, dialog, button, total } = await setup(resolveByCode);
+    expect(component.retrying()).toBe(true);
+
+    resolveByCode.mockResolvedValue(result());
+    await component.refresh();
+    fixture.detectChanges();
+
+    expect(component.retrying()).toBe(false);
+    expect(dialog()?.textContent).toContain('Is this your personal phone?');
+
+    button(/Yes, my personal phone/)!.click();
+    fixture.detectChanges();
+    expect(total()?.textContent).toContain('50');
+  });
+
+  it('moves focus to the event heading when the summary replaces the notice on a personal phone', async () => {
+    const resolveByCode = vi.fn().mockRejectedValueOnce(serverError());
+    const { fixture, el, button } = await setup(resolveByCode, () =>
+      TestBed.inject(FamilyAccessService).markPersonalDevice(CODE),
+    );
+    button(/Try again now/)!.focus();
+
+    resolveByCode.mockResolvedValue(result());
+    button(/Try again now/)!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(el.querySelector('.family-total')).not.toBeNull();
+    expect(document.activeElement).toBe(el.querySelector('h1.family-title'));
+  });
+
+  it('ends on "That code did not work" if a retry is then rejected', async () => {
+    const resolveByCode = vi.fn().mockRejectedValueOnce(serverError());
+    const { fixture, component, el } = await setup(resolveByCode);
+
+    resolveByCode.mockRejectedValue(new FamilyCodeRejectedError('{"error":"Code not recognised"}'));
+    await component.refresh();
+    fixture.detectChanges();
+
+    expect(component.retrying()).toBe(false);
+    expect(component.notFound()).toBe(true);
+    expect(el.textContent).toContain('That code did not work');
+  });
+});
+
+describe('FamilyLive — first load rejects the code', () => {
+  it('shows "That code did not work" and never polls', async () => {
+    vi.useFakeTimers();
+    const resolveByCode = vi
+      .fn()
+      .mockRejectedValue(new FamilyCodeRejectedError('{"error":"Code not recognised"}'));
+    const { fixture, component, el } = await setup(resolveByCode);
+    fixture.detectChanges();
+
+    expect(component.notFound()).toBe(true);
+    expect(component.retrying()).toBe(false);
+    expect(el.textContent).toContain('That code did not work');
+
+    resolveByCode.mockClear();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(resolveByCode).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+});
