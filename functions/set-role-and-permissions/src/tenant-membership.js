@@ -31,6 +31,7 @@ const ACTIONS = [
   'addTeamMember',
   'inviteOrganizer',
   'submitTenantApplication',
+  'recordTenantVerification',
 ];
 
 // Story 6.4: the one action here a non-Admin reaches — the applicant's own brand-new Account
@@ -131,6 +132,15 @@ const PAYLOAD_VALIDATORS = {
       return invalid('email must be a valid email address');
     }
     return validateCompanyIntake(company);
+  },
+  recordTenantVerification: ({ tenantId, documentReviewed, phoneVerified }) => {
+    if (!hasValue(tenantId)) {
+      return invalid('Request must include tenantId');
+    }
+    if (documentReviewed !== true || phoneVerified !== true) {
+      return invalid('Verification needs both the document review and the phone call confirmed');
+    }
+    return VALID;
   },
   submitTenantApplication: (payload) => {
     const smuggled = SERVER_OWNED_TENANT_FIELDS.filter(
@@ -785,6 +795,84 @@ async function handleSubmitTenantApplication({
   };
 }
 
+function isTenantVerificationRecorded(tenant) {
+  return hasValue(tenant?.verifiedBy) && hasValue(tenant?.verifiedAt);
+}
+
+/**
+ * Story 6.5 (FR-8): Admin attests that they reviewed the verification document AND completed
+ * the phone call — both in one act, so verifiedBy/verifiedAt only ever mean "both checks done".
+ * The first attestation stands: a repeat call returns the existing record rather than
+ * re-attributing it to whoever clicked last.
+ */
+async function handleRecordTenantVerification({
+  DatabasesCtor,
+  StorageCtor,
+  adminClient,
+  payload,
+  caller,
+  databaseId,
+  tenantsCollectionId,
+  documentsBucketId,
+  error,
+}) {
+  const { tenantId } = payload;
+  const databases = new DatabasesCtor(adminClient);
+
+  let tenant;
+  try {
+    tenant = await databases.getRow({ databaseId, tableId: tenantsCollectionId, rowId: tenantId });
+  } catch (err) {
+    error(`recordTenantVerification: tenant ${tenantId} not found: ${err.message}`);
+    return { status: 404, body: { error: 'Tenant not found' } };
+  }
+
+  if (tenant.status !== 'pending') {
+    return { status: 409, body: { error: `Tenant is already ${tenant.status}` } };
+  }
+  if (isTenantVerificationRecorded(tenant)) {
+    return {
+      status: 200,
+      body: {
+        success: true,
+        tenantId,
+        verifiedBy: tenant.verifiedBy,
+        verifiedAt: tenant.verifiedAt,
+      },
+    };
+  }
+  if (!isTenantIntakeComplete(tenant)) {
+    return { status: 409, body: { error: 'Tenant intake is incomplete' } };
+  }
+
+  try {
+    await new StorageCtor(adminClient).getFile({
+      bucketId: documentsBucketId,
+      fileId: tenant.verificationDocumentId,
+    });
+  } catch (err) {
+    error(
+      `recordTenantVerification: document ${tenant.verificationDocumentId} not found: ${err.message}`,
+    );
+    return { status: 409, body: { error: 'The verification document could not be found' } };
+  }
+
+  const verifiedAt = new Date().toISOString();
+  try {
+    await databases.updateRow({
+      databaseId,
+      tableId: tenantsCollectionId,
+      rowId: tenantId,
+      data: { verifiedBy: caller.$id, verifiedAt },
+    });
+  } catch (err) {
+    error(`recordTenantVerification: updateRow failed: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to record the verification' } };
+  }
+
+  return { status: 200, body: { success: true, tenantId, verifiedBy: caller.$id, verifiedAt } };
+}
+
 async function handleRevokeMembership({
   DatabasesCtor,
   adminClient,
@@ -881,6 +969,14 @@ async function handleSetTenantStatus({
   }
   if (status === 'approved' && !isTenantIntakeComplete(tenant)) {
     return { status: 409, body: { error: 'Tenant intake is incomplete' } };
+  }
+  // Story 6.5 (FR-8): the server, not the disabled button, is what makes approval impossible
+  // before recordTenantVerification has stamped who verified the application and when.
+  if (status === 'approved' && !isTenantVerificationRecorded(tenant)) {
+    return {
+      status: 409,
+      body: { error: 'Record the document review and phone verification before approving' },
+    };
   }
 
   if (!isSweepRetry) {
@@ -1003,7 +1099,10 @@ export async function handleTenantMembershipRequest({
     );
     return res.json({ error: 'Server misconfiguration: missing database/collection ID' }, 500);
   }
-  if (action === 'submitTenantApplication' && !hasValue(documentsBucketId)) {
+  if (
+    (action === 'submitTenantApplication' || action === 'recordTenantVerification') &&
+    !hasValue(documentsBucketId)
+  ) {
     error('Missing APPWRITE_TENANT_DOCUMENTS_BUCKET_ID function variable.');
     return res.json({ error: 'Server misconfiguration: missing document bucket ID' }, 500);
   }
@@ -1044,6 +1143,9 @@ export async function handleTenantMembershipRequest({
       break;
     case 'submitTenantApplication':
       result = await handleSubmitTenantApplication(actionContext);
+      break;
+    case 'recordTenantVerification':
+      result = await handleRecordTenantVerification(actionContext);
       break;
   }
   result = await grantTenantReadAfterMembershipWrite({ action, result, ...actionContext });

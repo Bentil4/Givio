@@ -60,6 +60,7 @@ export class AdminLayout {
 
   public readonly navItems = computed<INavbarItem[]>(() => [
     { name: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
+    { name: 'Approvals', icon: 'how_to_reg', route: '/dashboard/approvals' },
     { name: 'Events', icon: 'event', route: '/dashboard/events' },
     { name: 'Donations', icon: 'volunteer_activism', route: '/dashboard/donations' },
     { name: 'Reports', icon: 'bar_chart', route: '/dashboard/reports' },
