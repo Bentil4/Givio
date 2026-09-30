@@ -6,6 +6,19 @@ interface FunctionErrorBody {
   error?: string;
 }
 
+/** The Function ran and answered with a non-2xx status — kept so callers can tell a
+ *  definitive rejection (4xx) from a transient server failure (5xx). */
+export class FunctionRejectedError extends ServiceError {
+  constructor(
+    message: string,
+    cause: unknown,
+    public readonly status: number,
+  ) {
+    super(message, cause);
+    this.name = 'FunctionRejectedError';
+  }
+}
+
 /**
  * Calls the one trusted Appwrite Function (AD-9) that writes user Labels and, per Story 2.3,
  * Event.assignedUserIds + the Appwrite permissions derived from it (AD-2). Shared by every
@@ -34,7 +47,7 @@ export async function invokeAdminFunction<T>(
     const message =
       (parsedBody as FunctionErrorBody | undefined)?.error ??
       `Function rejected the request (status ${execution.responseStatusCode})`;
-    throw new ServiceError(message, execution.responseBody);
+    throw new FunctionRejectedError(message, execution.responseBody, execution.responseStatusCode);
   }
 
   return parsedBody as T;

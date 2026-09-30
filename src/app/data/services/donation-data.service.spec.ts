@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { DonationDataService } from './donation-data.service';
+import { AppwriteException } from 'appwrite';
 import { ServiceError } from '../../core/services/service-error';
 import { AuthService } from './auth.service';
 import { DATABASES, FUNCTIONS, REALTIME } from '../../core/appwrite/client';
@@ -289,11 +290,32 @@ describe('DonationDataService', () => {
       expect((await appDb.donations.get(donation.id))?.syncStatus).toBe('pending');
     });
 
-    it('still resolves with the created Donation when the Function rejects the request', async () => {
+    it("rejects with the server's reason and keeps nothing locally when the Function definitively rejects it inline", async () => {
       await appDb.events.put(makeEvent());
       functions.createExecution.mockResolvedValueOnce({
         responseStatusCode: 403,
         responseBody: JSON.stringify({ error: 'You are not assigned to this event' }),
+      });
+
+      await expect(
+        service.createDonation({
+          localId: 'l1',
+          eventId: 'e1',
+          donorName: 'Ama',
+          amountMinor: 5000,
+          donationType: 'cash',
+        }),
+      ).rejects.toThrow('You are not assigned to this event');
+
+      expect(await appDb.outbox.count()).toBe(0);
+      expect(await appDb.donations.count()).toBe(0);
+    });
+
+    it('keeps the create queued as pending when the Function answers with a 5xx', async () => {
+      await appDb.events.put(makeEvent());
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 502,
+        responseBody: JSON.stringify({ error: 'Failed to save donation' }),
       });
 
       const donation = await service.createDonation({
@@ -304,8 +326,8 @@ describe('DonationDataService', () => {
         donationType: 'cash',
       });
 
-      expect(donation.id).toBeTruthy();
       expect((await appDb.donations.get(donation.id))?.syncStatus).toBe('pending');
+      expect((await appDb.outbox.toArray())[0].status).toBe('pending');
     });
 
     it('marks the local record synced and clears the outbox entry once the Function succeeds', async () => {
@@ -537,6 +559,21 @@ describe('DonationDataService', () => {
       );
     });
 
+    it('reverts the local row and rejects with the reason when updateRow is definitively refused', async () => {
+      await seed();
+      databases.updateRow.mockRejectedValueOnce(
+        new AppwriteException('Invalid document structure: Unknown attribute: "updatedAt"', 400),
+      );
+
+      await expect(
+        service.updateDonation('d1', { donorName: 'Ama Serwaa' }, 'Spelling fix'),
+      ).rejects.toThrow('Unknown attribute');
+
+      expect((await appDb.donations.get('d1'))?.donorName).toBe('Ama');
+      expect((await appDb.donations.get('d1'))?.syncStatus).toBe('synced');
+      expect(await appDb.outbox.count()).toBe(0);
+    });
+
     it('still resolves with the local update when updateRow rejects (offline), and skips the audit log', async () => {
       await seed();
       databases.updateRow.mockRejectedValueOnce(new Error('offline'));
@@ -630,6 +667,55 @@ describe('DonationDataService', () => {
       expect(updated.syncStatus).toBe('pending');
       const pending = (await appDb.outbox.toArray()).filter((e) => e.entityId === 'd1');
       expect(pending).toHaveLength(1);
+    });
+  });
+
+  describe('dismissRejected', () => {
+    const donation = {
+      id: 'd1',
+      eventId: 'e1',
+      receiptNumber: 'WEDE1-P1',
+      donorName: 'Ama',
+      amountMinor: 5000,
+      donationType: 'cash' as const,
+      recordedBy: 'op-1',
+      recordedAt: '2026-01-01T00:00:00.000Z',
+      syncStatus: 'failed' as const,
+    };
+    const addEntry = (status: 'pending' | 'failed') =>
+      appDb.outbox.add({
+        entityType: 'donation',
+        entityId: 'd1',
+        op: 'create',
+        payload: donation,
+        status,
+        lastError: status === 'failed' ? 'You are not assigned to this event' : undefined,
+        retries: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      });
+
+    it('removes the rejected outbox entry and its local donation, and audits the discard', async () => {
+      await appDb.donations.put(donation);
+      const localId = await addEntry('failed');
+
+      await service.dismissRejected(localId);
+
+      expect(await appDb.outbox.get(localId)).toBeUndefined();
+      expect(await appDb.donations.get('d1')).toBeUndefined();
+      expect(databases.createRow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ entityType: 'donation', action: 'delete' }),
+        }),
+      );
+    });
+
+    it('refuses to dismiss an entry that is still pending', async () => {
+      await appDb.donations.put({ ...donation, syncStatus: 'pending' });
+      const localId = await addEntry('pending');
+
+      await expect(service.dismissRejected(localId)).rejects.toBeInstanceOf(ServiceError);
+      expect(await appDb.outbox.get(localId)).toBeDefined();
+      expect(await appDb.donations.get('d1')).toBeDefined();
     });
   });
 
@@ -751,6 +837,126 @@ describe('DonationDataService', () => {
       expect(databases.createRow).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ action: 'create' }) }),
       );
+    });
+
+    const createEntry = async () => {
+      // A fresh copy: a successful sync mutates its payload in place.
+      const queued = { ...donation, receiptNumber: 'P-1', syncStatus: 'pending' as const };
+      await appDb.donations.put(queued);
+      const entry = {
+        entityType: 'donation' as const,
+        entityId: 'd1',
+        op: 'create' as const,
+        payload: { ...queued },
+        status: 'pending' as const,
+        retries: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      };
+      const localId = await appDb.outbox.add(entry);
+      return { ...entry, localId };
+    };
+
+    const respond = (status: number, error = 'Server said no') =>
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: status,
+        responseBody: JSON.stringify({ error }),
+      });
+
+    it.each([400, 403, 404, 409, 422])(
+      'marks a create terminally failed with the reason on a definitive %i',
+      async (status) => {
+        const entry = await createEntry();
+        respond(status, `Rejected with ${status}`);
+
+        const outcome = await service.retryOutboxEntry(entry);
+
+        expect(outcome).toBe('failed');
+        const stored = await appDb.outbox.get(entry.localId);
+        expect(stored?.status).toBe('failed');
+        expect(stored?.lastError).toBe(`Rejected with ${status}`);
+        expect((await appDb.donations.get('d1'))?.syncStatus).toBe('failed');
+        expect(databases.createRow).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([401, 408, 429, 500, 502, 503])(
+      'keeps a create pending for retry on a transient %i',
+      async (status) => {
+        const entry = await createEntry();
+        respond(status);
+
+        const outcome = await service.retryOutboxEntry(entry);
+
+        expect(outcome).toBe('pending');
+        expect((await appDb.outbox.get(entry.localId))?.status).toBe('pending');
+        expect((await appDb.donations.get('d1'))?.syncStatus).toBe('pending');
+      },
+    );
+
+    it('keeps a create pending when the Function cannot be reached at all', async () => {
+      const entry = await createEntry();
+      functions.createExecution.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+      expect(await service.retryOutboxEntry(entry)).toBe('pending');
+      expect((await appDb.outbox.get(entry.localId))?.status).toBe('pending');
+    });
+
+    it('marks an update terminally failed on a definitive Appwrite 404', async () => {
+      await appDb.donations.put(donation);
+      databases.getRow.mockRejectedValueOnce(
+        new AppwriteException('Row with the requested ID could not be found.', 404),
+      );
+      const entry = {
+        entityType: 'donation' as const,
+        entityId: 'd1',
+        op: 'update' as const,
+        payload: { ...donation, donorName: 'Ama Serwaa' },
+        status: 'pending' as const,
+        retries: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      };
+      const localId = await appDb.outbox.add(entry);
+
+      const outcome = await service.retryOutboxEntry({ ...entry, localId });
+
+      expect(outcome).toBe('failed');
+      expect((await appDb.outbox.get(localId))?.status).toBe('failed');
+      expect((await appDb.donations.get('d1'))?.syncStatus).toBe('failed');
+    });
+
+    it('keeps an update pending on a transient Appwrite 503', async () => {
+      await appDb.donations.put(donation);
+      databases.getRow.mockRejectedValueOnce(new AppwriteException('Service unavailable', 503));
+      const entry = {
+        entityType: 'donation' as const,
+        entityId: 'd1',
+        op: 'update' as const,
+        payload: { ...donation },
+        status: 'pending' as const,
+        retries: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      };
+      const localId = await appDb.outbox.add(entry);
+
+      expect(await service.retryOutboxEntry({ ...entry, localId })).toBe('pending');
+      expect((await appDb.outbox.get(localId))?.status).toBe('pending');
+    });
+
+    it("does not attempt an update while that donation's own create is still queued", async () => {
+      await createEntry();
+      const entry = {
+        entityType: 'donation' as const,
+        entityId: 'd1',
+        op: 'update' as const,
+        payload: { ...donation, donorName: 'Ama Serwaa' },
+        status: 'pending' as const,
+        retries: 0,
+        createdAt: '2026-01-01T00:00:01.000Z',
+      };
+      const localId = await appDb.outbox.add(entry);
+
+      expect(await service.retryOutboxEntry({ ...entry, localId })).toBe('pending');
+      expect(databases.getRow).not.toHaveBeenCalled();
     });
 
     it('retries an update entry via the same conflict-aware path, without an audit log', async () => {

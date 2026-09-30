@@ -433,12 +433,13 @@ async function handleUpdateUser({ UsersCtor, adminClient, payload, error }) {
 }
 
 /**
- * Suspending an Admin also revokes every live session in the same request (FR-26: "immediately
- * loses" approval/suspension authority and audit visibility) rather than relying on the client
- * to follow up with forceExpireSessions. The account itself is never deleted, so every audit
- * entry it ever authored stays attributed to it (FR-13).
+ * Deactivating any user also revokes every live session in the same request: a blocked
+ * account's existing JWTs die with the sessions they were minted from, so a suspended Admin
+ * (FR-26) or Operator "immediately loses" access rather than relying on the client to follow
+ * up with forceExpireSessions. The account itself is never deleted, so every audit entry it
+ * ever authored stays attributed to it (FR-13).
  */
-async function handleSetStatus({ UsersCtor, adminClient, payload, target, error }) {
+async function handleSetStatus({ UsersCtor, adminClient, payload, error }) {
   const { userId, active } = payload ?? {};
   const users = new UsersCtor(adminClient);
 
@@ -449,15 +450,15 @@ async function handleSetStatus({ UsersCtor, adminClient, payload, target, error 
     return { status: 502, body: { error: 'Failed to update user status' } };
   }
 
-  if (!active && hasLabel(target, 'admin')) {
+  if (!active) {
     try {
       await users.deleteSessions({ userId });
     } catch (err) {
-      error(`deleteSessions failed after suspending admin ${userId}: ${err.message}`);
+      error(`deleteSessions failed after deactivating ${userId}: ${err.message}`);
       return {
         status: 502,
         body: {
-          error: 'Admin suspended, but revoking their active sessions failed — retry to finish',
+          error: 'User deactivated, but revoking their active sessions failed — retry to finish',
           active: false,
         },
       };

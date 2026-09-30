@@ -89,12 +89,13 @@ export class FamilyLive implements OnInit, OnDestroy {
   public readonly loading = signal(true);
   public readonly connected = signal(true);
   public readonly notFound = signal(false);
+  public readonly retrying = signal(false);
   public readonly lastUpdated = signal<string>('just now');
   public readonly deviceAnswer = signal<DeviceAnswer | null>(null);
   public readonly cleared = signal(false);
 
   public readonly promptOpen = computed(
-    () => !this.loading() && !this.notFound() && this.deviceAnswer() === null,
+    () => !this.loading() && !this.notFound() && !this.retrying() && this.deviceAnswer() === null,
   );
 
   public readonly exportOpen = signal(false);
@@ -170,7 +171,7 @@ export class FamilyLive implements OnInit, OnDestroy {
     this.pollHandle = undefined;
   }
 
-  private async refresh(): Promise<void> {
+  public async refresh(): Promise<void> {
     const code = this.code;
     try {
       const result = await this.familyAccessService.resolveByCode(code);
@@ -179,6 +180,7 @@ export class FamilyLive implements OnInit, OnDestroy {
       this.donations.set(result.donations);
       this.connected.set(true);
       this.lastUpdated.set('just now');
+      if (this.retrying()) this.recoverFromRetry();
     } catch (error) {
       if (this.cleared() || code !== this.code) return;
       // A regenerated code must stop showing the family's data at once, rather than sitting
@@ -187,15 +189,21 @@ export class FamilyLive implements OnInit, OnDestroy {
         this.revoke();
         return;
       }
-      // A network blip shouldn't blank out an already-loaded summary — surface it as
-      // "Reconnecting…" instead, unless this was the very first load, in which case there's
-      // nothing to fall back to.
+      // A network blip or a server fault says nothing about the code: keep polling, over the
+      // last-known summary ("Reconnecting…") or, before the first one, a retrying notice.
       if (this.event() === null) {
-        this.notFound.set(true);
+        this.retrying.set(true);
       } else {
         this.connected.set(false);
       }
     }
+  }
+
+  /** Swapping out the retry notice drops focus from its button; the prompt focuses itself. */
+  private recoverFromRetry(): void {
+    this.retrying.set(false);
+    if (this.deviceAnswer() === null) return;
+    afterNextRender(() => this.familyTitle()?.nativeElement.focus(), { injector: this.injector });
   }
 
   private revoke(): void {
@@ -204,6 +212,7 @@ export class FamilyLive implements OnInit, OnDestroy {
     this.event.set(null);
     this.donations.set([]);
     this.exportOpen.set(false);
+    this.retrying.set(false);
     this.notFound.set(true);
   }
 
