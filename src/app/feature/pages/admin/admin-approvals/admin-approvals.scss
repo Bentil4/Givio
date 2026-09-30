@@ -1,0 +1,56 @@
+@use '../admin-admins/admin-admins.scss';
+
+.tabs {
+  display: flex;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--border-default);
+  overflow-x: auto;
+}
+
+.tab {
+  min-height: 44px;
+  padding: 10px 2px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &.is-active {
+    color: var(--primary-deep);
+    border-bottom-color: var(--primary-deep);
+  }
+
+  &:focus-visible {
+    outline: var(--border-width-focus) solid var(--border-focus);
+    outline-offset: 2px;
+  }
+}
+
+.queue {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.skel-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-white);
+}
+
+.empty {
+  background: var(--bg-white);
+  border: 1px solid var(--border-default);
+}

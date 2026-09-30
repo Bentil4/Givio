@@ -56,8 +56,19 @@ describe('PendingShell', () => {
     expect(el.textContent).toContain('Submitted');
     expect(el.querySelector('nav')).toBeNull();
     expect(el.querySelector('app-sidebar')).toBeNull();
-    expect(el.querySelectorAll('a').length).toBe(0);
+    const links = el.querySelectorAll('a');
+    expect(links.length).toBe(1);
+    expect(links[0].getAttribute('href')).toBe('/company/support');
   });
+
+  for (const status of ['pending', 'rejected', 'suspended'] as const) {
+    it(`links a ${status} tenant to the Contact Admin form`, async () => {
+      const { el } = await render(tenantWith(status));
+
+      const link = el.querySelector<HTMLAnchorElement>('a[href="/company/support"]');
+      expect(link?.textContent?.trim()).toBe('Contact Admin');
+    });
+  }
 
   it('moves focus to the heading on render', async () => {
     const { el } = await render(tenantWith('pending'));

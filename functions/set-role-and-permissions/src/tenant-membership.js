@@ -18,11 +18,11 @@ import {
   VALID,
   invalid,
   hasValue,
-  computeEventPermissions,
   listAllRows,
   isConflictError,
 } from './shared.js';
 import { sendInviteEmail } from './admin-users.js';
+import { recomputeTenantReadGrants } from './tenant-grants.js';
 
 const ACTIONS = [
   'createMembership',
@@ -31,11 +31,28 @@ const ACTIONS = [
   'addTeamMember',
   'inviteOrganizer',
   'submitTenantApplication',
+  'listTeamMembers',
+  'recordTenantVerification',
 ];
 
 // Story 6.4: the one action here a non-Admin reaches — the applicant's own brand-new Account
-// submitting their intake. Every other action stays Admin-gated.
+// submitting their intake.
 const SELF_SERVICE_ACTIONS = new Set(['submitTenantApplication']);
+
+// Story 7.1 (FR-10/FR-11): Admin, or an active Organizer-tier member of an approved Tenant acting
+// on their own Tenant only. Every other action stays Admin-gated.
+const TEAM_ACTIONS = new Set(['addTeamMember', 'revokeMembership', 'listTeamMembers']);
+
+// Which roles each Organizer-tier caller may add or revoke. super_organizer is never a target:
+// a Tenant has exactly one, created by inviteOrganizer/submitTenantApplication.
+const TEAM_MANAGEABLE_ROLES = {
+  super_organizer: ['organizer', 'operator'],
+  organizer: ['operator'],
+};
+const TEAM_MEMBER_ROLES = ['organizer', 'operator'];
+const ORGANIZER_TIER_ROLES = ['super_organizer', 'organizer'];
+// Story 7.2 adds its pending-review status here.
+const LISTED_MEMBERSHIP_STATUSES = ['active'];
 
 // Keep in sync with src/app/data/models/tenant.ts's TENANT_SIZES/TENANT_TYPES — separate
 // deployments with no shared module system, same arrangement as VALID_ROLES in shared.js.
@@ -111,15 +128,24 @@ const PAYLOAD_VALIDATORS = {
     }
     return VALID;
   },
-  addTeamMember: ({ name, email, tenantId, role }) => {
-    if (!hasValue(name) || !hasValue(email) || !hasValue(tenantId)) {
-      return invalid('Request must include name, email, and tenantId');
+  addTeamMember: ({ name, email, tenantId, role }, { isAdmin }) => {
+    if (!hasValue(name) || !hasValue(email)) {
+      return invalid('Request must include name and email');
+    }
+    if (isAdmin && !hasValue(tenantId)) {
+      return invalid('Request must include tenantId');
     }
     if (!isValidEmail(email)) {
       return invalid('email must be a valid email address');
     }
-    if (!MEMBERSHIP_ROLES.includes(role)) {
-      return invalid(`role must be one of: ${MEMBERSHIP_ROLES.join(', ')}`);
+    if (!TEAM_MEMBER_ROLES.includes(role)) {
+      return invalid(`role must be one of: ${TEAM_MEMBER_ROLES.join(', ')}`);
+    }
+    return VALID;
+  },
+  listTeamMembers: ({ tenantId }, { isAdmin }) => {
+    if (isAdmin && !hasValue(tenantId)) {
+      return invalid('Request must include tenantId');
     }
     return VALID;
   },
@@ -131,6 +157,15 @@ const PAYLOAD_VALIDATORS = {
       return invalid('email must be a valid email address');
     }
     return validateCompanyIntake(company);
+  },
+  recordTenantVerification: ({ tenantId, documentReviewed, phoneVerified }) => {
+    if (!hasValue(tenantId)) {
+      return invalid('Request must include tenantId');
+    }
+    if (documentReviewed !== true || phoneVerified !== true) {
+      return invalid('Verification needs both the document review and the phone call confirmed');
+    }
+    return VALID;
   },
   submitTenantApplication: (payload) => {
     const smuggled = SERVER_OWNED_TENANT_FIELDS.filter(
@@ -208,73 +243,194 @@ function companyRowData(company) {
   };
 }
 
-function validatePayload(action, payload) {
+function validatePayload(action, payload, callerContext) {
   const validator = PAYLOAD_VALIDATORS[action];
   if (!validator) {
     return invalid(`action must be one of: ${ACTIONS.join(', ')}`);
   }
-  return validator(payload ?? {});
+  return validator(payload ?? {}, callerContext);
+}
+
+function isAdminCaller(caller) {
+  return (caller.labels ?? []).includes('admin');
 }
 
 /**
- * Retracts the derived Role.user() grant for `userIds` from every Event owned by `tenantId`
- * that currently grants at least one of them — called on both a single Membership revoke
- * (userIds = [that one uid]) and a whole-Tenant suspend/reject (userIds = every currently
- * granted uid across the tenant's Events). assignedUserIds itself is left untouched (AD-2:
- * it stays the record of who was assigned; only the *permission grant* is retracted) — only
- * each affected Event's `permissions` are recomputed to drop the swept uid(s).
+ * Story 7.1: resolves which Tenant a team action applies to and in what capacity. Admin acts on
+ * the payload's tenantId with full access (`callerRole: null`). Anyone else must hold an active
+ * super_organizer/organizer Membership in an approved Tenant — the same FR-9 boundary as
+ * shared.js's rejectUnapprovedTenantMember, except that having no Membership at all is refused
+ * rather than waved through — and the Tenant is always that Membership's, never the client's:
+ * a supplied tenantId that differs is refused. Returns `{ tenantId, callerRole, tenant? }` or
+ * `{ errorResponse }`.
  */
-async function sweepTenantEventPermissions({
+async function resolveTeamScope({
+  DatabasesCtor,
+  adminClient,
+  payload,
+  caller,
+  databaseId,
+  tenantsCollectionId,
+  membershipsCollectionId,
+  error,
+}) {
+  if (isAdminCaller(caller)) {
+    return { tenantId: payload.tenantId, callerRole: null };
+  }
+
+  const forbidden = { errorResponse: { status: 403, body: { error: 'Forbidden' } } };
+  const databases = new DatabasesCtor(adminClient);
+  let membership;
+  let tenant;
+  try {
+    const { rows } = await databases.listRows({
+      databaseId,
+      tableId: membershipsCollectionId,
+      queries: [Query.equal('userId', [caller.$id]), Query.limit(1)],
+    });
+    membership = rows[0];
+    if (
+      !membership ||
+      membership.status !== 'active' ||
+      !ORGANIZER_TIER_ROLES.includes(membership.role)
+    ) {
+      return forbidden;
+    }
+    tenant = await databases.getRow({
+      databaseId,
+      tableId: tenantsCollectionId,
+      rowId: membership.tenantId,
+    });
+  } catch (err) {
+    error(`resolveTeamScope: lookup failed for ${caller.$id}: ${err.message}`);
+    return { errorResponse: { status: 502, body: { error: 'Failed to verify team access' } } };
+  }
+
+  if (tenant.status !== 'approved') {
+    return forbidden;
+  }
+  if (hasValue(payload.tenantId) && payload.tenantId !== membership.tenantId) {
+    return forbidden;
+  }
+  return {
+    tenantId: membership.tenantId,
+    callerRole: membership.role,
+    tenant,
+  };
+}
+
+function canManageRole(callerRole, targetRole) {
+  return callerRole === null || (TEAM_MANAGEABLE_ROLES[callerRole] ?? []).includes(targetRole);
+}
+
+/**
+ * The Tenant row's read grants, derived from data (AD-2's rule, applied to the Tenant row):
+ * Admin plus every active Organizer-tier Membership of that Tenant. Recomputed whenever such a
+ * Membership is added or revoked, so concurrent team changes can't clobber each other's grant.
+ * Operators get none — they work in /organizer and never read the Tenant row.
+ */
+async function syncTenantReadGrants({
   DatabasesCtor,
   adminClient,
   databaseId,
-  eventsCollectionId,
+  tenantsCollectionId,
+  membershipsCollectionId,
   tenantId,
-  userIds,
+}) {
+  const members = await listAllRows({
+    DatabasesCtor,
+    adminClient,
+    databaseId,
+    tableId: membershipsCollectionId,
+    queries: [Query.equal('tenantId', [tenantId]), Query.equal('status', ['active'])],
+  });
+  const readers = [
+    ...new Set(members.filter((m) => ORGANIZER_TIER_ROLES.includes(m.role)).map((m) => m.userId)),
+  ];
+  await new DatabasesCtor(adminClient).updateRow({
+    databaseId,
+    tableId: tenantsCollectionId,
+    rowId: tenantId,
+    data: {},
+    permissions: [
+      Permission.read(Role.label('admin')),
+      ...readers.map((uid) => Permission.read(Role.user(uid))),
+    ],
+  });
+}
+
+/**
+ * Operators still sign in through the Label-gated /organizer tier (Story 6.2's known interim
+ * gap) and event-assignment.js only assigns Accounts carrying the `operator` Label, so an
+ * Operator added here needs it too, and loses it again on revoke.
+ */
+async function setOperatorLabel({ UsersCtor, adminClient, userId, enabled }) {
+  const users = new UsersCtor(adminClient);
+  if (enabled) {
+    await users.updateLabels({ userId, labels: ['operator'] });
+    return;
+  }
+  const account = await users.get({ userId });
+  await users.updateLabels({
+    userId,
+    labels: (account.labels ?? []).filter((label) => label !== 'operator'),
+  });
+}
+
+/**
+ * Membership revoke's hook into AD-2 (name and call signature kept from Story 6.2 so
+ * revokeMembership's call site is unchanged): re-derives read grants on every Event and Donation
+ * the tenant owns, which drops the revoked uid wherever it was granted — as an assigned
+ * Operator or as an organizer-tier member. assignedUserIds itself is left untouched (AD-2: it
+ * stays the record of who was assigned; only the *permission grant* is retracted). `listed`
+ * is false when any row could not be brought in line, not only when the listing failed.
+ */
+async function sweepTenantEventPermissions({ DatabasesCtor, adminClient, tenantId, error }) {
+  const grants = await recomputeTenantReadGrants({ DatabasesCtor, adminClient, tenantId, error });
+  return { listed: grants.ok, grants };
+}
+
+// Every action after which a newly active Membership may be owed AD-2 read grants.
+const MEMBERSHIP_ACTIVATING_ACTIONS = new Set(['createMembership', 'addTeamMember']);
+
+/**
+ * Membership activation's hook into AD-2, run once from the dispatcher after the action's own
+ * handler so the handlers themselves don't change: a new active organizer-tier member of an
+ * approved tenant gains read on its Events and Donations (and a new Operator on any Event it
+ * was already assigned to). A pending tenant grants nobody until setTenantStatus approves it.
+ * The Membership already exists when this fails, so the action's body (including any
+ * generatedPassword) is kept in the 502 — the grant is retried via recomputeTenantReadGrants.
+ */
+async function grantTenantReadAfterMembershipWrite({
+  action,
+  result,
+  payload,
+  DatabasesCtor,
+  adminClient,
   error,
 }) {
-  if (userIds.length === 0) {
-    return { listed: true };
+  if (!MEMBERSHIP_ACTIVATING_ACTIONS.has(action) || result.status !== 200) {
+    return result;
   }
-
-  const databases = new DatabasesCtor(adminClient);
-
-  let affectedEvents;
-  try {
-    affectedEvents = await listAllRows({
-      DatabasesCtor,
-      adminClient,
-      databaseId,
-      tableId: eventsCollectionId,
-      queries: [Query.equal('tenantId', [tenantId]), Query.contains('assignedUserIds', userIds)],
-    });
-  } catch (err) {
-    error(`sweepTenantEventPermissions: listRows failed for tenant ${tenantId}: ${err.message}`);
-    return { listed: false };
+  const grants = await recomputeTenantReadGrants({
+    DatabasesCtor,
+    adminClient,
+    // The handler's resolved tenant, not the request's: an Organizer caller never sends one.
+    tenantId: result.body?.tenantId ?? payload.tenantId,
+    error,
+  });
+  if (grants.ok) {
+    return result;
   }
-
-  const sweptUserIds = new Set(userIds);
-  for (const event of affectedEvents) {
-    const remainingUserIds = (event.assignedUserIds ?? []).filter((uid) => !sweptUserIds.has(uid));
-    try {
-      await databases.updateRow({
-        databaseId,
-        tableId: eventsCollectionId,
-        rowId: event.$id,
-        data: {},
-        permissions: computeEventPermissions(remainingUserIds),
-      });
-    } catch (err) {
-      // Best-effort per-event: one failed sweep must not abort the others (a partially-swept
-      // tenant is still strictly safer than an unswept one) — surfaced via `error` for
-      // operator visibility, per the Architecture Spine's Deferred operations-envelope note.
-      // (Deferred, not patched — see Story 6.2's code-review findings: this matches the
-      // Architecture Spine's own explicit Deferred note on the AD-9 Function's ops envelope.)
-      error(`sweepTenantEventPermissions: updateRow failed for event ${event.$id}: ${err.message}`);
-    }
-  }
-
-  return { listed: true };
+  return {
+    status: 502,
+    body: {
+      ...result.body,
+      success: false,
+      error: 'Membership was created, but granting its tenant read access failed',
+      grants,
+    },
+  };
 }
 
 /**
@@ -411,13 +567,20 @@ async function handleAddTeamMember({
   adminClient,
   payload,
   caller,
+  team,
   databaseId,
   tenantsCollectionId,
   membershipsCollectionId,
   error,
 }) {
-  const { name, email, tenantId, role } = payload;
+  const { name, email, role } = payload;
+  const { tenantId, callerRole } = team;
   const databases = new DatabasesCtor(adminClient);
+
+  // FR-11: an Organizer adding another Organizer is refused here, whatever the UI rendered.
+  if (!canManageRole(callerRole, role)) {
+    return { status: 403, body: { error: 'Forbidden' } };
+  }
 
   // Existence-required, 'pending'-allowed — same as createMembership (Story 6.4's self-signup
   // creates the applicant's own Super Organizer Membership while still 'pending'). Unlike
@@ -425,13 +588,20 @@ async function handleAddTeamMember({
   // has no business growing its team, and unlike 'pending' there's no legitimate in-flight
   // flow that needs to add a member to an already-suspended/rejected tenant. Scoped to this
   // action only — createMembership's own (already-shipped, already-tested) behavior is
-  // untouched.
-  let tenant;
-  try {
-    tenant = await databases.getRow({ databaseId, tableId: tenantsCollectionId, rowId: tenantId });
-  } catch (err) {
-    error(`addTeamMember: tenant ${tenantId} not found: ${err.message}`);
-    return { status: 404, body: { error: 'Tenant not found' } };
+  // untouched. An Organizer-tier caller's Tenant was already fetched (and required approved)
+  // by resolveTeamScope.
+  let tenant = team.tenant;
+  if (!tenant) {
+    try {
+      tenant = await databases.getRow({
+        databaseId,
+        tableId: tenantsCollectionId,
+        rowId: tenantId,
+      });
+    } catch (err) {
+      error(`addTeamMember: tenant ${tenantId} not found: ${err.message}`);
+      return { status: 404, body: { error: 'Tenant not found' } };
+    }
   }
   if (tenant.status === 'suspended' || tenant.status === 'rejected') {
     return { status: 409, body: { error: `Tenant is ${tenant.status}` } };
@@ -500,6 +670,29 @@ async function handleAddTeamMember({
     };
   }
 
+  // The Membership is the source of truth and already exists, so a failed access step doesn't
+  // fail the add — it's reported as `setupIncomplete` for the caller to surface. The Tenant
+  // grant is derived and heals on the next team change; the Label can be set from Admin's
+  // Users page.
+  let setupIncomplete = false;
+  try {
+    if (role === 'operator') {
+      await setOperatorLabel({ UsersCtor, adminClient, userId: account.$id, enabled: true });
+    } else {
+      await syncTenantReadGrants({
+        DatabasesCtor,
+        adminClient,
+        databaseId,
+        tenantsCollectionId,
+        membershipsCollectionId,
+        tenantId,
+      });
+    }
+  } catch (err) {
+    setupIncomplete = true;
+    error(`addTeamMember: access setup failed for ${account.$id}: ${err.message}`);
+  }
+
   return {
     status: 200,
     body: {
@@ -511,6 +704,7 @@ async function handleAddTeamMember({
       tenantId,
       role,
       generatedPassword,
+      setupIncomplete,
     },
   };
 }
@@ -790,17 +984,100 @@ async function handleSubmitTenantApplication({
   };
 }
 
-async function handleRevokeMembership({
+function isTenantVerificationRecorded(tenant) {
+  return hasValue(tenant?.verifiedBy) && hasValue(tenant?.verifiedAt);
+}
+
+/**
+ * Story 6.5 (FR-8): Admin attests that they reviewed the verification document AND completed
+ * the phone call — both in one act, so verifiedBy/verifiedAt only ever mean "both checks done".
+ * The first attestation stands: a repeat call returns the existing record rather than
+ * re-attributing it to whoever clicked last.
+ */
+async function handleRecordTenantVerification({
   DatabasesCtor,
+  StorageCtor,
   adminClient,
   payload,
+  caller,
   databaseId,
+  tenantsCollectionId,
+  documentsBucketId,
+  error,
+}) {
+  const { tenantId } = payload;
+  const databases = new DatabasesCtor(adminClient);
+
+  let tenant;
+  try {
+    tenant = await databases.getRow({ databaseId, tableId: tenantsCollectionId, rowId: tenantId });
+  } catch (err) {
+    error(`recordTenantVerification: tenant ${tenantId} not found: ${err.message}`);
+    return { status: 404, body: { error: 'Tenant not found' } };
+  }
+
+  if (tenant.status !== 'pending') {
+    return { status: 409, body: { error: `Tenant is already ${tenant.status}` } };
+  }
+  if (isTenantVerificationRecorded(tenant)) {
+    return {
+      status: 200,
+      body: {
+        success: true,
+        tenantId,
+        verifiedBy: tenant.verifiedBy,
+        verifiedAt: tenant.verifiedAt,
+      },
+    };
+  }
+  if (!isTenantIntakeComplete(tenant)) {
+    return { status: 409, body: { error: 'Tenant intake is incomplete' } };
+  }
+
+  try {
+    await new StorageCtor(adminClient).getFile({
+      bucketId: documentsBucketId,
+      fileId: tenant.verificationDocumentId,
+    });
+  } catch (err) {
+    error(
+      `recordTenantVerification: document ${tenant.verificationDocumentId} not found: ${err.message}`,
+    );
+    return { status: 409, body: { error: 'The verification document could not be found' } };
+  }
+
+  const verifiedAt = new Date().toISOString();
+  try {
+    await databases.updateRow({
+      databaseId,
+      tableId: tenantsCollectionId,
+      rowId: tenantId,
+      data: { verifiedBy: caller.$id, verifiedAt },
+    });
+  } catch (err) {
+    error(`recordTenantVerification: updateRow failed: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to record the verification' } };
+  }
+
+  return { status: 200, body: { success: true, tenantId, verifiedBy: caller.$id, verifiedAt } };
+}
+
+async function handleRevokeMembership({
+  DatabasesCtor,
+  UsersCtor,
+  adminClient,
+  payload,
+  team,
+  databaseId,
+  tenantsCollectionId,
   membershipsCollectionId,
   eventsCollectionId,
   error,
 }) {
   const { membershipId } = payload;
+  const { callerRole } = team;
   const databases = new DatabasesCtor(adminClient);
+  const notFound = { status: 404, body: { error: 'Membership not found' } };
 
   let membership;
   try {
@@ -811,7 +1088,19 @@ async function handleRevokeMembership({
     });
   } catch (err) {
     error(`revokeMembership: membership ${membershipId} not found: ${err.message}`);
-    return { status: 404, body: { error: 'Membership not found' } };
+    return notFound;
+  }
+
+  if (callerRole !== null) {
+    // Another tenant's Membership looks exactly like a missing one (FR-2).
+    if (membership.tenantId !== team.tenantId) {
+      return notFound;
+    }
+    // An Organizer revokes Operators only; a Super Organizer also revokes Organizers. Neither
+    // can revoke the Super Organizer (themself included) — that stays with Admin.
+    if (!canManageRole(callerRole, membership.role)) {
+      return { status: 403, body: { error: 'Forbidden' } };
+    }
   }
 
   try {
@@ -847,7 +1136,81 @@ async function handleRevokeMembership({
     };
   }
 
+  // Revoking an already-revoked Membership is allowed so a failed step here can be retried.
+  try {
+    if (membership.role === 'operator') {
+      await setOperatorLabel({ UsersCtor, adminClient, userId: membership.userId, enabled: false });
+    } else if (ORGANIZER_TIER_ROLES.includes(membership.role)) {
+      await syncTenantReadGrants({
+        DatabasesCtor,
+        adminClient,
+        databaseId,
+        tenantsCollectionId,
+        membershipsCollectionId,
+        tenantId: membership.tenantId,
+      });
+    }
+  } catch (err) {
+    error(`revokeMembership: removing access for ${membership.userId} failed: ${err.message}`);
+    return {
+      status: 502,
+      body: {
+        error: 'Membership was revoked, but removing their remaining access failed',
+        membershipId,
+      },
+    };
+  }
+
   return { status: 200, body: { success: true, membershipId, status: 'revoked' } };
+}
+
+/**
+ * Story 7.1: the caller's own team, with each member's name/email — Memberships and Accounts are
+ * only readable server-side, so the team screen can't assemble this itself. Scoped to the
+ * resolved Tenant only (FR-2).
+ */
+async function handleListTeamMembers({
+  DatabasesCtor,
+  UsersCtor,
+  adminClient,
+  caller,
+  team,
+  databaseId,
+  membershipsCollectionId,
+  error,
+}) {
+  const users = new UsersCtor(adminClient);
+  try {
+    const memberships = await listAllRows({
+      DatabasesCtor,
+      adminClient,
+      databaseId,
+      tableId: membershipsCollectionId,
+      queries: [
+        Query.equal('tenantId', [team.tenantId]),
+        Query.equal('status', LISTED_MEMBERSHIP_STATUSES),
+      ],
+    });
+    const members = await Promise.all(
+      memberships.map(async (m) => {
+        const account = await users.get({ userId: m.userId });
+        return {
+          membershipId: m.$id,
+          userId: m.userId,
+          name: account.name,
+          email: account.email,
+          role: m.role,
+          status: m.status,
+          grantedAt: m.grantedAt,
+          isSelf: m.userId === caller.$id,
+        };
+      }),
+    );
+    return { status: 200, body: { success: true, tenantId: team.tenantId, members } };
+  } catch (err) {
+    error(`listTeamMembers: lookup failed for tenant ${team.tenantId}: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to load the team' } };
+  }
 }
 
 async function handleSetTenantStatus({
@@ -887,6 +1250,14 @@ async function handleSetTenantStatus({
   if (status === 'approved' && !isTenantIntakeComplete(tenant)) {
     return { status: 409, body: { error: 'Tenant intake is incomplete' } };
   }
+  // Story 6.5 (FR-8): the server, not the disabled button, is what makes approval impossible
+  // before recordTenantVerification has stamped who verified the application and when.
+  if (status === 'approved' && !isTenantVerificationRecorded(tenant)) {
+    return {
+      status: 409,
+      body: { error: 'Record the document review and phone verification before approving' },
+    };
+  }
 
   if (!isSweepRetry) {
     try {
@@ -902,51 +1273,27 @@ async function handleSetTenantStatus({
     }
   }
 
-  if (status === 'suspended' || status === 'rejected') {
-    // Every one of this tenant's Events loses every currently-granted uid — not a
-    // targeted-by-uid sweep (that's sweepTenantEventPermissions's job for a single
-    // Membership revoke), so this lists and clears the tenant's Events directly rather than
-    // computing a uid list and re-querying by it (avoids a redundant round trip, and means
-    // there is exactly one place this can fail, not two).
-    let tenantEvents;
-    try {
-      tenantEvents = await listAllRows({
-        DatabasesCtor,
-        adminClient,
-        databaseId,
-        tableId: eventsCollectionId,
-        queries: [Query.equal('tenantId', [tenantId])],
-      });
-    } catch (err) {
-      error(`setTenantStatus: listing tenant's events failed: ${err.message}`);
-      // Story 6.2 code review (fail-closed, not fail-open): the tenant's status row was
-      // already written above, but the sweep could not even be attempted — report that
-      // honestly rather than a 200 that implies every Event grant was revoked.
-      return {
-        status: 502,
-        body: {
-          error: 'Tenant status was changed, but sweeping its Event permissions failed',
-          tenantId,
-          status,
-        },
-      };
-    }
-
-    for (const event of tenantEvents) {
-      try {
-        await databases.updateRow({
-          databaseId,
-          tableId: eventsCollectionId,
-          rowId: event.$id,
-          data: {},
-          permissions: computeEventPermissions([]),
-        });
-      } catch (err) {
-        // Deferred, not patched — matches sweepTenantEventPermissions's own per-event
-        // best-effort behavior and the Architecture Spine's Deferred ops-envelope note.
-        error(`setTenantStatus: updateRow failed for event ${event.$id}: ${err.message}`);
-      }
-    }
+  // AD-2: approval grants every active organizer-tier member read on the tenant's Events and
+  // Donations; suspend/reject removes every Membership-derived grant (Family access is by
+  // accessCode, AD-10, and is unaffected). A sweep that leaves any row stale reports 502 — the
+  // status is already written, and the same call (or recomputeTenantReadGrants) retries it.
+  const grants = await recomputeTenantReadGrants({
+    DatabasesCtor,
+    adminClient,
+    tenantId,
+    tenantStatus: status,
+    error,
+  });
+  if (!grants.ok) {
+    return {
+      status: 502,
+      body: {
+        error: 'Tenant status was changed, but sweeping its Event permissions failed',
+        tenantId,
+        status,
+        grants,
+      },
+    };
   }
 
   return { status: 200, body: { success: true, tenantId, status } };
@@ -956,10 +1303,9 @@ async function handleSetTenantStatus({
  * Story 6.2 (AD-1/AD-9 amended): the sole writer of Memberships, Tenants and Tenant status
  * transitions. Every action is Admin-caller-gated except submitTenantApplication (Story 6.4),
  * which any verified Account may call for itself — the handler then refuses anyone who already
- * holds a platform relationship. Epic 7 layers an Organizer-caller (FR-11's
- * super_organizer-only gate) plus IdentityFlags cross-referencing (FR-12/FR-23) on top of
- * createMembership later; any such Organizer-callable action must also pass
- * shared.js's rejectUnapprovedTenantMember (FR-9).
+ * holds a platform relationship — and the team actions (Story 7.1), which an Organizer-tier
+ * member of an approved Tenant may call for their own Tenant (resolveTeamScope, FR-9/FR-11).
+ * Story 7.2 layers IdentityFlags cross-referencing (FR-12/FR-23) onto addTeamMember.
  *
  * ClientCtor/AccountCtor/UsersCtor/DatabasesCtor/StorageCtor/MessagingCtor are injectable so
  * tests can substitute fakes without module-mocking node-appwrite.
@@ -992,7 +1338,8 @@ export async function handleTenantMembershipRequest({
   }
   const { action, ...payload } = body ?? {};
 
-  const verify = SELF_SERVICE_ACTIONS.has(action) ? verifyCaller : verifyAdminCaller;
+  const verify =
+    SELF_SERVICE_ACTIONS.has(action) || TEAM_ACTIONS.has(action) ? verifyCaller : verifyAdminCaller;
   const { errorResponse, caller } = await verify({
     req,
     ClientCtor,
@@ -1004,11 +1351,17 @@ export async function handleTenantMembershipRequest({
   if (errorResponse) {
     return res.json(errorResponse.body, errorResponse.status);
   }
+  // Organizer-tier Accounts carry no Label, so a non-Admin Label marks an Operator-tier Account
+  // (legacy or team-added), which manages no one. Refused before anything else is checked.
+  const isAdmin = isAdminCaller(caller);
+  if (TEAM_ACTIONS.has(action) && !isAdmin && (caller.labels ?? []).length > 0) {
+    return res.json({ error: 'Forbidden' }, 403);
+  }
   if (body === undefined) {
     return res.json({ error: 'Invalid JSON body' }, 400);
   }
 
-  const validation = validatePayload(action, payload);
+  const validation = validatePayload(action, payload, { isAdmin });
   if (!validation.valid) {
     return res.json(validation.body, 400);
   }
@@ -1032,7 +1385,10 @@ export async function handleTenantMembershipRequest({
     );
     return res.json({ error: 'Server misconfiguration: missing database/collection ID' }, 500);
   }
-  if (action === 'submitTenantApplication' && !hasValue(documentsBucketId)) {
+  if (
+    (action === 'submitTenantApplication' || action === 'recordTenantVerification') &&
+    !hasValue(documentsBucketId)
+  ) {
     error('Missing APPWRITE_TENANT_DOCUMENTS_BUCKET_ID function variable.');
     return res.json({ error: 'Server misconfiguration: missing document bucket ID' }, 500);
   }
@@ -1054,6 +1410,14 @@ export async function handleTenantMembershipRequest({
     error,
   };
 
+  if (TEAM_ACTIONS.has(action)) {
+    const team = await resolveTeamScope(actionContext);
+    if (team.errorResponse) {
+      return res.json(team.errorResponse.body, team.errorResponse.status);
+    }
+    actionContext.team = team;
+  }
+
   let result;
   switch (action) {
     case 'createMembership':
@@ -1074,7 +1438,14 @@ export async function handleTenantMembershipRequest({
     case 'submitTenantApplication':
       result = await handleSubmitTenantApplication(actionContext);
       break;
+    case 'listTeamMembers':
+      result = await handleListTeamMembers(actionContext);
+      break;
+    case 'recordTenantVerification':
+      result = await handleRecordTenantVerification(actionContext);
+      break;
   }
+  result = await grantTenantReadAfterMembershipWrite({ action, result, ...actionContext });
 
   if (result.status === 200) {
     // Code-review fix: addTeamMember's success body carries generatedPassword — logging it

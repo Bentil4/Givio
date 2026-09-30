@@ -1045,7 +1045,7 @@ So that I can build out my company's team without giving up control of who has i
 
 **Given** I am a Super Organizer on `/company/team`
 **When** I add a co-Organizer or an Operator
-**Then** a new Membership is created for them at my tenant (Story 6.2's model) with zero Event access until I grant it against a specific Event (FR-10)
+**Then** a new Membership is created for them at my tenant (Story 6.2's model) with zero Event write/assignment access until I grant it against a specific Event (FR-10) *(Amended 2026-09-30: a co-Organizer, like every active organizer-tier member, holds tenant-wide **read** on the tenant's Events and Donations per AD-2's 2026-09-30 amendment; Operators stay assignment-only.)*
 
 **Given** an existing co-Organizer
 **When** I revoke their privileges
