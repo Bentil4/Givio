@@ -7,14 +7,17 @@ id: https://mermaidchart.com/d/da1410e3-da6e-47ef-8c16-7520a2d36f11
 %% Source: src/app/app.routes.ts
 %% Source: src/app/auth/auth.routes.ts
 %% Source: src/app/feature/pages/admin/admin.routes.ts
+%% Source: src/app/feature/pages/company/company.routes.ts
 %% Source: src/app/feature/pages/family/family.routes.ts
 %% Source: src/app/feature/pages/organizer/organizer.routes.ts
 flowchart TD
   app([App entry])
   r__login["/login<br/><i>redirectIfAuthenticatedGuard</i>"]
+  r__auth_signup["/auth/signup<br/>Register your company<br/><i>signupEntryGuard</i>"]
   subgraph sgr__dashboard["/dashboard — sessionExpiryGuard + roleGuard(admin)"]
     r__dashboard["/dashboard<br/>Admin Dashboard"]
     r__dashboard_users["/dashboard/users<br/>Users"]
+    r__dashboard_admins["/dashboard/admins<br/>Admin accounts<br/><i>superAdminGuard</i>"]
     r__dashboard_events["/dashboard/events<br/>Events"]
     r__dashboard_events__id_edit["/dashboard/events/:id/edit<br/>Edit Event"]
     r__dashboard_events__id["/dashboard/events/:id<br/>Event detail"]
@@ -33,8 +36,16 @@ flowchart TD
   end
   r__family["/family<br/>Enter your event code"]
   r__family__code["/family/:code<br/>Live giving"]
+  subgraph sgr__company__approvedCompanyMatch["/company — sessionExpiryGuard + approvedCompanyMatch"]
+    r__company__approvedCompanyMatch["/company<br/>Company dashboard"]
+  end
+  subgraph sgr__company__pendingCompanyMatch["/company — sessionExpiryGuard + pendingCompanyMatch"]
+    r__company__pendingCompanyMatch["/company<br/>Application status"]
+  end
   app -->|"/ redirects"| r__login
+  app --> r__auth_signup
   r__dashboard --> r__dashboard_users
+  r__dashboard --> r__dashboard_admins
   r__dashboard --> r__dashboard_events
   r__dashboard_events__id --> r__dashboard_events__id_edit
   r__dashboard_events --> r__dashboard_events__id
@@ -51,3 +62,6 @@ flowchart TD
   app --> r__organizer
   app --> r__family
   r__family --> r__family__code
+  app --> r__company__approvedCompanyMatch
+  r__company__pendingCompanyMatch -->|"/company/** redirects"| r__company__pendingCompanyMatch
+  app --> r__company__pendingCompanyMatch
