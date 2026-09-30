@@ -1119,7 +1119,7 @@ test('FR-26: an ordinary Admin cannot reinstate a suspended Admin', async () => 
   assert.equal(calls.updateStatus, undefined);
 });
 
-test('an ordinary Admin deactivating an Operator is unchanged — no session revocation added', async () => {
+test('an ordinary Admin deactivating an Operator also revokes every session in the same call', async () => {
   const { result, calls } = await run({
     body: { action: 'setStatus', userId: 'op-9', active: false },
     getAccount: asAdmin,
@@ -1127,6 +1127,52 @@ test('an ordinary Admin deactivating an Operator is unchanged — no session rev
   });
 
   assert.equal(result.status, 200);
+  assert.deepEqual(calls.updateStatus[0][0], { userId: 'op-9', status: false });
+  assert.deepEqual(calls.deleteSessions[0][0], { userId: 'op-9' });
+});
+
+test('an Operator deactivation whose session revocation fails reports 502, not a false success', async () => {
+  const { result } = await run({
+    body: { action: 'setStatus', userId: 'op-9', active: false },
+    getAccount: asAdmin,
+    users: {
+      get: operatorTarget,
+      deleteSessions: () => {
+        throw new Error('transient');
+      },
+    },
+  });
+
+  assert.equal(result.status, 502);
+  assert.equal(result.body.active, false);
+  assert.equal(result.body.success, undefined);
+});
+
+test('reactivating an Operator never touches their sessions', async () => {
+  const { result, calls } = await run({
+    body: { action: 'setStatus', userId: 'op-9', active: true },
+    getAccount: asAdmin,
+    users: { get: operatorTarget },
+  });
+
+  assert.equal(result.status, 200);
+  assert.deepEqual(calls.updateStatus[0][0], { userId: 'op-9', status: true });
+  assert.equal(calls.deleteSessions, undefined);
+});
+
+test('sessions are not revoked when the status update itself fails', async () => {
+  const { result, calls } = await run({
+    body: { action: 'setStatus', userId: 'op-9', active: false },
+    getAccount: asAdmin,
+    users: {
+      get: operatorTarget,
+      updateStatus: () => {
+        throw new Error('transient');
+      },
+    },
+  });
+
+  assert.equal(result.status, 502);
   assert.equal(calls.deleteSessions, undefined);
 });
 
