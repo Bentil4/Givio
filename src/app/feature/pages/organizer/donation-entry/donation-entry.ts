@@ -43,6 +43,8 @@ function draftFromOutboxEntry(entry: OutboxEntry): DonationDraft {
     notes: donation.notes,
     queuedAt: entry.createdAt,
     attempts: entry.retries,
+    receiptNumber: donation.receiptNumber,
+    rejectionReason: entry.status === 'failed' ? entry.lastError : undefined,
   };
 }
 
@@ -117,6 +119,8 @@ export class DonationEntry {
   public readonly syncing = this.syncEngine.syncing;
   public readonly syncedCount = signal(0);
   public readonly pending = signal<readonly DonationDraft[]>([]);
+  /** Server-rejected creates: kept visible, but no longer pending. */
+  public readonly rejected = signal<readonly DonationDraft[]>([]);
   private previousPendingCount = 0;
 
   public readonly phase = signal<Phase>('entry');
@@ -233,6 +237,7 @@ export class DonationEntry {
     const eventId = this.eventId();
     if (!eventId) {
       this.pending.set([]);
+      this.rejected.set([]);
       return;
     }
     const entries = await appDb.outbox
@@ -240,7 +245,8 @@ export class DonationEntry {
       .equals('donation')
       .filter((e) => e.op === 'create' && (e.payload as Donation).eventId === eventId)
       .toArray();
-    this.pending.set(entries.map(draftFromOutboxEntry));
+    this.pending.set(entries.filter((e) => e.status !== 'failed').map(draftFromOutboxEntry));
+    this.rejected.set(entries.filter((e) => e.status === 'failed').map(draftFromOutboxEntry));
   }
 
   public readonly confirmRows = computed(() => {
@@ -339,5 +345,11 @@ export class DonationEntry {
   /** The pending-queue drawer's manual "Sync now" button (AC's "Retry Sync" option). */
   public syncNow(): void {
     void this.syncEngine.drainOutbox();
+  }
+
+  public async dismissRejected(draft: DonationDraft): Promise<void> {
+    await this.syncEngine.dismissRejected(Number(draft.localId));
+    await this.refreshPending();
+    await this.donationService.loadDonationsForEvent(draft.eventId);
   }
 }

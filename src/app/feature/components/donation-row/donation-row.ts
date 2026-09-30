@@ -37,4 +37,5 @@ export class DonationRow {
   });
 
   public pending = computed(() => this.donation().syncStatus !== 'synced');
+  public rejected = computed(() => this.donation().syncStatus === 'failed');
 }
