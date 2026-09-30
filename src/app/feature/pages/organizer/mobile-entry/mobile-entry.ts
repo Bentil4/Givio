@@ -156,7 +156,10 @@ export class MobileEntry {
     const count = await appDb.outbox
       .where('entityType')
       .equals('donation')
-      .filter((e) => e.op === 'create' && (e.payload as Donation).eventId === eventId)
+      .filter(
+        (e) =>
+          e.op === 'create' && e.status !== 'failed' && (e.payload as Donation).eventId === eventId,
+      )
       .count();
     this.pendingCount.set(count);
   }

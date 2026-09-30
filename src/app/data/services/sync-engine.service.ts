@@ -1,4 +1,4 @@
-import { Injectable, effect, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, effect, inject, signal } from '@angular/core';
 import { appDb } from '../dexie/app-db';
 import { ConnectivityService } from '../../core/services/connectivity.service';
 import { EventDataService } from './event-data.service';
@@ -41,11 +41,19 @@ export class SyncEngineService {
     // The badge needs to reflect a new item the moment it's queued (e.g. a donation saved
     // while already offline), not just after the next drain — cheap enough to poll rather
     // than thread a "notify the sync engine" call through every mutation call site.
-    setInterval(() => void this.refreshPendingCount(), 3000);
+    const poll = setInterval(() => void this.refreshPendingCount(), 3000);
+    inject(DestroyRef).onDestroy(() => clearInterval(poll));
   }
 
+  /** Server-rejected ('failed') entries aren't waiting on anything, so they aren't pending. */
   async refreshPendingCount(): Promise<void> {
-    this._pendingCount.set(await appDb.outbox.count());
+    this._pendingCount.set(await appDb.outbox.where('status').notEqual('failed').count());
+  }
+
+  /** The pending queue's "Dismiss" on a server-rejected donation. */
+  async dismissRejected(localId: number): Promise<void> {
+    await this.donationDataService.dismissRejected(localId);
+    await this.refreshPendingCount();
   }
 
   /** Also the "Retry Sync" manual trigger — draining is the same operation either way. */
@@ -55,7 +63,8 @@ export class SyncEngineService {
     try {
       // Insertion order (Dexie's default for an auto-incrementing primary key) is the
       // per-entity FIFO order AD-4 calls for.
-      const entries = await appDb.outbox.toArray();
+      // Rejected entries are skipped: the server would refuse the same payload again.
+      const entries = (await appDb.outbox.toArray()).filter((e) => e.status !== 'failed');
       for (const entry of entries) {
         if (entry.entityType === 'event') {
           await this.eventDataService.retryOutboxEntry(entry);

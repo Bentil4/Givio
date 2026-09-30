@@ -8,15 +8,18 @@ export function formatCedisShort(amountMinor: number): string {
 /** GH₵ 500.00 — always 2dp. For receipts, rows and confirmations. */
 export function formatCedis(amountMinor: number | null): string {
   if (amountMinor === null) return 'GH₵ 0.00';
-  return 'GH₵ ' + (amountMinor / 100).toLocaleString('en-GH', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return (
+    'GH₵ ' +
+    (amountMinor / 100).toLocaleString('en-GH', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  );
 }
 
-/** Totals must never include soft-deleted or in-conflict records. */
+/** Totals must never include soft-deleted, in-conflict or server-rejected records. */
 export function totalMinor(donations: readonly Donation[]): number {
   return donations
-    .filter((d) => !d.deletedAt && d.syncStatus !== 'conflict')
+    .filter((d) => !d.deletedAt && d.syncStatus !== 'conflict' && d.syncStatus !== 'failed')
     .reduce((sum, d) => sum + (d.amountMinor ?? 0), 0);
 }

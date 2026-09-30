@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  computed,
+  effect,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { DonationDraft, DONATION_TYPE_LABELS } from '../../../data/models/donation';
 import { formatCedis } from '../../../utils/donation.util';
@@ -17,6 +27,8 @@ import { formatCedis } from '../../../utils/donation.util';
 })
 export class PendingQueue {
   public drafts = input.required<readonly DonationDraft[]>();
+  /** Records the server definitively refused — never retried, never counted as pending. */
+  public rejected = input<readonly DonationDraft[]>([]);
   public online = input(false);
   public syncing = input(false);
 
@@ -24,12 +36,35 @@ export class PendingQueue {
   public edit = output<DonationDraft>();
   public discard = output<DonationDraft>();
   public syncNow = output<void>();
+  public dismiss = output<DonationDraft>();
+
+  /** The rejected record whose "Dismiss" is awaiting confirmation. */
+  public readonly confirmingDismiss = signal<string | null>(null);
+  private readonly keepButton = viewChild<ElementRef<HTMLButtonElement>>('keepButton');
 
   public readonly labels = DONATION_TYPE_LABELS;
 
   public totalLabel = computed(() =>
     formatCedis(this.drafts().reduce((sum, d) => sum + (d.amountMinor ?? 0), 0)),
   );
+
+  constructor() {
+    // Moving focus onto the safe choice keeps a keyboard user's next Enter from removing it.
+    effect(() => this.keepButton()?.nativeElement.focus());
+  }
+
+  public askDismiss(draft: DonationDraft): void {
+    this.confirmingDismiss.set(draft.localId);
+  }
+
+  public cancelDismiss(): void {
+    this.confirmingDismiss.set(null);
+  }
+
+  public confirmDismiss(draft: DonationDraft): void {
+    this.confirmingDismiss.set(null);
+    this.dismiss.emit(draft);
+  }
 
   public amountLabel(draft: DonationDraft): string {
     return formatCedis(draft.amountMinor);

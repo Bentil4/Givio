@@ -15,10 +15,11 @@
       <span class="desk-total-value" [class.is-stale]="!online()">{{ totalLabel() }}</span>
     </div>
 
-    @if (pending().length > 0) {
+    @if (pending().length > 0 || rejected().length > 0) {
     <button type="button" class="desk-pending" (click)="openQueue()">
       <span class="desk-pending-dot" aria-hidden="true"></span>
-      {{ pending().length }} pending
+      @if (pending().length > 0) { {{ pending().length }} pending } @if (rejected().length > 0) { {{
+      pending().length > 0 ? '·' : '' }} {{ rejected().length }} rejected }
     </button>
     }
   </header>
@@ -170,10 +171,12 @@
   @if (queueOpen()) {
   <app-pending-queue
     [drafts]="pending()"
+    [rejected]="rejected()"
     [online]="online()"
     [syncing]="syncing()"
     (closed)="closeQueue()"
     (syncNow)="syncNow()"
+    (dismiss)="dismissRejected($event)"
   />
   }
 </section>

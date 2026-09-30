@@ -16,6 +16,7 @@ import {
   writeAuditLog,
 } from './audit-log-writer';
 import { environment } from '../../../environments/environment';
+import { definitiveRejectionReason } from './sync-rejection';
 
 interface RecordDonationResult {
   success: true;
@@ -26,7 +27,7 @@ type UpdateDonationPatch = Partial<
   Pick<Donation, 'donorName' | 'amountMinor' | 'donationType' | 'onBehalfOf'>
 >;
 
-type SyncOutcome = 'synced' | 'pending' | 'conflict';
+type SyncOutcome = 'synced' | 'pending' | 'conflict' | 'failed';
 
 /** Mirrors the row shape recordDonation's Function writes (donation-recording.js). */
 function rowToDonation(row: Models.DefaultRow): Donation {
@@ -234,9 +235,17 @@ export class DonationDataService {
       createdAt: now,
     };
     entry.localId = await appDb.outbox.add(entry);
-    const synced = await this.trySyncNow(donation, entry);
-    if (synced) {
+    const outcome = await this.trySyncNow(donation, entry);
+    if (outcome === 'synced') {
       await this.logDonationAudit('create', donation, donation);
+    }
+    if (outcome === 'failed') {
+      // Rejected while the Operator is still on the read-back screen: nothing reached the
+      // server, so the local copy goes and the reason is shown there instead — the draft is
+      // still on screen to correct, and no receipt gets offered for a record that won't exist.
+      await appDb.outbox.delete(entry.localId);
+      await appDb.donations.delete(donation.id);
+      throw new ServiceError(entry.lastError ?? 'The server rejected this donation');
     }
 
     return donation;
@@ -266,11 +275,11 @@ export class DonationDataService {
   async retryOutboxEntry(entry: OutboxEntry): Promise<SyncOutcome> {
     if (entry.op === 'create') {
       const donation = entry.payload as Donation;
-      const synced = await this.trySyncNow(donation, entry);
-      if (synced) {
+      const outcome = await this.trySyncNow(donation, entry);
+      if (outcome === 'synced') {
         await this.logDonationAudit('create', donation, donation);
       }
-      return synced ? 'synced' : 'pending';
+      return outcome;
     }
     const outcome = await this.trySyncUpdate(entry);
     const donation = entry.payload as Donation;
@@ -294,7 +303,10 @@ export class DonationDataService {
     return provisionalReceiptNumber(event, sequence);
   }
 
-  private async trySyncNow(donation: Donation, entry: OutboxEntry): Promise<boolean> {
+  private async trySyncNow(
+    donation: Donation,
+    entry: OutboxEntry,
+  ): Promise<'synced' | 'pending' | 'failed'> {
     try {
       const result = await invokeAdminFunction<RecordDonationResult>(
         this.functions,
@@ -322,10 +334,53 @@ export class DonationDataService {
       donation.receiptNumber = result.donation.receiptNumber;
       donation.syncStatus = 'synced';
       await appDb.donations.put(donation);
-      return true;
-    } catch {
-      return false;
+      return 'synced';
+    } catch (error) {
+      const reason = definitiveRejectionReason(error);
+      if (reason === null) return 'pending';
+      await this.markRejected(entry, donation, reason);
+      return 'failed';
     }
+  }
+
+  /**
+   * Terminal: a definitive 4xx means the same payload would be refused on every retry, so the
+   * entry stops being retried and stops counting as pending — but it stays on the device,
+   * reason attached, until the Operator dismisses it. Never re-homed or corrected
+   * automatically (Story 6.6: a 409 event mismatch must not be silently fixed).
+   */
+  private async markRejected(
+    entry: OutboxEntry,
+    donation: Donation,
+    reason: string,
+  ): Promise<void> {
+    entry.status = 'failed';
+    entry.lastError = reason;
+    if (entry.localId !== undefined) {
+      await appDb.outbox.update(entry.localId, { status: 'failed', lastError: reason });
+    }
+    donation.syncStatus = 'failed';
+    await appDb.donations.put(donation);
+  }
+
+  /**
+   * The Operator's "Dismiss" on a rejected outbox entry. Only ever for an entry the server
+   * already refused — a rejected create never wrote anything server-side, so removing the local
+   * copy loses nothing the server has; for a rejected edit, the next pull restores the server's
+   * own version. Audited best-effort so an Admin can still see a recorded gift was discarded.
+   */
+  async dismissRejected(localId: number): Promise<void> {
+    const entry = await appDb.outbox.get(localId);
+    if (!entry || entry.entityType !== 'donation' || entry.status !== 'failed') {
+      throw new ServiceError('Only a record the server rejected can be dismissed');
+    }
+    const donation = (await appDb.donations.get(entry.entityId)) ?? (entry.payload as Donation);
+    await appDb.outbox.delete(localId);
+    await appDb.donations.delete(entry.entityId);
+    await this.logDonationAudit('delete', donation, {
+      ...donation,
+      deletionReason: `Dismissed on device after the server rejected it: ${entry.lastError ?? 'no reason given'}`,
+    });
   }
 
   /**
@@ -336,7 +391,8 @@ export class DonationDataService {
    *
    * NOTE: the live Appwrite `donations` table's schema was set up before this method existed;
    * if it doesn't yet have an `updatedAt` column, the local edit still saves and shows
-   * immediately (Dexie-first), it just stays stuck `pending` until that column is added.
+   * immediately (Dexie-first), but Appwrite answers the sync with a 400, so it ends up `failed`
+   * rather than retried forever.
    */
   async updateDonation(id: string, patch: UpdateDonationPatch, reason: string): Promise<Donation> {
     const current = await appDb.donations.get(id);
@@ -446,6 +502,13 @@ export class DonationDataService {
     };
     entry.localId = await appDb.outbox.add(entry);
     const outcome = await this.trySyncUpdate(entry);
+    if (outcome === 'failed') {
+      // Same as a rejected create at its call site: the Admin is still on the edit screen, so
+      // the local row goes back to what it was and the reason is surfaced there.
+      await appDb.outbox.delete(entry.localId);
+      await appDb.donations.put(current);
+      throw new ServiceError(entry.lastError ?? 'The server rejected this change');
+    }
     updated.syncStatus = outcome;
     await appDb.donations.put(updated);
     return outcome;
@@ -459,6 +522,15 @@ export class DonationDataService {
    * row is left untouched and the conflict goes to Admin instead of silently overwriting it.
    */
   private async trySyncUpdate(entry: OutboxEntry): Promise<SyncOutcome> {
+    // The row can't exist server-side before its own queued create has synced — asking now
+    // would get a 404 that looks exactly like a definitive rejection.
+    const unsyncedCreate = await appDb.outbox
+      .where('entityType')
+      .equals('donation')
+      .filter((e) => e.op === 'create' && e.entityId === entry.entityId && e.status === 'pending')
+      .count();
+    if (unsyncedCreate > 0) return 'pending';
+
     try {
       const currentRow = await this.databases.getRow<Models.DefaultRow>({
         databaseId: environment.appwriteDatabaseId,
@@ -480,8 +552,11 @@ export class DonationDataService {
         await appDb.outbox.delete(entry.localId);
       }
       return 'synced';
-    } catch {
-      return 'pending';
+    } catch (error) {
+      const reason = definitiveRejectionReason(error);
+      if (reason === null) return 'pending';
+      await this.markRejected(entry, entry.payload as Donation, reason);
+      return 'failed';
     }
   }
 
