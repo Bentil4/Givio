@@ -1,0 +1,145 @@
+@use '../../admin-admins/admin-admins.scss';
+
+:host {
+  display: block;
+}
+
+.group + .group {
+  margin-top: var(--space-xl);
+}
+
+.group-title {
+  margin: 0 0 var(--space-xs);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.group-note {
+  margin: 0 0 var(--space-md);
+}
+
+.queue {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+// Solid card, never glass (DESIGN.md "Approval-queue row"): it carries names and a decision.
+.row {
+  background: var(--bg-white);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md) var(--space-lg);
+}
+
+.row--compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-md);
+}
+
+.row-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-md);
+}
+
+.row-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+}
+
+.row-name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.row-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.contact {
+  margin: var(--space-xs) 0 var(--space-sm);
+  overflow-wrap: anywhere;
+}
+
+.matches {
+  margin: 0 0 var(--space-md);
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.match {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--status-pending-fg);
+  background: var(--bg-light);
+  overflow-wrap: anywhere;
+}
+
+.match-source {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.status-pill {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &.is-pending {
+    background: var(--status-pending-bg);
+    color: var(--status-pending-fg);
+  }
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.btn-compact {
+  padding: 8px 20px;
+}
+
+.skel-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-white);
+}
+
+.empty {
+  background: var(--bg-white);
+  border: 1px solid var(--border-default);
+}
+
+.btn-secondary.is-danger {
+  color: var(--func-error);
+  border-color: var(--func-error-soft);
+
+  &:hover {
+    border-color: var(--func-error);
+  }
+}

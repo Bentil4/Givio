@@ -147,6 +147,11 @@ export class CompanyTeam implements OnInit {
     return TIER_DESCRIPTIONS[role];
   }
 
+  /** Story 7.2: held for review — shown, never explained (FR-12/FR-23). */
+  public isPending(member: TeamMember): boolean {
+    return member.status === 'pending_review';
+  }
+
   public canRevoke(member: TeamMember): boolean {
     const role = this.callerRole();
     return !member.isSelf && role !== null && MANAGEABLE[role].includes(member.role);
