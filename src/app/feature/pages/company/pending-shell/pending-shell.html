@@ -22,11 +22,16 @@
     <p class="pending-checked t-caption" role="status">{{ checkedMessage() }}</p>
 
     <footer class="pending-actions">
+      @if (suspended()) {
+      <a routerLink="/company/dispute" class="btn btn-primary">Dispute the suspension</a>
+      <a routerLink="/login" class="btn btn-secondary">Back to sign in</a>
+      } @else {
       <button type="button" class="btn btn-primary" [disabled]="checking()" (click)="checkAgain()">
         {{ checking() ? 'Checking…' : 'Check status again' }}
       </button>
       <a routerLink="/company/support" class="btn btn-secondary">Contact Admin</a>
       <button type="button" class="btn btn-secondary" (click)="signOut()">Sign out</button>
+      }
     </footer>
   </section>
 </main>

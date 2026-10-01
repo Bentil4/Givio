@@ -91,6 +91,11 @@ export const ADMIN_ROUTES: Routes = [
         title: 'Approvals',
       },
       {
+        path: 'companies',
+        loadComponent: () => import('./admin-tenants/admin-tenants').then((m) => m.AdminTenants),
+        title: 'Companies',
+      },
+      {
         path: 'reports',
         loadComponent: () => import('./admin-reports/admin-reports').then((m) => m.AdminReports),
         title: 'Reports',

@@ -1,0 +1,64 @@
+@use '../../admin-admins/admin-admins.scss';
+
+.designation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+
+  p {
+    margin: 0;
+  }
+
+  h3:focus-visible {
+    outline: var(--border-width-focus) solid var(--border-focus);
+    outline-offset: 2px;
+  }
+}
+
+.designation-warning {
+  padding: var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--func-error);
+  background: var(--func-error-soft);
+  color: var(--text-primary);
+}
+
+.designation-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.designation-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+  }
+}
+
+.designation-person {
+  display: flex;
+  flex-direction: column;
+}
+
+.designation-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+
+  .btn {
+    align-self: flex-start;
+  }
+}
