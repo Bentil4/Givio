@@ -24,8 +24,6 @@ const CHECKED_PATTERNS = [
 const IGNORED_PREFIXES = ['src/vendor/'];
 
 const LEGACY_EXCEPTIONS = {
-  'src/app/data/services/donation-data.service.spec.ts': 850,
-  'src/app/data/services/event-data.service.spec.ts': 600,
 };
 
 main();

@@ -45,26 +45,6 @@ module.exports = defineConfig([
     },
   },
   {
-    // Legacy files that broke the rules above when they were introduced. They stay warnings
-    // until the clean-code conformance task fixes them; remove each entry once it's fixed.
-    files: [
-      "src/app/data/appwrite/invoke-admin-function.ts",
-      "src/app/data/services/audit-log-writer.ts",
-      "src/app/data/services/donation-data.service.ts",
-      "src/app/data/services/event-data.service.ts",
-      "src/app/data/services/receipt.service.ts",
-      "src/app/data/services/sync-engine.service.ts",
-      "src/app/data/services/tenant-data.service.ts",
-      "src/app/feature/pages/admin/admin-event-detail/admin-event-detail.ts",
-      "src/app/feature/pages/admin/admin-users/admin-users.ts",
-    ],
-    rules: {
-      "max-lines-per-function": ["warn", { max: 40, skipBlankLines: true, skipComments: true }],
-      "max-params": ["warn", 3],
-      "max-depth": ["warn", 2],
-    },
-  },
-  {
     files: ["**/*.html"],
     extends: [
       angular.configs.templateRecommended,

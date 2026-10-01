@@ -60,6 +60,6 @@ export class UserService {
   }
 
   private invoke<T>(action: string, invokeFailureMessage: string, payload: object): Promise<T> {
-    return invokeAdminFunction<T>(this.functions, action, invokeFailureMessage, payload);
+    return invokeAdminFunction<T>(this.functions, { action, invokeFailureMessage, payload });
   }
 }
