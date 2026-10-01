@@ -97,6 +97,9 @@ export function seedStore() {
     'events-1': {
       'event-a1': { $id: 'event-a1', tenantId: 'tenant-a', assignedUserIds: ['org-a', 'op-a'] },
     },
+    // Story 7.2: screening fails closed without these, so every team add needs them.
+    'identity-flags-1': {},
+    'identity-reviews-1': {},
   };
 }
 
@@ -214,6 +217,8 @@ export function withEnv(fn) {
     process.env.APPWRITE_DONATIONS_COLLECTION_ID = 'donations-1';
     process.env.APPWRITE_TENANTS_COLLECTION_ID = 'tenants-1';
     process.env.APPWRITE_MEMBERSHIPS_COLLECTION_ID = 'memberships-1';
+    process.env.APPWRITE_IDENTITY_FLAGS_COLLECTION_ID = 'identity-flags-1';
+    process.env.APPWRITE_IDENTITY_REVIEWS_COLLECTION_ID = 'identity-reviews-1';
     try {
       await fn();
     } finally {
@@ -222,6 +227,8 @@ export function withEnv(fn) {
       delete process.env.APPWRITE_DONATIONS_COLLECTION_ID;
       delete process.env.APPWRITE_TENANTS_COLLECTION_ID;
       delete process.env.APPWRITE_MEMBERSHIPS_COLLECTION_ID;
+      delete process.env.APPWRITE_IDENTITY_FLAGS_COLLECTION_ID;
+      delete process.env.APPWRITE_IDENTITY_REVIEWS_COLLECTION_ID;
     }
   };
 }

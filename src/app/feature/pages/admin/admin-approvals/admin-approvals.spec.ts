@@ -2,6 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ServiceError } from '../../../../core/services/service-error';
 import { TenantDataService } from '../../../../data/services/tenant-data.service';
 import { UserService } from '../../../../data/services/user.service';
+import { IdentityReviewDataService } from '../../../../data/services/identity-review-data.service';
+import type { IdentityReview } from '../../../../data/models/identity-review';
 import type { AdminUser } from '../../../../data/models/admin-user';
 import type { Tenant } from '../../../../data/models/tenant';
 import { AdminApprovals } from './admin-approvals';
@@ -35,9 +37,25 @@ const OWNER: AdminUser = {
   registeredAt: '2026-09-28',
 };
 
+const HELD: IdentityReview = {
+  reviewId: 'r1',
+  membershipId: 'm1',
+  tenantId: 't1',
+  tenantName: 'Asante Events',
+  name: 'Kojo Mensah',
+  email: 'kojo@asante.example',
+  phone: null,
+  role: 'operator',
+  matched: true,
+  matches: [],
+  status: 'open',
+  createdAt: '2026-09-30T09:00:00.000Z',
+};
+
 describe('AdminApprovals', () => {
   let fixture: ComponentFixture<AdminApprovals>;
   let component: AdminApprovals;
+  let listIdentityReviews: ReturnType<typeof vi.fn>;
   let tenantData: {
     listPendingTenants: ReturnType<typeof vi.fn>;
     decideTenantApplication: ReturnType<typeof vi.fn>;
@@ -62,9 +80,14 @@ describe('AdminApprovals', () => {
       getVerificationDocument: vi.fn().mockResolvedValue(null),
       inviteOrganizer: vi.fn(),
     };
+    listIdentityReviews = vi.fn().mockResolvedValue([HELD]);
     await TestBed.configureTestingModule({
       imports: [AdminApprovals],
       providers: [
+        {
+          provide: IdentityReviewDataService,
+          useValue: { listIdentityReviews, resolveIdentityReview: vi.fn() },
+        },
         { provide: TenantDataService, useValue: tenantData },
         {
           provide: UserService,
@@ -198,5 +221,32 @@ describe('AdminApprovals', () => {
     const note = el().querySelector('.code-note')?.textContent ?? '';
     expect(note).toContain('pw-123');
     expect(note).toContain("The invite email didn't send");
+  });
+
+  it('adds a Flagged additions tab whose count shows before it is opened (Story 7.2)', async () => {
+    await render();
+    await vi.waitFor(() => expect(component.reviewsLoading()).toBe(false));
+    fixture.detectChanges();
+
+    const tabs = el().querySelectorAll('[role="tab"]');
+    expect(tabs).toHaveLength(2);
+    expect(tabs[1].textContent).toContain('Flagged additions (1)');
+    expect(tabs[1].getAttribute('aria-selected')).toBe('false');
+
+    (tabs[1] as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const panel = el().querySelector('[role="tabpanel"]')!;
+    expect(panel.getAttribute('aria-labelledby')).toBe(tabs[1].id);
+    expect(panel.textContent).toContain('Kojo Mensah');
+  });
+
+  it('keeps the applications queue working when the flagged queue fails to load', async () => {
+    listIdentityReviews.mockRejectedValueOnce(new ServiceError('Failed to load flagged additions'));
+    await render();
+    await vi.waitFor(() => expect(component.reviewsError()).not.toBeNull());
+    fixture.detectChanges();
+
+    expect(el().querySelectorAll('app-application-row')).toHaveLength(2);
+    expect(el().querySelectorAll('[role="tab"]')[1].textContent?.trim()).toBe('Flagged additions');
   });
 });
