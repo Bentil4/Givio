@@ -17,9 +17,17 @@ export function formatCedis(amountMinor: number | null): string {
   );
 }
 
+/** The only fields the shared counting rule reads — lets aggregate-only reads skip full rows. */
+export type CountableDonation = Pick<Donation, 'amountMinor' | 'deletedAt' | 'syncStatus'>;
+
 /** Totals must never include soft-deleted, in-conflict or server-rejected records. */
-export function totalMinor(donations: readonly Donation[]): number {
-  return donations
-    .filter((d) => !d.deletedAt && d.syncStatus !== 'conflict' && d.syncStatus !== 'failed')
-    .reduce((sum, d) => sum + (d.amountMinor ?? 0), 0);
+export function totalMinor(donations: readonly CountableDonation[]): number {
+  return countedDonations(donations).reduce((sum, d) => sum + (d.amountMinor ?? 0), 0);
+}
+
+/** The donations a total counts — the single home of the exclusion rule above. */
+export function countedDonations<T extends CountableDonation>(donations: readonly T[]): T[] {
+  return donations.filter(
+    (d) => !d.deletedAt && d.syncStatus !== 'conflict' && d.syncStatus !== 'failed',
+  );
 }

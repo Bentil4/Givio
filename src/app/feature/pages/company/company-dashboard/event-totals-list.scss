@@ -1,0 +1,98 @@
+// Same panel/row rhythm as the admin-dashboard's "Live events" panel, without its row links.
+.panel {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid rgba(15, 122, 140, 0.09);
+
+  h2 {
+    flex: 1;
+    margin: 0;
+  }
+}
+
+.panel-link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary-deep);
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+  }
+}
+
+.panel-empty {
+  margin: 0;
+  padding: var(--space-lg);
+}
+
+.event-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid rgba(15, 122, 140, 0.07);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.event-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.event-figures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+}
+
+.figure-total {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.row-error {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  color: var(--func-error);
+
+  mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+  }
+}
+
+.btn-ghost {
+  min-height: 24px; // WCAG 2.5.8 minimum target size
+  padding: 4px 0;
+}

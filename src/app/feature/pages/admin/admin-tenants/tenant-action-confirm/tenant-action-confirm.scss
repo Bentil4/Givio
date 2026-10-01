@@ -1,0 +1,6 @@
+@use '../../admin-admins/admin-admins.scss';
+
+// Opens on top of the company drawer.
+.confirm-scrim {
+  z-index: 70;
+}

@@ -1,11 +1,12 @@
 import { Routes } from '@angular/router';
 import { roleGuard, sessionExpiryGuard } from '../../../core/guards/role.guard';
+import { operatorTenantGuard } from '../../../core/guards/tenant.guard';
 import type { BreadcrumbItem } from '../../../shared/components/breadcrumb/breadcrumb';
 
 export const ORGANIZER_ROUTES: Routes = [
   {
     path: 'organizer',
-    canActivate: [sessionExpiryGuard, roleGuard(['operator'])],
+    canActivate: [sessionExpiryGuard, roleGuard(['operator']), operatorTenantGuard],
     canActivateChild: [sessionExpiryGuard, roleGuard(['operator'])],
     loadComponent: () =>
       import('./organizer-layout/organizer-layout').then((m) => m.OrganizerLayout),
@@ -24,8 +25,7 @@ export const ORGANIZER_ROUTES: Routes = [
       },
       {
         path: 'entry',
-        loadComponent: () =>
-          import('./donation-entry/donation-entry').then((m) => m.DonationEntry),
+        loadComponent: () => import('./donation-entry/donation-entry').then((m) => m.DonationEntry),
         title: 'Record a donation',
       },
       {

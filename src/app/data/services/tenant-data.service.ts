@@ -44,7 +44,7 @@ function rowToMembership(row: Models.DefaultRow): Membership {
   };
 }
 
-function rowToTenant(row: Models.DefaultRow): Tenant {
+export function rowToTenant(row: Models.DefaultRow): Tenant {
   return {
     id: row['$id'],
     name: row['name'],

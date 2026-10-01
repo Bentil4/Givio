@@ -22,7 +22,8 @@ interface ShellCopy {
 /**
  * UX-DR9: the only surface a not-yet-approved Organizer can reach. Deliberately a standalone
  * page rather than a layout child — there is no sidebar or nav to hide. The rejected and
- * suspended messages never carry a reason (FR-9 non-disclosure).
+ * suspended messages never carry a reason (FR-9 non-disclosure). A suspended tenant's member is
+ * signed out on arrival and pointed at the public dispute form (Story 8.3).
  */
 @Component({
   selector: 'app-pending-shell',
@@ -40,6 +41,7 @@ export class PendingShell {
   public readonly tenant = this.tenantService.tenant;
   public readonly checking = signal(false);
   public readonly checkedMessage = signal<string | null>(null);
+  public readonly suspended = computed(() => this.tenant()?.status === 'suspended');
 
   public readonly copy = computed<ShellCopy>(() => {
     switch (this.tenant()?.status) {
@@ -59,8 +61,10 @@ export class PendingShell {
         };
       case 'suspended':
         return {
-          title: "This company account isn't active",
-          body: 'If you have questions about your account, contact Givio support.',
+          title: "Your company's access is suspended",
+          body:
+            "A Givio admin has paused this company's account, so you've been signed out. " +
+            'If you think this is a mistake, you can dispute the suspension.',
           showSubmitted: false,
         };
       default:
@@ -74,6 +78,10 @@ export class PendingShell {
 
   constructor() {
     afterNextRender(() => this.heading().nativeElement.focus());
+    // Story 9.2 AC3: a restored session of a suspended tenant's member ends here, not later.
+    if (this.suspended()) {
+      void this.authService.logout();
+    }
   }
 
   public async checkAgain(): Promise<void> {

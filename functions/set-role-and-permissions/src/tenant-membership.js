@@ -20,6 +20,11 @@ import {
   handleInviteOrganizer,
   handleSubmitTenantApplication,
 } from './tenant-membership/onboarding.js';
+import {
+  handleSuspendTenant,
+  handleDesignateSuperOrganizer,
+  handleGetMyTenantStatus,
+} from './tenant-membership/tenant-admin.js';
 
 export {
   ACTIONS as TENANT_MEMBERSHIP_ACTIONS,
@@ -29,8 +34,8 @@ export {
 } from './tenant-membership/validation.js';
 
 // Story 6.4: the one action here a non-Admin reaches — the applicant's own brand-new Account
-// submitting their intake.
-const SELF_SERVICE_ACTIONS = new Set(['submitTenantApplication']);
+// submitting their intake. Story 9.2: getMyTenantStatus reads only the caller's own tenant.
+const SELF_SERVICE_ACTIONS = new Set(['submitTenantApplication', 'getMyTenantStatus']);
 
 // Story 7.1 (FR-10/FR-11): Admin, or an active Organizer-tier member of an approved Tenant acting
 // on their own Tenant only. Every other action stays Admin-gated.
@@ -188,6 +193,15 @@ export async function handleTenantMembershipRequest({
       break;
     case 'resolveIdentityReview':
       result = await handleResolveIdentityReview(actionContext);
+      break;
+    case 'suspendTenant':
+      result = await handleSuspendTenant(actionContext);
+      break;
+    case 'designateSuperOrganizer':
+      result = await handleDesignateSuperOrganizer(actionContext);
+      break;
+    case 'getMyTenantStatus':
+      result = await handleGetMyTenantStatus(actionContext);
       break;
   }
   result = await grantTenantReadAfterMembershipWrite({ action, result, ...actionContext });
