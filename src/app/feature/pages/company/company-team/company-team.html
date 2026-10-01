@@ -34,6 +34,16 @@
     </p>
     <button type="button" class="btn-ghost" (click)="dismissNewMember()">Dismiss</button>
   </div>
+  } @if (unfinishedRevoke(); as unfinished) {
+  <div class="code-note is-error" role="alert">
+    <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <p class="t-caption">
+      {{ unfinished.member.name }}'s access wasn't fully revoked: {{ unfinished.message }}
+    </p>
+    <button type="button" class="btn-ghost" [disabled]="busy()" (click)="retryRevoke()">
+      Finish revoking<span class="visually-hidden"> {{ unfinished.member.name }}</span>
+    </button>
+  </div>
   } @if (actionError(); as err) {
   <div class="code-note is-error" role="alert">
     <mat-icon aria-hidden="true">error_outline</mat-icon>
@@ -206,34 +216,11 @@
   </form>
 </div>
 } @if (revoking(); as m) {
-<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
-<div class="scrim" (click)="dismissRevoke()" (keydown.escape)="dismissRevoke()">
-  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
-  <div
-    class="dialog dialog--sm glass glass-thick"
-    role="alertdialog"
-    aria-modal="true"
-    aria-labelledby="revoke-title"
-    aria-describedby="revoke-body"
-    cdkTrapFocus
-    [cdkTrapFocusAutoCapture]="true"
-    (click)="$event.stopPropagation()"
-  >
-    <header class="dialog-head">
-      <h2 id="revoke-title" class="t-page-title">Revoke {{ m.name }}'s access?</h2>
-    </header>
-    <div class="dialog-body">
-      <p id="revoke-body" class="t-body confirm-body">
-        They lose access to {{ companyName() }} and every Event they're assigned to right away.
-        Nothing is deleted — every donation they recorded keeps their name.
-      </p>
-    </div>
-    <footer class="dialog-foot">
-      <button type="button" class="btn btn-secondary" (click)="dismissRevoke()">Cancel</button>
-      <button type="button" class="btn btn-danger" [disabled]="busy()" (click)="confirmRevoke()">
-        Revoke access
-      </button>
-    </footer>
-  </div>
-</div>
+<app-revoke-member-dialog
+  [member]="m"
+  [companyName]="companyName()"
+  [busy]="busy()"
+  (confirmed)="confirmRevoke($event)"
+  (dismissed)="dismissRevoke()"
+/>
 }

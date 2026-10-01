@@ -54,6 +54,8 @@ export function fakeContext({
     get = record('usersGet', users);
     create = record('usersCreate', users);
     delete = record('usersDelete', users);
+    updateStatus = record('usersUpdateStatus', users);
+    deleteSessions = record('usersDeleteSessions', users);
   }
 
   class StorageCtor {

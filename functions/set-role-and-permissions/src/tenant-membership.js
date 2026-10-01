@@ -6,11 +6,8 @@ import {
   handleCreateMembership,
   grantTenantReadAfterMembershipWrite,
 } from './tenant-membership/memberships.js';
-import {
-  handleAddTeamMember,
-  handleRevokeMembership,
-  handleListTeamMembers,
-} from './tenant-membership/team-members.js';
+import { handleAddTeamMember, handleListTeamMembers } from './tenant-membership/team-members.js';
+import { handleRevokeMembership } from './tenant-membership/revocation.js';
 import {
   handleListIdentityReviews,
   handleResolveIdentityReview,
@@ -51,7 +48,8 @@ const TEAM_ACTIONS = new Set(['addTeamMember', 'revokeMembership', 'listTeamMemb
  * holds a platform relationship — and the team actions (Story 7.1), which an Organizer-tier
  * member of an approved Tenant may call for their own Tenant (resolveTeamScope, FR-9/FR-11).
  * Story 7.2 layers IdentityFlags cross-referencing (FR-12/FR-23) onto addTeamMember, plus
- * Admin's listIdentityReviews/resolveIdentityReview for the flagged-additions queue.
+ * Admin's listIdentityReviews/resolveIdentityReview for the flagged-additions queue. Story 7.3
+ * makes revokeMembership state routine vs for-cause; for-cause feeds IdentityFlags (FR-24).
  *
  * ClientCtor/AccountCtor/UsersCtor/DatabasesCtor/StorageCtor/MessagingCtor are injectable so
  * tests can substitute fakes without module-mocking node-appwrite.

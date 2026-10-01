@@ -1,7 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { FUNCTIONS } from '../../core/appwrite/client';
 import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
-import type { AddTeamMemberResult, TeamMember, TeamMemberRole } from '../models/team-member';
+import type {
+  AddTeamMemberResult,
+  RevocationChoice,
+  TeamMember,
+  TeamMemberRole,
+} from '../models/team-member';
 
 /**
  * Story 7.1's team actions. Memberships and Accounts aren't client-readable, so all three go
@@ -33,13 +38,12 @@ export class TeamDataService {
     });
   }
 
-  async revokeMembership(membershipId: string): Promise<void> {
+  /** Re-sending the same revoke is how a partly failed one (a 5xx) is finished. */
+  async revokeMembership(membershipId: string, choice: RevocationChoice): Promise<void> {
     await invokeAdminFunction(this.functions, {
       action: 'revokeMembership',
       invokeFailureMessage: 'Failed to revoke access',
-      payload: {
-        membershipId,
-      },
+      payload: { membershipId, ...choice },
     });
   }
 }
