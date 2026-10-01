@@ -7,6 +7,7 @@ import { INavbarItem, IUserProfile } from '../../../../data/models/user.model';
 import { Sidebar } from '../../../components/sidebar/sidebar';
 import { Breadcrumb } from '../../../../shared/components';
 import { AuthService } from '../../../../data/services/auth.service';
+import { TenantService } from '../../../../data/services/tenant.service';
 import { ThemeService } from '../../../../core/services/theme.service';
 import { MOBILE_NAV_QUERY } from '../../../../utils/breakpoints.util';
 
@@ -27,6 +28,7 @@ export class CompanyLayout {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly themeService = inject(ThemeService);
+  private readonly companyContext = inject(TenantService).context;
 
   public readonly theme = this.themeService.theme;
   public readonly isSidebarCollapsed = signal(false);
@@ -38,6 +40,9 @@ export class CompanyLayout {
     { name: 'Events', icon: 'event', route: '/company/events' },
     { name: 'Team', icon: 'group', route: '/company/team' },
     { name: 'Contact Admin', icon: 'support_agent', route: '/company/support' },
+    ...(this.companyContext()?.membership.role === 'super_organizer'
+      ? [{ name: 'Reports', icon: 'summarize', route: '/company/reports' }]
+      : []),
   ]);
 
   constructor() {

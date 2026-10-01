@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { sessionExpiryGuard } from '../../../core/guards/role.guard';
 import { approvedCompanyMatch, pendingCompanyMatch } from '../../../core/guards/tenant.guard';
+import { superOrganizerMatch } from './company-reports/super-organizer.guard';
 
 /**
  * The approved Organizer tier's pages. New /company/* screens (team, audit, reports, support…)
@@ -29,6 +30,12 @@ export const COMPANY_CHILD_ROUTES: Routes = [
     path: 'support',
     loadComponent: () => import('./company-support/company-support').then((m) => m.CompanySupport),
     title: 'Contact Admin',
+  },
+  {
+    path: 'reports',
+    canMatch: [superOrganizerMatch],
+    loadComponent: () => import('./company-reports/company-reports').then((m) => m.CompanyReports),
+    title: 'Settlement reports',
   },
 ];
 

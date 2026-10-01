@@ -2,6 +2,7 @@ import { InjectionToken, Injectable, inject } from '@angular/core';
 import * as sheetjs from '../../../vendor/sheetjs/xlsx.mjs';
 import { DONATION_TYPE_LABELS, type Donation } from '../models/donation';
 import { totalMinor } from '../../utils/donation.util';
+import type { SettlementReport } from './settlement-report';
 
 export interface ExportOptions {
   /** Family export (Story 4.4): drops Phone and Recorded By — never shown outside Admin/Operator. */
@@ -40,6 +41,14 @@ const SANITIZED_HEADER = [
   'Date & Time',
 ];
 
+const SETTLEMENT_HEADER = [
+  'Event',
+  'Event Date',
+  'Status',
+  'Period Total (GHS)',
+  'All-Time Total (GHS)',
+];
+
 @Injectable({ providedIn: 'root' })
 export class ReportService {
   private readonly xlsx = inject(XLSX);
@@ -51,7 +60,11 @@ export class ReportService {
    * Excel SUM the file's own math backs up — matching the in-app total to the pesewa means the
    * same division this file's totals row does, not a separately-rounded display string.
    */
-  exportDonationsXlsx(eventName: string, donations: readonly Donation[], options: ExportOptions = {}): void {
+  exportDonationsXlsx(
+    eventName: string,
+    donations: readonly Donation[],
+    options: ExportOptions = {},
+  ): void {
     const rows = donations.filter((d) => !d.deletedAt && d.syncStatus !== 'conflict');
     const totalGhs = totalMinor(rows) / 100;
 
@@ -65,9 +78,38 @@ export class ReportService {
     const book = this.xlsx.utils.book_new();
     this.xlsx.utils.book_append_sheet(book, sheet, 'Donations');
 
-    const safeName = eventName.replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'Event';
+    const safeName = fileNameSegment(eventName, 'Event');
     const dateStamp = new Date().toISOString().slice(0, 10);
     this.xlsx.writeFileXLSX(book, `DMS_${safeName}_${dateStamp}.xlsx`);
+  }
+
+  /**
+   * Story 8.5 (FR-22): one row per tenant Event plus a grand-total row. The totals are the
+   * report's integer minor-unit sums divided once by 100 — the same conversion each per-Event
+   * cell gets — so the sheet reconciles to the pesewa with the per-Event totals.
+   */
+  exportSettlementXlsx(report: SettlementReport): void {
+    const body = report.rows.map((row) => [
+      row.eventName,
+      row.eventDate,
+      row.status,
+      row.periodTotalMinor / 100,
+      row.allTimeTotalMinor / 100,
+    ]);
+    const totalRow = [
+      'Grand total',
+      '',
+      '',
+      report.periodTotalMinor / 100,
+      report.allTimeTotalMinor / 100,
+    ];
+
+    const sheet = this.xlsx.utils.aoa_to_sheet([SETTLEMENT_HEADER, ...body, totalRow]);
+    const book = this.xlsx.utils.book_new();
+    this.xlsx.utils.book_append_sheet(book, sheet, 'Settlement');
+
+    const safeName = fileNameSegment(report.companyName, 'Company');
+    this.xlsx.writeFileXLSX(book, `DMS_Settlement_${safeName}_${report.period.key}.xlsx`);
   }
 
   private toRow(d: Donation, options: ExportOptions): (string | number)[] {
@@ -95,4 +137,8 @@ export class ReportService {
       d.recordedAt,
     ];
   }
+}
+
+function fileNameSegment(name: string, fallback: string): string {
+  return name.replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || fallback;
 }
