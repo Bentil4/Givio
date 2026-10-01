@@ -24,3 +24,15 @@ export interface AddTeamMemberResult {
   /** The Membership exists, but granting its sign-in/company access failed server-side. */
   setupIncomplete: boolean;
 }
+
+/**
+ * Story 7.3 (FR-13/FR-24): every revoke is one or the other, never a generic "revoke". Keep in
+ * sync with the Function's validation.js (ROUTINE_REVOCATION/FOR_CAUSE_REVOCATION).
+ */
+export type RevocationReason = 'routine' | 'for_cause';
+
+/** What the revoker chose; `explanation` is required for, and only sent with, for-cause. */
+export interface RevocationChoice {
+  reason: RevocationReason;
+  explanation?: string;
+}

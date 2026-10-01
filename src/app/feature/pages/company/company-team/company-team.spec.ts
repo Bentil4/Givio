@@ -171,10 +171,10 @@ describe('CompanyTeam', () => {
       "Revoke Ama Owusu's access?",
     );
 
-    await fixture.componentInstance.confirmRevoke();
+    await fixture.componentInstance.confirmRevoke({ reason: 'routine' });
     fixture.detectChanges();
 
-    expect(teamData.revokeMembership).toHaveBeenCalledWith('m-org');
+    expect(teamData.revokeMembership).toHaveBeenCalledWith('m-org', { reason: 'routine' });
     expect(el.querySelector('[role="alertdialog"]')).toBeNull();
     expect(document.activeElement?.id).toBe('team-title');
   });

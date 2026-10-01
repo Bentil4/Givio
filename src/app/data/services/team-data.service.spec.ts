@@ -47,7 +47,13 @@ describe('TeamDataService', () => {
   it('revokeMembership surfaces the Function error message', async () => {
     respond(403, { error: 'Forbidden' });
 
-    await expect(service.revokeMembership('m1')).rejects.toThrow('Forbidden');
-    expect(sentBody()).toEqual({ action: 'revokeMembership', membershipId: 'm1' });
+    await expect(service.revokeMembership('m1', { reason: 'routine' })).rejects.toThrow(
+      'Forbidden',
+    );
+    expect(sentBody()).toEqual({
+      action: 'revokeMembership',
+      membershipId: 'm1',
+      reason: 'routine',
+    });
   });
 });

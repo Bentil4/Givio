@@ -191,7 +191,14 @@ test(
       store,
       accounts,
       steps: [
-        { body: { action: 'revokeMembership', membershipId: review.membershipId }, as: 'so-a' },
+        {
+          body: {
+            action: 'revokeMembership',
+            reason: 'routine',
+            membershipId: review.membershipId,
+          },
+          as: 'so-a',
+        },
         { body: resolve(review.$id, 'clear'), as: 'admin-1' },
       ],
     });

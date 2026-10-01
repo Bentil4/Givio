@@ -108,6 +108,8 @@ export function invoke(handler, store, body, caller = ADMIN, users = {}) {
     async create({ userId }) {
       return { $id: userId };
     }
+    async updateStatus() {}
+    async deleteSessions() {}
   }
   return handler({
     req: { bodyRaw: JSON.stringify(body), headers: HEADERS },
