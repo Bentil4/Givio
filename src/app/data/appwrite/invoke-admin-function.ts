@@ -1,4 +1,4 @@
-import { Functions } from 'appwrite';
+import { Functions, type Models } from 'appwrite';
 import { ServiceError } from '../../core/services/service-error';
 import { environment } from '../../../environments/environment';
 
@@ -19,6 +19,13 @@ export class FunctionRejectedError extends ServiceError {
   }
 }
 
+export interface AdminFunctionRequest {
+  action: string;
+  /** ServiceError message when the Function can't be reached at all. */
+  invokeFailureMessage: string;
+  payload: object;
+}
+
 /**
  * Calls the one trusted Appwrite Function (AD-9) that writes user Labels and, per Story 2.3,
  * Event.assignedUserIds + the Appwrite permissions derived from it (AD-2). Shared by every
@@ -27,30 +34,35 @@ export class FunctionRejectedError extends ServiceError {
  */
 export async function invokeAdminFunction<T>(
   functions: Functions,
-  action: string,
-  invokeFailureMessage: string,
-  payload: object,
+  request: AdminFunctionRequest,
 ): Promise<T> {
-  let execution;
+  const execution = await executeAdminFunction(functions, request);
+  const parsedBody = parseBody(execution.responseBody);
+  if (execution.responseStatusCode < 200 || execution.responseStatusCode >= 300) {
+    throw rejectionFrom(execution, parsedBody);
+  }
+  return parsedBody as T;
+}
+
+async function executeAdminFunction(
+  functions: Functions,
+  { action, invokeFailureMessage, payload }: AdminFunctionRequest,
+): Promise<Models.Execution> {
   try {
-    execution = await functions.createExecution({
+    return await functions.createExecution({
       functionId: environment.setRoleFunctionId,
       body: JSON.stringify({ action, ...payload }),
     });
   } catch (error) {
     throw new ServiceError(invokeFailureMessage, error);
   }
+}
 
-  const parsedBody = parseBody(execution.responseBody);
-
-  if (execution.responseStatusCode < 200 || execution.responseStatusCode >= 300) {
-    const message =
-      (parsedBody as FunctionErrorBody | undefined)?.error ??
-      `Function rejected the request (status ${execution.responseStatusCode})`;
-    throw new FunctionRejectedError(message, execution.responseBody, execution.responseStatusCode);
-  }
-
-  return parsedBody as T;
+function rejectionFrom(execution: Models.Execution, parsedBody: unknown): FunctionRejectedError {
+  const message =
+    (parsedBody as FunctionErrorBody | undefined)?.error ??
+    `Function rejected the request (status ${execution.responseStatusCode})`;
+  return new FunctionRejectedError(message, execution.responseBody, execution.responseStatusCode);
 }
 
 function parseBody(raw: string): unknown {

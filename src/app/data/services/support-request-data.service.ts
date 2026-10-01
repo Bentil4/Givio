@@ -38,7 +38,11 @@ export class SupportRequestDataService {
 
   private async invoke(action: string, payload: object): Promise<void> {
     try {
-      await invokeAdminFunction(this.functions, action, UNREACHABLE, payload);
+      await invokeAdminFunction(this.functions, {
+        action,
+        invokeFailureMessage: UNREACHABLE,
+        payload,
+      });
     } catch (error) {
       // A 4xx carries a message written for the person (validation, rate limit); a 5xx's text
       // is operator-facing ("Server misconfiguration…") and must not reach the form.
