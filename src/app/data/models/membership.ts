@@ -1,5 +1,6 @@
 export type MembershipRole = 'super_organizer' | 'organizer' | 'operator';
-export type MembershipStatus = 'active' | 'revoked';
+/** `pending_review`: a screened team addition held, with no access, until Admin decides (7.2). */
+export type MembershipStatus = 'active' | 'revoked' | 'pending_review';
 
 /** Mirrors the `memberships` table row shape exactly (Story 6.2) — the sole source of a
  *  tenant-scoped role (AD-1 amended). */

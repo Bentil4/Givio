@@ -20,6 +20,8 @@ import {
   type TenantVerification,
 } from '../../../../data/services/tenant-data.service';
 import { UserService } from '../../../../data/services/user.service';
+import { IdentityReviewDataService } from '../../../../data/services/identity-review-data.service';
+import type { IdentityReview } from '../../../../data/models/identity-review';
 import type { AdminUser } from '../../../../data/models/admin-user';
 import type { Tenant } from '../../../../data/models/tenant';
 import type { ApplicationView } from './application-view';
@@ -28,9 +30,10 @@ import {
   InviteOrganizerDialog,
   type OrganizerInvited,
 } from './invite-organizer-dialog/invite-organizer-dialog';
+import { FlaggedAdditions } from './flagged-additions/flagged-additions';
 
-/** Story 7.4 adds 'duplicates' (Duplicate-event flags) as a second tab on this same screen. */
-export type ApprovalsTab = 'applications';
+/** Story 7.4 adds 'duplicates' (Duplicate-event flags) as a further tab on this same screen. */
+export type ApprovalsTab = 'applications' | 'flagged';
 
 interface TabDef {
   readonly id: ApprovalsTab;
@@ -91,7 +94,7 @@ function toView(tenant: Tenant, users: ReadonlyMap<string, AdminUser>): Applicat
  */
 @Component({
   selector: 'app-admin-approvals',
-  imports: [MatIconModule, CdkTrapFocus, ApplicationRow, InviteOrganizerDialog],
+  imports: [MatIconModule, CdkTrapFocus, ApplicationRow, InviteOrganizerDialog, FlaggedAdditions],
   templateUrl: './admin-approvals.html',
   styleUrl: './admin-approvals.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -99,6 +102,7 @@ function toView(tenant: Tenant, users: ReadonlyMap<string, AdminUser>): Applicat
 export class AdminApprovals implements OnInit {
   private readonly tenantData = inject(TenantDataService);
   private readonly userService = inject(UserService);
+  private readonly identityReviewData = inject(IdentityReviewDataService);
   private readonly injector = inject(Injector);
   private readonly queueHeading = viewChild<ElementRef<HTMLElement>>('queueHeading');
   private readonly tabButtons = viewChildren<ElementRef<HTMLButtonElement>>('tabButton');
@@ -115,12 +119,20 @@ export class AdminApprovals implements OnInit {
   public readonly inviting = signal(false);
   public readonly invited = signal<OrganizerInvited | null>(null);
   public readonly skeletons = [0, 1, 2];
+  public readonly identityReviews = signal<readonly IdentityReview[]>([]);
+  public readonly reviewsLoading = signal(true);
+  public readonly reviewsError = signal<string | null>(null);
 
   public readonly tabs = computed<readonly TabDef[]>(() => [
     {
       id: 'applications',
       label: 'Organizer applications',
       count: this.loading() || this.loadError() ? null : this.applications().length,
+    },
+    {
+      id: 'flagged',
+      label: 'Flagged additions',
+      count: this.reviewsLoading() || this.reviewsError() ? null : this.identityReviews().length,
     },
   ]);
 
@@ -146,6 +158,19 @@ export class AdminApprovals implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+    void this.loadIdentityReviews();
+  }
+
+  /** Story 7.2: loaded here rather than in the tab so its count shows before the tab is opened. */
+  async loadIdentityReviews(): Promise<void> {
+    try {
+      this.identityReviews.set(await this.identityReviewData.listIdentityReviews());
+      this.reviewsError.set(null);
+    } catch (err) {
+      this.reviewsError.set(errorMessage(err, 'Failed to load flagged additions'));
+    } finally {
+      this.reviewsLoading.set(false);
+    }
   }
 
   async load(): Promise<void> {

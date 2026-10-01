@@ -4,26 +4,38 @@ import { ReceiptService } from './receipt.service';
 import type { Donation } from '../models/donation';
 import type { Event } from '../models/event';
 
-// jsPDF assigns its plugin methods (save, autoPrint, output, ...) as own instance properties
-// inside the constructor, not on jsPDF.prototype — so vi.spyOn(jsPDF.prototype, 'save') can't
-// see them. Mocking the whole (non-relative) `jspdf` package sidesteps that entirely.
-vi.mock('jspdf', () => ({
-  jsPDF: vi.fn().mockImplementation(function (this: Record<string, unknown>) {
-    this['internal'] = { pageSize: { getWidth: () => 148, getHeight: () => 210 } };
-    this['setFont'] = vi.fn().mockReturnThis();
-    this['setFontSize'] = vi.fn().mockReturnThis();
-    this['setTextColor'] = vi.fn().mockReturnThis();
-    this['setLineWidth'] = vi.fn().mockReturnThis();
-    this['text'] = vi.fn().mockReturnThis();
-    this['line'] = vi.fn().mockReturnThis();
-    this['save'] = vi.fn().mockReturnThis();
-    this['autoPrint'] = vi.fn().mockReturnThis();
-    this['output'] = vi.fn().mockReturnValue(new URL('blob:mock-url'));
-    this['addFileToVFS'] = vi.fn().mockReturnThis();
-    this['addFont'] = vi.fn().mockReturnThis();
-    this['addImage'] = vi.fn().mockReturnThis();
-  }),
-}));
+// No vi.mock('jspdf'): tests run non-isolated (one module cache per worker), so when a spec that
+// imports ReceiptService transitively (e.g. donation-entry) runs first in the same worker, the
+// service is already bound to the real jsPDF and a module mock never reaches it. Instead, every
+// real jsPDF instance is intercepted through its own 'initialized' plugin event, and the
+// methods with side effects (save writes a file to disk under Node, output creates a Blob URL,
+// addImage decodes image bytes) are stubbed before ReceiptService draws anything.
+type JsPdfPluginEvent = [string, (this: jsPDF) => void];
+
+const constructedDocs: jsPDF[] = [];
+const interceptConstructedDoc: JsPdfPluginEvent = ['initialized', stubDocSideEffects];
+
+function stubDocSideEffects(this: jsPDF): void {
+  vi.spyOn(this, 'save').mockReturnThis();
+  vi.spyOn(this, 'output').mockReturnValue(new URL('blob:mock-url') as never);
+  vi.spyOn(this, 'addImage').mockReturnThis();
+  vi.spyOn(this, 'autoPrint');
+  vi.spyOn(this, 'text');
+  vi.spyOn(this, 'setFont');
+  vi.spyOn(this, 'addFileToVFS');
+  vi.spyOn(this, 'addFont');
+  constructedDocs.push(this);
+}
+
+function startInterceptingDocs(): void {
+  constructedDocs.length = 0;
+  jsPDF.API.events.push(interceptConstructedDoc);
+}
+
+function stopInterceptingDocs(): void {
+  const events = jsPDF.API.events;
+  events.splice(events.indexOf(interceptConstructedDoc), 1);
+}
 
 const makeEvent = (overrides: Partial<Event> = {}): Event => ({
   id: 'e1',
@@ -54,10 +66,7 @@ const makeDonation = (overrides: Partial<Donation> = {}): Donation => ({
 });
 
 function latestDoc() {
-  const instance = vi.mocked(jsPDF).mock.instances.at(-1) as unknown as Record<
-    string,
-    ReturnType<typeof vi.fn>
-  >;
+  const instance = constructedDocs.at(-1) as unknown as Record<string, ReturnType<typeof vi.fn>>;
   if (!instance) throw new Error('jsPDF was never constructed');
   return instance;
 }
@@ -66,9 +75,13 @@ describe('ReceiptService', () => {
   let service: ReceiptService;
 
   beforeEach(() => {
-    vi.mocked(jsPDF).mockClear();
+    startInterceptingDocs();
     TestBed.configureTestingModule({});
     service = TestBed.inject(ReceiptService);
+  });
+
+  afterEach(() => {
+    stopInterceptingDocs();
   });
 
   describe('downloadReceipt', () => {

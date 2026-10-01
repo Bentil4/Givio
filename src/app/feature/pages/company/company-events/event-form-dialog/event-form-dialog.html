@@ -1,0 +1,123 @@
+<!-- Backdrop click is a pointer convenience only; (keydown.escape) is the keyboard equivalent. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="dismissed.emit()" (keydown.escape)="dismissed.emit()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <form
+    class="dialog dialog--lg glass glass-thick"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="event-form-title"
+    aria-describedby="event-form-desc"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    (click)="$event.stopPropagation()"
+    novalidate
+  >
+    <header class="dialog-head">
+      <h2 id="event-form-title" class="t-page-title">{{ title() }}</h2>
+      <p id="event-form-desc" class="t-secondary">
+        @if (isCreate()) { Set up the basic record. Operators and a family code are added from
+        Manage afterwards. } @else { Changes are saved for everyone on your team straight away. }
+      </p>
+    </header>
+
+    @if (formError(); as err) {
+    <p class="field-error form-error" role="alert">{{ err }}</p>
+    }
+
+    <div class="dialog-body">
+      <div class="field">
+        <label class="field-label" for="evName"
+          >Event name <span class="req" aria-hidden="true">*</span></label
+        >
+        <input
+          id="evName"
+          class="input"
+          type="text"
+          formControlName="name"
+          required
+          [attr.aria-invalid]="invalid('name')"
+          [attr.aria-describedby]="invalid('name') ? 'evName-error' : null"
+          [class.is-invalid]="invalid('name')"
+        />
+        @if (invalid('name')) {
+        <p id="evName-error" class="field-error">Give the event a name of at least 3 characters.</p>
+        }
+      </div>
+
+      @if (isCreate()) {
+      <fieldset class="field occasion">
+        <legend class="field-label">Occasion <span class="req" aria-hidden="true">*</span></legend>
+        <label class="occasion-option">
+          <input type="radio" formControlName="type" value="funeral" /> Funeral
+        </label>
+        <label class="occasion-option">
+          <input type="radio" formControlName="type" value="wedding" /> Wedding
+        </label>
+      </fieldset>
+      }
+
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label" for="evDate"
+            >Event date <span class="req" aria-hidden="true">*</span></label
+          >
+          <input
+            id="evDate"
+            class="input"
+            type="date"
+            formControlName="date"
+            required
+            [attr.aria-invalid]="invalid('date')"
+            [attr.aria-describedby]="invalid('date') ? 'evDate-error' : null"
+            [class.is-invalid]="invalid('date')"
+          />
+          @if (invalid('date')) {
+          <p id="evDate-error" class="field-error">Pick the date of the event.</p>
+          }
+        </div>
+        <div class="field">
+          <label class="field-label" for="evHost"
+            >Host / family name <span class="req" aria-hidden="true">*</span></label
+          >
+          <input
+            id="evHost"
+            class="input"
+            type="text"
+            formControlName="hostName"
+            required
+            [attr.aria-invalid]="invalid('hostName')"
+            [attr.aria-describedby]="invalid('hostName') ? 'evHost-error' : null"
+            [class.is-invalid]="invalid('hostName')"
+          />
+          @if (invalid('hostName')) {
+          <p id="evHost-error" class="field-error">Enter the host or family name.</p>
+          }
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="evVenue">Venue</label>
+        <input
+          id="evVenue"
+          class="input"
+          type="text"
+          formControlName="venue"
+          [attr.aria-invalid]="invalid('venue')"
+          [class.is-invalid]="invalid('venue')"
+        />
+      </div>
+
+      <div class="field">
+        <app-image-upload formControlName="image" label="Event photo (optional)" />
+      </div>
+    </div>
+
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="dismissed.emit()">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="busy()">{{ title() }}</button>
+    </footer>
+  </form>
+</div>

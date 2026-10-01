@@ -1,0 +1,175 @@
+<h2 #flaggedHeading class="visually-hidden" tabindex="-1">Flagged team additions</h2>
+<p class="visually-hidden" role="status">{{ announcement() }}</p>
+
+@if (loading()) {
+<div class="queue" aria-busy="true">
+  <span class="visually-hidden">Loading flagged additions…</span>
+  @for (i of skeletons; track i) {
+  <div class="skel-card">
+    <span class="skel skel--lg"></span>
+    <span class="skel skel--md"></span>
+  </div>
+  }
+</div>
+} @else if (loadError(); as err) {
+<div class="empty" role="alert">
+  <mat-icon class="empty-icon" aria-hidden="true">error_outline</mat-icon>
+  <p class="t-card-title">We couldn't load flagged additions</p>
+  <p class="t-caption">{{ err }}</p>
+  <button type="button" class="btn btn-secondary" (click)="retry.emit()">Try again</button>
+</div>
+} @else if (reviews().length === 0) {
+<div class="empty">
+  <mat-icon class="empty-icon" aria-hidden="true">verified_user</mat-icon>
+  <p class="t-card-title">No additions waiting</p>
+  <p class="t-caption">
+    Team additions that match a flagged identity, and every new co-Organizer, appear here.
+  </p>
+</div>
+} @else {
+<section class="group" aria-labelledby="flagged-held-title">
+  <h3 id="flagged-held-title" class="group-title">Held for your review ({{ flagged().length }})</h3>
+  <p class="t-caption group-note">
+    The company sees these people as pending, with no access and no reason given.
+  </p>
+  @if (flagged().length === 0) {
+  <p class="t-secondary">Nothing held right now.</p>
+  } @else {
+  <ul class="queue" aria-labelledby="flagged-held-title">
+    @for (review of flagged(); track review.reviewId) {
+    <li>
+      <article class="row" [attr.aria-labelledby]="'review-' + review.reviewId">
+        <header class="row-head">
+          <p class="row-main">
+            <span class="row-name" [id]="'review-' + review.reviewId">{{ review.name }}</span>
+            <span class="row-meta">
+              {{ roleLabel(review.role) }} at {{ review.tenantName ?? review.tenantId }} · added {{
+              review.createdAt | date: 'mediumDate' }}
+            </span>
+          </p>
+          <span class="status-pill is-pending">Held</span>
+        </header>
+        <p class="t-caption contact">
+          {{ review.email }}@if (review.phone) { · {{ review.phone }}}
+        </p>
+        <ul class="matches" [attr.aria-label]="'What ' + review.name + ' matched'">
+          @for (match of review.matches; track match.source + match.id) {
+          <li class="match">
+            <span class="match-source">{{ sourceLabel(match) }}</span>
+            <span>
+              Same {{ match.fields.join(' and ') }} as {{ match.name }}@if (match.email) { ({{
+              match.email }})}
+            </span>
+            @if (match.reason) {
+            <span class="t-caption">Flagged: {{ match.reason }}</span>
+            } @if (match.status) {
+            <span class="t-caption">Their membership there: {{ match.status }}</span>
+            }
+          </li>
+          }
+        </ul>
+        @if (rowErrorFor(review); as err) {
+        <p class="row-error" role="alert">{{ err }}</p>
+        }
+        <footer class="row-actions">
+          <button
+            type="button"
+            class="btn btn-secondary btn-compact is-danger"
+            [disabled]="decidingId() === review.reviewId"
+            (click)="ask('confirm', review)"
+          >
+            Confirm match<span class="visually-hidden"> for {{ review.name }}</span>
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-compact"
+            [disabled]="decidingId() === review.reviewId"
+            (click)="ask('clear', review)"
+          >
+            Clear<span class="visually-hidden"> {{ review.name }}</span>
+          </button>
+        </footer>
+      </article>
+    </li>
+    }
+  </ul>
+  }
+</section>
+
+<section class="group" aria-labelledby="flagged-checked-title">
+  <h3 id="flagged-checked-title" class="group-title">
+    New co-Organizers — checked, no match ({{ unmatched().length }})
+  </h3>
+  @if (unmatched().length === 0) {
+  <p class="t-secondary">Nothing new.</p>
+  } @else {
+  <ul class="queue" aria-labelledby="flagged-checked-title">
+    @for (review of unmatched(); track review.reviewId) {
+    <li>
+      <article class="row row--compact" [attr.aria-labelledby]="'review-' + review.reviewId">
+        <p class="row-main">
+          <span class="row-name" [id]="'review-' + review.reviewId">{{ review.name }}</span>
+          <span class="row-meta">
+            {{ review.email }} · co-Organizer at {{ review.tenantName ?? review.tenantId }} · added
+            {{ review.createdAt | date: 'mediumDate' }}
+          </span>
+        </p>
+        @if (rowErrorFor(review); as err) {
+        <p class="row-error" role="alert">{{ err }}</p>
+        }
+        <button
+          type="button"
+          class="btn btn-secondary btn-compact"
+          [disabled]="decidingId() === review.reviewId"
+          (click)="acknowledge(review)"
+        >
+          Mark as seen<span class="visually-hidden"> — {{ review.name }}</span>
+        </button>
+      </article>
+    </li>
+    }
+  </ul>
+  }
+</section>
+} @if (pendingCopy(); as c) {
+<!-- Backdrop click is a pointer convenience only; (keydown.escape) is the keyboard equivalent. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="dismissPending()" (keydown.escape)="dismissPending()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <div
+    class="dialog dialog--sm glass glass-thick"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="review-decision-title"
+    aria-describedby="review-decision-body"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="dialog-head">
+      <h2 id="review-decision-title" class="t-page-title">{{ c.title }}</h2>
+    </header>
+    <div class="dialog-body">
+      <p id="review-decision-body" class="t-body confirm-body">{{ c.body }}</p>
+    </div>
+    <footer class="dialog-foot">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        [disabled]="decidingId() !== null"
+        (click)="dismissPending()"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        [class]="c.danger ? 'btn btn-danger' : 'btn btn-primary'"
+        [disabled]="decidingId() !== null"
+        (click)="confirmPending()"
+      >
+        {{ decidingId() !== null ? 'Working…' : c.cta }}
+      </button>
+    </footer>
+  </div>
+</div>
+}

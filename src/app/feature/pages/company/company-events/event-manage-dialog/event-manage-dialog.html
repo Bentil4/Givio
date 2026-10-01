@@ -1,0 +1,81 @@
+<!-- Backdrop click is a pointer convenience only; (keydown.escape) is the keyboard equivalent. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="dismissed.emit()" (keydown.escape)="dismissed.emit()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <div
+    class="dialog dialog--lg glass glass-thick"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="manage-event-title"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="dialog-head">
+      <h2 id="manage-event-title" class="t-page-title">{{ event().name }}</h2>
+      <p class="t-secondary">
+        <span class="tag" [class]="chipClass[event().status]"
+          >{{ statusLabel(event().status) }}</span
+        >
+      </p>
+    </header>
+
+    @if (actionError(); as err) {
+    <p class="field-error form-error" role="alert">{{ err }}</p>
+    }
+
+    <div class="dialog-body">
+      <section class="manage-section" aria-labelledby="status-heading">
+        <h3 id="status-heading" class="t-card-title">Status</h3>
+        <p class="t-caption">Paused stops new donations; closed makes the record read-only.</p>
+        <div class="manage-actions">
+          @for (a of statusActions(); track a.to) {
+          <button
+            type="button"
+            class="btn btn-secondary"
+            [disabled]="busy()"
+            (click)="changeStatus(a)"
+          >
+            {{ a.label }}
+          </button>
+          }
+        </div>
+      </section>
+
+      <section class="manage-section" aria-labelledby="code-heading">
+        <h3 id="code-heading" class="t-card-title">Family access code</h3>
+        <p class="t-caption">
+          Gives the family a live, read-only view with no account and no donor phone numbers. If a
+          code leaks, regenerate it — the old one stops working at once.
+        </p>
+        <p class="code-value">
+          @if (event().accessCode; as code) {
+          <strong class="is-mono">{{ code }}</strong>
+          } @else {
+          <span class="t-tertiary">No code yet</span>
+          }
+        </p>
+        <div class="manage-actions">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            [disabled]="busy()"
+            (click)="regenerateCode()"
+          >
+            <mat-icon aria-hidden="true">vpn_key</mat-icon>
+            {{ codeActionLabel() }}
+          </button>
+        </div>
+        @if (codeNotice(); as notice) {
+        <p class="t-caption" role="status">{{ notice }}</p>
+        }
+      </section>
+
+      <app-event-operators [event]="event()" (assigned)="onOperatorsAssigned($event)" />
+    </div>
+
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-primary" (click)="dismissed.emit()">Done</button>
+    </footer>
+  </div>
+</div>

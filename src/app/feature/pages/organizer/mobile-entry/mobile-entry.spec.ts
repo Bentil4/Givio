@@ -100,7 +100,9 @@ describe('MobileEntry', () => {
 
     expect(component.event()?.id).toBe('e1');
     expect(component.notFound()).toBe(false);
-    expect(loadDonationsForEvent).toHaveBeenCalledWith('e1');
+    // The component loads donations only after its outbox (IndexedDB) read resolves, which
+    // setup()'s single macrotask doesn't guarantee — wait for the call itself.
+    await vi.waitFor(() => expect(loadDonationsForEvent).toHaveBeenCalledWith('e1'));
   });
 
   it('shows not-found when the picked event is not assigned to this operator', async () => {

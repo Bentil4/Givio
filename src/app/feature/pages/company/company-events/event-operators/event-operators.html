@@ -1,0 +1,27 @@
+<section class="manage-section" aria-labelledby="operators-heading">
+  <h3 id="operators-heading" class="t-card-title">Operators</h3>
+  @if (loading()) {
+  <p class="t-caption" aria-busy="true">Loading your Operators…</p>
+  } @else if (hasOperators()) {
+  <fieldset class="operator-list">
+    <legend class="t-caption">Choose who records donations at this Event.</legend>
+    @for (op of operators(); track op.userId) {
+    <label class="operator-option">
+      <input type="checkbox" [checked]="isSelected(op.userId)" (change)="toggle(op.userId)" />
+      {{ op.name }} <span class="t-tertiary">{{ op.email }}</span>
+    </label>
+    }
+  </fieldset>
+  <div class="manage-actions">
+    <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="save()">
+      Save Operators
+    </button>
+  </div>
+  } @else {
+  <p class="t-caption">You have no active Operators yet. Add them under Team first.</p>
+  } @if (error(); as err) {
+  <p class="field-error" role="alert">{{ err }}</p>
+  } @if (saved()) {
+  <p class="t-caption" role="status">Operators saved.</p>
+  }
+</section>

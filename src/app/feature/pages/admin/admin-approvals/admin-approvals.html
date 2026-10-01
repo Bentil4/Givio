@@ -3,9 +3,9 @@
     <div>
       <h1 id="approvals-title" class="t-page-title">Approvals</h1>
       <p class="t-secondary">
-        Organizer applications awaiting your review. Approve only after you've checked their
-        verification document and called them — the server refuses an approval until both are
-        recorded.
+        Organizer applications and flagged team additions awaiting your review. Approve only after
+        you've checked their verification document and called them — the server refuses an approval
+        until both are recorded.
       </p>
     </div>
     <div class="page-actions">
@@ -99,6 +99,21 @@
       }
     </ul>
     }
+  </div>
+  } @case ('flagged') {
+  <div
+    class="tab-panel"
+    role="tabpanel"
+    id="approvals-panel-flagged"
+    aria-labelledby="approvals-tab-flagged"
+  >
+    <app-flagged-additions
+      [reviews]="identityReviews()"
+      [loading]="reviewsLoading()"
+      [loadError]="reviewsError()"
+      (changed)="loadIdentityReviews()"
+      (retry)="loadIdentityReviews()"
+    />
   </div>
   } }
 </section>

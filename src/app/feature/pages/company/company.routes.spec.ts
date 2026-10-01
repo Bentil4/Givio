@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { Router, provideRouter } from '@angular/router';
+import { Router, Routes, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { ACCOUNT } from '../../../core/appwrite/client';
 import { CompanyContext, TenantService } from '../../../data/services/tenant.service';
@@ -33,7 +33,21 @@ function contextFor(status: TenantStatus): CompanyContext {
   };
 }
 
+function lazyComponentLoads(routes: Routes): unknown[] {
+  return routes.flatMap((route) => [
+    route.loadComponent?.(),
+    ...lazyComponentLoads(route.children ?? []),
+  ]);
+}
+
 describe('COMPANY_ROUTES', () => {
+  // Each lazy route's chunk is imported on its first navigation. Under a loaded CI worker that
+  // one-time import took the whole 5s budget of whichever test navigated there first (the
+  // approved-tenant layout), so it's paid once here instead of inside a test.
+  beforeAll(async () => {
+    await Promise.all(lazyComponentLoads(COMPANY_ROUTES));
+  });
+
   async function navigate(url: string, context: CompanyContext | null) {
     const tenant = signal(context?.tenant ?? null);
     TestBed.configureTestingModule({

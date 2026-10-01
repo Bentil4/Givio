@@ -190,8 +190,10 @@ export async function rejectUnapprovedTenantMember({
   }
 }
 
-// Same linear-time pattern and RFC 5321 cap as tenant-membership.js's private copy (CodeQL
+// Deliberately permissive (not RFC 5322) — good enough to catch a typo, not a security
+// boundary; Appwrite's own users.create is still the final validator. Linear-time (CodeQL
 // js/polynomial-redos): domain labels exclude '.', so any input has exactly one way to match.
+// The length cap is RFC 5321's maximum.
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 export const EMAIL_MAX_LENGTH = 254;
 
