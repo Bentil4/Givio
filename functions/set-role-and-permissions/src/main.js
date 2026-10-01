@@ -13,6 +13,7 @@ import { handleTenantMembershipRequest, TENANT_MEMBERSHIP_ACTIONS } from './tena
 import { handleTenantGrantsRequest, TENANT_GRANT_ACTIONS } from './tenant-grants.js';
 import { handleSupportRequestsRequest, SUPPORT_REQUEST_ACTIONS } from './support-requests.js';
 import { handleTenantEventsRequest, TENANT_EVENT_ACTIONS } from './tenant-events.js';
+import { handleDuplicateEventsRequest, DUPLICATE_EVENT_ACTIONS } from './duplicate-events.js';
 
 /**
  * One deployed Function, routed by `action` in the request body — all seven modules share the
@@ -56,6 +57,9 @@ export default async (context) => {
   }
   if (TENANT_EVENT_ACTIONS.includes(action)) {
     return handleTenantEventsRequest(context);
+  }
+  if (DUPLICATE_EVENT_ACTIONS.includes(action)) {
+    return handleDuplicateEventsRequest(context);
   }
   // Falls through to admin-users.js for everything else, including an unrecognized action —
   // that module's own validatePayload() is what turns an unknown action into a 400.

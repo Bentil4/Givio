@@ -3,9 +3,9 @@
     <div>
       <h1 id="approvals-title" class="t-page-title">Approvals</h1>
       <p class="t-secondary">
-        Organizer applications and flagged team additions awaiting your review. Approve only after
-        you've checked their verification document and called them — the server refuses an approval
-        until both are recorded.
+        Organizer applications, flagged team additions and possible duplicate events awaiting your
+        review. Approve only after you've checked their verification document and called them — the
+        server refuses an approval until both are recorded.
       </p>
     </div>
     <div class="page-actions">
@@ -113,6 +113,21 @@
       [loadError]="reviewsError()"
       (changed)="loadIdentityReviews()"
       (retry)="loadIdentityReviews()"
+    />
+  </div>
+  } @case ('duplicates') {
+  <div
+    class="tab-panel"
+    role="tabpanel"
+    id="approvals-panel-duplicates"
+    aria-labelledby="approvals-tab-duplicates"
+  >
+    <app-duplicate-events
+      [flags]="duplicateFlags()"
+      [loading]="duplicatesLoading()"
+      [loadError]="duplicatesError()"
+      (changed)="loadDuplicateFlags()"
+      (retry)="loadDuplicateFlags()"
     />
   </div>
   } }

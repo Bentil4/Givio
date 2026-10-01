@@ -22,6 +22,8 @@ import {
 import { UserService } from '../../../../data/services/user.service';
 import { IdentityReviewDataService } from '../../../../data/services/identity-review-data.service';
 import type { IdentityReview } from '../../../../data/models/identity-review';
+import { DuplicateEventFlagDataService } from '../../../../data/services/duplicate-event-flag-data.service';
+import type { DuplicateEventFlag } from '../../../../data/models/duplicate-event-flag';
 import type { AdminUser } from '../../../../data/models/admin-user';
 import type { Tenant } from '../../../../data/models/tenant';
 import type { ApplicationView } from './application-view';
@@ -31,9 +33,9 @@ import {
   type OrganizerInvited,
 } from './invite-organizer-dialog/invite-organizer-dialog';
 import { FlaggedAdditions } from './flagged-additions/flagged-additions';
+import { DuplicateEvents } from './duplicate-events/duplicate-events';
 
-/** Story 7.4 adds 'duplicates' (Duplicate-event flags) as a further tab on this same screen. */
-export type ApprovalsTab = 'applications' | 'flagged';
+export type ApprovalsTab = 'applications' | 'flagged' | 'duplicates';
 
 interface TabDef {
   readonly id: ApprovalsTab;
@@ -94,7 +96,14 @@ function toView(tenant: Tenant, users: ReadonlyMap<string, AdminUser>): Applicat
  */
 @Component({
   selector: 'app-admin-approvals',
-  imports: [MatIconModule, CdkTrapFocus, ApplicationRow, InviteOrganizerDialog, FlaggedAdditions],
+  imports: [
+    MatIconModule,
+    CdkTrapFocus,
+    ApplicationRow,
+    InviteOrganizerDialog,
+    FlaggedAdditions,
+    DuplicateEvents,
+  ],
   templateUrl: './admin-approvals.html',
   styleUrl: './admin-approvals.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -103,6 +112,7 @@ export class AdminApprovals implements OnInit {
   private readonly tenantData = inject(TenantDataService);
   private readonly userService = inject(UserService);
   private readonly identityReviewData = inject(IdentityReviewDataService);
+  private readonly duplicateFlagData = inject(DuplicateEventFlagDataService);
   private readonly injector = inject(Injector);
   private readonly queueHeading = viewChild<ElementRef<HTMLElement>>('queueHeading');
   private readonly tabButtons = viewChildren<ElementRef<HTMLButtonElement>>('tabButton');
@@ -122,6 +132,9 @@ export class AdminApprovals implements OnInit {
   public readonly identityReviews = signal<readonly IdentityReview[]>([]);
   public readonly reviewsLoading = signal(true);
   public readonly reviewsError = signal<string | null>(null);
+  public readonly duplicateFlags = signal<readonly DuplicateEventFlag[]>([]);
+  public readonly duplicatesLoading = signal(true);
+  public readonly duplicatesError = signal<string | null>(null);
 
   public readonly tabs = computed<readonly TabDef[]>(() => [
     {
@@ -133,6 +146,12 @@ export class AdminApprovals implements OnInit {
       id: 'flagged',
       label: 'Flagged additions',
       count: this.reviewsLoading() || this.reviewsError() ? null : this.identityReviews().length,
+    },
+    {
+      id: 'duplicates',
+      label: 'Duplicate events',
+      count:
+        this.duplicatesLoading() || this.duplicatesError() ? null : this.duplicateFlags().length,
     },
   ]);
 
@@ -159,6 +178,7 @@ export class AdminApprovals implements OnInit {
   ngOnInit(): void {
     void this.load();
     void this.loadIdentityReviews();
+    void this.loadDuplicateFlags();
   }
 
   /** Story 7.2: loaded here rather than in the tab so its count shows before the tab is opened. */
@@ -170,6 +190,18 @@ export class AdminApprovals implements OnInit {
       this.reviewsError.set(errorMessage(err, 'Failed to load flagged additions'));
     } finally {
       this.reviewsLoading.set(false);
+    }
+  }
+
+  /** Story 7.4: loaded here for the same reason — the tab's count shows before it is opened. */
+  async loadDuplicateFlags(): Promise<void> {
+    try {
+      this.duplicateFlags.set(await this.duplicateFlagData.listDuplicateEventFlags());
+      this.duplicatesError.set(null);
+    } catch (err) {
+      this.duplicatesError.set(errorMessage(err, 'Failed to load duplicate-event flags'));
+    } finally {
+      this.duplicatesLoading.set(false);
     }
   }
 
