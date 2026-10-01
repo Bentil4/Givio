@@ -1,0 +1,46 @@
+<article class="panel glass" aria-labelledby="event-totals-title">
+  <header class="panel-head">
+    <h2 id="event-totals-title" class="t-card-title">By event</h2>
+    <a class="panel-link" routerLink="/company/events">Manage events</a>
+  </header>
+
+  @if (loading()) {
+  <app-skeleton-rows [rows]="3" label="Loading your events' totals…" />
+  } @else if (rows().length === 0) {
+  <p class="panel-empty t-caption">
+    Once an event is running, its own total and donor count appear here.
+  </p>
+  } @else {
+  <ul class="event-rows">
+    @for (row of rowViews(); track row.id) {
+    <li class="event-row">
+      <div class="event-main">
+        <span class="t-body-em">{{ row.name }}</span>
+        <span class="tag" [class]="row.chipClass">{{ row.statusLabel }}</span>
+      </div>
+      <div class="event-figures">
+        @switch (row.state) { @case ('loaded') {
+        <span class="figure-total">{{ row.totalLabel }}</span>
+        <span class="t-tertiary">{{ row.donorLabel }}</span>
+        } @case ('failed') {
+        <p class="row-error t-caption">
+          <mat-icon aria-hidden="true">error_outline</mat-icon>
+          Couldn't load
+        </p>
+        <button
+          type="button"
+          class="btn-ghost"
+          [attr.aria-label]="'Try again for ' + row.name"
+          (click)="retry.emit(row.id)"
+        >
+          Try again
+        </button>
+        } @default {
+        <span class="t-tertiary">Loading…</span>
+        } }
+      </div>
+    </li>
+    }
+  </ul>
+  }
+</article>
