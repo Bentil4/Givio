@@ -38,7 +38,7 @@
     "@angular/service-worker": "^22.2.0",
     "@ng-icons/material-icons": "^36.1.0",
     "@tailwindcss/postcss": "^4.3.3",
-    "appwrite": "^27.0.0",
+    "appwrite": "^28.1.0",
     "dexie": "^4.4.6",
     "jspdf": "^4.2.1",
     "postcss": "^8.5.28",
