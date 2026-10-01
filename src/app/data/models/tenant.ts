@@ -1,6 +1,6 @@
 export type TenantStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 
-// Keep in sync with functions/set-role-and-permissions/src/tenant-membership.js's
+// Keep in sync with functions/set-role-and-permissions/src/tenant-membership/validation.js's
 // TENANT_SIZES/TENANT_TYPES — the Function validates against its own copy.
 export const TENANT_SIZES = ['1-10', '11-50', '51-200', '201+'] as const;
 export const TENANT_TYPES = ['funeral', 'wedding', 'funeral_and_wedding', 'other'] as const;

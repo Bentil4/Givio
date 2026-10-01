@@ -24,14 +24,8 @@ const CHECKED_PATTERNS = [
 const IGNORED_PREFIXES = ['src/vendor/'];
 
 const LEGACY_EXCEPTIONS = {
-  'functions/set-role-and-permissions/src/tenant-membership.js': 1202,
-  'functions/set-role-and-permissions/tests/tenant-membership.test.js': 1147,
-  'functions/set-role-and-permissions/tests/admin-users.test.js': 1069,
   'src/app/data/services/donation-data.service.spec.ts': 850,
-  'functions/set-role-and-permissions/tests/family-access.test.js': 640,
   'src/app/data/services/event-data.service.spec.ts': 600,
-  'functions/set-role-and-permissions/tests/team-management.test.js': 573,
-  'functions/set-role-and-permissions/tests/tenant-read-grants.test.js': 507,
 };
 
 main();
