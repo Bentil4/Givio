@@ -1,14 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import { ID, Query } from 'node-appwrite';
 import { isConflictError, listAllRows } from '../shared.js';
-import { recomputeTenantReadGrants } from '../tenant-grants.js';
 import { createMembershipRow } from './memberships.js';
-import {
-  ORGANIZER_TIER_ROLES,
-  canManageRole,
-  setOperatorLabel,
-  syncTenantReadGrants,
-} from './team-access.js';
+import { canManageRole, setOperatorLabel, syncTenantReadGrants } from './team-access.js';
 import { recordScreeningReview, screenTeamAddition } from './identity-check.js';
 import { PENDING_REVIEW_STATUS } from './validation.js';
 
@@ -220,108 +214,6 @@ export async function grantTeamMemberAccess({
   }
 }
 
-export async function handleRevokeMembership({
-  DatabasesCtor,
-  UsersCtor,
-  adminClient,
-  payload,
-  team,
-  databaseId,
-  tenantsCollectionId,
-  membershipsCollectionId,
-  eventsCollectionId,
-  error,
-}) {
-  const { membershipId } = payload;
-  const { callerRole } = team;
-  const databases = new DatabasesCtor(adminClient);
-  const notFound = { status: 404, body: { error: 'Membership not found' } };
-
-  let membership;
-  try {
-    membership = await databases.getRow({
-      databaseId,
-      tableId: membershipsCollectionId,
-      rowId: membershipId,
-    });
-  } catch (err) {
-    error(`revokeMembership: membership ${membershipId} not found: ${err.message}`);
-    return notFound;
-  }
-
-  if (callerRole !== null) {
-    // Another tenant's Membership looks exactly like a missing one (FR-2).
-    if (membership.tenantId !== team.tenantId) {
-      return notFound;
-    }
-    // An Organizer revokes Operators only; a Super Organizer also revokes Organizers. Neither
-    // can revoke the Super Organizer (themself included) — that stays with Admin.
-    if (!canManageRole(callerRole, membership.role)) {
-      return { status: 403, body: { error: 'Forbidden' } };
-    }
-  }
-
-  try {
-    await databases.updateRow({
-      databaseId,
-      tableId: membershipsCollectionId,
-      rowId: membershipId,
-      data: { status: 'revoked' },
-    });
-  } catch (err) {
-    error(`revokeMembership: updateRow failed: ${err.message}`);
-    return { status: 502, body: { error: 'Failed to revoke membership' } };
-  }
-
-  const sweepResult = await sweepTenantEventPermissions({
-    DatabasesCtor,
-    adminClient,
-    databaseId,
-    eventsCollectionId,
-    tenantId: membership.tenantId,
-    userIds: [membership.userId],
-    error,
-  });
-  if (!sweepResult.listed) {
-    // Same fail-closed reasoning as setTenantStatus: the Membership row is already revoked,
-    // but the Event-permission sweep couldn't even be attempted — say so rather than 200.
-    return {
-      status: 502,
-      body: {
-        error: 'Membership was revoked, but sweeping its Event permissions failed',
-        membershipId,
-      },
-    };
-  }
-
-  // Revoking an already-revoked Membership is allowed so a failed step here can be retried.
-  try {
-    if (membership.role === 'operator') {
-      await setOperatorLabel({ UsersCtor, adminClient, userId: membership.userId, enabled: false });
-    } else if (ORGANIZER_TIER_ROLES.includes(membership.role)) {
-      await syncTenantReadGrants({
-        DatabasesCtor,
-        adminClient,
-        databaseId,
-        tenantsCollectionId,
-        membershipsCollectionId,
-        tenantId: membership.tenantId,
-      });
-    }
-  } catch (err) {
-    error(`revokeMembership: removing access for ${membership.userId} failed: ${err.message}`);
-    return {
-      status: 502,
-      body: {
-        error: 'Membership was revoked, but removing their remaining access failed',
-        membershipId,
-      },
-    };
-  }
-
-  return { status: 200, body: { success: true, membershipId, status: 'revoked' } };
-}
-
 /**
  * Story 7.1: the caller's own team, with each member's name/email — Memberships and Accounts are
  * only readable server-side, so the team screen can't assemble this itself. Scoped to the
@@ -369,17 +261,4 @@ export async function handleListTeamMembers({
     error(`listTeamMembers: lookup failed for tenant ${team.tenantId}: ${err.message}`);
     return { status: 502, body: { error: 'Failed to load the team' } };
   }
-}
-
-/**
- * Membership revoke's hook into AD-2 (name and call signature kept from Story 6.2 so
- * revokeMembership's call site is unchanged): re-derives read grants on every Event and Donation
- * the tenant owns, which drops the revoked uid wherever it was granted — as an assigned
- * Operator or as an organizer-tier member. assignedUserIds itself is left untouched (AD-2: it
- * stays the record of who was assigned; only the *permission grant* is retracted). `listed`
- * is false when any row could not be brought in line, not only when the listing failed.
- */
-async function sweepTenantEventPermissions({ DatabasesCtor, adminClient, tenantId, error }) {
-  const grants = await recomputeTenantReadGrants({ DatabasesCtor, adminClient, tenantId, error });
-  return { listed: grants.ok, grants };
 }

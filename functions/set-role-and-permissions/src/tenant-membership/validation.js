@@ -19,6 +19,14 @@ export const PENDING_REVIEW_STATUS = 'pending_review';
 
 export const IDENTITY_REVIEW_DECISIONS = ['confirm', 'clear', 'acknowledge'];
 
+// Story 7.3 (FR-13/FR-24): every revoke states which kind it is — never one generic "revoke".
+// Keep in sync with src/app/data/models/team-member.ts's RevocationReason.
+export const ROUTINE_REVOCATION = 'routine';
+export const FOR_CAUSE_REVOCATION = 'for_cause';
+const REVOCATION_REASONS = [ROUTINE_REVOCATION, FOR_CAUSE_REVOCATION];
+// Stored as the IdentityFlags row's `reason` (live column size 1000), and read only by Admin.
+const REVOCATION_EXPLANATION_MAX = 500;
+
 // Keep in sync with src/app/data/models/tenant.ts's TENANT_SIZES/TENANT_TYPES — separate
 // deployments with no shared module system, same arrangement as VALID_ROLES in shared.js.
 export const TENANT_SIZES = ['1-10', '11-50', '51-200', '201+'];
@@ -79,11 +87,14 @@ const PAYLOAD_VALIDATORS = {
     }
     return VALID;
   },
-  revokeMembership: ({ membershipId }) => {
+  revokeMembership: ({ membershipId, reason, explanation }) => {
     if (!hasValue(membershipId)) {
       return invalid('Request must include membershipId');
     }
-    return VALID;
+    if (!REVOCATION_REASONS.includes(reason)) {
+      return invalid(`reason must be one of: ${REVOCATION_REASONS.join(', ')}`);
+    }
+    return reason === FOR_CAUSE_REVOCATION ? validateForCauseExplanation(explanation) : VALID;
   },
   setTenantStatus: ({ tenantId, status }) => {
     if (!hasValue(tenantId)) {
@@ -175,6 +186,16 @@ function validateCompanyContact(company, { phoneRequired }) {
   if (typeof contactPhone !== 'string' || !isValidPhone(normalizePhone(contactPhone))) {
     return invalid(
       'company.contactPhone must be an international phone number, e.g. +233241234567',
+    );
+  }
+  return VALID;
+}
+
+function validateForCauseExplanation(explanation) {
+  const trimmed = typeof explanation === 'string' ? explanation.trim() : '';
+  if (trimmed.length === 0 || trimmed.length > REVOCATION_EXPLANATION_MAX) {
+    return invalid(
+      `A for-cause revocation needs an explanation (max ${REVOCATION_EXPLANATION_MAX} characters)`,
     );
   }
   return VALID;

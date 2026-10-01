@@ -126,7 +126,7 @@ test(
     for (const body of [
       add('operator'),
       { action: 'listTeamMembers' },
-      { action: 'revokeMembership', membershipId: 'm-so-p' },
+      { action: 'revokeMembership', reason: 'routine', membershipId: 'm-so-p' },
     ]) {
       const { result, calls } = await run({ body, as: 'so-p' });
       assert.equal(result.status, 403, body.action);
@@ -165,7 +165,7 @@ test(
     for (const body of [
       add('operator'),
       { action: 'listTeamMembers' },
-      { action: 'revokeMembership', membershipId: 'm-op-a' },
+      { action: 'revokeMembership', reason: 'routine', membershipId: 'm-op-a' },
     ]) {
       const { result, calls } = await run({ body, as: 'op-a' });
       assert.equal(result.status, 403, body.action);

@@ -2,8 +2,9 @@ import { Query } from 'node-appwrite';
 import { listAllRows } from '../shared.js';
 import { recomputeTenantReadGrants } from '../tenant-grants.js';
 import { identityTables, isIdentityCheckConfigured } from './identity-check.js';
-import { grantTeamMemberAccess, handleRevokeMembership } from './team-members.js';
-import { PENDING_REVIEW_STATUS } from './validation.js';
+import { handleRevokeMembership } from './revocation.js';
+import { grantTeamMemberAccess } from './team-members.js';
+import { PENDING_REVIEW_STATUS, ROUTINE_REVOCATION } from './validation.js';
 
 // The review states still waiting on Admin: a flagged addition, or a co-Organizer addition
 // Admin hasn't yet seen (FR-12 notifies on every one, match or not).
@@ -60,9 +61,9 @@ function toReviewView(row) {
 /**
  * Story 7.2: Admin's decision on one review. Confirming a real match revokes the Membership
  * through the ordinary revoke path; clearing a false positive activates it and grants its
- * access through the ordinary add path. Neither writes IdentityFlags — a for-cause flag is
- * Story 7.3's revoke flow — and a clearance touches only this one review and Membership, so
- * the same identity added at another tenant is screened and reviewed afresh.
+ * access through the ordinary add path. Neither writes IdentityFlags — a for-cause flag is a
+ * tenant's own revoke decision (Story 7.3) — and a clearance touches only this one review and
+ * Membership, so the same identity added at another tenant is screened and reviewed afresh.
  */
 export async function handleResolveIdentityReview(context) {
   if (!isIdentityCheckConfigured()) {
@@ -104,10 +105,15 @@ const DECISION_EFFECTS = {
   acknowledge: async () => ({ status: 200 }),
 };
 
+/**
+ * Routine, not for-cause: the match itself already sits on IdentityFlags or the tenant's own
+ * history, and a same-tenant match is no fraud signal by itself (FR-24). A for-cause flag stays
+ * a tenant's own decision, with its explanation and flaggedByTenantId.
+ */
 function revokeConfirmedMembership(context) {
   return handleRevokeMembership({
     ...context,
-    payload: { membershipId: context.review.membershipId },
+    payload: { membershipId: context.review.membershipId, reason: ROUTINE_REVOCATION },
     team: { callerRole: null },
   });
 }

@@ -148,6 +148,7 @@ function fakeContext({ body, as, store = seedStore(), accounts, failOn = {} }) {
     }
     async createRow(args) {
       track('createRow', args);
+      if (store[args.tableId][args.rowId]) throw Object.assign(new Error('exists'), { code: 409 });
       const row = { $id: args.rowId, ...args.data, $permissions: args.permissions };
       store[args.tableId][row.$id] = row;
       return row;
@@ -178,6 +179,15 @@ function fakeContext({ body, as, store = seedStore(), accounts, failOn = {} }) {
       track('updateLabels', args);
       accountStore[args.userId].labels = args.labels;
       return accountStore[args.userId];
+    }
+    async updateStatus(args) {
+      track('usersUpdateStatus', args);
+      accountStore[args.userId].status = args.status;
+      return accountStore[args.userId];
+    }
+    async deleteSessions(args) {
+      track('usersDeleteSessions', args);
+      return {};
     }
   }
 

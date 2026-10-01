@@ -15,8 +15,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { TenantService } from '../../../../data/services/tenant.service';
 import { TeamDataService } from '../../../../data/services/team-data.service';
 import { ServiceError } from '../../../../core/services/service-error';
+import { FunctionRejectedError } from '../../../../data/appwrite/invoke-admin-function';
 import type { MembershipRole } from '../../../../data/models/membership';
-import type { TeamMember, TeamMemberRole } from '../../../../data/models/team-member';
+import type {
+  RevocationChoice,
+  TeamMember,
+  TeamMemberRole,
+} from '../../../../data/models/team-member';
+import { RevokeMemberDialog } from './revoke-member-dialog/revoke-member-dialog';
 
 const ROLE_ORDER: Record<MembershipRole, number> = {
   super_organizer: 0,
@@ -59,10 +65,22 @@ function errorMessage(err: unknown, fallback: string): string {
   return err instanceof ServiceError ? err.message : fallback;
 }
 
+// A refusal (4xx) won't change on a resend; anything else may have revoked part-way (Story 7.3).
+function isRetryableRevokeFailure(err: unknown): boolean {
+  return !(err instanceof FunctionRejectedError && err.status < 500);
+}
+
 interface NewMemberNotice {
   readonly name: string;
   readonly password: string;
   readonly setupIncomplete: boolean;
+}
+
+/** A revoke that failed part-way: its row may already be gone, so the retry lives here. */
+interface UnfinishedRevoke {
+  readonly member: TeamMember;
+  readonly choice: RevocationChoice;
+  readonly message: string;
 }
 
 /**
@@ -73,7 +91,7 @@ interface NewMemberNotice {
  */
 @Component({
   selector: 'app-company-team',
-  imports: [MatIconModule, ReactiveFormsModule, DatePipe, CdkTrapFocus],
+  imports: [MatIconModule, ReactiveFormsModule, DatePipe, CdkTrapFocus, RevokeMemberDialog],
   templateUrl: './company-team.html',
   styleUrl: './company-team.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -92,6 +110,7 @@ export class CompanyTeam implements OnInit {
   public readonly actionError = signal<string | null>(null);
   public readonly adding = signal<TeamMemberRole | null>(null);
   public readonly revoking = signal<TeamMember | null>(null);
+  public readonly unfinishedRevoke = signal<UnfinishedRevoke | null>(null);
   public readonly newMember = signal<NewMemberNotice | null>(null);
   public readonly skeletons = [0, 1, 2];
 
@@ -216,20 +235,48 @@ export class CompanyTeam implements OnInit {
   }
 
   /** Never optimistic: the row only leaves the list once the Function confirms and it's re-read. */
-  public async confirmRevoke(): Promise<void> {
+  public async confirmRevoke(choice: RevocationChoice): Promise<void> {
     const member = this.revoking();
     if (!member) return;
+    await this.sendRevoke(member, choice);
+    this.revoking.set(null);
+    await this.refreshAfterRevoke(member);
+  }
+
+  /** Re-sends the same revoke; the Function re-runs every step on an already-revoked Membership. */
+  public async retryRevoke(): Promise<void> {
+    const unfinished = this.unfinishedRevoke();
+    if (!unfinished) return;
+    await this.sendRevoke(unfinished.member, unfinished.choice);
+    await this.refreshAfterRevoke(unfinished.member);
+  }
+
+  private async sendRevoke(member: TeamMember, choice: RevocationChoice): Promise<void> {
     this.busy.set(true);
+    this.actionError.set(null);
+    this.unfinishedRevoke.set(null);
     try {
-      await this.teamData.revokeMembership(member.membershipId);
+      await this.teamData.revokeMembership(member.membershipId, choice);
     } catch (err) {
-      this.actionError.set(errorMessage(err, "We couldn't revoke their access"));
+      this.reportRevokeFailure({ member, choice }, err);
     } finally {
       this.busy.set(false);
-      this.revoking.set(null);
     }
+  }
+
+  private reportRevokeFailure(revoke: Omit<UnfinishedRevoke, 'message'>, err: unknown): void {
+    const message = errorMessage(err, "We couldn't revoke their access");
+    if (isRetryableRevokeFailure(err)) {
+      this.unfinishedRevoke.set({ ...revoke, message });
+    } else {
+      this.actionError.set(message);
+    }
+  }
+
+  private async refreshAfterRevoke(member: TeamMember): Promise<void> {
     await this.load();
-    // Once their row is gone, so is the Revoke button the dialog would hand focus back to.
+    // Once their row is gone, so is the Revoke button the dialog would hand focus back to; an
+    // unfinished revoke's notice sits just below the heading and announces itself.
     if (!this.members().some((m) => m.membershipId === member.membershipId)) {
       this.heading().nativeElement.focus();
     }

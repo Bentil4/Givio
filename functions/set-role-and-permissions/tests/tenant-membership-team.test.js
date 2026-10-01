@@ -13,7 +13,7 @@ test(
   'revokeMembership rejects a verified non-admin caller with 403',
   withEnv(async () => {
     const { ctx, calls } = fakeContext({
-      body: { action: 'revokeMembership', membershipId: 'membership-1' },
+      body: { action: 'revokeMembership', reason: 'routine', membershipId: 'membership-1' },
       ...asOperator,
     });
 
@@ -28,7 +28,7 @@ test(
   'revokeMembership sets status to revoked and sweeps affected Events, paginating the lookup',
   withEnv(async () => {
     const { ctx, calls } = fakeContext({
-      body: { action: 'revokeMembership', membershipId: 'membership-1' },
+      body: { action: 'revokeMembership', reason: 'routine', membershipId: 'membership-1' },
       headers: ADMIN_HEADERS,
       getAccount: asAdmin,
       databases: {
@@ -75,7 +75,7 @@ test(
   "revokeMembership returns 502 (not a false 200) when the sweep's Event lookup fails",
   withEnv(async () => {
     const { ctx } = fakeContext({
-      body: { action: 'revokeMembership', membershipId: 'membership-1' },
+      body: { action: 'revokeMembership', reason: 'routine', membershipId: 'membership-1' },
       headers: ADMIN_HEADERS,
       getAccount: asAdmin,
       databases: {
@@ -334,7 +334,7 @@ test(
     };
 
     const { ctx, calls } = fakeContext({
-      body: { action: 'revokeMembership', membershipId: 'membership-a' },
+      body: { action: 'revokeMembership', reason: 'routine', membershipId: 'membership-a' },
       headers: ADMIN_HEADERS,
       getAccount: asAdmin,
       databases: {
