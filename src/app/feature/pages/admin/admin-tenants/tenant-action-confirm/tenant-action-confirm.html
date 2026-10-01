@@ -1,0 +1,32 @@
+<!-- Backdrop click is a pointer convenience only; (keydown.escape) is the keyboard equivalent. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim confirm-scrim" (click)="cancelled.emit()" (keydown.escape)="cancelled.emit()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <div
+    class="dialog dialog--sm glass glass-thick"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="tenant-action-title"
+    aria-describedby="tenant-action-body"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="dialog-head">
+      <h2 id="tenant-action-title" class="t-page-title">{{ copy().title }}</h2>
+    </header>
+    <div class="dialog-body">
+      <p id="tenant-action-body" class="t-body confirm-body">{{ copy().body }}</p>
+    </div>
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="cancelled.emit()">Cancel</button>
+      <button
+        type="button"
+        [class]="copy().danger ? 'btn btn-danger' : 'btn btn-primary'"
+        (click)="confirmed.emit()"
+      >
+        {{ copy().cta }}
+      </button>
+    </footer>
+  </div>
+</div>

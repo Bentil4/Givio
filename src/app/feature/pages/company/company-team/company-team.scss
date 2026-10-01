@@ -62,12 +62,6 @@
   padding: 0 var(--space-lg) var(--space-md);
 }
 
-.confirm-body {
-  margin: 0;
-  line-height: 1.6;
-  text-wrap: pretty;
-}
-
 // Identity, not status (DESIGN.md "Tier badge"): outlined and neutral, never status-colored.
 .tier-badge {
   display: inline-flex;

@@ -39,6 +39,21 @@ export const pendingCompanyMatch: CanMatchFn = async () => {
 };
 
 /**
+ * Story 9.2 AC3: layered after roleGuard(['operator']) on /organizer, so a restored session of a
+ * suspended tenant's Operator is signed out and told why on /login rather than let in. An
+ * Operator with no Membership, or whose status can't be checked (offline), passes.
+ */
+export const operatorTenantGuard: CanActivateFn = async () => {
+  const tenantService = inject(TenantService);
+  const router = inject(Router);
+  if (!(await tenantService.isOperatorTenantSuspended())) {
+    return true;
+  }
+  await tenantService.signOutSuspendedMember();
+  return router.createUrlTree(['/login']);
+};
+
+/**
  * Applied to /auth/signup: a person who already holds a platform relationship is sent to it
  * instead of starting a second application on the same Account (FR-4/FR-5). An authenticated
  * Account with neither — a signup abandoned after step 1 — may resume the wizard.

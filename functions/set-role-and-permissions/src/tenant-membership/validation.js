@@ -11,6 +11,9 @@ export const ACTIONS = [
   'recordTenantVerification',
   'listIdentityReviews',
   'resolveIdentityReview',
+  'suspendTenant',
+  'designateSuperOrganizer',
+  'getMyTenantStatus',
 ];
 
 // Story 7.2: a screened team addition that matched waits here, with no access, until Admin
@@ -18,6 +21,14 @@ export const ACTIONS = [
 export const PENDING_REVIEW_STATUS = 'pending_review';
 
 export const IDENTITY_REVIEW_DECISIONS = ['confirm', 'clear', 'acknowledge'];
+
+// Story 7.3 (FR-13/FR-24): every revoke states which kind it is — never one generic "revoke".
+// Keep in sync with src/app/data/models/team-member.ts's RevocationReason.
+export const ROUTINE_REVOCATION = 'routine';
+export const FOR_CAUSE_REVOCATION = 'for_cause';
+const REVOCATION_REASONS = [ROUTINE_REVOCATION, FOR_CAUSE_REVOCATION];
+// Stored as the IdentityFlags row's `reason` (live column size 1000), and read only by Admin.
+const REVOCATION_EXPLANATION_MAX = 500;
 
 // Keep in sync with src/app/data/models/tenant.ts's TENANT_SIZES/TENANT_TYPES — separate
 // deployments with no shared module system, same arrangement as VALID_ROLES in shared.js.
@@ -70,6 +81,7 @@ export function isTenantIntakeComplete(tenant) {
 }
 
 const PAYLOAD_VALIDATORS = {
+  ...tenantAdminValidators(),
   createMembership: ({ userId, tenantId, role }) => {
     if (!hasValue(userId) || !hasValue(tenantId)) {
       return invalid('Request must include userId and tenantId');
@@ -79,11 +91,14 @@ const PAYLOAD_VALIDATORS = {
     }
     return VALID;
   },
-  revokeMembership: ({ membershipId }) => {
+  revokeMembership: ({ membershipId, reason, explanation }) => {
     if (!hasValue(membershipId)) {
       return invalid('Request must include membershipId');
     }
-    return VALID;
+    if (!REVOCATION_REASONS.includes(reason)) {
+      return invalid(`reason must be one of: ${REVOCATION_REASONS.join(', ')}`);
+    }
+    return reason === FOR_CAUSE_REVOCATION ? validateForCauseExplanation(explanation) : VALID;
   },
   setTenantStatus: ({ tenantId, status }) => {
     if (!hasValue(tenantId)) {
@@ -180,6 +195,16 @@ function validateCompanyContact(company, { phoneRequired }) {
   return VALID;
 }
 
+function validateForCauseExplanation(explanation) {
+  const trimmed = typeof explanation === 'string' ? explanation.trim() : '';
+  if (trimmed.length === 0 || trimmed.length > REVOCATION_EXPLANATION_MAX) {
+    return invalid(
+      `A for-cause revocation needs an explanation (max ${REVOCATION_EXPLANATION_MAX} characters)`,
+    );
+  }
+  return VALID;
+}
+
 // Story 7.2: only read by the identity check, never stored on the Account.
 function validateOptionalPhone(phone) {
   if (phone === undefined || phone === null || phone === '') {
@@ -220,4 +245,17 @@ function validateCompanyIntake(company) {
     );
   }
   return VALID;
+}
+
+// Story 8.1: Admin's whole-tenant actions (tenant-admin.js), plus a member's own status read.
+function tenantAdminValidators() {
+  return {
+    suspendTenant: ({ tenantId }) =>
+      hasValue(tenantId) ? VALID : invalid('Request must include tenantId'),
+    designateSuperOrganizer: ({ tenantId, membershipId }) =>
+      hasValue(tenantId) && hasValue(membershipId)
+        ? VALID
+        : invalid('Request must include tenantId and membershipId'),
+    getMyTenantStatus: () => VALID,
+  };
 }

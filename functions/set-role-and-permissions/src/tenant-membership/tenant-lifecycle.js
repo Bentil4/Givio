@@ -4,11 +4,16 @@ import { isTenantIntakeComplete } from './validation.js';
 
 // Story 6.2's own scope: Tenant creation itself (the initial 'pending' row at self-signup) is
 // Story 6.4's job, not this one — so 'pending' is a starting state this Function reads, never
-// a transition target this module writes to.
+// a transition target this module writes to. Story 8.1: suspended -> approved is Admin clearing
+// an investigation; the grant recompute below restores every Membership's access unchanged.
 const ALLOWED_TENANT_TRANSITIONS = {
   pending: ['approved', 'rejected'],
   approved: ['suspended'],
+  suspended: ['approved'],
 };
+
+// Statuses whose write is followed by a sweep, so a same-status call means "retry the sweep".
+const SWEEP_RETRY_STATUSES = ['approved', 'suspended', 'rejected'];
 
 export async function handleSetTenantStatus({
   DatabasesCtor,
@@ -35,9 +40,9 @@ export async function handleSetTenantStatus({
   // A same-status call to a terminal, sweep-bearing status is treated as "retry the sweep",
   // not an illegal no-op transition (code review finding): without this, a tenant whose status
   // write succeeded but whose event sweep then failed (the 502 case below) would be
-  // permanently stuck — ALLOWED_TENANT_TRANSITIONS has no outgoing entry for 'suspended' or
-  // 'rejected', so the normal transition check would reject every retry attempt.
-  const isSweepRetry = from === status && (status === 'suspended' || status === 'rejected');
+  // permanently stuck — a same-status transition is never in ALLOWED_TENANT_TRANSITIONS, so
+  // the normal check would reject every retry attempt (a reinstatement's included, Story 8.1).
+  const isSweepRetry = from === status && SWEEP_RETRY_STATUSES.includes(status);
   if (!isSweepRetry && !(ALLOWED_TENANT_TRANSITIONS[from] ?? []).includes(status)) {
     return {
       status: 400,

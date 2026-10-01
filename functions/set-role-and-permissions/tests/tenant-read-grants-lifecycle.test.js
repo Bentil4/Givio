@@ -94,6 +94,7 @@ test(
 
     const result = await invoke(handleTenantMembershipRequest, store, {
       action: 'revokeMembership',
+      reason: 'routine',
       membershipId: 'm-co',
     });
 
@@ -114,6 +115,7 @@ test(
 
     await invoke(handleTenantMembershipRequest, store, {
       action: 'revokeMembership',
+      reason: 'routine',
       membershipId: 'm-op',
     });
 
