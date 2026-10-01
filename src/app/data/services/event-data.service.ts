@@ -236,6 +236,7 @@ export class EventDataService {
         performedBy: this.authService.currentUser()!.$id,
         previousValues: current,
         newValues: updated,
+        tenantId: current.tenantId,
       });
     } catch (error) {
       console.error('EventDataService.updateEvent: failed to write audit log', error);
@@ -326,6 +327,7 @@ export class EventDataService {
         performedBy: this.authService.currentUser()!.$id,
         previousValues: { status: current.status },
         newValues: { status },
+        tenantId: current.tenantId,
       });
     } catch (error) {
       console.error('EventDataService.setEventStatus: failed to write audit log', error);

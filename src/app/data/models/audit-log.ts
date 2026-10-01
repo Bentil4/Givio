@@ -7,10 +7,11 @@ export type AuditAction = 'create' | 'edit' | 'delete' | 'restore' | 'access';
 export type AccessQuery = 'listEvents' | 'listDonationsForEvent' | 'listAllDonations';
 
 /**
- * An 'access' entry's newValues. audit_logs has no tenant column, so the tenant rides in the
- * JSON rather than forcing a schema change: `tenantId` is the single tenant an event-scoped
- * read touched, `null` for a platform-wide list, where `tenantIds` holds the distinct set of
- * tenants whose rows were actually returned (events without a tenantId — pre-6.2 — omitted).
+ * An 'access' entry's newValues. The tenant rides in the JSON: `tenantId` is the single tenant
+ * an event-scoped read touched, `null` for a platform-wide list, where `tenantIds` holds the
+ * distinct set of tenants whose rows were actually returned (events without a tenantId —
+ * pre-6.2 — omitted). Deliberately not copied into the row's tenantId column (Story 7.5): an
+ * Admin's reads are Admin oversight, not tenant activity, so they stay out of tenant views.
  */
 export interface AccessLogDetails {
   readonly query: AccessQuery;
@@ -32,4 +33,11 @@ export interface AuditLogEntry {
   readonly previousValues: unknown;
   readonly newValues: unknown;
   readonly timestamp: string;
+}
+
+/** One page of a Super Organizer's tenant-scoped trail (Story 7.5's listTenantAuditLog). */
+export interface TenantAuditPage {
+  readonly entries: readonly AuditLogEntry[];
+  /** Pass back to fetch the next (older) page; `null` once the trail is exhausted. */
+  readonly nextCursor: string | null;
 }

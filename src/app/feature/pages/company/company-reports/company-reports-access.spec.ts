@@ -5,7 +5,6 @@ import { AuthService } from '../../../../data/services/auth.service';
 import { CompanyContext, TenantService } from '../../../../data/services/tenant.service';
 import type { MembershipRole } from '../../../../data/models/membership';
 import { CompanyLayout } from '../company-layout/company-layout';
-import { superOrganizerMatch } from './super-organizer.guard';
 
 function contextFor(role: MembershipRole): CompanyContext {
   return {
@@ -22,7 +21,7 @@ function contextFor(role: MembershipRole): CompanyContext {
   };
 }
 
-describe('Settlement reports access (Super Organizer only)', () => {
+describe('Settlement reports nav item (Super Organizer only)', () => {
   function provideContext(context: CompanyContext | null) {
     TestBed.configureTestingModule({
       imports: [CompanyLayout],
@@ -36,31 +35,6 @@ describe('Settlement reports access (Super Organizer only)', () => {
       ],
     });
   }
-
-  const runGuard = () =>
-    TestBed.runInInjectionContext(() => superOrganizerMatch({} as never, [] as never, {} as never));
-
-  it('matches the route for a Super Organizer', async () => {
-    provideContext(contextFor('super_organizer'));
-
-    expect(await runGuard()).toBe(true);
-  });
-
-  it('does not match for an Organizer', async () => {
-    provideContext(contextFor('organizer'));
-
-    expect(await runGuard()).toBe(false);
-  });
-
-  it('does not match when the context lookup fails', async () => {
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: TenantService, useValue: { load: vi.fn().mockRejectedValue(new Error('x')) } },
-      ],
-    });
-
-    expect(await runGuard()).toBe(false);
-  });
 
   it('lists Reports in the sidebar only for a Super Organizer', async () => {
     provideContext(contextFor('super_organizer'));

@@ -8,6 +8,8 @@ import { hasValue } from '../shared.js';
  * operator Labels — and a Function-written entry can't be skipped or forged by the client.
  * Best-effort like the Admin path: the Event write has already happened, so a failed audit
  * write is logged, never turned into a failed action. Returns whether the entry was written.
+ * Story 7.5: every caller already stamps the Event's tenantId into newValues; it is lifted into
+ * the row's own tenantId column too, which is what listTenantAuditLog filters on (FR-15).
  */
 export async function writeEventAuditLog({ DatabasesCtor, adminClient, entry, error }) {
   const tableId = process.env.APPWRITE_AUDIT_LOGS_COLLECTION_ID;
@@ -38,6 +40,7 @@ function auditRowData({ eventId, action, performedBy, previousValues, newValues 
     performedBy,
     previousValues: JSON.stringify(previousValues),
     newValues: JSON.stringify(newValues),
+    tenantId: newValues.tenantId,
     timestamp: new Date().toISOString(),
   };
 }
