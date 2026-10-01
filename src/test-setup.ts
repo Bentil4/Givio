@@ -3,6 +3,9 @@
 // snapshot needs a working `indexedDB` in place before any module constructs the app's
 // singleton AppDb (see data/dexie/dexie-test-setup.ts for why this can't just live per-spec).
 import './app/data/dexie/dexie-test-setup';
+import { replaceWebSocketWithInertFake } from './testing/inert-websocket';
+
+replaceWebSocketWithInertFake();
 
 // The test environment doesn't implement matchMedia — ThemeService (core/services) reads it
 // eagerly in its constructor to seed the initial theme from the OS preference.
