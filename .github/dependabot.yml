@@ -27,6 +27,12 @@ updates:
         patterns:
           - 'vitest'
           - '@vitest/*'
+    ignore:
+      # @angular/build pins TypeScript to a narrow range (22.2 requires >=6.0 <6.1). Without
+      # this, the angular group bundles a TypeScript major Angular can't build with, and every
+      # group PR fails npm ci with ERESOLVE. Raise the bound when Angular widens its peer range.
+      - dependency-name: 'typescript'
+        versions: ['>=6.1']
 
   - package-ecosystem: 'github-actions'
     directory: '/'
@@ -35,3 +41,9 @@ updates:
     labels:
       - 'dependencies'
       - 'ci'
+    groups:
+      # init and analyze are two halves of one action and must share a version; bumping
+      # either alone fails the CodeQL job.
+      codeql-action:
+        patterns:
+          - 'github/codeql-action/*'
