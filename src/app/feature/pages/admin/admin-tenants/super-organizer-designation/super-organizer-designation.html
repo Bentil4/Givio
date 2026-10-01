@@ -1,0 +1,93 @@
+<section class="designation" aria-labelledby="designation-title">
+  <h3 #heading id="designation-title" class="section-label" tabindex="-1">Super Organizer</h3>
+
+  @if (loading()) {
+  <p class="t-caption" aria-busy="true">Loading the team…</p>
+  } @else if (loadError(); as err) {
+  <div class="designation-error" role="alert">
+    <p class="t-caption">{{ err }}</p>
+    <button type="button" class="btn btn-secondary" (click)="load()">Try again</button>
+  </div>
+  } @else if (superOrganizer(); as so) {
+  <p class="t-body">{{ so.name }} <span class="t-caption">· {{ so.email }}</span></p>
+  } @else {
+  <p class="designation-warning t-caption">
+    This company has no active Super Organizer, so nobody can manage its team. Make one of its
+    Organizers the Super Organizer, or add a new person as an Organizer first.
+  </p>
+
+  @if (candidates().length > 0) {
+  <ul class="designation-list" aria-label="Active organizers">
+    @for (member of candidates(); track member.membershipId) {
+    <li>
+      <span class="designation-person">
+        <span class="t-body-em">{{ member.name }}</span>
+        <span class="t-caption">{{ member.email }}</span>
+      </span>
+      <button
+        type="button"
+        class="btn btn-secondary"
+        [disabled]="busy()"
+        [attr.aria-label]="'Make ' + member.name + ' the Super Organizer'"
+        (click)="designate(member)"
+      >
+        Make Super Organizer
+      </button>
+    </li>
+    }
+  </ul>
+  } @else {
+  <p class="t-caption">There are no active Organizers to choose from.</p>
+  } @if (canAddPerson()) {
+  <form class="designation-form" [formGroup]="form" (ngSubmit)="addOrganizer()" novalidate>
+    <p class="sub-label">Add a new person as an Organizer</p>
+    <div class="field">
+      <label class="field-label" for="designation-name">Full name</label>
+      <input
+        id="designation-name"
+        class="input"
+        formControlName="name"
+        autocomplete="off"
+        [class.is-invalid]="invalid('name')"
+        [attr.aria-invalid]="invalid('name')"
+        [attr.aria-describedby]="invalid('name') ? 'designation-name-error' : null"
+      />
+      @if (invalid('name')) {
+      <p id="designation-name-error" class="field-error">Enter their full name.</p>
+      }
+    </div>
+    <div class="field">
+      <label class="field-label" for="designation-email">Email</label>
+      <input
+        id="designation-email"
+        class="input"
+        type="email"
+        formControlName="email"
+        autocomplete="off"
+        [class.is-invalid]="invalid('email')"
+        [attr.aria-invalid]="invalid('email')"
+        [attr.aria-describedby]="invalid('email') ? 'designation-email-error' : null"
+      />
+      @if (invalid('email')) {
+      <p id="designation-email-error" class="field-error">Enter a valid email address.</p>
+      }
+    </div>
+    <p class="t-caption">
+      Someone held for an identity check shows up here once you clear them on Approvals.
+    </p>
+    <button type="submit" class="btn btn-secondary" [disabled]="busy()">
+      {{ busy() ? 'Working…' : 'Add organizer' }}
+    </button>
+  </form>
+  } @else {
+  <p class="t-caption">Reinstate the company before adding someone new to its team.</p>
+  } } @if (actionError(); as err) {
+  <p class="row-error" role="alert">{{ err }}</p>
+  } @if (generatedPassword(); as pwd) {
+  <p class="code-note t-caption">
+    Their generated password: <strong>{{ pwd }}</strong> — share it with them directly; it won't be
+    shown again.
+  </p>
+  }
+  <p class="t-caption designation-status" role="status">{{ message() }}</p>
+</section>

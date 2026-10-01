@@ -1,0 +1,103 @@
+<!-- Backdrop click is a pointer convenience only; (keydown.escape) is the keyboard equivalent. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="drawer-scrim" (click)="close()" (keydown.escape)="close()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <aside
+    class="drawer"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tenant-drawer-title"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="drawer-head">
+      <div class="drawer-title">
+        <h2 id="tenant-drawer-title" class="t-page-title">{{ tenant().name }}</h2>
+        <span [class]="statusTag()">{{ statusLabel() }}</span>
+      </div>
+      <button
+        type="button"
+        class="btn-ghost drawer-close"
+        aria-label="Close company details"
+        [disabled]="working()"
+        (click)="close()"
+      >
+        <mat-icon aria-hidden="true">close</mat-icon>
+      </button>
+    </header>
+
+    <div class="drawer-body">
+      <div #result class="drawer-result" tabindex="-1">
+        @if (failure(); as f) {
+        <div class="drawer-alert" role="alert">
+          <p class="t-card-title">{{ failedTitle() }}</p>
+          <p class="t-caption">{{ f.message }}</p>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            [disabled]="working()"
+            (click)="retry.emit(f.action)"
+          >
+            {{ working() ? 'Retrying…' : 'Retry' }}
+          </button>
+        </div>
+        }
+        <p class="drawer-notice t-caption" role="status">{{ notice() }}</p>
+      </div>
+
+      <section class="drawer-section" aria-labelledby="tenant-account-title">
+        <h3 id="tenant-account-title" class="section-label">Account</h3>
+        @switch (tenant().status) { @case ('approved') {
+        <p class="t-caption">
+          Suspend this company while you investigate it. Its whole team is signed out and loses
+          access in the same step.
+        </p>
+        <button
+          type="button"
+          class="btn btn-danger"
+          [disabled]="working()"
+          (click)="act.emit('suspend')"
+        >
+          {{ working() ? 'Working…' : 'Suspend company' }}
+        </button>
+        } @case ('suspended') {
+        <p class="t-caption">
+          Suspended. Nobody at this company can sign in. Reinstate it once the investigation is
+          cleared — their access comes back without re-adding anyone.
+        </p>
+        <button
+          type="button"
+          class="btn btn-primary"
+          [disabled]="working()"
+          (click)="act.emit('reinstate')"
+        >
+          {{ working() ? 'Working…' : 'Reinstate company' }}
+        </button>
+        } @default {
+        <p class="t-caption">Applications are approved or rejected from the Approvals page.</p>
+        } }
+      </section>
+
+      <section class="drawer-section" aria-labelledby="tenant-details-title">
+        <h3 id="tenant-details-title" class="section-label">Company</h3>
+        <dl class="drawer-details">
+          <dt>Location</dt>
+          <dd>{{ tenant().location }}</dd>
+          <dt>Type</dt>
+          <dd>{{ typeLabel() }}</dd>
+          <dt>Size</dt>
+          <dd>{{ sizeLabel() }}</dd>
+          <dt>Contact phone</dt>
+          <dd>{{ tenant().contactPhone ?? 'Not given' }}</dd>
+          <dt>Applied</dt>
+          <dd>{{ tenant().createdAt | date: 'mediumDate' }}</dd>
+        </dl>
+      </section>
+
+      @if (hasTeam()) {
+      <app-super-organizer-designation [tenant]="tenant()" (designated)="designated.emit()" />
+      }
+    </div>
+  </aside>
+</div>

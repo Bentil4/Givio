@@ -61,7 +61,8 @@ describe('PendingShell', () => {
     expect(links[0].getAttribute('href')).toBe('/company/support');
   });
 
-  for (const status of ['pending', 'rejected', 'suspended'] as const) {
+  // A suspended tenant's member is signed out instead — see pending-shell-suspended.spec.ts.
+  for (const status of ['pending', 'rejected'] as const) {
     it(`links a ${status} tenant to the Contact Admin form`, async () => {
       const { el } = await render(tenantWith(status));
 

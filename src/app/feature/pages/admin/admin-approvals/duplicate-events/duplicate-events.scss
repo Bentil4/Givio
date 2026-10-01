@@ -1,0 +1,43 @@
+@use '../flagged-additions/flagged-additions.scss';
+
+.pair {
+  margin: var(--space-sm) 0 var(--space-md);
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-sm);
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--status-pending-fg);
+  background: var(--bg-light);
+  overflow-wrap: anywhere;
+}
+
+.side-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.side-name {
+  font-weight: 700;
+}
+
+.side-link {
+  align-self: flex-start;
+  margin-top: var(--space-xs);
+  color: var(--primary-deep);
+  font-weight: 600;
+
+  &:focus-visible {
+    outline: var(--border-width-focus) solid var(--border-focus);
+    outline-offset: 2px;
+  }
+}

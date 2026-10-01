@@ -1,0 +1,107 @@
+<!-- Backdrop click is a pointer convenience only; (keydown.escape) is the keyboard equivalent. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="dismissed.emit()" (keydown.escape)="dismissed.emit()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <form
+    class="dialog glass glass-thick"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="revoke-title"
+    aria-describedby="revoke-body"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    (click)="$event.stopPropagation()"
+    novalidate
+  >
+    <header class="dialog-head">
+      <h2 id="revoke-title" class="t-page-title">Revoke {{ member().name }}'s access?</h2>
+      <p id="revoke-body" class="t-secondary confirm-body">
+        They lose access to {{ companyName() }} and every Event they're assigned to right away, and
+        are signed out everywhere. Nothing is deleted — every donation they recorded keeps their
+        name.
+      </p>
+    </header>
+
+    <div class="dialog-body">
+      <fieldset
+        class="field reasons"
+        [attr.aria-describedby]="reasonMissing() ? 'revoke-reason-error' : null"
+      >
+        <legend class="field-label">
+          Why are you revoking their access? <span class="req" aria-hidden="true">*</span>
+        </legend>
+        <label class="reason-option">
+          <input
+            #firstReason
+            type="radio"
+            formControlName="reason"
+            value="routine"
+            aria-describedby="reason-routine-note"
+          />
+          <span>
+            <span class="t-body-em">Routine offboarding</span>
+            <span id="reason-routine-note" class="t-caption reason-note">
+              They've left or no longer need access. Nothing else happens.
+            </span>
+          </span>
+        </label>
+        <label class="reason-option">
+          <input
+            type="radio"
+            formControlName="reason"
+            value="for_cause"
+            aria-describedby="reason-cause-note"
+          />
+          <span>
+            <span class="t-body-em">For cause</span>
+            <span id="reason-cause-note" class="t-caption reason-note">
+              Fraud or an active investigation. Givio will review anyone matching them who is added
+              at any company.
+            </span>
+          </span>
+        </label>
+        @if (reasonMissing()) {
+        <p id="revoke-reason-error" class="field-error">Choose why you're revoking their access.</p>
+        }
+      </fieldset>
+
+      @if (isForCause()) {
+      <div class="field">
+        <label class="field-label" for="revokeExplanation"
+          >What happened? <span class="req" aria-hidden="true">*</span></label
+        >
+        <textarea
+          #explanationInput
+          id="revokeExplanation"
+          class="textarea"
+          rows="3"
+          formControlName="explanation"
+          required
+          [attr.maxlength]="explanationMax"
+          [attr.aria-invalid]="explanationMissing()"
+          [attr.aria-describedby]="
+            explanationMissing() ? 'revokeExplanation-error' : 'revokeExplanation-hint'
+          "
+          [class.is-invalid]="explanationMissing()"
+        ></textarea>
+        @if (explanationMissing()) {
+        <p id="revokeExplanation-error" class="field-error">
+          Say briefly what happened — Givio's reviewers read this.
+        </p>
+        } @else {
+        <p id="revokeExplanation-hint" class="field-note t-caption">
+          Only Givio's administrators see this. Up to {{ explanationMax }} characters.
+        </p>
+        }
+      </div>
+      }
+    </div>
+
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="dismissed.emit()">Cancel</button>
+      <button type="submit" class="btn btn-danger" [disabled]="busy()">Revoke access</button>
+    </footer>
+  </form>
+</div>

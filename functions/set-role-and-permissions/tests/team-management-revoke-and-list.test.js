@@ -9,7 +9,7 @@ test(
   withEnv(async () => {
     const store = seedStore();
     const { result } = await run({
-      body: { action: 'revokeMembership', membershipId: 'm-org-a' },
+      body: { action: 'revokeMembership', reason: 'routine', membershipId: 'm-org-a' },
       as: 'so-a',
       store,
     });
@@ -35,7 +35,7 @@ test(
     const accounts = structuredClone(ACCOUNTS);
     accounts['op-a'].labels = ['operator', 'keepme'];
     const { result, store, accountStore } = await run({
-      body: { action: 'revokeMembership', membershipId: 'm-op-a' },
+      body: { action: 'revokeMembership', reason: 'routine', membershipId: 'm-op-a' },
       as: 'org-a',
       accounts,
     });
@@ -55,7 +55,7 @@ test(
       ['so-a', 'm-so-a'],
     ]) {
       const { result, calls } = await run({
-        body: { action: 'revokeMembership', membershipId },
+        body: { action: 'revokeMembership', reason: 'routine', membershipId },
         as,
       });
       assert.equal(result.status, 403, `${as} → ${membershipId}`);
@@ -68,11 +68,11 @@ test(
   "another tenant's Membership is indistinguishable from a missing one (FR-2)",
   withEnv(async () => {
     const other = await run({
-      body: { action: 'revokeMembership', membershipId: 'm-op-b' },
+      body: { action: 'revokeMembership', reason: 'routine', membershipId: 'm-op-b' },
       as: 'so-a',
     });
     const missing = await run({
-      body: { action: 'revokeMembership', membershipId: 'does-not-exist' },
+      body: { action: 'revokeMembership', reason: 'routine', membershipId: 'does-not-exist' },
       as: 'so-a',
     });
 
@@ -87,7 +87,7 @@ test(
   'Admin may still revoke anyone, including a Super Organizer',
   withEnv(async () => {
     const { result, store } = await run({
-      body: { action: 'revokeMembership', membershipId: 'm-so-b' },
+      body: { action: 'revokeMembership', reason: 'routine', membershipId: 'm-so-b' },
       as: 'admin-1',
     });
 
@@ -102,7 +102,7 @@ test(
   withEnv(async () => {
     const store = seedStore();
     const failed = await run({
-      body: { action: 'revokeMembership', membershipId: 'm-op-a' },
+      body: { action: 'revokeMembership', reason: 'routine', membershipId: 'm-op-a' },
       as: 'so-a',
       store,
       failOn: { updateLabels: true },
@@ -111,7 +111,7 @@ test(
     assert.equal(store['memberships-1']['m-op-a'].status, 'revoked');
 
     const retry = await run({
-      body: { action: 'revokeMembership', membershipId: 'm-op-a' },
+      body: { action: 'revokeMembership', reason: 'routine', membershipId: 'm-op-a' },
       as: 'so-a',
       store,
     });

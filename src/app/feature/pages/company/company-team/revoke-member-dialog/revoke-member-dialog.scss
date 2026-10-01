@@ -1,0 +1,48 @@
+@use '../../../admin/admin-donations/admin-donations.scss';
+
+.confirm-body {
+  margin: 0;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.reasons {
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  border: 0;
+
+  legend {
+    padding: 0;
+    margin-bottom: var(--space-xs);
+  }
+}
+
+.reason-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid rgba(15, 122, 140, 0.25);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+
+  input {
+    margin-top: 4px;
+    flex: none;
+  }
+
+  &:has(input:checked) {
+    border-color: var(--primary-deep);
+  }
+
+  &:focus-within {
+    outline: 2px solid var(--primary-deep);
+    outline-offset: 2px;
+  }
+}
+
+.reason-note {
+  display: block;
+  margin-top: 2px;
+}
