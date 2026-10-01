@@ -13,6 +13,7 @@ import {
   ALL_ROWS_ENTITY_ID,
   distinctTenantIds,
   logAdminAccess,
+  tenantIdOfLocalEvent,
   writeAuditLog,
 } from './audit-log-writer';
 import { environment } from '../../../environments/environment';
@@ -631,6 +632,7 @@ export class DonationDataService {
         performedBy: this.authService.currentUser()!.$id,
         previousValues,
         newValues,
+        tenantId: await tenantIdOfLocalEvent(previousValues.eventId),
       });
     } catch (error) {
       console.error(`DonationDataService: failed to write '${action}' audit log`, error);

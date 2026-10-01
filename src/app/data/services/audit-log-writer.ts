@@ -7,6 +7,7 @@ import type {
   AuditLogEntry,
 } from '../models/audit-log';
 import { ServiceError } from '../../core/services/service-error';
+import { appDb } from '../dexie/app-db';
 
 export interface WriteAuditLogInput {
   entityType: AuditEntityType;
@@ -15,6 +16,10 @@ export interface WriteAuditLogInput {
   performedBy: string;
   previousValues: unknown;
   newValues: unknown;
+  /** Story 7.5 (FR-15): the Tenant whose data the entry concerns — what a Super Organizer's
+   *  listTenantAuditLog filters on. Omitted for a pre-6.2 event with no tenant, and for Admin
+   *  'access' reads, so neither appears in any tenant's view (both stay in admin-audit). */
+  tenantId?: string;
 }
 
 /**
@@ -36,11 +41,25 @@ export async function writeAuditLog(databases: TablesDB, entry: WriteAuditLogInp
         previousValues: JSON.stringify(entry.previousValues),
         newValues: JSON.stringify(entry.newValues),
         timestamp: new Date().toISOString(),
+        ...(entry.tenantId ? { tenantId: entry.tenantId } : {}),
       },
       permissions: [Permission.read(Role.label('admin'))],
     });
   } catch (error) {
     throw new ServiceError('Failed to write audit log', error);
+  }
+}
+
+/**
+ * A Donation carries no tenantId of its own — it inherits its Event's, read from the local
+ * Dexie copy every Operator/Admin screen already holds. A missing Event (or a failed read) just
+ * leaves the entry untenanted: the audit write is best-effort and must not fail on this.
+ */
+export async function tenantIdOfLocalEvent(eventId: string): Promise<string | undefined> {
+  try {
+    return (await appDb.events.get(eventId))?.tenantId;
+  } catch {
+    return undefined;
   }
 }
 

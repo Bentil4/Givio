@@ -1,0 +1,52 @@
+<section class="page" aria-labelledby="audit-title">
+  <header class="page-head">
+    <div>
+      <h1 id="audit-title" class="t-page-title">Activity log</h1>
+      <p class="t-secondary">
+        Every change your team made to your company's events and donations — who made it, when, and
+        why. Append-only: no one can edit or delete these entries.
+      </p>
+    </div>
+  </header>
+
+  @if (loading()) {
+  <div class="trail glass" aria-busy="true">
+    <span class="visually-hidden">Loading your activity log…</span>
+    @for (i of skeletons; track i) {
+    <div class="skel-row">
+      <span class="skel skel--sm"></span>
+      <span class="skel skel--lg"></span>
+      <span class="skel skel--md"></span>
+    </div>
+    }
+  </div>
+  } @else if (isEmpty()) {
+  <article class="empty glass" aria-labelledby="audit-empty-title">
+    <mat-icon class="empty-icon" aria-hidden="true">history</mat-icon>
+    <h2 id="audit-empty-title" class="t-card-title">No activity yet</h2>
+    <p class="t-caption">
+      The first entry appears as soon as someone on your team creates an event or records a
+      donation.
+    </p>
+  </article>
+  } @else if (entries().length > 0) {
+  <app-audit-trail-list [entries]="entries()" [actorName]="actorName" />
+  } @if (loadError(); as err) {
+  <div class="code-note is-error" role="alert">
+    <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <p class="t-caption">{{ err }}</p>
+    <button type="button" class="btn-ghost" (click)="retry()">Try again</button>
+  </div>
+  } @if (hasMore() && !loading()) {
+  <div class="page-actions">
+    <button
+      type="button"
+      class="btn btn-secondary"
+      [disabled]="loadingMore()"
+      (click)="loadOlder()"
+    >
+      {{ loadingMore() ? 'Loading…' : 'Show older activity' }}
+    </button>
+  </div>
+  }
+</section>

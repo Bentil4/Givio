@@ -28,20 +28,27 @@ export class CompanyLayout {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly themeService = inject(ThemeService);
-  private readonly companyContext = inject(TenantService).context;
+  private readonly tenantService = inject(TenantService);
 
   public readonly theme = this.themeService.theme;
   public readonly isSidebarCollapsed = signal(false);
   public readonly isMobileNavOpen = signal(false);
   public readonly userProfile: IUserProfile[] = [];
 
+  private readonly isSuperOrganizer = computed(
+    () => this.tenantService.context()?.membership.role === 'super_organizer',
+  );
+
   public readonly navItems = computed<INavbarItem[]>(() => [
     { name: 'Dashboard', icon: 'dashboard', route: '/company' },
     { name: 'Events', icon: 'event', route: '/company/events' },
     { name: 'Team', icon: 'group', route: '/company/team' },
     { name: 'Contact Admin', icon: 'support_agent', route: '/company/support' },
-    ...(this.companyContext()?.membership.role === 'super_organizer'
-      ? [{ name: 'Reports', icon: 'summarize', route: '/company/reports' }]
+    ...(this.isSuperOrganizer()
+      ? [
+          { name: 'Activity log', icon: 'history', route: '/company/audit' },
+          { name: 'Reports', icon: 'summarize', route: '/company/reports' },
+        ]
       : []),
   ]);
 
