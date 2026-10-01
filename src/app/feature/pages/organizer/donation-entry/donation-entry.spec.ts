@@ -113,7 +113,9 @@ describe('DonationEntry', () => {
 
     expect(component.event()?.id).toBe('e1');
     expect(component.notFound()).toBe(false);
-    expect(loadDonationsForEvent).toHaveBeenCalledWith('e1');
+    // The component loads donations only after its outbox (IndexedDB) read resolves, which
+    // settle()'s single macrotask doesn't guarantee — wait for the call itself.
+    await vi.waitFor(() => expect(loadDonationsForEvent).toHaveBeenCalledWith('e1'));
   });
 
   it('with no pick and a single active Event, records against that Event (nothing to choose)', async () => {
@@ -177,7 +179,7 @@ describe('DonationEntry', () => {
       expect((fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent).toContain(
         'Asante Funeral',
       );
-      expect(loadDonationsForEvent).toHaveBeenCalledWith('e2');
+      await vi.waitFor(() => expect(loadDonationsForEvent).toHaveBeenCalledWith('e2'));
     });
 
     it('switching Events mid-confirm returns to entry instead of carrying the draft across', async () => {

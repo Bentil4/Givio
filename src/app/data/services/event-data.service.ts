@@ -78,31 +78,36 @@ export class EventDataService {
   async listEvents(): Promise<Event[]> {
     try {
       const remoteEvents = await this.fetchAllEventRows();
-      logAdminAccess(
-        this.databases,
-        this.authService.currentUser(),
-        { entityType: 'event', entityId: ALL_ROWS_ENTITY_ID },
-        () => ({
+      logAdminAccess(this.databases, {
+        user: this.authService.currentUser(),
+        target: { entityType: 'event', entityId: ALL_ROWS_ENTITY_ID },
+        details: () => ({
           query: 'listEvents',
           tenantId: null,
           tenantIds: distinctTenantIds(remoteEvents),
           rowCount: remoteEvents.length,
         }),
-      );
-      const pendingIds = new Set(
-        (await appDb.outbox.where('entityType').equals('event').toArray()).map((e) => e.entityId),
-      );
-      for (const event of remoteEvents) {
-        // An unsynced local create/edit sitting in the outbox wins until it syncs — otherwise
-        // this pull would stomp it with the stale (or, for a still-unsynced create, nonexistent)
-        // server version.
-        if (pendingIds.has(event.id)) continue;
-        await appDb.events.put(event);
-      }
+      });
+      await this.cacheRemoteEvents(remoteEvents);
     } catch {
       // Offline or unreachable — fall through to the local read below.
     }
     return appDb.events.toArray();
+  }
+
+  /**
+   * An unsynced local create/edit sitting in the outbox wins until it syncs — otherwise this
+   * pull would stomp it with the stale (or, for a still-unsynced create, nonexistent) server
+   * version.
+   */
+  private async cacheRemoteEvents(remoteEvents: Event[]): Promise<void> {
+    const pendingIds = new Set(
+      (await appDb.outbox.where('entityType').equals('event').toArray()).map((e) => e.entityId),
+    );
+    const syncedEvents = remoteEvents.filter((event) => !pendingIds.has(event.id));
+    for (const event of syncedEvents) {
+      await appDb.events.put(event);
+    }
   }
 
   private async fetchAllEventRows(): Promise<Event[]> {
@@ -156,11 +161,7 @@ export class EventDataService {
       updatedAt: now,
     };
 
-    try {
-      await appDb.events.put(event);
-    } catch (error) {
-      throw new ServiceError('Failed to save event locally', error);
-    }
+    await this.saveEventLocally(event);
 
     const entry: OutboxEntry = {
       entityType: 'event',
@@ -178,6 +179,21 @@ export class EventDataService {
   }
 
   async updateEvent(id: string, patch: UpdateEventPatch): Promise<Event> {
+    const current = await this.editableEvent(id);
+    const updated: Event = { ...current, ...patch, updatedAt: new Date().toISOString() };
+    await this.saveEventLocally(updated);
+    const entry = await this.enqueueEventUpdate(current, updated);
+    const synced = await this.trySyncNow(entry);
+    // An audit entry referencing a document not yet in Appwrite would be meaningless, so the
+    // write is skipped (not queued) whenever the sync above left the outbox entry pending —
+    // see Story 2.1 Dev Notes for the known gap this leaves until Story 3.5's SyncEngine exists.
+    if (synced) {
+      await this.writeEditAuditLog(current, updated);
+    }
+    return updated;
+  }
+
+  private async editableEvent(id: string): Promise<Event> {
     const current = await appDb.events.get(id);
     if (!current) {
       throw new ServiceError('Event not found');
@@ -185,15 +201,18 @@ export class EventDataService {
     if (current.status === 'closed') {
       throw new ServiceError('Cannot edit a closed event');
     }
+    return current;
+  }
 
-    const updated: Event = { ...current, ...patch, updatedAt: new Date().toISOString() };
-
+  private async saveEventLocally(event: Event): Promise<void> {
     try {
-      await appDb.events.put(updated);
+      await appDb.events.put(event);
     } catch (error) {
       throw new ServiceError('Failed to save event locally', error);
     }
+  }
 
+  private async enqueueEventUpdate(current: Event, updated: Event): Promise<OutboxEntry> {
     const entry: OutboxEntry = {
       entityType: 'event',
       entityId: updated.id,
@@ -205,27 +224,22 @@ export class EventDataService {
       createdAt: updated.updatedAt,
     };
     entry.localId = await appDb.outbox.add(entry);
-    const synced = await this.trySyncNow(entry);
+    return entry;
+  }
 
-    // An audit entry referencing a document not yet in Appwrite would be meaningless, so the
-    // write is skipped (not queued) whenever the sync above left the outbox entry pending —
-    // see Story 2.1 Dev Notes for the known gap this leaves until Story 3.5's SyncEngine exists.
-    if (synced) {
-      try {
-        await writeAuditLog(this.databases, {
-          entityType: 'event',
-          entityId: updated.id,
-          action: 'edit',
-          performedBy: this.authService.currentUser()!.$id,
-          previousValues: current,
-          newValues: updated,
-        });
-      } catch (error) {
-        console.error('EventDataService.updateEvent: failed to write audit log', error);
-      }
+  private async writeEditAuditLog(current: Event, updated: Event): Promise<void> {
+    try {
+      await writeAuditLog(this.databases, {
+        entityType: 'event',
+        entityId: updated.id,
+        action: 'edit',
+        performedBy: this.authService.currentUser()!.$id,
+        previousValues: current,
+        newValues: updated,
+      });
+    } catch (error) {
+      console.error('EventDataService.updateEvent: failed to write audit log', error);
     }
-
-    return updated;
   }
 
   /**
@@ -242,15 +256,14 @@ export class EventDataService {
       throw new ServiceError('Event not found');
     }
 
-    await invokeAdminFunction(
-      this.functions,
-      'assignOperators',
-      'Failed to save operator assignment',
-      {
+    await invokeAdminFunction(this.functions, {
+      action: 'assignOperators',
+      invokeFailureMessage: 'Failed to save operator assignment',
+      payload: {
         eventId,
         assignedUserIds,
       },
-    );
+    });
 
     const updated: Event = { ...current, assignedUserIds, updatedAt: new Date().toISOString() };
     try {
@@ -289,15 +302,14 @@ export class EventDataService {
       throw new ServiceError('Event not found');
     }
 
-    await invokeAdminFunction(
-      this.functions,
-      'setEventStatus',
-      'Failed to change the event status',
-      {
+    await invokeAdminFunction(this.functions, {
+      action: 'setEventStatus',
+      invokeFailureMessage: 'Failed to change the event status',
+      payload: {
         eventId,
         status,
       },
-    );
+    });
 
     const updated: Event = { ...current, status, updatedAt: new Date().toISOString() };
     try {
@@ -332,12 +344,11 @@ export class EventDataService {
       throw new ServiceError('Event not found');
     }
 
-    const { accessCode } = await invokeAdminFunction<{ accessCode: string }>(
-      this.functions,
-      'generateAccessCode',
-      'Failed to regenerate the family code',
-      { eventId },
-    );
+    const { accessCode } = await invokeAdminFunction<{ accessCode: string }>(this.functions, {
+      action: 'generateAccessCode',
+      invokeFailureMessage: 'Failed to regenerate the family code',
+      payload: { eventId },
+    });
 
     const updated: Event = { ...current, accessCode, updatedAt: new Date().toISOString() };
     try {

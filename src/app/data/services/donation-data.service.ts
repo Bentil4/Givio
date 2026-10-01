@@ -97,11 +97,10 @@ export class DonationDataService {
   async listDonationsForEvent(eventId: string): Promise<Donation[]> {
     const remote = await this.pullDonations(Query.equal('eventId', eventId));
     if (remote) {
-      logAdminAccess(
-        this.databases,
-        this.authService.currentUser(),
-        { entityType: 'donation', entityId: eventId },
-        async () => {
+      logAdminAccess(this.databases, {
+        user: this.authService.currentUser(),
+        target: { entityType: 'donation', entityId: eventId },
+        details: async () => {
           const event = await appDb.events.get(eventId);
           return {
             query: 'listDonationsForEvent',
@@ -112,7 +111,7 @@ export class DonationDataService {
             rowCount: remote.length,
           };
         },
-      );
+      });
     }
     return appDb.donations.where('eventId').equals(eventId).toArray();
   }
@@ -126,11 +125,10 @@ export class DonationDataService {
   async listAllDonations(): Promise<Donation[]> {
     const remote = await this.pullDonations();
     if (remote) {
-      logAdminAccess(
-        this.databases,
-        this.authService.currentUser(),
-        { entityType: 'donation', entityId: ALL_ROWS_ENTITY_ID },
-        async () => {
+      logAdminAccess(this.databases, {
+        user: this.authService.currentUser(),
+        target: { entityType: 'donation', entityId: ALL_ROWS_ENTITY_ID },
+        details: async () => {
           const eventIds = [...new Set(remote.map((d) => d.eventId))];
           const events = await appDb.events.bulkGet(eventIds);
           return {
@@ -140,7 +138,7 @@ export class DonationDataService {
             rowCount: remote.length,
           };
         },
-      );
+      });
     }
     return appDb.donations.toArray();
   }
@@ -149,20 +147,22 @@ export class DonationDataService {
   private async pullDonations(filterQuery?: string): Promise<Donation[] | null> {
     try {
       const remoteDonations = await this.fetchAllDonationRows(filterQuery);
-      const pendingIds = new Set(
-        (await appDb.outbox.where('entityType').equals('donation').toArray()).map(
-          (e) => e.entityId,
-        ),
-      );
-      for (const donation of remoteDonations) {
-        // An unsynced local create/edit sitting in the outbox wins until it syncs.
-        if (pendingIds.has(donation.id)) continue;
-        await appDb.donations.put(donation);
-      }
+      await this.cacheRemoteDonations(remoteDonations);
       return remoteDonations;
     } catch {
       // Offline or unreachable — fall through to whatever's already local.
       return null;
+    }
+  }
+
+  /** An unsynced local create/edit sitting in the outbox wins until it syncs. */
+  private async cacheRemoteDonations(remoteDonations: Donation[]): Promise<void> {
+    const pendingIds = new Set(
+      (await appDb.outbox.where('entityType').equals('donation').toArray()).map((e) => e.entityId),
+    );
+    const syncedDonations = remoteDonations.filter((donation) => !pendingIds.has(donation.id));
+    for (const donation of syncedDonations) {
+      await appDb.donations.put(donation);
     }
   }
 
@@ -192,16 +192,38 @@ export class DonationDataService {
   }
 
   async createDonation(draft: DonationDraft): Promise<Donation> {
-    const event = await appDb.events.get(draft.eventId);
+    const event = await this.eventAcceptingDonations(draft.eventId);
+    const now = new Date().toISOString();
+    const donation = await this.buildPendingDonation(draft, event, now);
+    await this.saveDonationLocally(donation);
+    const entry = await this.enqueueDonationCreate(donation, now);
+    const outcome = await this.trySyncNow(donation, entry);
+    if (outcome === 'synced') {
+      await this.logDonationAudit('create', donation, donation);
+    }
+    if (outcome === 'failed') {
+      await this.discardRejectedCreate(entry, donation);
+    }
+    return donation;
+  }
+
+  private async eventAcceptingDonations(eventId: string): Promise<Event> {
+    const event = await appDb.events.get(eventId);
     if (!event) {
       throw new ServiceError('Event not found');
     }
     if (event.status !== 'active') {
       throw new ServiceError('Cannot record a donation against a paused or closed event');
     }
+    return event;
+  }
 
-    const now = new Date().toISOString();
-    const donation: Donation = {
+  private async buildPendingDonation(
+    draft: DonationDraft,
+    event: Event,
+    now: string,
+  ): Promise<Donation> {
+    return {
       id: ID.unique(),
       eventId: draft.eventId,
       // Provisional (AD-8/Story 3.6): the receipt prints instantly, online or offline, without
@@ -218,13 +240,17 @@ export class DonationDataService {
       recordedAt: now,
       syncStatus: 'pending',
     };
+  }
 
+  private async saveDonationLocally(donation: Donation): Promise<void> {
     try {
       await appDb.donations.put(donation);
     } catch (error) {
       throw new ServiceError('Failed to save donation locally', error);
     }
+  }
 
+  private async enqueueDonationCreate(donation: Donation, now: string): Promise<OutboxEntry> {
     const entry: OutboxEntry = {
       entityType: 'donation',
       entityId: donation.id,
@@ -235,20 +261,18 @@ export class DonationDataService {
       createdAt: now,
     };
     entry.localId = await appDb.outbox.add(entry);
-    const outcome = await this.trySyncNow(donation, entry);
-    if (outcome === 'synced') {
-      await this.logDonationAudit('create', donation, donation);
-    }
-    if (outcome === 'failed') {
-      // Rejected while the Operator is still on the read-back screen: nothing reached the
-      // server, so the local copy goes and the reason is shown there instead — the draft is
-      // still on screen to correct, and no receipt gets offered for a record that won't exist.
-      await appDb.outbox.delete(entry.localId);
-      await appDb.donations.delete(donation.id);
-      throw new ServiceError(entry.lastError ?? 'The server rejected this donation');
-    }
+    return entry;
+  }
 
-    return donation;
+  /**
+   * Rejected while the Operator is still on the read-back screen: nothing reached the server,
+   * so the local copy goes and the reason is shown there instead — the draft is still on
+   * screen to correct, and no receipt gets offered for a record that won't exist.
+   */
+  private async discardRejectedCreate(entry: OutboxEntry, donation: Donation): Promise<never> {
+    await appDb.outbox.delete(entry.localId!);
+    await appDb.donations.delete(donation.id);
+    throw new ServiceError(entry.lastError ?? 'The server rejected this donation');
   }
 
   /**
@@ -308,11 +332,10 @@ export class DonationDataService {
     entry: OutboxEntry,
   ): Promise<'synced' | 'pending' | 'failed'> {
     try {
-      const result = await invokeAdminFunction<RecordDonationResult>(
-        this.functions,
-        'recordDonation',
-        'Failed to save donation',
-        {
+      const result = await invokeAdminFunction<RecordDonationResult>(this.functions, {
+        action: 'recordDonation',
+        invokeFailureMessage: 'Failed to save donation',
+        payload: {
           donationId: donation.id,
           eventId: donation.eventId,
           receiptNumber: donation.receiptNumber,
@@ -324,7 +347,7 @@ export class DonationDataService {
           notes: donation.notes,
           recordedAt: donation.recordedAt,
         },
-      );
+      });
       if (entry.localId !== undefined) {
         await appDb.outbox.delete(entry.localId);
       }
@@ -569,17 +592,16 @@ export class DonationDataService {
   private async fileConflict(entry: OutboxEntry, serverVersion: Donation): Promise<SyncOutcome> {
     const localVersion = entry.payload as Donation;
     try {
-      await invokeAdminFunction(
-        this.functions,
-        'recordConflict',
-        'Failed to record sync conflict',
-        {
+      await invokeAdminFunction(this.functions, {
+        action: 'recordConflict',
+        invokeFailureMessage: 'Failed to record sync conflict',
+        payload: {
           receiptNumber: localVersion.receiptNumber,
           eventId: localVersion.eventId,
           localVersion,
           serverVersion,
         },
-      );
+      });
     } catch (error) {
       // Couldn't reach the Function to file it — leave the outbox entry in place so the next
       // drain re-checks and retries recordConflict, rather than silently discarding the edit.

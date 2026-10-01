@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
 import { jsPDF } from 'jspdf';
 import { DEJAVU_SANS_TTF_BASE64 } from '../../../vendor/fonts/dejavu-sans.font';
-import { DONATION_TYPE_LABELS, type Donation } from '../models/donation';
-import { formatCedis } from '../../utils/donation.util';
+import type { Donation } from '../models/donation';
+import { receiptRows, type ReceiptRow } from './receipt-rows';
 import type { Event } from '../models/event';
 
 const PAGE_FORMAT = 'a5';
@@ -52,77 +52,81 @@ export class ReceiptService {
 
   /** A5, per FR-REC-002 — small enough to hand-carry, large enough to stay legible when printed. */
   private buildDoc(donation: Donation, event: Event, operatorName: string): jsPDF {
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: PAGE_FORMAT });
-    doc.addFileToVFS(CEDI_FONT_FILE, DEJAVU_SANS_TTF_BASE64);
-    doc.addFont(CEDI_FONT_FILE, CEDI_FONT_NAME, 'normal');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const center = pageWidth / 2;
-    let y = MARGIN;
-
-    if (event.image) {
-      const imageSize = 22;
-      doc.addImage(event.image, 'JPEG', center - imageSize / 2, y, imageSize, imageSize);
-      y += imageSize + 6;
-    }
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text(event.name, center, y, { align: 'center' });
-    y += 7;
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    doc.text(event.type === 'wedding' ? 'Wedding' : 'Funeral', center, y, { align: 'center' });
-    y += 5;
-
-    // Prominent event name + dividing line/border (FR-REC-004).
-    doc.setLineWidth(0.5);
-    doc.line(MARGIN, y, pageWidth - MARGIN, y);
-    y += 8;
-
+    const page = createReceiptPage();
+    let y = drawEventHeader(page, MARGIN, event);
     if (donation.syncStatus !== 'synced') {
-      doc.setFont('helvetica', 'bolditalic');
-      doc.setFontSize(9);
-      doc.setTextColor(180, 60, 0);
-      doc.text('PROVISIONAL — number will update once this record syncs', center, y, {
-        align: 'center',
-      });
-      doc.setTextColor(0, 0, 0);
-      y += 7;
+      y = drawProvisionalNotice(page, y);
     }
-
-    // The third element marks the Amount row's value as needing the embedded Unicode font
-    // (the ₵ sign) rather than Helvetica.
-    const rows: [string, string, boolean?][] = [
-      ['Receipt No.', donation.receiptNumber],
-      ['Date & Time', new Date(donation.recordedAt).toLocaleString('en-GH')],
-      ['Donor', donation.donorName],
-      ['Amount', formatCedis(donation.amountMinor), true],
-      ['Type', DONATION_TYPE_LABELS[donation.donationType]],
-    ];
-    if (donation.onBehalfOf) {
-      rows.push(['Donated On Behalf Of', donation.onBehalfOf]);
-    }
-    rows.push(['Recorded By', operatorName]);
-
-    doc.setFontSize(11);
-    for (const [label, value, needsCediFont] of rows) {
-      doc.setFont('helvetica', 'bold');
-      doc.text(label, MARGIN, y);
-      doc.setFont(needsCediFont ? CEDI_FONT_NAME : 'helvetica', 'normal');
-      doc.text(value, pageWidth - MARGIN, y, { align: 'right' });
-      y += 7;
-    }
-
-    y += 5;
-    doc.setLineWidth(0.2);
-    doc.line(MARGIN, y, pageWidth - MARGIN, y);
-    y += 8;
-
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(10);
-    doc.text(THANK_YOU_MESSAGE, center, y, { align: 'center' });
-
-    return doc;
+    y = drawDetailRows(page, y, receiptRows(donation, operatorName));
+    drawThankYouFooter(page, y);
+    return page.doc;
   }
+}
+
+interface ReceiptPage {
+  doc: jsPDF;
+  pageWidth: number;
+  center: number;
+}
+
+function createReceiptPage(): ReceiptPage {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: PAGE_FORMAT });
+  doc.addFileToVFS(CEDI_FONT_FILE, DEJAVU_SANS_TTF_BASE64);
+  doc.addFont(CEDI_FONT_FILE, CEDI_FONT_NAME, 'normal');
+  const pageWidth = doc.internal.pageSize.getWidth();
+  return { doc, pageWidth, center: pageWidth / 2 };
+}
+
+/** Each draw* function starts at vertical offset `y` and returns the offset below what it drew. */
+function drawEventHeader({ doc, pageWidth, center }: ReceiptPage, y: number, event: Event): number {
+  if (event.image) {
+    const imageSize = 22;
+    doc.addImage(event.image, 'JPEG', center - imageSize / 2, y, imageSize, imageSize);
+    y += imageSize + 6;
+  }
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text(event.name, center, y, { align: 'center' });
+  y += 7;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.text(event.type === 'wedding' ? 'Wedding' : 'Funeral', center, y, { align: 'center' });
+  y += 5;
+  // Prominent event name + dividing line/border (FR-REC-004).
+  doc.setLineWidth(0.5);
+  doc.line(MARGIN, y, pageWidth - MARGIN, y);
+  return y + 8;
+}
+
+function drawProvisionalNotice({ doc, center }: ReceiptPage, y: number): number {
+  doc.setFont('helvetica', 'bolditalic');
+  doc.setFontSize(9);
+  doc.setTextColor(180, 60, 0);
+  doc.text('PROVISIONAL — number will update once this record syncs', center, y, {
+    align: 'center',
+  });
+  doc.setTextColor(0, 0, 0);
+  return y + 7;
+}
+
+function drawDetailRows({ doc, pageWidth }: ReceiptPage, y: number, rows: ReceiptRow[]): number {
+  doc.setFontSize(11);
+  for (const [label, value, needsCediFont] of rows) {
+    doc.setFont('helvetica', 'bold');
+    doc.text(label, MARGIN, y);
+    doc.setFont(needsCediFont ? CEDI_FONT_NAME : 'helvetica', 'normal');
+    doc.text(value, pageWidth - MARGIN, y, { align: 'right' });
+    y += 7;
+  }
+  return y;
+}
+
+function drawThankYouFooter({ doc, pageWidth, center }: ReceiptPage, y: number): void {
+  y += 5;
+  doc.setLineWidth(0.2);
+  doc.line(MARGIN, y, pageWidth - MARGIN, y);
+  y += 8;
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(10);
+  doc.text(THANK_YOU_MESSAGE, center, y, { align: 'center' });
 }
