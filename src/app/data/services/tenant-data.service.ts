@@ -133,12 +133,11 @@ export class TenantDataService {
     company: CompanyIntake & { contactPhone: string };
     verificationDocumentId: string;
   }): Promise<{ tenantId: string; membershipId: string }> {
-    return invokeAdminFunction(
-      this.functions,
-      'submitTenantApplication',
-      'Failed to submit the application',
-      input,
-    );
+    return invokeAdminFunction(this.functions, {
+      action: 'submitTenantApplication',
+      invokeFailureMessage: 'Failed to submit the application',
+      payload: input,
+    });
   }
 
   /** Admin-only (FR-6 path a) — the UI hook for Story 6.5's Admin screens. */
@@ -147,12 +146,11 @@ export class TenantDataService {
     email: string;
     company: CompanyIntake;
   }): Promise<InviteOrganizerResult> {
-    return invokeAdminFunction(
-      this.functions,
-      'inviteOrganizer',
-      'Failed to invite organizer',
-      input,
-    );
+    return invokeAdminFunction(this.functions, {
+      action: 'inviteOrganizer',
+      invokeFailureMessage: 'Failed to invite organizer',
+      payload: input,
+    });
   }
 
   /**
@@ -161,25 +159,28 @@ export class TenantDataService {
    * read("label:admin") permission.
    */
   async listPendingTenants(): Promise<Tenant[]> {
+    const tenants = await this.fetchAllPendingTenantRows().catch((error: unknown) => {
+      throw new ServiceError('Failed to load pending applications', error);
+    });
+    return tenants.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  private async fetchAllPendingTenantRows(): Promise<Tenant[]> {
     const tenants: Tenant[] = [];
     let cursor: string | undefined;
-    try {
-      for (;;) {
-        const queries = [Query.equal('status', ['pending']), Query.limit(PENDING_PAGE_SIZE)];
-        if (cursor) queries.push(Query.cursorAfter(cursor));
-        const page = await this.databases.listRows<Models.DefaultRow>({
-          databaseId: environment.appwriteDatabaseId,
-          tableId: environment.tenantsCollectionId,
-          queries,
-        });
-        tenants.push(...page.rows.map(rowToTenant));
-        if (page.rows.length < PENDING_PAGE_SIZE) break;
-        cursor = page.rows[page.rows.length - 1].$id;
-      }
-    } catch (error) {
-      throw new ServiceError('Failed to load pending applications', error);
+    for (;;) {
+      const queries = [Query.equal('status', ['pending']), Query.limit(PENDING_PAGE_SIZE)];
+      if (cursor) queries.push(Query.cursorAfter(cursor));
+      const page = await this.databases.listRows<Models.DefaultRow>({
+        databaseId: environment.appwriteDatabaseId,
+        tableId: environment.tenantsCollectionId,
+        queries,
+      });
+      tenants.push(...page.rows.map(rowToTenant));
+      if (page.rows.length < PENDING_PAGE_SIZE) break;
+      cursor = page.rows[page.rows.length - 1].$id;
     }
-    return tenants.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    return tenants;
   }
 
   /**
@@ -206,25 +207,24 @@ export class TenantDataService {
 
   /** Admin-only (FR-8): attests that both the document review and the phone call are done. */
   async recordTenantVerification(tenantId: string): Promise<TenantVerification> {
-    const body = await invokeAdminFunction<TenantVerification>(
-      this.functions,
-      'recordTenantVerification',
-      'Failed to record the verification',
-      { tenantId, documentReviewed: true, phoneVerified: true },
-    );
+    const body = await invokeAdminFunction<TenantVerification>(this.functions, {
+      action: 'recordTenantVerification',
+      invokeFailureMessage: 'Failed to record the verification',
+      payload: { tenantId, documentReviewed: true, phoneVerified: true },
+    });
     return { verifiedBy: body.verifiedBy, verifiedAt: body.verifiedAt };
   }
 
   /** Admin-only. The Function refuses 'approved' until verification is recorded (FR-8). */
   async decideTenantApplication(tenantId: string, status: TenantDecision): Promise<void> {
-    await invokeAdminFunction(
-      this.functions,
-      'setTenantStatus',
-      status === 'approved'
-        ? 'Failed to approve the application'
-        : 'Failed to reject the application',
-      { tenantId, status },
-    );
+    await invokeAdminFunction(this.functions, {
+      action: 'setTenantStatus',
+      invokeFailureMessage:
+        status === 'approved'
+          ? 'Failed to approve the application'
+          : 'Failed to reject the application',
+      payload: { tenantId, status },
+    });
   }
 
   /**

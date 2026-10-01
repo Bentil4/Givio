@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -20,6 +27,60 @@ const STATUS_FOR_ACTION: Record<StatusAction, EventStatus> = {
   resume: 'active',
   close: 'closed',
   reopen: 'active',
+};
+
+interface ConfirmCopy {
+  title: string;
+  body: string;
+  cta: string;
+  danger: boolean;
+}
+
+const CONFIRM_COPY: Record<NonNullable<Confirmable>, ConfirmCopy> = {
+  pause: {
+    title: 'Pause giving?',
+    body:
+      'Operators will not be able to save donations until you resume. Family members keep ' +
+      'their access and see the last known total.',
+    cta: 'Pause giving',
+    danger: false,
+  },
+  resume: {
+    title: 'Resume giving?',
+    body: 'Operators at every desk will be able to record donations again immediately.',
+    cta: 'Resume giving',
+    danger: false,
+  },
+  close: {
+    title: 'Close this event?',
+    body:
+      'New donations will be blocked until you reopen it. All historical records stay ' +
+      'fully accessible, and family members keep their read-only access.',
+    cta: 'Close event',
+    danger: true,
+  },
+  reopen: {
+    title: 'Reopen this event?',
+    body: 'Its status returns to Active and Operators can record donations again immediately.',
+    cta: 'Reopen event',
+    danger: false,
+  },
+  generate: {
+    title: 'Generate a family access code?',
+    body:
+      'Family members will use this code to view a live, read-only summary of the giving — ' +
+      "no account needed. You can share it as soon as it's generated.",
+    cta: 'Generate code',
+    danger: false,
+  },
+  regenerate: {
+    title: 'Regenerate the family code?',
+    body:
+      'The current code stops working immediately and every family member using it will be ' +
+      'signed out. You will need to share the new code with everyone again.',
+    cta: 'Regenerate code',
+    danger: true,
+  },
 };
 
 function isStatusAction(action: Confirmable): action is StatusAction {
@@ -105,56 +166,8 @@ export class AdminEventDetail implements OnInit {
   });
 
   public readonly confirmCopy = computed(() => {
-    switch (this.confirming()) {
-      case 'pause':
-        return {
-          title: 'Pause giving?',
-          body: 'Operators will not be able to save donations until you resume. Family members keep '
-            + 'their access and see the last known total.',
-          cta: 'Pause giving',
-          danger: false,
-        };
-      case 'resume':
-        return {
-          title: 'Resume giving?',
-          body: 'Operators at every desk will be able to record donations again immediately.',
-          cta: 'Resume giving',
-          danger: false,
-        };
-      case 'close':
-        return {
-          title: 'Close this event?',
-          body: 'New donations will be blocked until you reopen it. All historical records stay '
-            + 'fully accessible, and family members keep their read-only access.',
-          cta: 'Close event',
-          danger: true,
-        };
-      case 'reopen':
-        return {
-          title: 'Reopen this event?',
-          body: 'Its status returns to Active and Operators can record donations again immediately.',
-          cta: 'Reopen event',
-          danger: false,
-        };
-      case 'generate':
-        return {
-          title: 'Generate a family access code?',
-          body: 'Family members will use this code to view a live, read-only summary of the giving — '
-            + 'no account needed. You can share it as soon as it\'s generated.',
-          cta: 'Generate code',
-          danger: false,
-        };
-      case 'regenerate':
-        return {
-          title: 'Regenerate the family code?',
-          body: 'The current code stops working immediately and every family member using it will be '
-            + 'signed out. You will need to share the new code with everyone again.',
-          cta: 'Regenerate code',
-          danger: true,
-        };
-      default:
-        return null;
-    }
+    const action = this.confirming();
+    return action ? CONFIRM_COPY[action] : null;
   });
 
   async ngOnInit(): Promise<void> {
@@ -200,7 +213,8 @@ export class AdminEventDetail implements OnInit {
   public toggleOperator(id: string): void {
     this.selectedOperatorIds.update((set) => {
       const next = new Set(set);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
@@ -221,12 +235,16 @@ export class AdminEventDetail implements OnInit {
     this.assignBusy.set(true);
     this.assignError.set(null);
     try {
-      const updated = await this.eventService.assignOperators(event.id, [...this.selectedOperatorIds()]);
+      const updated = await this.eventService.assignOperators(event.id, [
+        ...this.selectedOperatorIds(),
+      ]);
       this.event.set(updated);
       this.assignSaved.set(true);
       setTimeout(() => this.assignSaved.set(false), 2000);
     } catch (err) {
-      this.assignError.set(err instanceof ServiceError ? err.message : 'Failed to save operator assignment');
+      this.assignError.set(
+        err instanceof ServiceError ? err.message : 'Failed to save operator assignment',
+      );
     } finally {
       this.assignBusy.set(false);
     }
@@ -237,7 +255,9 @@ export class AdminEventDetail implements OnInit {
     this.confirming.set(action);
   }
 
-  public dismiss(): void { this.confirming.set(null); }
+  public dismiss(): void {
+    this.confirming.set(null);
+  }
 
   public async confirm(): Promise<void> {
     const action = this.confirming();

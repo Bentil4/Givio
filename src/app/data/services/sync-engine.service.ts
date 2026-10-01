@@ -1,5 +1,6 @@
 import { DestroyRef, Injectable, effect, inject, signal } from '@angular/core';
 import { appDb } from '../dexie/app-db';
+import type { OutboxEntry } from '../models/outbox-entry';
 import { ConnectivityService } from '../../core/services/connectivity.service';
 import { EventDataService } from './event-data.service';
 import { DonationDataService } from './donation-data.service';
@@ -66,15 +67,19 @@ export class SyncEngineService {
       // Rejected entries are skipped: the server would refuse the same payload again.
       const entries = (await appDb.outbox.toArray()).filter((e) => e.status !== 'failed');
       for (const entry of entries) {
-        if (entry.entityType === 'event') {
-          await this.eventDataService.retryOutboxEntry(entry);
-        } else {
-          await this.donationDataService.retryOutboxEntry(entry);
-        }
+        await this.retryWithOwningDataService(entry);
       }
     } finally {
       await this.refreshPendingCount();
       this._syncing.set(false);
+    }
+  }
+
+  private async retryWithOwningDataService(entry: OutboxEntry): Promise<void> {
+    if (entry.entityType === 'event') {
+      await this.eventDataService.retryOutboxEntry(entry);
+    } else {
+      await this.donationDataService.retryOutboxEntry(entry);
     }
   }
 }
