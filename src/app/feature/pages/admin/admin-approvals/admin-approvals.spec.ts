@@ -1,9 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { ServiceError } from '../../../../core/services/service-error';
 import { TenantDataService } from '../../../../data/services/tenant-data.service';
 import { UserService } from '../../../../data/services/user.service';
 import { IdentityReviewDataService } from '../../../../data/services/identity-review-data.service';
 import type { IdentityReview } from '../../../../data/models/identity-review';
+import { DuplicateEventFlagDataService } from '../../../../data/services/duplicate-event-flag-data.service';
+import type { DuplicateEventFlag } from '../../../../data/models/duplicate-event-flag';
 import type { AdminUser } from '../../../../data/models/admin-user';
 import type { Tenant } from '../../../../data/models/tenant';
 import { AdminApprovals } from './admin-approvals';
@@ -52,10 +55,30 @@ const HELD: IdentityReview = {
   createdAt: '2026-09-30T09:00:00.000Z',
 };
 
+const FLAGGED_EVENT = {
+  id: 'e1',
+  name: 'Funeral of the Late Kwame Mensah',
+  hostName: 'The Mensah Family',
+  type: 'funeral',
+  date: '2026-11-07T00:00:00.000+00:00',
+  venue: null,
+  status: 'active',
+  tenantId: 't1',
+  tenantName: 'Asante Events',
+} as const;
+const DUPLICATE: DuplicateEventFlag = {
+  flagId: 'f1',
+  matchedOn: ['name'],
+  flaggedAt: '2026-10-01T09:00:00.000Z',
+  event: FLAGGED_EVENT,
+  matchedEvent: { ...FLAGGED_EVENT, id: 'e2', tenantId: 't9', tenantName: 'Owusu Services' },
+};
+
 describe('AdminApprovals', () => {
   let fixture: ComponentFixture<AdminApprovals>;
   let component: AdminApprovals;
   let listIdentityReviews: ReturnType<typeof vi.fn>;
+  let listDuplicateEventFlags: ReturnType<typeof vi.fn>;
   let tenantData: {
     listPendingTenants: ReturnType<typeof vi.fn>;
     decideTenantApplication: ReturnType<typeof vi.fn>;
@@ -81,12 +104,18 @@ describe('AdminApprovals', () => {
       inviteOrganizer: vi.fn(),
     };
     listIdentityReviews = vi.fn().mockResolvedValue([HELD]);
+    listDuplicateEventFlags = vi.fn().mockResolvedValue([DUPLICATE]);
     await TestBed.configureTestingModule({
       imports: [AdminApprovals],
       providers: [
+        provideRouter([]),
         {
           provide: IdentityReviewDataService,
           useValue: { listIdentityReviews, resolveIdentityReview: vi.fn() },
+        },
+        {
+          provide: DuplicateEventFlagDataService,
+          useValue: { listDuplicateEventFlags, resolveDuplicateEventFlag: vi.fn() },
         },
         { provide: TenantDataService, useValue: tenantData },
         {
@@ -229,7 +258,7 @@ describe('AdminApprovals', () => {
     fixture.detectChanges();
 
     const tabs = el().querySelectorAll('[role="tab"]');
-    expect(tabs).toHaveLength(2);
+    expect(tabs).toHaveLength(3);
     expect(tabs[1].textContent).toContain('Flagged additions (1)');
     expect(tabs[1].getAttribute('aria-selected')).toBe('false');
 
@@ -248,5 +277,32 @@ describe('AdminApprovals', () => {
 
     expect(el().querySelectorAll('app-application-row')).toHaveLength(2);
     expect(el().querySelectorAll('[role="tab"]')[1].textContent?.trim()).toBe('Flagged additions');
+  });
+
+  it('adds a Duplicate events tab with its count, reachable by arrow key (Story 7.4)', async () => {
+    await render();
+    await vi.waitFor(() => expect(component.duplicatesLoading()).toBe(false));
+    fixture.detectChanges();
+
+    const tabs = el().querySelectorAll<HTMLButtonElement>('[role="tab"]');
+    expect(tabs[2].textContent).toContain('Duplicate events (1)');
+    tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
+    fixture.detectChanges();
+
+    expect(tabs[2].getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(tabs[2]);
+    const panel = el().querySelector('[role="tabpanel"]')!;
+    expect(panel.getAttribute('aria-labelledby')).toBe(tabs[2].id);
+    expect(panel.textContent).toContain('Owusu Services');
+  });
+
+  it('shows the duplicates tab without a count when its queue fails to load', async () => {
+    listDuplicateEventFlags.mockRejectedValueOnce(new ServiceError('Failed to load flags'));
+    await render();
+    await vi.waitFor(() => expect(component.duplicatesError()).not.toBeNull());
+    fixture.detectChanges();
+
+    expect(el().querySelectorAll('[role="tab"]')[2].textContent?.trim()).toBe('Duplicate events');
+    expect(el().querySelectorAll('app-application-row')).toHaveLength(2);
   });
 });

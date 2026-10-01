@@ -1,0 +1,128 @@
+<h2 #duplicatesHeading class="visually-hidden" tabindex="-1">Possible duplicate events</h2>
+<p class="visually-hidden" role="status">{{ announcement() }}</p>
+
+@if (loading()) {
+<div class="queue" aria-busy="true">
+  <span class="visually-hidden">Loading duplicate-event flags…</span>
+  @for (i of skeletons; track i) {
+  <div class="skel-card">
+    <span class="skel skel--lg"></span>
+    <span class="skel skel--md"></span>
+  </div>
+  }
+</div>
+} @else if (loadError(); as err) {
+<div class="empty" role="alert">
+  <mat-icon class="empty-icon" aria-hidden="true">error_outline</mat-icon>
+  <p class="t-card-title">We couldn't load duplicate-event flags</p>
+  <p class="t-caption">{{ err }}</p>
+  <button type="button" class="btn btn-secondary" (click)="retry.emit()">Try again</button>
+</div>
+} @else if (flags().length === 0) {
+<div class="empty">
+  <mat-icon class="empty-icon" aria-hidden="true">event_available</mat-icon>
+  <p class="t-card-title">No duplicate events waiting</p>
+  <p class="t-caption">
+    When a company creates an event that looks like one another company or Admin already registered,
+    it appears here. The event is still created.
+  </p>
+</div>
+} @else {
+<ul class="queue" aria-label="Possible duplicate events">
+  @for (flag of flags(); track flag.flagId) {
+  <li>
+    <article class="row" [attr.aria-labelledby]="'duplicate-' + flag.flagId">
+      <header class="row-head">
+        <p class="row-main">
+          <span class="row-name" [id]="'duplicate-' + flag.flagId">
+            Possible duplicate: same {{ matchSummary(flag) }}
+          </span>
+          <span class="row-meta">Flagged {{ flag.flaggedAt | date: 'mediumDate' }}</span>
+        </p>
+        <span class="status-pill is-pending">Open</span>
+      </header>
+      <ul class="pair" aria-label="The two events">
+        @for (side of [flag.event, flag.matchedEvent]; track side.id; let first = $first) {
+        <li class="side">
+          <span class="side-label">{{ first ? 'New event' : 'Already registered' }}</span>
+          <span class="side-name">{{ side.name ?? 'Event unavailable' }}</span>
+          <span class="t-caption">{{ ownerName(side) }}</span>
+          <span class="t-caption">
+            @if (side.date) { {{ side.date | date: 'mediumDate' : 'UTC' }} } @if (side.hostName) { ·
+            Host: {{ side.hostName }} } @if (side.venue) { · {{ side.venue }} }
+          </span>
+          <a class="side-link" [routerLink]="['/dashboard/events', side.id]">
+            View event<span class="visually-hidden"> {{ side.name ?? side.id }}</span>
+          </a>
+        </li>
+        }
+      </ul>
+      @if (rowErrorFor(flag); as err) {
+      <p class="row-error" role="alert">{{ err }}</p>
+      }
+      <footer class="row-actions">
+        <button
+          type="button"
+          class="btn btn-secondary btn-compact"
+          [disabled]="decidingId() === flag.flagId"
+          (click)="ask('clear', flag)"
+        >
+          Clear<span class="visually-hidden"> flag for {{ flag.event.name ?? flag.flagId }}</span>
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary btn-compact"
+          [disabled]="decidingId() === flag.flagId"
+          (click)="ask('confirm', flag)"
+        >
+          Confirm duplicate<span class="visually-hidden">
+            for {{ flag.event.name ?? flag.flagId }}</span
+          >
+        </button>
+      </footer>
+    </article>
+  </li>
+  }
+</ul>
+} @if (pendingCopy(); as c) {
+<!-- Backdrop click is a pointer convenience only; (keydown.escape) is the keyboard equivalent. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="dismissPending()" (keydown.escape)="dismissPending()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <div
+    class="dialog dialog--sm glass glass-thick"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="duplicate-decision-title"
+    aria-describedby="duplicate-decision-body"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="dialog-head">
+      <h2 id="duplicate-decision-title" class="t-page-title">{{ c.title }}</h2>
+    </header>
+    <div class="dialog-body">
+      <p id="duplicate-decision-body" class="t-body confirm-body">{{ c.body }}</p>
+    </div>
+    <footer class="dialog-foot">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        [disabled]="decidingId() !== null"
+        (click)="dismissPending()"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        class="btn btn-primary"
+        [disabled]="decidingId() !== null"
+        (click)="confirmPending()"
+      >
+        {{ decidingId() !== null ? 'Working…' : c.cta }}
+      </button>
+    </footer>
+  </div>
+</div>
+}
