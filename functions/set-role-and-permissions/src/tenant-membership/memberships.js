@@ -95,6 +95,8 @@ export async function createMembershipRow({
   grantedBy,
   error,
   errorContext,
+  // Story 7.2: a screened addition that matched starts out pending_review instead.
+  status = 'active',
   // handleCreateMembership's userId is caller-supplied and can legitimately already hold a
   // Membership (that's the case this message describes). handleAddTeamMember's userId is
   // always a same-call ID.unique() Account, so that message would be nonsensical if this
@@ -108,7 +110,7 @@ export async function createMembershipRow({
       databaseId,
       tableId: membershipsCollectionId,
       rowId: ID.unique(),
-      data: { userId, tenantId, role, status: 'active', grantedBy, grantedAt: now },
+      data: { userId, tenantId, role, status, grantedBy, grantedAt: now },
       permissions: [Permission.read(Role.label('admin')), Permission.read(Role.user(userId))],
     });
   } catch (err) {
@@ -122,7 +124,7 @@ export async function createMembershipRow({
 
   return {
     status: 200,
-    body: { success: true, membershipId: row.$id, userId, tenantId, role, status: 'active' },
+    body: { success: true, membershipId: row.$id, userId, tenantId, role, status },
   };
 }
 

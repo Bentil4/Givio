@@ -12,6 +12,10 @@ import {
   handleListTeamMembers,
 } from './tenant-membership/team-members.js';
 import {
+  handleListIdentityReviews,
+  handleResolveIdentityReview,
+} from './tenant-membership/identity-reviews.js';
+import {
   handleSetTenantStatus,
   handleRecordTenantVerification,
 } from './tenant-membership/tenant-lifecycle.js';
@@ -41,7 +45,8 @@ const TEAM_ACTIONS = new Set(['addTeamMember', 'revokeMembership', 'listTeamMemb
  * which any verified Account may call for itself — the handler then refuses anyone who already
  * holds a platform relationship — and the team actions (Story 7.1), which an Organizer-tier
  * member of an approved Tenant may call for their own Tenant (resolveTeamScope, FR-9/FR-11).
- * Story 7.2 layers IdentityFlags cross-referencing (FR-12/FR-23) onto addTeamMember.
+ * Story 7.2 layers IdentityFlags cross-referencing (FR-12/FR-23) onto addTeamMember, plus
+ * Admin's listIdentityReviews/resolveIdentityReview for the flagged-additions queue.
  *
  * ClientCtor/AccountCtor/UsersCtor/DatabasesCtor/StorageCtor/MessagingCtor are injectable so
  * tests can substitute fakes without module-mocking node-appwrite.
@@ -179,6 +184,12 @@ export async function handleTenantMembershipRequest({
       break;
     case 'recordTenantVerification':
       result = await handleRecordTenantVerification(actionContext);
+      break;
+    case 'listIdentityReviews':
+      result = await handleListIdentityReviews(actionContext);
+      break;
+    case 'resolveIdentityReview':
+      result = await handleResolveIdentityReview(actionContext);
       break;
   }
   result = await grantTenantReadAfterMembershipWrite({ action, result, ...actionContext });

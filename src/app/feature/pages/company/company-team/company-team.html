@@ -92,7 +92,11 @@
       <tbody>
         @for (m of team(); track m.membershipId) {
         <tr>
-          <td class="t-body-em">{{ m.name }}</td>
+          <td class="t-body-em">
+            {{ m.name }} @if (isPending(m)) {
+            <span class="status-pill is-pending">Pending</span>
+            }
+          </td>
           <td class="is-muted">{{ m.email }}</td>
           <td>
             <span
