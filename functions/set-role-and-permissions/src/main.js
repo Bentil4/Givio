@@ -12,6 +12,7 @@ import { handleFamilyAccessRequest, FAMILY_ACCESS_ACTIONS } from './family-acces
 import { handleTenantMembershipRequest, TENANT_MEMBERSHIP_ACTIONS } from './tenant-membership.js';
 import { handleTenantGrantsRequest, TENANT_GRANT_ACTIONS } from './tenant-grants.js';
 import { handleSupportRequestsRequest, SUPPORT_REQUEST_ACTIONS } from './support-requests.js';
+import { handleTenantEventsRequest, TENANT_EVENT_ACTIONS } from './tenant-events.js';
 
 /**
  * One deployed Function, routed by `action` in the request body — all seven modules share the
@@ -52,6 +53,9 @@ export default async (context) => {
   }
   if (SUPPORT_REQUEST_ACTIONS.includes(action)) {
     return handleSupportRequestsRequest(context);
+  }
+  if (TENANT_EVENT_ACTIONS.includes(action)) {
+    return handleTenantEventsRequest(context);
   }
   // Falls through to admin-users.js for everything else, including an unrecognized action —
   // that module's own validatePayload() is what turns an unknown action into a 400.

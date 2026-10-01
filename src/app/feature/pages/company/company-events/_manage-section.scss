@@ -1,0 +1,32 @@
+// Shared by the manage dialog and its Operators section (separate components, so separate
+// encapsulated stylesheets).
+.manage-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+
+  h3,
+  p {
+    margin: 0;
+  }
+}
+
+.manage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.form-error {
+  margin: 0;
+  padding: 0 var(--space-lg) var(--space-md);
+}
+
+.code-value {
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+}
+
+.is-mono {
+  font-family: var(--font-mono);
+}
