@@ -42,7 +42,7 @@
     "dexie": "^4.4.6",
     "jspdf": "^4.2.1",
     "postcss": "^8.5.28",
-    "primeicons": "^8.0.1",
+    "primeicons": "^8.0.2",
     "primeng": "^22.1.1",
     "rxjs": "~7.8.0",
     "tailwindcss": "^4.3.3",
