@@ -67,19 +67,22 @@ export class ConflictDataService {
     const page = await this.databases.listRows<Models.DefaultRow>({
       databaseId: environment.appwriteDatabaseId,
       tableId: environment.donationConflictsCollectionId,
-      queries: [Query.equal('receiptNumber', receiptNumber), Query.isNull('resolvedAt'), Query.limit(1)],
+      queries: [
+        Query.equal('receiptNumber', receiptNumber),
+        Query.isNull('resolvedAt'),
+        Query.limit(1),
+      ],
     });
     const conflictRow = page.rows[0];
     if (!conflictRow) {
       throw new ServiceError('Conflict not found');
     }
 
-    const result = await invokeAdminFunction<ResolveConflictResult>(
-      this.functions,
-      'resolveConflict',
-      'Failed to resolve conflict',
-      { conflictId: conflictRow.$id, resolution },
-    );
+    const result = await invokeAdminFunction<ResolveConflictResult>(this.functions, {
+      action: 'resolveConflict',
+      invokeFailureMessage: 'Failed to resolve conflict',
+      payload: { conflictId: conflictRow.$id, resolution },
+    });
 
     await appDb.donations.put(result.donation);
     // keep-both is the only resolution where donation/serverDonation are two different rows

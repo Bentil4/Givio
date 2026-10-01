@@ -79,12 +79,11 @@ export class FamilyAccessDataService {
 
     let result: ResolveAccessCodeResult;
     try {
-      result = await invokeAdminFunction<ResolveAccessCodeResult>(
-        this.functions,
-        'resolveAccessCode',
-        'Could not reach the server, try again',
-        { code },
-      );
+      result = await invokeAdminFunction<ResolveAccessCodeResult>(this.functions, {
+        action: 'resolveAccessCode',
+        invokeFailureMessage: 'Could not reach the server, try again',
+        payload: { code },
+      });
     } catch (error) {
       if (error instanceof ServiceError && isCodeRejection(error)) {
         throw new FamilyCodeRejectedError(error.cause);

@@ -65,28 +65,35 @@ export function distinctTenantIds(events: readonly { tenantId?: string }[]): str
  * never fail or delay the read it describes. `details` is resolved lazily for the same reason —
  * any extra local lookup it needs happens after the read has already returned.
  */
-export function logAdminAccess(
-  databases: TablesDB,
-  user: Models.User<Models.Preferences> | null,
-  target: { entityType: AuditEntityType; entityId: string },
-  details: () => AccessLogDetails | Promise<AccessLogDetails>,
-): void {
+export function logAdminAccess(databases: TablesDB, access: AdminAccessLogInput): void {
+  const { user } = access;
   if (!user?.labels?.includes('admin')) return;
+  void writeAdminAccessEntry(databases, user.$id, access);
+}
 
-  void (async () => {
-    try {
-      await writeAuditLog(databases, {
-        entityType: target.entityType,
-        entityId: target.entityId,
-        action: 'access',
-        performedBy: user.$id,
-        previousValues: null,
-        newValues: await details(),
-      });
-    } catch (error) {
-      console.error(`Failed to write '${target.entityType}' access audit log`, error);
-    }
-  })();
+export interface AdminAccessLogInput {
+  user: Models.User<Models.Preferences> | null;
+  target: { entityType: AuditEntityType; entityId: string };
+  details: () => AccessLogDetails | Promise<AccessLogDetails>;
+}
+
+async function writeAdminAccessEntry(
+  databases: TablesDB,
+  performedBy: string,
+  { target, details }: AdminAccessLogInput,
+): Promise<void> {
+  try {
+    await writeAuditLog(databases, {
+      entityType: target.entityType,
+      entityId: target.entityId,
+      action: 'access',
+      performedBy,
+      previousValues: null,
+      newValues: await details(),
+    });
+  } catch (error) {
+    console.error(`Failed to write '${target.entityType}' access audit log`, error);
+  }
 }
 
 /** previousValues/newValues are stored as JSON strings server-side — parsed back out here. */

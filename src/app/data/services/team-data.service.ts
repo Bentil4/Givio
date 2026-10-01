@@ -13,12 +13,11 @@ export class TeamDataService {
   private readonly functions = inject(FUNCTIONS);
 
   async listTeamMembers(): Promise<TeamMember[]> {
-    const { members } = await invokeAdminFunction<{ members: TeamMember[] }>(
-      this.functions,
-      'listTeamMembers',
-      'Failed to load your team',
-      {},
-    );
+    const { members } = await invokeAdminFunction<{ members: TeamMember[] }>(this.functions, {
+      action: 'listTeamMembers',
+      invokeFailureMessage: 'Failed to load your team',
+      payload: {},
+    });
     return members;
   }
 
@@ -27,12 +26,20 @@ export class TeamDataService {
     email: string;
     role: TeamMemberRole;
   }): Promise<AddTeamMemberResult> {
-    return invokeAdminFunction(this.functions, 'addTeamMember', 'Failed to add team member', input);
+    return invokeAdminFunction(this.functions, {
+      action: 'addTeamMember',
+      invokeFailureMessage: 'Failed to add team member',
+      payload: input,
+    });
   }
 
   async revokeMembership(membershipId: string): Promise<void> {
-    await invokeAdminFunction(this.functions, 'revokeMembership', 'Failed to revoke access', {
-      membershipId,
+    await invokeAdminFunction(this.functions, {
+      action: 'revokeMembership',
+      invokeFailureMessage: 'Failed to revoke access',
+      payload: {
+        membershipId,
+      },
     });
   }
 }

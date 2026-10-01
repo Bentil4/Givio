@@ -29,6 +29,13 @@ export interface ManagedUser {
   registeredAt: string;
 }
 
+interface UserFormValue {
+  name: string;
+  email: string;
+  phone: string;
+  role: Role;
+}
+
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
@@ -280,36 +287,10 @@ export class AdminUsers implements OnInit {
     }
     this.busy.set(true);
     this.formError.set(null);
-    const { name, email, phone, role } = this.form.getRawValue();
+    const values = this.form.getRawValue();
     const editing = this.editing();
-
     try {
-      if (editing) {
-        // Only send role when it actually changed — the Function rejects any self role write
-        // and any admin-tier role write from a non-Super-Admin, even an unchanged one.
-        await this.userService.updateUser(editing.id, {
-          name,
-          email,
-          ...(role !== editing.role ? { role } : {}),
-        });
-      } else {
-        const inviteChannels: ('email' | 'sms')[] = [
-          ...(this.inviteEmail() ? (['email'] as const) : []),
-          ...(this.inviteSms() && this.hasPhone() ? (['sms'] as const) : []),
-        ];
-        // The role is applied by the set-role-and-permissions Function, never by the client.
-        const result = await this.userService.createUser({
-          name,
-          email,
-          role,
-          ...(this.hasPhone() ? { phone: phone.trim() } : {}),
-          ...(inviteChannels.length ? { inviteChannels } : {}),
-        });
-        if (result.generatedPassword) {
-          this.generatedPassword.set(result.generatedPassword);
-        }
-        this.inviteStatus.set(result.inviteStatus ?? null);
-      }
+      await (editing ? this.updateEditedUser(editing, values) : this.createInvitedUser(values));
       this.closeCreate();
     } catch (err) {
       this.formError.set(err instanceof ServiceError ? err.message : 'Something went wrong');
@@ -319,6 +300,42 @@ export class AdminUsers implements OnInit {
       // showing stale pre-edit data.
       await this.loadUsers();
     }
+  }
+
+  /**
+   * Only sends role when it actually changed — the Function rejects any self role write and
+   * any admin-tier role write from a non-Super-Admin, even an unchanged one.
+   */
+  private async updateEditedUser(editing: ManagedUser, values: UserFormValue): Promise<void> {
+    const { name, email, role } = values;
+    await this.userService.updateUser(editing.id, {
+      name,
+      email,
+      ...(role !== editing.role ? { role } : {}),
+    });
+  }
+
+  /** The role is applied by the set-role-and-permissions Function, never by the client. */
+  private async createInvitedUser({ name, email, phone, role }: UserFormValue): Promise<void> {
+    const inviteChannels = this.selectedInviteChannels();
+    const result = await this.userService.createUser({
+      name,
+      email,
+      role,
+      ...(this.hasPhone() ? { phone: phone.trim() } : {}),
+      ...(inviteChannels.length ? { inviteChannels } : {}),
+    });
+    if (result.generatedPassword) {
+      this.generatedPassword.set(result.generatedPassword);
+    }
+    this.inviteStatus.set(result.inviteStatus ?? null);
+  }
+
+  private selectedInviteChannels(): ('email' | 'sms')[] {
+    return [
+      ...(this.inviteEmail() ? (['email'] as const) : []),
+      ...(this.inviteSms() && this.hasPhone() ? (['sms'] as const) : []),
+    ];
   }
 
   public askToggle(u: ManagedUser): void {
