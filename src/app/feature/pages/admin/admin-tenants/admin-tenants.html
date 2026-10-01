@@ -1,0 +1,111 @@
+<section class="page" aria-labelledby="tenants-title">
+  <header class="page-head">
+    <div>
+      <h1 id="tenants-title" class="t-page-title">Companies</h1>
+      <p class="t-secondary">
+        Every Organizer company on Givio. Suspending one signs out its whole team at once and
+        removes their access until you reinstate it — family event codes keep working throughout.
+      </p>
+    </div>
+  </header>
+
+  <div class="filters">
+    <div class="filter-tags" role="group" aria-label="Filter by status">
+      @for (filter of filters; track filter) {
+      <button
+        type="button"
+        class="filter-tag"
+        [class.active]="statusFilter() === filter"
+        [attr.aria-pressed]="statusFilter() === filter"
+        (click)="setFilter(filter)"
+      >
+        {{ filterLabel(filter) }}
+      </button>
+      }
+    </div>
+  </div>
+
+  @if (loading()) {
+  <div class="table-wrap glass" aria-busy="true">
+    @for (i of skeletons; track i) {
+    <div class="skel-row">
+      <span class="skel skel--lg"></span>
+      <span class="skel skel--md"></span>
+      <span class="skel skel--sm"></span>
+    </div>
+    }
+  </div>
+  } @else if (loadError(); as err) {
+  <div class="empty glass" role="alert">
+    <mat-icon class="empty-icon" aria-hidden="true">error_outline</mat-icon>
+    <p class="t-card-title">We couldn't load the companies</p>
+    <p class="t-caption">{{ err }}</p>
+    <button type="button" class="btn btn-secondary" (click)="load()">Try again</button>
+  </div>
+  } @else if (visibleTenants().length === 0) {
+  <div class="empty glass">
+    <mat-icon class="empty-icon" aria-hidden="true">domain</mat-icon>
+    <p class="t-card-title">No companies to show</p>
+    <p class="t-caption">{{ emptyCopy() }}</p>
+  </div>
+  } @else {
+  <div class="table-wrap glass">
+    <table class="table">
+      <caption class="visually-hidden">
+        {{ filterLabel(statusFilter()) }}
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Company</th>
+          <th scope="col">Location</th>
+          <th scope="col">Status</th>
+          <th scope="col">Applied</th>
+          <th scope="col" class="is-actions"><span class="visually-hidden">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (tenant of visibleTenants(); track tenant.id) {
+        <tr>
+          <td class="is-strong">{{ tenant.name }}</td>
+          <td>{{ tenant.location }}</td>
+          <td>
+            <span [class]="statusTags[tenant.status]">{{ statusLabels[tenant.status] }}</span>
+          </td>
+          <td>{{ tenant.createdAt | date: 'mediumDate' }}</td>
+          <td class="is-actions">
+            <button
+              type="button"
+              class="btn-ghost"
+              [attr.aria-label]="'View ' + tenant.name"
+              (click)="open(tenant)"
+            >
+              View
+            </button>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }
+</section>
+
+@if (selectedTenant(); as tenant) {
+<app-tenant-drawer
+  [tenant]="tenant"
+  [working]="working()"
+  [failure]="selectedFailure()"
+  [notice]="notice()"
+  (closed)="closeDrawer()"
+  (act)="ask($event)"
+  (retry)="run($event)"
+  (designated)="refresh()"
+/>
+} @if (confirming(); as action) { @if (selectedTenant(); as tenant) {
+<app-tenant-action-confirm
+  [action]="action"
+  [tenantName]="tenant.name"
+  (confirmed)="confirmAction()"
+  (cancelled)="dismissConfirm()"
+/>
+} }

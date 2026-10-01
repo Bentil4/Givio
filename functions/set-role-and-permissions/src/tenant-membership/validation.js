@@ -11,6 +11,9 @@ export const ACTIONS = [
   'recordTenantVerification',
   'listIdentityReviews',
   'resolveIdentityReview',
+  'suspendTenant',
+  'designateSuperOrganizer',
+  'getMyTenantStatus',
 ];
 
 // Story 7.2: a screened team addition that matched waits here, with no access, until Admin
@@ -70,6 +73,7 @@ export function isTenantIntakeComplete(tenant) {
 }
 
 const PAYLOAD_VALIDATORS = {
+  ...tenantAdminValidators(),
   createMembership: ({ userId, tenantId, role }) => {
     if (!hasValue(userId) || !hasValue(tenantId)) {
       return invalid('Request must include userId and tenantId');
@@ -220,4 +224,17 @@ function validateCompanyIntake(company) {
     );
   }
   return VALID;
+}
+
+// Story 8.1: Admin's whole-tenant actions (tenant-admin.js), plus a member's own status read.
+function tenantAdminValidators() {
+  return {
+    suspendTenant: ({ tenantId }) =>
+      hasValue(tenantId) ? VALID : invalid('Request must include tenantId'),
+    designateSuperOrganizer: ({ tenantId, membershipId }) =>
+      hasValue(tenantId) && hasValue(membershipId)
+        ? VALID
+        : invalid('Request must include tenantId and membershipId'),
+    getMyTenantStatus: () => VALID,
+  };
 }

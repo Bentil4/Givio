@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { ACCOUNT, DATABASES } from '../../../core/appwrite/client';
+import { ACCOUNT, DATABASES, FUNCTIONS } from '../../../core/appwrite/client';
 
 import { Login } from './login';
 
@@ -29,6 +29,7 @@ describe('Login', () => {
         provideRouter([]),
         { provide: ACCOUNT, useValue: account },
         { provide: DATABASES, useValue: databases },
+        { provide: FUNCTIONS, useValue: approvedTenantFunctions() },
       ],
     }).compileComponents();
 
@@ -174,3 +175,13 @@ describe('Login', () => {
     expect(account.createEmailPasswordSession).not.toHaveBeenCalled();
   });
 });
+
+// Story 9.2 AC3: an Operator's sign-in asks the Function for their tenant's status.
+function approvedTenantFunctions() {
+  return {
+    createExecution: vi.fn().mockResolvedValue({
+      responseStatusCode: 200,
+      responseBody: JSON.stringify({ success: true, tenantStatus: 'approved' }),
+    }),
+  };
+}
