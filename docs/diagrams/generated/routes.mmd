@@ -25,10 +25,11 @@ flowchart TD
     r__dashboard_donations_conflicts["/dashboard/donations/conflicts<br/>Resolve sync conflicts"]
     r__dashboard_donations_deleted["/dashboard/donations/deleted<br/>Deleted donations"]
     r__dashboard_approvals["/dashboard/approvals<br/>Approvals"]
+    r__dashboard_companies["/dashboard/companies<br/>Companies"]
     r__dashboard_reports["/dashboard/reports<br/>Reports"]
     r__dashboard_audit["/dashboard/audit<br/>Audit trail"]
   end
-  subgraph sgr__organizer["/organizer — sessionExpiryGuard + roleGuard(operator)"]
+  subgraph sgr__organizer["/organizer — sessionExpiryGuard + roleGuard(operator) + operatorTenantGuard"]
     r__organizer["/organizer<br/>Overview"]
     r__organizer_events["/organizer/events<br/>Select an event"]
     r__organizer_entry["/organizer/entry<br/>Record a donation"]
@@ -43,6 +44,8 @@ flowchart TD
     r__company_events__approvedCompanyMatch["/company/events<br/>Events"]
     r__company_team__approvedCompanyMatch["/company/team<br/>Team"]
     r__company_support__approvedCompanyMatch["/company/support<br/>Contact Admin"]
+    r__company_reports__approvedCompanyMatch["/company/reports<br/>Settlement reports<br/><i>superOrganizerMatch</i>"]
+    r__company_audit__approvedCompanyMatch["/company/audit<br/>Activity log<br/><i>superOrganizerMatch</i>"]
   end
   subgraph sgr__company__pendingCompanyMatch["/company — sessionExpiryGuard + pendingCompanyMatch"]
     r__company__pendingCompanyMatch["/company<br/>Application status"]
@@ -59,6 +62,7 @@ flowchart TD
   r__dashboard_donations --> r__dashboard_donations_conflicts
   r__dashboard_donations --> r__dashboard_donations_deleted
   r__dashboard --> r__dashboard_approvals
+  r__dashboard --> r__dashboard_companies
   r__dashboard --> r__dashboard_reports
   r__dashboard --> r__dashboard_audit
   app --> r__dashboard
@@ -73,6 +77,8 @@ flowchart TD
   r__company__approvedCompanyMatch --> r__company_events__approvedCompanyMatch
   r__company__approvedCompanyMatch --> r__company_team__approvedCompanyMatch
   r__company__approvedCompanyMatch --> r__company_support__approvedCompanyMatch
+  r__company__approvedCompanyMatch --> r__company_reports__approvedCompanyMatch
+  r__company__approvedCompanyMatch --> r__company_audit__approvedCompanyMatch
   app --> r__company__approvedCompanyMatch
   r__company__pendingCompanyMatch --> r__company_support__pendingCompanyMatch
   r__company__pendingCompanyMatch -->|"/company/** redirects"| r__company__pendingCompanyMatch
