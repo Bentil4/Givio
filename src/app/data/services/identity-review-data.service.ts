@@ -28,6 +28,10 @@ export class IdentityReviewDataService {
   }
 
   private invoke<T>(action: string, failureMessage: string, payload: object = {}): Promise<T> {
-    return invokeAdminFunction<T>(this.functions, action, failureMessage, payload);
+    return invokeAdminFunction<T>(this.functions, {
+      action,
+      invokeFailureMessage: failureMessage,
+      payload,
+    });
   }
 }
