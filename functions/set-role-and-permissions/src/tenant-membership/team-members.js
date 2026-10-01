@@ -9,9 +9,11 @@ import {
   setOperatorLabel,
   syncTenantReadGrants,
 } from './team-access.js';
+import { recordScreeningReview, screenTeamAddition } from './identity-check.js';
+import { PENDING_REVIEW_STATUS } from './validation.js';
 
-// Story 7.2 adds its pending-review status here.
-const LISTED_MEMBERSHIP_STATUSES = ['active'];
+// A pending_review row is listed so the adder sees it, with no explanation of why (Story 7.2).
+const LISTED_MEMBERSHIP_STATUSES = ['active', PENDING_REVIEW_STATUS];
 
 /**
  * Story 6.3: the only Function action that provisions a *new* Account, and the sole place
@@ -20,19 +22,20 @@ const LISTED_MEMBERSHIP_STATUSES = ['active'];
  * returned in the response, the same shape admin-users.js's createUser already uses, so a
  * later story that needs delivery can reuse that existing mechanism rather than a new one.
  */
-export async function handleAddTeamMember({
-  DatabasesCtor,
-  UsersCtor,
-  adminClient,
-  payload,
-  caller,
-  team,
-  databaseId,
-  tenantsCollectionId,
-  membershipsCollectionId,
-  error,
-}) {
-  const { name, email, role } = payload;
+export async function handleAddTeamMember(context) {
+  const {
+    DatabasesCtor,
+    UsersCtor,
+    adminClient,
+    payload,
+    caller,
+    team,
+    databaseId,
+    tenantsCollectionId,
+    membershipsCollectionId,
+    error,
+  } = context;
+  const { name, email, phone, role } = payload;
   const { tenantId, callerRole } = team;
   const databases = new DatabasesCtor(adminClient);
 
@@ -64,6 +67,16 @@ export async function handleAddTeamMember({
   }
   if (tenant.status === 'suspended' || tenant.status === 'rejected') {
     return { status: 409, body: { error: `Tenant is ${tenant.status}` } };
+  }
+
+  // Story 7.2: screened before any Account exists, so a failed lookup leaves nothing behind.
+  const screening = await screenTeamAddition({
+    ...context,
+    role,
+    candidate: { name, email, phone },
+  });
+  if (screening.errorResponse) {
+    return screening.errorResponse;
   }
 
   // AC1/AC3's crux: create a brand-new Account for this exact call. If `email` already belongs
@@ -101,6 +114,7 @@ export async function handleAddTeamMember({
     grantedBy: caller.$id,
     error,
     errorContext: 'addTeamMember',
+    status: screening.membershipStatus,
     // The default message ("User already holds an active membership") describes
     // handleCreateMembership's caller-supplied-userId case — nonsensical here, where the
     // userId was minted by this same call and can't have a prior Membership.
@@ -129,28 +143,27 @@ export async function handleAddTeamMember({
     };
   }
 
-  // The Membership is the source of truth and already exists, so a failed access step doesn't
-  // fail the add — it's reported as `setupIncomplete` for the caller to surface. The Tenant
-  // grant is derived and heals on the next team change; the Label can be set from Admin's
-  // Users page.
-  let setupIncomplete = false;
-  try {
-    if (role === 'operator') {
-      await setOperatorLabel({ UsersCtor, adminClient, userId: account.$id, enabled: true });
-    } else {
-      await syncTenantReadGrants({
-        DatabasesCtor,
-        adminClient,
-        databaseId,
-        tenantsCollectionId,
-        membershipsCollectionId,
-        tenantId,
-      });
-    }
-  } catch (err) {
-    setupIncomplete = true;
-    error(`addTeamMember: access setup failed for ${account.$id}: ${err.message}`);
-  }
+  const reviewRecorded = await recordScreeningReview({
+    ...context,
+    screening,
+    addition: {
+      membershipId: membershipResult.body.membershipId,
+      userId: account.$id,
+      tenantId,
+      tenantName: tenant.name ?? null,
+      name,
+      email,
+      phone,
+      role,
+      addedBy: caller.$id,
+    },
+  });
+  // A pending_review Membership gets no access at all until Admin clears it — and the response
+  // below is identical either way, so the adder never learns a check happened (FR-12/FR-23).
+  const accessGranted =
+    screening.membershipStatus !== 'active' ||
+    (await grantTeamMemberAccess({ ...context, tenantId, userId: account.$id, role }));
+  const setupIncomplete = !reviewRecorded || !accessGranted;
 
   return {
     status: 200,
@@ -166,6 +179,45 @@ export async function handleAddTeamMember({
       setupIncomplete,
     },
   };
+}
+
+/**
+ * The access a newly active team member is owed: the `operator` Label, or the Tenant row's read
+ * grant for organizer-tier. Shared by addTeamMember and Admin's clearance of a flagged addition
+ * (Story 7.2). The Membership is the source of truth and already exists, so a failure here is
+ * reported (false) rather than thrown: the Tenant grant is derived and heals on the next team
+ * change, and the Label can be set from Admin's Users page.
+ */
+export async function grantTeamMemberAccess({
+  DatabasesCtor,
+  UsersCtor,
+  adminClient,
+  databaseId,
+  tenantsCollectionId,
+  membershipsCollectionId,
+  tenantId,
+  userId,
+  role,
+  error,
+}) {
+  try {
+    if (role === 'operator') {
+      await setOperatorLabel({ UsersCtor, adminClient, userId, enabled: true });
+    } else {
+      await syncTenantReadGrants({
+        DatabasesCtor,
+        adminClient,
+        databaseId,
+        tenantsCollectionId,
+        membershipsCollectionId,
+        tenantId,
+      });
+    }
+    return true;
+  } catch (err) {
+    error(`team access setup failed for ${userId}: ${err.message}`);
+    return false;
+  }
 }
 
 export async function handleRevokeMembership({

@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-07-26
-last_updated: 2026-09-30-wave-3-in-review
+last_updated: 2026-10-01-wave-4-in-review
 project: givio
 project_key: NOKEY
 tracking_system: file-system
@@ -442,7 +442,15 @@ development_status:
   # 6-7 added 2026-09-30 (user decision during Wave 3): no Epic 6-9 story let an Organizer create a
   # tenant-owned Event, so 8.4/8.5 would always show GH₵0. Drafted in epics.md; depends on the AD-2
   # tenant-read amendment (feature/ad2-tenant-wide-read-grants). Schedule before 7.5/8.4/8.5.
-  6-7-organizer-creates-and-manages-events: backlog
+  # 6-7 implemented 2026-10-01 (Wave 4, branch feature/6-7-organizer-events, stacked on the
+  # tenant-membership split). New tenant-events Function module: createTenantEvent / updateTenantEvent /
+  # setTenantEventStatus for organizer-tier members of an approved tenant, tenantId stamped server-side,
+  # permissions from the AD-2 tenant-read rule; assignOperators and generateAccessCode accept organizer
+  # callers for their own tenant's Events only (another tenant's or an Admin Event -> identical 404).
+  # Server-side audit logging (needs APPWRITE_AUDIT_LOGS_COLLECTION_ID), a non-blocking duplicate-event
+  # hook for 7.4, /company/events with create/edit/manage dialogs. Function 348/348, unit 511/511.
+  # Status "review".
+  6-7-organizer-creates-and-manages-events: review
   epic-6-retrospective: optional
 
   epic-7: backlog
@@ -454,7 +462,16 @@ development_status:
   # (fixes 6.4's gap). /company/team screen. AC1 amended to "zero Event write/assignment access" per
   # the AD-2 2026-09-30 amendment. Function 229/229, 426/426 unit. Status "review".
   7-1-add-manage-team-members: review
-  7-2-identity-check-on-team-additions: backlog
+  # 7-2 implemented 2026-10-01 (Wave 4, branch feature/7-2-identity-check, stacked on the
+  # tenant-membership split). Team additions are screened before an Account exists: co-Organizers
+  # against IdentityFlags, Operators against IdentityFlags plus the tenant's current/past members (exact
+  # normalized name/email/phone). A match is added as pending_review with no access; the adder sees a
+  # normal success. Admin reviews on a new Flagged additions tab (confirm revokes, clear activates,
+  # no platform-wide clearance); every co-Organizer addition is shown, match or not. Fails closed when
+  # the identity tables aren't configured. Live infra DONE 2026-10-01: memberships.status +=
+  # pending_review, identity_flags and identity_reviews tables (Admin read only, indexes), two Function
+  # variables. Spine IdentityFlags shape amended to the epic's. Function 329/329. Status "review".
+  7-2-identity-check-on-team-additions: review
   7-3-revocation-preserves-attribution-for-cause-revocations-feed-the-bypass-list: backlog
   7-4-platform-wide-duplicate-event-detection: backlog
   7-5-tenant-scoped-audit-log: backlog

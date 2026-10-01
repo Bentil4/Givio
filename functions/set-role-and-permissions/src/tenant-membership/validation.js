@@ -9,7 +9,15 @@ export const ACTIONS = [
   'submitTenantApplication',
   'listTeamMembers',
   'recordTenantVerification',
+  'listIdentityReviews',
+  'resolveIdentityReview',
 ];
+
+// Story 7.2: a screened team addition that matched waits here, with no access, until Admin
+// clears it (→ active) or confirms it (→ revoked).
+export const PENDING_REVIEW_STATUS = 'pending_review';
+
+export const IDENTITY_REVIEW_DECISIONS = ['confirm', 'clear', 'acknowledge'];
 
 // Keep in sync with src/app/data/models/tenant.ts's TENANT_SIZES/TENANT_TYPES — separate
 // deployments with no shared module system, same arrangement as VALID_ROLES in shared.js.
@@ -86,7 +94,7 @@ const PAYLOAD_VALIDATORS = {
     }
     return VALID;
   },
-  addTeamMember: ({ name, email, tenantId, role }, { isAdmin }) => {
+  addTeamMember: ({ name, email, phone, tenantId, role }, { isAdmin }) => {
     if (!hasValue(name) || !hasValue(email)) {
       return invalid('Request must include name and email');
     }
@@ -99,11 +107,21 @@ const PAYLOAD_VALIDATORS = {
     if (!TEAM_MEMBER_ROLES.includes(role)) {
       return invalid(`role must be one of: ${TEAM_MEMBER_ROLES.join(', ')}`);
     }
-    return VALID;
+    return validateOptionalPhone(phone);
   },
   listTeamMembers: ({ tenantId }, { isAdmin }) => {
     if (isAdmin && !hasValue(tenantId)) {
       return invalid('Request must include tenantId');
+    }
+    return VALID;
+  },
+  listIdentityReviews: () => VALID,
+  resolveIdentityReview: ({ reviewId, decision }) => {
+    if (!hasValue(reviewId)) {
+      return invalid('Request must include reviewId');
+    }
+    if (!IDENTITY_REVIEW_DECISIONS.includes(decision)) {
+      return invalid(`decision must be one of: ${IDENTITY_REVIEW_DECISIONS.join(', ')}`);
     }
     return VALID;
   },
@@ -158,6 +176,17 @@ function validateCompanyContact(company, { phoneRequired }) {
     return invalid(
       'company.contactPhone must be an international phone number, e.g. +233241234567',
     );
+  }
+  return VALID;
+}
+
+// Story 7.2: only read by the identity check, never stored on the Account.
+function validateOptionalPhone(phone) {
+  if (phone === undefined || phone === null || phone === '') {
+    return VALID;
+  }
+  if (typeof phone !== 'string' || !isValidPhone(normalizePhone(phone))) {
+    return invalid('phone must be an international phone number, e.g. +233241234567');
   }
   return VALID;
 }
