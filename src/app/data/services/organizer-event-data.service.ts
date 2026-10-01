@@ -91,7 +91,11 @@ export class OrganizerEventDataService {
     failureMessage: string;
     payload: object;
   }): Promise<T> {
-    return invokeAdminFunction<T>(this.functions, call.action, call.failureMessage, call.payload);
+    return invokeAdminFunction<T>(this.functions, {
+      action: call.action,
+      invokeFailureMessage: call.failureMessage,
+      payload: call.payload,
+    });
   }
 
   private async fetchTenantEventRows(tenantId: string): Promise<Event[]> {
