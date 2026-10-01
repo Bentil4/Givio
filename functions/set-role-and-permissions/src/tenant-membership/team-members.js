@@ -1,0 +1,333 @@
+import { randomBytes } from 'node:crypto';
+import { ID, Query } from 'node-appwrite';
+import { isConflictError, listAllRows } from '../shared.js';
+import { recomputeTenantReadGrants } from '../tenant-grants.js';
+import { createMembershipRow } from './memberships.js';
+import {
+  ORGANIZER_TIER_ROLES,
+  canManageRole,
+  setOperatorLabel,
+  syncTenantReadGrants,
+} from './team-access.js';
+
+// Story 7.2 adds its pending-review status here.
+const LISTED_MEMBERSHIP_STATUSES = ['active'];
+
+/**
+ * Story 6.3: the only Function action that provisions a *new* Account, and the sole place
+ * "distinct Account per tenant relationship" (FR-4/FR-5) is actually enforced end-to-end.
+ * Deliberately no invite-email/SMS delivery here (no AC needs it) — the generated password is
+ * returned in the response, the same shape admin-users.js's createUser already uses, so a
+ * later story that needs delivery can reuse that existing mechanism rather than a new one.
+ */
+export async function handleAddTeamMember({
+  DatabasesCtor,
+  UsersCtor,
+  adminClient,
+  payload,
+  caller,
+  team,
+  databaseId,
+  tenantsCollectionId,
+  membershipsCollectionId,
+  error,
+}) {
+  const { name, email, role } = payload;
+  const { tenantId, callerRole } = team;
+  const databases = new DatabasesCtor(adminClient);
+
+  // FR-11: an Organizer adding another Organizer is refused here, whatever the UI rendered.
+  if (!canManageRole(callerRole, role)) {
+    return { status: 403, body: { error: 'Forbidden' } };
+  }
+
+  // Existence-required, 'pending'-allowed — same as createMembership (Story 6.4's self-signup
+  // creates the applicant's own Super Organizer Membership while still 'pending'). Unlike
+  // createMembership, this *does* reject 'suspended'/'rejected': those states mean the tenant
+  // has no business growing its team, and unlike 'pending' there's no legitimate in-flight
+  // flow that needs to add a member to an already-suspended/rejected tenant. Scoped to this
+  // action only — createMembership's own (already-shipped, already-tested) behavior is
+  // untouched. An Organizer-tier caller's Tenant was already fetched (and required approved)
+  // by resolveTeamScope.
+  let tenant = team.tenant;
+  if (!tenant) {
+    try {
+      tenant = await databases.getRow({
+        databaseId,
+        tableId: tenantsCollectionId,
+        rowId: tenantId,
+      });
+    } catch (err) {
+      error(`addTeamMember: tenant ${tenantId} not found: ${err.message}`);
+      return { status: 404, body: { error: 'Tenant not found' } };
+    }
+  }
+  if (tenant.status === 'suspended' || tenant.status === 'rejected') {
+    return { status: 409, body: { error: `Tenant is ${tenant.status}` } };
+  }
+
+  // AC1/AC3's crux: create a brand-new Account for this exact call. If `email` already belongs
+  // to an existing Account, this throws (Appwrite's own email-uniqueness) *before* any
+  // Membership write is even attempted — there is no fallback path that looks up and reuses
+  // the existing Account instead, which is what makes the "no product surface attaches a
+  // second tenant's Membership to an existing Account" guarantee hold structurally, not just
+  // by convention.
+  const generatedPassword = randomBytes(12).toString('base64url');
+  const users = new UsersCtor(adminClient);
+  let account;
+  try {
+    account = await users.create({
+      userId: ID.unique(),
+      email,
+      password: generatedPassword,
+      name,
+    });
+  } catch (err) {
+    if (isConflictError(err)) {
+      error(`addTeamMember: email ${email} already registered: ${err.message}`);
+      return { status: 409, body: { error: 'A user with this email already exists' } };
+    }
+    error(`addTeamMember: users.create failed: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to create user account' } };
+  }
+
+  const membershipResult = await createMembershipRow({
+    databases,
+    databaseId,
+    membershipsCollectionId,
+    userId: account.$id,
+    tenantId,
+    role,
+    grantedBy: caller.$id,
+    error,
+    errorContext: 'addTeamMember',
+    // The default message ("User already holds an active membership") describes
+    // handleCreateMembership's caller-supplied-userId case — nonsensical here, where the
+    // userId was minted by this same call and can't have a prior Membership.
+    conflictMessage: 'Failed to create membership for newly created account',
+  });
+  if (membershipResult.status !== 200) {
+    // The Account already exists at this point (created above) even though the Membership
+    // write failed — no automatic rollback (matches this Function's existing
+    // best-effort-on-partial-failure posture elsewhere, e.g. sweepTenantEventPermissions).
+    // Code-review fix: without returning userId/generatedPassword here, this Account would be
+    // permanently orphaned — its password lost, and a retry with the same email would hit
+    // users.create's own conflict branch instead of ever reaching this point again. Returning
+    // them lets the caller manually complete the Membership via the existing createMembership
+    // action (which takes a userId directly) instead of losing access to the Account entirely.
+    error(
+      `addTeamMember: account ${account.$id} created but membership write failed — recoverable via createMembership`,
+    );
+    return {
+      status: membershipResult.status,
+      body: {
+        ...membershipResult.body,
+        userId: account.$id,
+        generatedPassword,
+        recovery: 'Account was created; retry via the createMembership action with this userId.',
+      },
+    };
+  }
+
+  // The Membership is the source of truth and already exists, so a failed access step doesn't
+  // fail the add — it's reported as `setupIncomplete` for the caller to surface. The Tenant
+  // grant is derived and heals on the next team change; the Label can be set from Admin's
+  // Users page.
+  let setupIncomplete = false;
+  try {
+    if (role === 'operator') {
+      await setOperatorLabel({ UsersCtor, adminClient, userId: account.$id, enabled: true });
+    } else {
+      await syncTenantReadGrants({
+        DatabasesCtor,
+        adminClient,
+        databaseId,
+        tenantsCollectionId,
+        membershipsCollectionId,
+        tenantId,
+      });
+    }
+  } catch (err) {
+    setupIncomplete = true;
+    error(`addTeamMember: access setup failed for ${account.$id}: ${err.message}`);
+  }
+
+  return {
+    status: 200,
+    body: {
+      success: true,
+      userId: account.$id,
+      membershipId: membershipResult.body.membershipId,
+      name,
+      email,
+      tenantId,
+      role,
+      generatedPassword,
+      setupIncomplete,
+    },
+  };
+}
+
+export async function handleRevokeMembership({
+  DatabasesCtor,
+  UsersCtor,
+  adminClient,
+  payload,
+  team,
+  databaseId,
+  tenantsCollectionId,
+  membershipsCollectionId,
+  eventsCollectionId,
+  error,
+}) {
+  const { membershipId } = payload;
+  const { callerRole } = team;
+  const databases = new DatabasesCtor(adminClient);
+  const notFound = { status: 404, body: { error: 'Membership not found' } };
+
+  let membership;
+  try {
+    membership = await databases.getRow({
+      databaseId,
+      tableId: membershipsCollectionId,
+      rowId: membershipId,
+    });
+  } catch (err) {
+    error(`revokeMembership: membership ${membershipId} not found: ${err.message}`);
+    return notFound;
+  }
+
+  if (callerRole !== null) {
+    // Another tenant's Membership looks exactly like a missing one (FR-2).
+    if (membership.tenantId !== team.tenantId) {
+      return notFound;
+    }
+    // An Organizer revokes Operators only; a Super Organizer also revokes Organizers. Neither
+    // can revoke the Super Organizer (themself included) — that stays with Admin.
+    if (!canManageRole(callerRole, membership.role)) {
+      return { status: 403, body: { error: 'Forbidden' } };
+    }
+  }
+
+  try {
+    await databases.updateRow({
+      databaseId,
+      tableId: membershipsCollectionId,
+      rowId: membershipId,
+      data: { status: 'revoked' },
+    });
+  } catch (err) {
+    error(`revokeMembership: updateRow failed: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to revoke membership' } };
+  }
+
+  const sweepResult = await sweepTenantEventPermissions({
+    DatabasesCtor,
+    adminClient,
+    databaseId,
+    eventsCollectionId,
+    tenantId: membership.tenantId,
+    userIds: [membership.userId],
+    error,
+  });
+  if (!sweepResult.listed) {
+    // Same fail-closed reasoning as setTenantStatus: the Membership row is already revoked,
+    // but the Event-permission sweep couldn't even be attempted — say so rather than 200.
+    return {
+      status: 502,
+      body: {
+        error: 'Membership was revoked, but sweeping its Event permissions failed',
+        membershipId,
+      },
+    };
+  }
+
+  // Revoking an already-revoked Membership is allowed so a failed step here can be retried.
+  try {
+    if (membership.role === 'operator') {
+      await setOperatorLabel({ UsersCtor, adminClient, userId: membership.userId, enabled: false });
+    } else if (ORGANIZER_TIER_ROLES.includes(membership.role)) {
+      await syncTenantReadGrants({
+        DatabasesCtor,
+        adminClient,
+        databaseId,
+        tenantsCollectionId,
+        membershipsCollectionId,
+        tenantId: membership.tenantId,
+      });
+    }
+  } catch (err) {
+    error(`revokeMembership: removing access for ${membership.userId} failed: ${err.message}`);
+    return {
+      status: 502,
+      body: {
+        error: 'Membership was revoked, but removing their remaining access failed',
+        membershipId,
+      },
+    };
+  }
+
+  return { status: 200, body: { success: true, membershipId, status: 'revoked' } };
+}
+
+/**
+ * Story 7.1: the caller's own team, with each member's name/email — Memberships and Accounts are
+ * only readable server-side, so the team screen can't assemble this itself. Scoped to the
+ * resolved Tenant only (FR-2).
+ */
+export async function handleListTeamMembers({
+  DatabasesCtor,
+  UsersCtor,
+  adminClient,
+  caller,
+  team,
+  databaseId,
+  membershipsCollectionId,
+  error,
+}) {
+  const users = new UsersCtor(adminClient);
+  try {
+    const memberships = await listAllRows({
+      DatabasesCtor,
+      adminClient,
+      databaseId,
+      tableId: membershipsCollectionId,
+      queries: [
+        Query.equal('tenantId', [team.tenantId]),
+        Query.equal('status', LISTED_MEMBERSHIP_STATUSES),
+      ],
+    });
+    const members = await Promise.all(
+      memberships.map(async (m) => {
+        const account = await users.get({ userId: m.userId });
+        return {
+          membershipId: m.$id,
+          userId: m.userId,
+          name: account.name,
+          email: account.email,
+          role: m.role,
+          status: m.status,
+          grantedAt: m.grantedAt,
+          isSelf: m.userId === caller.$id,
+        };
+      }),
+    );
+    return { status: 200, body: { success: true, tenantId: team.tenantId, members } };
+  } catch (err) {
+    error(`listTeamMembers: lookup failed for tenant ${team.tenantId}: ${err.message}`);
+    return { status: 502, body: { error: 'Failed to load the team' } };
+  }
+}
+
+/**
+ * Membership revoke's hook into AD-2 (name and call signature kept from Story 6.2 so
+ * revokeMembership's call site is unchanged): re-derives read grants on every Event and Donation
+ * the tenant owns, which drops the revoked uid wherever it was granted — as an assigned
+ * Operator or as an organizer-tier member. assignedUserIds itself is left untouched (AD-2: it
+ * stays the record of who was assigned; only the *permission grant* is retracted). `listed`
+ * is false when any row could not be brought in line, not only when the listing failed.
+ */
+async function sweepTenantEventPermissions({ DatabasesCtor, adminClient, tenantId, error }) {
+  const grants = await recomputeTenantReadGrants({ DatabasesCtor, adminClient, tenantId, error });
+  return { listed: grants.ok, grants };
+}
