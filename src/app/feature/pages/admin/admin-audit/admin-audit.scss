@@ -13,10 +13,14 @@
   align-items: flex-start;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(15, 122, 140, .07);
+  border-bottom: 1px solid rgba(15, 122, 140, 0.07);
 
-  &:last-child { border-bottom: 0; }
-  &:hover { background: rgba(10, 88, 102, .04); }
+  &:last-child {
+    border-bottom: 0;
+  }
+  &:hover {
+    background: rgba(10, 88, 102, 0.04);
+  }
 }
 
 // Fixed gutter so timestamps form a scannable column rather than a ragged edge.
@@ -37,15 +41,30 @@
   border-radius: var(--radius-full);
   font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: .05em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   text-align: center;
 
-  &.is-neutral { background: var(--bg-mist); color: var(--data-4); }
-  &.is-edit { background: rgba(10, 88, 102, .14); color: var(--primary-dark); }
-  &.is-restore { background: rgba(21, 128, 61, .14); color: var(--func-success); }
-  &.is-delete { background: rgba(180, 83, 9, .14); color: var(--func-warning); }
-  &.is-security { background: rgba(220, 38, 38, .12); color: var(--func-error); }
+  &.is-neutral {
+    background: var(--bg-mist);
+    color: var(--data-4);
+  }
+  &.is-edit {
+    background: rgba(10, 88, 102, 0.14);
+    color: var(--primary-dark);
+  }
+  &.is-restore {
+    background: rgba(21, 128, 61, 0.14);
+    color: var(--func-success);
+  }
+  &.is-delete {
+    background: rgba(180, 83, 9, 0.14);
+    color: var(--func-warning);
+  }
+  &.is-security {
+    background: rgba(220, 38, 38, 0.12);
+    color: var(--func-error);
+  }
 }
 
 .trail-body {
@@ -71,7 +90,14 @@
 }
 
 @media (max-width: 900px) {
-  .trail-row { flex-wrap: wrap; }
-  .trail-time { width: auto; }
-  .trail-actor { width: auto; text-align: left; }
+  .trail-row {
+    flex-direction: column;
+  }
+  .trail-time {
+    width: auto;
+  }
+  .trail-actor {
+    width: auto;
+    text-align: left;
+  }
 }
