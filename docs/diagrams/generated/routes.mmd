@@ -40,6 +40,7 @@ flowchart TD
   r__company_dispute["/company/dispute<br/>Dispute a suspension"]
   subgraph sgr__company__approvedCompanyMatch["/company — sessionExpiryGuard + approvedCompanyMatch"]
     r__company__approvedCompanyMatch["/company<br/>Company dashboard"]
+    r__company_events__approvedCompanyMatch["/company/events<br/>Events"]
     r__company_team__approvedCompanyMatch["/company/team<br/>Team"]
     r__company_support__approvedCompanyMatch["/company/support<br/>Contact Admin"]
   end
@@ -69,6 +70,7 @@ flowchart TD
   app --> r__family
   r__family --> r__family__code
   app --> r__company_dispute
+  r__company__approvedCompanyMatch --> r__company_events__approvedCompanyMatch
   r__company__approvedCompanyMatch --> r__company_team__approvedCompanyMatch
   r__company__approvedCompanyMatch --> r__company_support__approvedCompanyMatch
   app --> r__company__approvedCompanyMatch
