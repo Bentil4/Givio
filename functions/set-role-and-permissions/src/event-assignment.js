@@ -1,17 +1,19 @@
 import { Client, Account, Users, TablesDB } from 'node-appwrite';
 import {
   buildClient,
-  verifyAdminCaller,
+  verifyCaller,
   VALID,
   invalid,
   hasValue,
   computeEventPermissions,
 } from './shared.js';
 import { recomputeEventReadGrants } from './tenant-grants.js';
+import { isAdminCaller } from './tenant-membership/team-access.js';
+import { assignOperatorsAsOrganizer } from './tenant-events/organizer-assignment.js';
 
 const ACTIONS = ['assignOperators', 'setEventStatus'];
 
-const EVENT_STATUSES = ['active', 'paused', 'closed'];
+export const EVENT_STATUSES = ['active', 'paused', 'closed'];
 
 // Story 2.2: pause/resume/close are the forward transitions; a Closed event can only be
 // reopened back to Active, never straight to Paused — the Admin must resume it first.
@@ -20,6 +22,17 @@ const ALLOWED_TRANSITIONS = {
   paused: ['active', 'closed'],
   closed: ['active'],
 };
+
+/** Story 2.2's transition rule, shared with Story 6.7's Organizer status action. */
+export function statusTransitionError(from, to) {
+  if (from === to) {
+    return `Event is already ${to}`;
+  }
+  if (!(ALLOWED_TRANSITIONS[from] ?? []).includes(to)) {
+    return `Cannot change status from ${from} to ${to}`;
+  }
+  return null;
+}
 
 function isStringArray(value) {
   return Array.isArray(value) && value.every((v) => typeof v === 'string' && v.length > 0);
@@ -165,12 +178,9 @@ async function handleSetEventStatus({
     return { status: 404, body: { error: 'Event not found' } };
   }
 
-  const from = current.status;
-  if (from === status) {
-    return { status: 400, body: { error: `Event is already ${status}` } };
-  }
-  if (!(ALLOWED_TRANSITIONS[from] ?? []).includes(status)) {
-    return { status: 400, body: { error: `Cannot change status from ${from} to ${status}` } };
+  const transitionError = statusTransitionError(current.status, status);
+  if (transitionError) {
+    return { status: 400, body: { error: transitionError } };
   }
 
   try {
@@ -219,7 +229,7 @@ export async function handleEventAssignmentRequest({
   const databaseId = process.env.APPWRITE_DATABASE_ID;
   const eventsCollectionId = process.env.APPWRITE_EVENTS_COLLECTION_ID;
 
-  const { errorResponse, caller } = await verifyAdminCaller({
+  const { errorResponse, caller } = await verifyCaller({
     req,
     ClientCtor,
     AccountCtor,
@@ -229,6 +239,12 @@ export async function handleEventAssignmentRequest({
   });
   if (errorResponse) {
     return res.json(errorResponse.body, errorResponse.status);
+  }
+  // Story 6.7: besides Admin, only an unlabelled (Organizer-tier) Account may call — and only
+  // assignOperators, checked against its own Tenant below.
+  const isAdmin = isAdminCaller(caller);
+  if (!isAdmin && (caller.labels ?? []).length > 0) {
+    return res.json({ error: 'Forbidden' }, 403);
   }
 
   let body;
@@ -243,6 +259,9 @@ export async function handleEventAssignmentRequest({
   const validation = validatePayload(action, payload);
   if (!validation.valid) {
     return res.json(validation.body, 400);
+  }
+  if (!isAdmin && action !== 'assignOperators') {
+    return res.json({ error: 'Forbidden' }, 403);
   }
 
   const dynamicKey = req.headers['x-appwrite-key'];
@@ -259,6 +278,18 @@ export async function handleEventAssignmentRequest({
   }
 
   const adminClient = buildClient(ClientCtor, endpoint, projectId).setKey(dynamicKey);
+
+  if (!isAdmin) {
+    const organizerResult = await assignOperatorsAsOrganizer({
+      DatabasesCtor,
+      adminClient,
+      payload,
+      caller,
+      log,
+      error,
+    });
+    return res.json(organizerResult.body, organizerResult.status);
+  }
 
   // Only assignOperators touches assignedUserIds — running this check for setEventStatus
   // would loop over an undefined assignedUserIds and throw before ever reaching its handler.

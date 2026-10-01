@@ -1,0 +1,107 @@
+<section class="page" aria-labelledby="events-title">
+  <header class="page-head">
+    <div>
+      <h1 id="events-title" class="t-page-title">Events</h1>
+      <p class="t-secondary">
+        Create your company's Events, assign your Operators and share the family code. Paused stops
+        new entries; closed makes the record read-only.
+      </p>
+    </div>
+    @if (!isEmpty()) {
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" (click)="openCreate()">
+        <mat-icon aria-hidden="true">add</mat-icon>
+        Create event
+      </button>
+    </div>
+    }
+  </header>
+
+  @if (loading()) {
+  <div class="table-wrap glass" aria-busy="true">
+    <span class="visually-hidden">Loading your events…</span>
+    @for (i of skeletons; track i) {
+    <div class="skel-row">
+      <span class="skel skel--lg"></span>
+      <span class="skel skel--sm"></span>
+      <span class="skel skel--md"></span>
+    </div>
+    }
+  </div>
+  } @else if (loadError(); as err) {
+  <div class="code-note is-error" role="alert">
+    <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <p class="t-caption">{{ err }}</p>
+    <button type="button" class="btn-ghost" (click)="load()">Try again</button>
+  </div>
+  } @else if (isEmpty()) {
+  <article class="empty glass" aria-labelledby="events-empty-title">
+    <mat-icon class="empty-icon" aria-hidden="true">event</mat-icon>
+    <h2 id="events-empty-title" class="t-card-title">You haven't created an Event yet</h2>
+    <p class="t-caption">
+      Create one to start setting it up. Donations can be recorded once you assign Operators to it.
+    </p>
+    <button type="button" class="btn btn-primary" (click)="openCreate()">Create event</button>
+  </article>
+  } @else {
+  <div class="table-wrap glass">
+    <table class="table">
+      <caption class="visually-hidden">
+        Your company's events
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Event</th>
+          <th scope="col">Status</th>
+          <th scope="col">Family code</th>
+          <th scope="col">Operators</th>
+          <th scope="col" class="is-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (e of sortedEvents(); track e.id) {
+        <tr>
+          <td>
+            <span class="t-body-em">{{ e.name }}</span>
+            <br />
+            <span class="t-caption">
+              {{ e.type | titlecase }} · {{ e.date | date: 'mediumDate' : 'UTC' }}@if (e.venue) { ·
+              {{ e.venue }} }
+            </span>
+          </td>
+          <td>
+            <span class="tag" [class]="chipClass[e.status]">{{ statusLabel(e.status) }}</span>
+          </td>
+          <td class="is-mono is-muted">{{ e.accessCode ?? '—' }}</td>
+          <td class="is-muted">{{ e.assignedUserIds.length }} assigned</td>
+          <td class="is-actions">
+            @if (e.status !== 'closed') {
+            <button type="button" class="btn-ghost" (click)="openEdit(e)">
+              Edit<span class="visually-hidden"> {{ e.name }}</span>
+            </button>
+            }
+            <button type="button" class="btn-ghost" (click)="openManage(e)">
+              Manage<span class="visually-hidden"> {{ e.name }}</span>
+            </button>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }
+</section>
+
+@if (editing()) {
+<app-event-form-dialog
+  [event]="editingEvent()"
+  (saved)="onSaved($event)"
+  (dismissed)="closeForm()"
+/>
+} @if (managing(); as m) {
+<app-event-manage-dialog
+  [event]="m"
+  (changed)="replaceOrAddEvent($event)"
+  (dismissed)="closeManage()"
+/>
+}

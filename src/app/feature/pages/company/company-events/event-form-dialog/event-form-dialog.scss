@@ -1,0 +1,27 @@
+@use '../../../admin/admin-donations/admin-donations.scss';
+
+.form-error {
+  margin: 0;
+  padding: 0 var(--space-lg) var(--space-md);
+}
+
+.occasion {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  border: 0;
+
+  legend {
+    width: 100%;
+    padding: 0;
+  }
+}
+
+.occasion-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  cursor: pointer;
+}

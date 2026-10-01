@@ -1,6 +1,8 @@
 import { randomBytes as nodeRandomBytes } from 'node:crypto';
 import { Client, Account, TablesDB, Query } from 'node-appwrite';
-import { buildClient, verifyAdminCaller, VALID, invalid, hasValue, listAllRows } from './shared.js';
+import { buildClient, verifyCaller, VALID, invalid, hasValue, listAllRows } from './shared.js';
+import { isAdminCaller } from './tenant-membership/team-access.js';
+import { authorizeOrganizerEventAccess } from './tenant-events/organizer-scope.js';
 
 const ACTIONS = ['generateAccessCode', 'resolveAccessCode'];
 const CODE_LENGTH = 8;
@@ -214,7 +216,7 @@ export async function handleFamilyAccessRequest({
 
   let caller = null;
   if (action === 'generateAccessCode') {
-    const { errorResponse, caller: verifiedCaller } = await verifyAdminCaller({
+    const { errorResponse, caller: verifiedCaller } = await verifyCaller({
       req,
       ClientCtor,
       AccountCtor,
@@ -226,6 +228,11 @@ export async function handleFamilyAccessRequest({
       return res.json(errorResponse.body, errorResponse.status);
     }
     caller = verifiedCaller;
+    // Story 6.7: Admin, or an unlabelled (Organizer-tier) Account for its own Tenant's Event —
+    // checked once the admin client exists, below.
+    if (!isAdminCaller(caller) && (caller.labels ?? []).length > 0) {
+      return res.json({ error: 'Forbidden' }, 403);
+    }
   }
   // resolveAccessCode: deliberately no verifyCaller/verifyAdminCaller call — see its handler's
   // doc comment for why this is the one action allowed to run fully unauthenticated.
@@ -246,6 +253,20 @@ export async function handleFamilyAccessRequest({
   }
 
   const adminClient = buildClient(ClientCtor, endpoint, projectId).setKey(dynamicKey);
+
+  if (caller && !isAdminCaller(caller)) {
+    const access = await authorizeOrganizerEventAccess({
+      DatabasesCtor: TablesDBCtor,
+      adminClient,
+      payload,
+      caller,
+      eventId: payload.eventId,
+      error,
+    });
+    if (access.errorResponse) {
+      return res.json(access.errorResponse.body, access.errorResponse.status);
+    }
+  }
 
   let result;
   switch (action) {
@@ -274,7 +295,7 @@ export async function handleFamilyAccessRequest({
   }
 
   if (result.status === 200) {
-    log(`${action} succeeded${caller ? ` (by admin ${caller.$id})` : ' (unauthenticated)'}`);
+    log(`${action} succeeded${caller ? ` (by ${caller.$id})` : ' (unauthenticated)'}`);
   }
   return res.json(result.body, result.status);
 }

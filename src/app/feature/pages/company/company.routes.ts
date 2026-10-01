@@ -16,6 +16,11 @@ export const COMPANY_CHILD_ROUTES: Routes = [
     title: 'Company dashboard',
   },
   {
+    path: 'events',
+    loadComponent: () => import('./company-events/company-events').then((m) => m.CompanyEvents),
+    title: 'Events',
+  },
+  {
     path: 'team',
     loadComponent: () => import('./company-team/company-team').then((m) => m.CompanyTeam),
     title: 'Team',
