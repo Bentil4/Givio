@@ -4,12 +4,23 @@
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md);
-  border: 1.5px solid rgba(180, 83, 9, .28);
+  border: 1.5px solid rgba(180, 83, 9, 0.28);
   border-radius: var(--radius-md);
-  background: rgba(180, 83, 9, .08);
+  background: rgba(180, 83, 9, 0.08);
 
-  mat-icon { flex: none; color: var(--func-warning); font-size: 18px; width: 18px; height: 18px; }
-  p { margin: 0; color: var(--func-warning); line-height: 1.55; text-wrap: pretty; }
+  mat-icon {
+    flex: none;
+    color: var(--func-warning);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+  p {
+    margin: 0;
+    color: var(--func-warning);
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
 }
 
 .stat-grid {
@@ -31,7 +42,7 @@
   font-variant-numeric: tabular-nums;
   font-size: 1.5rem;
   font-weight: 700;
-  letter-spacing: -.02em;
+  letter-spacing: -0.02em;
   color: var(--primary-dark);
 }
 
@@ -45,7 +56,9 @@
   padding: var(--space-lg);
   border-radius: var(--radius-lg);
 
-  h2 { margin: 0; }
+  h2 {
+    margin: 0;
+  }
 }
 
 .chart-head {
@@ -55,7 +68,9 @@
   gap: var(--space-md);
 }
 
-.chart-none { margin: var(--space-lg) 0 0; }
+.chart-none {
+  margin: var(--space-lg) 0 0;
+}
 
 // ── Donut. A real conic-gradient, so no chart library is needed. ──────
 .donut-row {
@@ -89,7 +104,7 @@
 .donut-count {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 0.95rem;
+  font-size: 0.875rem; /* 7-step type scale: 14px (body) */
   font-weight: 700;
   color: var(--primary-dark);
 }
@@ -116,9 +131,18 @@
   height: 10px;
   border-radius: 3px;
 
-  &.is-cash { background: var(--primary-deep); }
-  &.is-mobile_money { background: var(--primary-mid); }
-  &.is-in_kind { background: var(--accent-sky); }
+  /* Three genuinely distinct hues, not two shades of the same brand green — cash and mobile
+     money previously used --primary-deep/--primary-mid (the same green, one step darker),
+     reading as near-identical swatches. The amber accent token finally gets a real use here. */
+  &.is-cash {
+    background: var(--primary-deep);
+  }
+  &.is-mobile_money {
+    background: var(--action-accent-bg);
+  }
+  &.is-in_kind {
+    background: var(--accent-sky);
+  }
 }
 
 .legend-body {
@@ -131,7 +155,7 @@
 .legend-value {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 0.7rem;
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
   color: var(--data-4);
 }
 
@@ -153,33 +177,48 @@
 
 .bar-col {
   flex: 1;
-  height: 150px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
   gap: var(--space-sm);
 }
 
 .bar-count {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 0.62rem;
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
   color: var(--data-4);
 }
 
+/* A fixed-height, position-relative track dedicated to JUST the bar — .bar's height: X% needs
+   to resolve against this alone. Previously .bar sat as a flex item alongside the count/label
+   text rows in one 150px flex column: percentage height was computed against the full 150px,
+   but flex-shrink then had to compress everything (bar + fixed-size text rows + gaps) back down
+   to fit, and it shrank taller bars by more absolute px than short ones — a 50%-tall bar
+   rendered at ~80% of a 100%-tall bar's height instead of half of it. */
+.bar-track {
+  position: relative;
+  width: 100%;
+  height: 150px;
+}
+
 .bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
   width: 100%;
   min-height: 3px;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   background: var(--primary-deep);
-  transition: height .3s var(--ease);
+  transition: height 0.3s var(--ease);
 
-  &.is-peak { background: var(--primary-mid); }
+  &.is-peak {
+    background: var(--primary-mid);
+  }
 }
 
 .bar-label {
-  font-size: 0.62rem;
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
   color: var(--data-4);
 }
 
@@ -194,11 +233,21 @@
 .export-copy {
   flex: 1;
 
-  h2 { margin: 0 0 3px; }
-  p { margin: 0; line-height: 1.55; text-wrap: pretty; }
+  h2 {
+    margin: 0 0 3px;
+  }
+  p {
+    margin: 0;
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
 }
 
 @media (max-width: 1100px) {
-  .stat-grid { grid-template-columns: repeat(2, 1fr); }
-  .chart-grid { grid-template-columns: 1fr; }
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
 }

@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
 import { DonationType, DONATION_TYPE_LABELS } from '../../../../data/models/donation';
@@ -85,7 +92,11 @@ export class AdminReports implements OnInit {
     const largestDonor = rows.find((d) => d.amountMinor === largest);
 
     return [
-      { key: 'Total raised', value: formatCedisShort(total), sub: `${rows.length} validated records` },
+      {
+        key: 'Total raised',
+        value: formatCedisShort(total),
+        sub: `${rows.length} validated records`,
+      },
       { key: 'Donors', value: String(rows.length), sub: this.dateRange() || 'this event' },
       {
         key: 'Average gift',
@@ -124,9 +135,12 @@ export class AdminReports implements OnInit {
 
   /** Built as a real CSS conic-gradient so the donut needs no chart library. */
   public readonly donutGradient = computed(() => {
+    // Three distinct hues, matching the legend dots in admin-reports.scss (.is-cash/
+    // .is-mobile_money/.is-in_kind) — cash and mobile money previously shared one green hue
+    // (--primary-deep/--primary-mid, same color one shade apart), reading as near-identical.
     const colors: Record<DonationType, string> = {
       cash: 'var(--primary-deep)',
-      mobile_money: 'var(--primary-mid)',
+      mobile_money: 'var(--action-accent-bg)',
       in_kind: 'var(--accent-sky)',
     };
     const stops = this.slices()
@@ -169,11 +183,15 @@ export class AdminReports implements OnInit {
   public readonly excludedNote = computed(() => {
     const n = this.conflictCount();
     if (n === 0) return null;
-    return `${n} ${n === 1 ? 'donation is' : 'donations are'} excluded from these figures until `
-      + 'the sync conflict is resolved.';
+    return (
+      `${n} ${n === 1 ? 'donation is' : 'donations are'} excluded from these figures until ` +
+      'the sync conflict is resolved.'
+    );
   });
 
-  public colorClass(type: DonationType): string { return 'is-' + type; }
+  public colorClass(type: DonationType): string {
+    return 'is-' + type;
+  }
 
   public async exportXlsx(): Promise<void> {
     this.exporting.set(true);
