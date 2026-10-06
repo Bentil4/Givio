@@ -11,10 +11,19 @@ import { hasValue } from '../shared.js';
  * Story 7.5: every caller already stamps the Event's tenantId into newValues; it is lifted into
  * the row's own tenantId column too, which is what listTenantAuditLog filters on (FR-15).
  */
-export async function writeEventAuditLog({ DatabasesCtor, adminClient, entry, error }) {
+export function writeEventAuditLog({ entry, ...context }) {
+  const { eventId, ...rest } = entry;
+  return writeTenantAuditLog({
+    ...context,
+    entry: { entityType: 'event', entityId: eventId, ...rest },
+  });
+}
+
+/** The same entry for any audited entity — a Super Organizer's donation corrections too. */
+export async function writeTenantAuditLog({ DatabasesCtor, adminClient, entry, error }) {
   const tableId = process.env.APPWRITE_AUDIT_LOGS_COLLECTION_ID;
   if (!hasValue(tableId)) {
-    error('writeEventAuditLog: APPWRITE_AUDIT_LOGS_COLLECTION_ID is not configured');
+    error('writeTenantAuditLog: APPWRITE_AUDIT_LOGS_COLLECTION_ID is not configured');
     return false;
   }
   try {
@@ -27,15 +36,18 @@ export async function writeEventAuditLog({ DatabasesCtor, adminClient, entry, er
     });
     return true;
   } catch (err) {
-    error(`writeEventAuditLog: ${entry.action} on event ${entry.eventId} failed: ${err.message}`);
+    error(
+      `writeTenantAuditLog: ${entry.action} on ${entry.entityType} ${entry.entityId} failed: ` +
+        err.message,
+    );
     return false;
   }
 }
 
-function auditRowData({ eventId, action, performedBy, previousValues, newValues }) {
+function auditRowData({ entityType, entityId, action, performedBy, previousValues, newValues }) {
   return {
-    entityType: 'event',
-    entityId: eventId,
+    entityType,
+    entityId,
     action,
     performedBy,
     previousValues: JSON.stringify(previousValues),

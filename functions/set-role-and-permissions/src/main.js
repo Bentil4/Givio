@@ -15,6 +15,7 @@ import { handleSupportRequestsRequest, SUPPORT_REQUEST_ACTIONS } from './support
 import { handleTenantEventsRequest, TENANT_EVENT_ACTIONS } from './tenant-events.js';
 import { handleDuplicateEventsRequest, DUPLICATE_EVENT_ACTIONS } from './duplicate-events.js';
 import { handleTenantAuditRequest, TENANT_AUDIT_ACTIONS } from './tenant-audit.js';
+import { handleTenantDonationsRequest, TENANT_DONATION_ACTIONS } from './tenant-donations.js';
 
 /**
  * One deployed Function, routed by `action` in the request body — all seven modules share the
@@ -64,6 +65,9 @@ export default async (context) => {
   }
   if (TENANT_AUDIT_ACTIONS.includes(action)) {
     return handleTenantAuditRequest(context);
+  }
+  if (TENANT_DONATION_ACTIONS.includes(action)) {
+    return handleTenantDonationsRequest(context);
   }
   // Falls through to admin-users.js for everything else, including an unrecognized action —
   // that module's own validatePayload() is what turns an unknown action into a 400.

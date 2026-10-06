@@ -1,6 +1,6 @@
 import { Client, Account, TablesDB } from 'node-appwrite';
-import { buildClient, verifyCaller, hasValue, invalid } from './shared.js';
 import { PAYLOAD_VALIDATORS } from './tenant-events/event-fields.js';
+import { prepareOrganizerRequest } from './tenant-events/organizer-request.js';
 import {
   createTenantEvent,
   updateTenantEvent,
@@ -34,7 +34,14 @@ export async function handleTenantEventsRequest({
   AccountCtor = Account,
   DatabasesCtor = TablesDB,
 }) {
-  const request = await prepareRequest({ req, ClientCtor, AccountCtor, error });
+  const request = await prepareOrganizerRequest({
+    req,
+    ClientCtor,
+    AccountCtor,
+    error,
+    validators: PAYLOAD_VALIDATORS,
+    tableIds: requiredTableIds(),
+  });
   if (request.errorResponse) {
     return res.json(request.errorResponse.body, request.errorResponse.status);
   }
@@ -51,70 +58,13 @@ export async function handleTenantEventsRequest({
   return res.json(result.body, result.status);
 }
 
-async function prepareRequest({ req, ClientCtor, AccountCtor, error }) {
-  const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT;
-  const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID;
-  const verified = await verifyCaller({ req, ClientCtor, AccountCtor, endpoint, projectId, error });
-  if (verified.errorResponse) {
-    return verified;
-  }
-  // Organizer-tier Accounts carry no Label; anyone labelled (Admin keeps its own paths) is
-  // refused before the payload is even read, like every other caller gate in this Function.
-  if ((verified.caller.labels ?? []).length > 0) {
-    return { errorResponse: { status: 403, body: { error: 'Forbidden' } } };
-  }
-  const parsed = parseAndValidate(req.bodyRaw);
-  if (parsed.errorResponse) {
-    return parsed;
-  }
-  const keyCheck = requireServerConfig(req, error);
-  if (keyCheck.errorResponse) {
-    return keyCheck;
-  }
-  const adminClient = buildClient(ClientCtor, endpoint, projectId).setKey(keyCheck.dynamicKey);
-  return { ...parsed, caller: verified.caller, adminClient };
-}
-
-function parseAndValidate(bodyRaw) {
-  let body;
-  try {
-    body = JSON.parse(bodyRaw || '{}');
-  } catch {
-    return badRequest({ error: 'Invalid JSON body' });
-  }
-  const { action, ...payload } = body ?? {};
-  const validator = PAYLOAD_VALIDATORS[action];
-  const validation = validator
-    ? validator(payload)
-    : invalid(`action must be one of: ${ACTIONS.join(', ')}`);
-  return validation.valid ? { action, payload } : badRequest(validation.body);
-}
-
-function badRequest(body) {
-  return { errorResponse: { status: 400, body } };
-}
-
-function requireServerConfig(req, error) {
-  const dynamicKey = req.headers['x-appwrite-key'];
-  if (!dynamicKey) {
-    error("Missing x-appwrite-key — the Function's execution API key scopes are misconfigured.");
-    return serverMisconfigured('missing execution API key');
-  }
-  const tables = [
+function requiredTableIds() {
+  return [
     process.env.APPWRITE_DATABASE_ID,
     process.env.APPWRITE_EVENTS_COLLECTION_ID,
     process.env.APPWRITE_TENANTS_COLLECTION_ID,
     process.env.APPWRITE_MEMBERSHIPS_COLLECTION_ID,
   ];
-  if (!tables.every(hasValue)) {
-    error('Missing database/events/tenants/memberships function variables.');
-    return serverMisconfigured('missing database/table ID');
-  }
-  return { dynamicKey };
-}
-
-function serverMisconfigured(reason) {
-  return { errorResponse: { status: 500, body: { error: `Server misconfiguration: ${reason}` } } };
 }
 
 export { ACTIONS as TENANT_EVENT_ACTIONS };
