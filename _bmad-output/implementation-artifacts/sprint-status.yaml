@@ -1,5 +1,5 @@
 # generated: 2026-07-26
-# last_updated: 2026-07-26
+# last_updated: 2026-10-06
 # project: givio
 # project_key: NOKEY
 # tracking_system: file-system
@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-07-26
-last_updated: 2026-10-01-wave-4-in-review
+last_updated: 2026-10-06-wave-5-in-review
 project: givio
 project_key: NOKEY
 tracking_system: file-system
@@ -453,7 +453,7 @@ development_status:
   6-7-organizer-creates-and-manages-events: review
   epic-6-retrospective: optional
 
-  epic-7: backlog
+  epic-7: in-progress
   # 7-1 implemented 2026-09-30 (Wave 3, branch feature/7-1-team-management). addTeamMember,
   # revokeMembership and new listTeamMembers accept Organizer-tier callers of an approved tenant (tenant
   # from the caller's Membership; a foreign tenantId -> 403). super_organizer manages organizer+operator,
@@ -472,13 +472,13 @@ development_status:
   # pending_review, identity_flags and identity_reviews tables (Admin read only, indexes), two Function
   # variables. Spine IdentityFlags shape amended to the epic's. Function 329/329. Status "review".
   7-2-identity-check-on-team-additions: review
-  7-3-revocation-preserves-attribution-for-cause-revocations-feed-the-bypass-list: backlog
-  7-4-platform-wide-duplicate-event-detection: backlog
-  7-5-tenant-scoped-audit-log: backlog
+  7-3-revocation-preserves-attribution-for-cause-revocations-feed-the-bypass-list: review
+  7-4-platform-wide-duplicate-event-detection: review
+  7-5-tenant-scoped-audit-log: review
   epic-7-retrospective: optional
 
-  epic-8: backlog
-  8-1-admin-suspends-a-tenant: backlog
+  epic-8: in-progress
+  8-1-admin-suspends-a-tenant: review
   # 8-2 implemented 2026-09-29 (Wave 1, branch feature/8-2-admin-access-logging). logAdminAccess()
   # in audit-log-writer (reuses writeAuditLog - still one writer): one fire-and-forget 'access' entry
   # per Data-layer call (listEvents, listDonationsForEvent, listAllDonations) for admin-labelled
@@ -499,8 +499,8 @@ development_status:
   # APPWRITE_SUPPORT_REQUESTS_COLLECTION_ID. Function 237/237, 441/441 unit. No Admin viewer yet.
   # Status "review".
   8-3-contact-admin-support-form: review
-  8-4-consolidated-cross-event-total: backlog
-  8-5-periodic-settlement-export-report: backlog
+  8-4-consolidated-cross-event-total: review
+  8-5-periodic-settlement-export-report: review
   # 8-6 implemented 2026-09-29 (Wave 1, branch feature/8-6-super-admin-manages-admins).
   # SECURITY: before this, every admin-users.js action was gated only on the `admin` label, so any
   # Admin could create/promote/demote/suspend/expire another Admin (incl. the Super Admin) or change
@@ -517,7 +517,7 @@ development_status:
   8-6-super-admin-manages-admin-accounts: review
   epic-8-retrospective: optional
 
-  epic-9: backlog
+  epic-9: in-progress
   # 9-1 implemented 2026-09-29 (Wave 1, branch feature/9-1-personal-device-prompt). Family
   # "session" is only the /family/:code URL + in-memory state (no storage). New DignityBanner (modal:
   # cdkTrapFocus, no dismiss; non-modal variant ready for 9.2). family-live shows the personal-phone
