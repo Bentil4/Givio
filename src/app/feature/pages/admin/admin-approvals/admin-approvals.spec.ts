@@ -6,6 +6,7 @@ import { UserService } from '../../../../data/services/user.service';
 import { IdentityReviewDataService } from '../../../../data/services/identity-review-data.service';
 import type { IdentityReview } from '../../../../data/models/identity-review';
 import { DuplicateEventFlagDataService } from '../../../../data/services/duplicate-event-flag-data.service';
+import { ApprovalCountsService } from '../../../../data/services/approval-counts.service';
 import type { DuplicateEventFlag } from '../../../../data/models/duplicate-event-flag';
 import type { AdminUser } from '../../../../data/models/admin-user';
 import type { Tenant } from '../../../../data/models/tenant';
@@ -79,6 +80,7 @@ describe('AdminApprovals', () => {
   let component: AdminApprovals;
   let listIdentityReviews: ReturnType<typeof vi.fn>;
   let listDuplicateEventFlags: ReturnType<typeof vi.fn>;
+  let refreshApprovalCounts: ReturnType<typeof vi.fn>;
   let tenantData: {
     listPendingTenants: ReturnType<typeof vi.fn>;
     decideTenantApplication: ReturnType<typeof vi.fn>;
@@ -105,6 +107,7 @@ describe('AdminApprovals', () => {
     };
     listIdentityReviews = vi.fn().mockResolvedValue([HELD]);
     listDuplicateEventFlags = vi.fn().mockResolvedValue([DUPLICATE]);
+    refreshApprovalCounts = vi.fn().mockResolvedValue(undefined);
     await TestBed.configureTestingModule({
       imports: [AdminApprovals],
       providers: [
@@ -118,6 +121,7 @@ describe('AdminApprovals', () => {
           useValue: { listDuplicateEventFlags, resolveDuplicateEventFlag: vi.fn() },
         },
         { provide: TenantDataService, useValue: tenantData },
+        { provide: ApprovalCountsService, useValue: { refresh: refreshApprovalCounts } },
         {
           provide: UserService,
           useValue: { getUsersById: vi.fn().mockResolvedValue(new Map([[OWNER.id, OWNER]])) },
@@ -198,6 +202,7 @@ describe('AdminApprovals', () => {
     expect(tenantData.decideTenantApplication).toHaveBeenCalledWith('t2', 'approved');
     expect(queueText()).not.toContain('Mensah Weddings');
     expect(queueText()).toContain('Asante Events');
+    expect(refreshApprovalCounts).toHaveBeenCalledOnce();
   });
 
   it('keeps the row and shows the Function refusal when an approval is refused', async () => {
@@ -212,6 +217,18 @@ describe('AdminApprovals', () => {
 
     expect(text()).toContain('Asante Events');
     expect(text()).toContain('Record the document review and phone verification before approving');
+    expect(refreshApprovalCounts).not.toHaveBeenCalled();
+  });
+
+  it('refreshes the sidebar badge after a flagged addition or duplicate is resolved', async () => {
+    await render();
+
+    component.onIdentityReviewsChanged();
+    component.onDuplicateFlagsChanged();
+
+    expect(refreshApprovalCounts).toHaveBeenCalledTimes(2);
+    expect(listIdentityReviews).toHaveBeenCalledTimes(2);
+    expect(listDuplicateEventFlags).toHaveBeenCalledTimes(2);
   });
 
   it('marks a row verified in place once verification is recorded', async () => {

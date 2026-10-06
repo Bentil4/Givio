@@ -24,6 +24,7 @@ import { IdentityReviewDataService } from '../../../../data/services/identity-re
 import type { IdentityReview } from '../../../../data/models/identity-review';
 import { DuplicateEventFlagDataService } from '../../../../data/services/duplicate-event-flag-data.service';
 import type { DuplicateEventFlag } from '../../../../data/models/duplicate-event-flag';
+import { ApprovalCountsService } from '../../../../data/services/approval-counts.service';
 import type { AdminUser } from '../../../../data/models/admin-user';
 import type { Tenant } from '../../../../data/models/tenant';
 import type { ApplicationView } from './application-view';
@@ -113,6 +114,7 @@ export class AdminApprovals implements OnInit {
   private readonly userService = inject(UserService);
   private readonly identityReviewData = inject(IdentityReviewDataService);
   private readonly duplicateFlagData = inject(DuplicateEventFlagDataService);
+  private readonly approvalCounts = inject(ApprovalCountsService);
   private readonly injector = inject(Injector);
   private readonly queueHeading = viewChild<ElementRef<HTMLElement>>('queueHeading');
   private readonly tabButtons = viewChildren<ElementRef<HTMLButtonElement>>('tabButton');
@@ -203,6 +205,17 @@ export class AdminApprovals implements OnInit {
     } finally {
       this.duplicatesLoading.set(false);
     }
+  }
+
+  /** A decision taken in a tab: re-read that queue and drop the sidebar badge straight away. */
+  public onIdentityReviewsChanged(): void {
+    void this.loadIdentityReviews();
+    void this.approvalCounts.refresh();
+  }
+
+  public onDuplicateFlagsChanged(): void {
+    void this.loadDuplicateFlags();
+    void this.approvalCounts.refresh();
   }
 
   async load(): Promise<void> {
@@ -305,6 +318,7 @@ export class AdminApprovals implements OnInit {
     }
     await this.refresh();
     if (succeeded) {
+      void this.approvalCounts.refresh();
       afterNextRender(() => this.queueHeading()?.nativeElement.focus(), {
         injector: this.injector,
       });

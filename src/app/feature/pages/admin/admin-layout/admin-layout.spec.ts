@@ -1,7 +1,9 @@
+import { signal, type WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { ACCOUNT } from '../../../../core/appwrite/client';
 import { AuthService } from '../../../../data/services/auth.service';
+import { ApprovalCountsService } from '../../../../data/services/approval-counts.service';
 
 import { AdminLayout } from './admin-layout';
 
@@ -10,12 +12,21 @@ describe('AdminLayout', () => {
   let fixture: ComponentFixture<AdminLayout>;
   let account: { deleteSession: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> };
   let router: Router;
+  let approvalCounts: {
+    total: WritableSignal<number>;
+    pollWhileAlive: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     account = { deleteSession: vi.fn(), get: vi.fn() };
+    approvalCounts = { total: signal(0), pollWhileAlive: vi.fn() };
     await TestBed.configureTestingModule({
       imports: [AdminLayout],
-      providers: [provideRouter([]), { provide: ACCOUNT, useValue: account }],
+      providers: [
+        provideRouter([]),
+        { provide: ACCOUNT, useValue: account },
+        { provide: ApprovalCountsService, useValue: approvalCounts },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(AdminLayout);
@@ -88,6 +99,18 @@ describe('AdminLayout', () => {
 
   it('links every Admin to the Approvals queue (Story 6.5)', () => {
     expect(component.navItems().some((item) => item.route === '/dashboard/approvals')).toBe(true);
+  });
+
+  it('shows the pending approvals count as the Approvals badge, and starts polling it', () => {
+    const approvalsBadge = () =>
+      component.navItems().find((item) => item.route === '/dashboard/approvals')?.badge;
+
+    expect(approvalCounts.pollWhileAlive).toHaveBeenCalledOnce();
+    expect(approvalsBadge()).toBe(0);
+
+    approvalCounts.total.set(4);
+
+    expect(approvalsBadge()).toBe(4);
   });
 
   describe('mobile nav drawer (Story 5.1)', () => {
