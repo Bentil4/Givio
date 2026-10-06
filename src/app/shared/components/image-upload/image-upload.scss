@@ -10,7 +10,7 @@
 
 .form-label {
   font-family: var(--font-body);
-  font-size: 0.85rem;
+  font-size: 0.8125rem; /* 7-step type scale: 13px (table/labels) */
   font-weight: 500;
   color: var(--primary-dark);
 }
@@ -23,7 +23,7 @@
   border: 1.5px solid var(--data-1);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
-  font-size: 0.9rem;
+  font-size: 0.875rem; /* 7-step type scale: 14px (body) */
   color: var(--primary-dark);
 }
 
@@ -53,7 +53,7 @@
   border: 1.5px solid var(--data-1);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
-  font-size: 0.85rem;
+  font-size: 0.875rem; /* 7-step type scale: 14px (body) */
   font-weight: 500;
   color: var(--primary-dark);
   cursor: pointer;
@@ -72,6 +72,6 @@
 .field-error {
   margin: 0;
   font-family: var(--font-body);
-  font-size: 0.8rem;
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) — matches every other .field-error */
   color: var(--func-error);
 }

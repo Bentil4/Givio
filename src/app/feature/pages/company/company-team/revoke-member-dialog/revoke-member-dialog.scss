@@ -23,7 +23,7 @@
   align-items: flex-start;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid rgba(15, 122, 140, 0.25);
+  border: 1px solid rgba(var(--color-brand-500-rgb), 0.25);
   border-radius: var(--radius-md);
   cursor: pointer;
 

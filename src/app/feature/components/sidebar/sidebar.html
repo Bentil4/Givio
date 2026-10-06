@@ -1,8 +1,8 @@
 @if (mobileOpen()) {
-  <!-- Mouse/touch-only dismiss convenience — the real keyboard equivalent (Escape, WCAG 2.1.1)
+<!-- Mouse/touch-only dismiss convenience — the real keyboard equivalent (Escape, WCAG 2.1.1)
        is bound on the drawer itself below, since focus lives inside it while open. -->
-  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
-  <div class="sidebar-scrim" (click)="dismissMobile.emit()"></div>
+<!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+<div class="sidebar-scrim" (click)="dismissMobile.emit()"></div>
 }
 <!-- The Escape handler relies on bubbling from whatever nav link/button inside the drawer
      currently has focus (WCAG 2.1.1) — the drawer element itself doesn't need to be a tab
@@ -16,7 +16,7 @@
 >
   <header class="sidebar-header">
     <img
-      src="assets/images/Givio-logo.png"
+      [src]="theme() === 'dark' ? 'assets/images/Givio-logo-dark.png' : 'assets/images/Givio-logo.png'"
       alt="Logo"
       class="logo"
     />
@@ -35,27 +35,28 @@
       @for (item of navItems(); track item.name) {
       <li class="nav-item">
         @if (item.disabled) {
-          <span
-            class="nav-link is-disabled"
-            aria-disabled="true"
-            [matTooltip]="collapsed() ? item.name + ' — coming soon' : 'Coming soon'"
-            matTooltipPosition="right"
-          >
-            <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
-            <span class="nav-label">{{ item.name }}</span>
-          </span>
+        <span
+          class="nav-link is-disabled"
+          aria-disabled="true"
+          [matTooltip]="collapsed() ? item.name + ' — coming soon' : 'Coming soon'"
+          matTooltipPosition="right"
+        >
+          <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
+          <span class="nav-label">{{ item.name }}</span>
+        </span>
         } @else {
-          <a
-            [routerLink]="item.route"
-            routerLinkActive="active"
-            class="nav-link"
-            [matTooltip]="collapsed() ? item.name : ''"
-            matTooltipPosition="right"
-            (click)="dismissMobile.emit()"
-          >
-            <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
-            <span class="nav-label">{{ item.name }}</span>
-          </a>
+        <a
+          [routerLink]="item.route"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: isExactRoute(item.route) }"
+          class="nav-link"
+          [matTooltip]="collapsed() ? item.name : ''"
+          matTooltipPosition="right"
+          (click)="dismissMobile.emit()"
+        >
+          <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
+          <span class="nav-label">{{ item.name }}</span>
+        </a>
         }
       </li>
       }

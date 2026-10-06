@@ -7,8 +7,14 @@
 }
 
 .page-head {
-  h1 { margin: 0 0 4px; }
-  p { margin: 0; max-width: 68ch; text-wrap: pretty; }
+  h1 {
+    margin: 0 0 4px;
+  }
+  p {
+    margin: 0;
+    max-width: 68ch;
+    text-wrap: pretty;
+  }
 }
 
 // ── Stat grid ─────────────────────────────────────────────────────────
@@ -24,24 +30,22 @@
 
 .stat-tile {
   padding: var(--space-md) var(--space-lg);
-  border-radius: var(--radius-md);
+  /* radius-lg, matching every other card in the app (Reports' KPI tiles, .panel, .table-wrap) —
+     this was the one place still one step smaller (radius-md). */
+  border-radius: var(--radius-lg);
 }
 
-.stat-label {
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--data-4);
-}
+/* .stat-label now lives in styles.scss (global) — Reports' KPI tiles use the same label
+   treatment, so it moved out of this page's own stylesheet. */
 
 .stat-value {
   margin-top: var(--space-xs);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   font-size: 1.5rem;
   font-weight: 700;
-  letter-spacing: -.02em;
+  letter-spacing: -0.02em;
   color: var(--primary-dark);
 }
 
@@ -50,7 +54,9 @@
   font-size: 0.75rem;
   color: var(--data-4);
 
-  &.is-muted { color: var(--data-3); }
+  &.is-muted {
+    color: var(--data-3);
+  }
 }
 
 // ── Panels ────────────────────────────────────────────────────────────
@@ -65,21 +71,32 @@
 }
 
 .panel {
-  border-radius: var(--radius-md);
+  /* radius-lg — matches the global .panel rule (and every other card); this local override
+     was shadowing it down to radius-md. */
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
-.panel--events { flex: 1.5; min-width: 0; }
-.panel--feed { flex: 1; min-width: 0; }
+.panel--events {
+  flex: 1.5;
+  min-width: 0;
+}
+.panel--feed {
+  flex: 1;
+  min-width: 0;
+}
 
 .panel-head {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(15, 122, 140, .09);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.09);
 
-  h2 { margin: 0; flex: 1; }
+  h2 {
+    margin: 0;
+    flex: 1;
+  }
 }
 
 .panel-link {
@@ -88,7 +105,9 @@
   color: var(--primary-deep);
   text-decoration: none;
 
-  &:hover { text-decoration: underline; }
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .panel-empty {
@@ -96,7 +115,10 @@
   padding: var(--space-lg);
   color: var(--data-3);
 
-  a { color: var(--primary-deep); font-weight: 600; }
+  a {
+    color: var(--primary-deep);
+    font-weight: 600;
+  }
 }
 
 .panel-body {
@@ -108,16 +130,23 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(15, 122, 140, .07);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.07);
   text-decoration: none;
   cursor: pointer;
-  transition: background .18s var(--ease);
+  transition: background 0.18s var(--ease);
 
-  &:last-child { border-bottom: 0; }
-  &:hover { background: var(--bg-mist); }
+  &:last-child {
+    border-bottom: 0;
+  }
+  &:hover {
+    background: var(--bg-mist);
+  }
 }
 
-.event-main { flex: 1; min-width: 0; }
+.event-main {
+  flex: 1;
+  min-width: 0;
+}
 
 .event-name-row {
   display: flex;
@@ -125,14 +154,24 @@
   gap: var(--space-sm);
 }
 
-.event-meta { margin-top: 3px; }
+.event-meta {
+  margin-top: 3px;
+}
 
 .event-total {
   flex: none;
   text-align: right;
 
-  .is-mono { font-family: var(--font-mono); }
-  .is-strong { font-weight: 700; font-size: 0.95rem; color: var(--primary-dark); }
+  .is-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap; /* "GH₵ 1,500.00" has a literal space after the currency symbol */
+  }
+  .is-strong {
+    font-weight: 700;
+    font-size: 0.875rem; /* 7-step type scale: 14px (body) */
+    color: var(--primary-dark);
+  }
 }
 
 .feed-row {
@@ -141,12 +180,23 @@
   justify-content: space-between;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(15, 122, 140, .07);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.07);
 
-  &:last-child { border-bottom: 0; }
+  &:last-child {
+    border-bottom: 0;
+  }
 
-  .is-mono { font-family: var(--font-mono); }
-  .is-strong { font-weight: 700; font-size: 0.95rem; color: var(--primary-dark); }
+  .is-mono {
+    flex: none; /* sibling .feed-main has min-width: 0 and absorbs the shrink instead */
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .is-strong {
+    font-weight: 700;
+    font-size: 0.875rem; /* 7-step type scale: 14px (body) */
+    color: var(--primary-dark);
+  }
 }
 
 .feed-main {
@@ -165,30 +215,48 @@
 }
 
 @keyframes dashboard-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: .35; transform: scale(.8); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
 }
 
 // ── Skeleton ──────────────────────────────────────────────────────────
 .skel-row {
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(15, 122, 140, .07);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.07);
 
-  &:last-child { border-bottom: 0; }
+  &:last-child {
+    border-bottom: 0;
+  }
 }
 
 .skel {
   display: block;
   height: 12px;
   border-radius: var(--radius-sm);
-  background: var(--data-1); /* flat fill, not a gradient — an opacity pulse instead of a
+  background: var(
+    --data-1
+  ); /* flat fill, not a gradient — an opacity pulse instead of a
     gradient sweep still reads as "loading" */
   animation: dashboard-skel-pulse 1.4s var(--ease) infinite;
 }
 
-.skel--lg { width: 100%; }
+.skel--lg {
+  width: 100%;
+}
 
 @keyframes dashboard-skel-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .45; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
 }

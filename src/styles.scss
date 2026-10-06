@@ -35,6 +35,8 @@
 
   --color-accent-sky: var(--accent-sky);
   --color-accent-teal: var(--accent-teal);
+  --color-accent: var(--action-accent-bg);
+  --color-accent-hover: var(--action-accent-bg-hover);
 
   --color-data-1: var(--data-1);
   --color-data-2: var(--data-2);
@@ -47,6 +49,9 @@
   // typeface, not a second display font (see :root below).
   --font-display: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
   --font-body: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
+  // Tailwind's own default (a system-ui stack) — without this, any `font-sans` utility class
+  // would load a second font stack alongside Inter instead of resolving to this app's one face.
+  --font-sans: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
 
   --spacing-xs: var(--space-xs);
   --spacing-sm: var(--space-sm);
@@ -69,13 +74,21 @@
 @import 'primeicons/primeicons.css';
 html {
   height: 100%;
+  // Re-seeded from the brand palette (was azure/blue, a second color system running
+  // underneath the custom brand tokens — any Material component, e.g. date pickers,
+  // snackbars, progress bars, focus rings, inherited blue regardless of the brand being
+  // forest green). Material's M3 API only ships named tonal palettes, not an arbitrary-hex
+  // generator in this mixin form, so these are the closest built-in hue families to the
+  // brand green and amber accent, not an exact token match.
   @include mat.theme(
     (
       color: (
-        primary: mat.$azure-palette,
-        tertiary: mat.$blue-palette,
+        primary: mat.$green-palette,
+        tertiary: mat.$orange-palette,
       ),
-      typography: Roboto,
+      // Was Roboto — a second font stack loading alongside Inter for no reason, since every
+      // custom component already uses --font-body (Inter) exclusively.
+      typography: 'Inter',
       density: 0,
     )
   );
@@ -111,18 +124,44 @@ body {
      unchanged from before this refactor.
      ============================================================================ */
 
-  /* ---- 1. Primitive palette (do not consume directly) ---- */
+  /* ---- 1. Primitive palette (do not consume directly) ----
+     Palette B rebrand: neutrals re-tinted warm (olive-brown undertone) instead of cool gray,
+     brand moved from blue to forest green, and a new amber accent primitive added — see
+     --action-accent-* below. Status colors (green/amber/red/blue) are deliberately UNCHANGED:
+     keeping them on their own independent hues, separate from the new brand/accent identity,
+     avoids "pending" amber ever being confused with the brand's own amber accent. */
   --color-neutral-0: #ffffff;
-  --color-neutral-50: #f7f8fa;
-  --color-neutral-100: #eef0f3;
-  --color-neutral-300: #c9ced6;
-  --color-neutral-500: #7a828e; /* kept exactly as spec'd for non-text use (icons, borders) —
-    used directly as TEXT it only reaches 3.88:1 on white, so --text-secondary below uses a
-    separately darkened value instead, not this primitive. */
-  --color-neutral-700: #3c4450;
-  --color-neutral-900: #12151a;
-  --color-brand-500: #1f5fbf;
-  --color-brand-700: #164a99;
+  --color-neutral-50: #f5f4f3;
+  --color-neutral-100: #e6e5e2;
+  /* Audit correction (2026-10-06): the first version of this token (#827f70, 4.03:1 on white)
+     fixed the 3:1 non-text minimum but ended up heavier than cards/tables need — every bordered
+     card in the app was reading as a 4:1 outline where ~1.5–2:1 is the norm for a divider. Split
+     in two instead: --border-subtle (next) for decorative card/table dividers, and this token
+     narrowed to inputs/chips only, which actually need the firmer, more-than-3:1 boundary. */
+  --color-neutral-300: #8f8b78; /* 3.4:1 on white, 4.8:1 on the dark-mode surface below */
+  /* Unlike the old cool neutral-500 (3.88:1 on white), this warm value already clears AA as
+     TEXT (9.06:1 on white, 8.25:1 on canvas) — so --text-secondary below aliases it directly
+     instead of needing a separately darkened value. */
+  --color-neutral-500: #4d4934;
+  --color-neutral-700: #3e3922;
+  --color-neutral-900: #2e2910;
+  --color-brand-500: #2c5745;
+  --color-brand-500-rgb:
+    44, 87, 69; /* same color as --color-brand-500, as r,g,b components —
+    for the handful of call sites that need a brand-tinted rgba() (shadows, translucent
+    borders/hovers) rather than a solid fill; kept in sync by hand. */
+  --color-brand-700: #254a3b;
+  --color-brand-700-rgb: 37, 74, 59; /* --color-brand-700, same reasoning as the -500-rgb above */
+  --color-accent-500: #eb7d00;
+  /* Lighter tier, NOT darker — paired with dark ink (see --action-accent-fg), a hover state
+     that darkened toward that same dark ink would collapse contrast (verified: a darkened
+     hover only reaches 2.77:1 with dark text). Brightening instead keeps dark-ink legible and
+     actually improves contrast on hover (6.71:1 vs the base's 5.18:1). */
+  --color-accent-400: #f09e40;
+  --color-accent-700: #a55800; /* darker, focus-ring-safe tier (≥3:1 non-text on any surface
+    below) — not consumed by a specific component yet, kept for whenever accent needs a ring
+    or other non-text indicator rather than a text-bearing fill. */
+  --color-cream: #ebe3a7; /* warm highlight surface tint — see --bg-highlight below */
   --color-green-500: #1d8a4e;
   --color-green-100: #e4f5ec;
   --color-amber-500: #b5790c;
@@ -136,17 +175,29 @@ body {
   --bg-canvas: var(--color-neutral-50);
   --bg-surface: var(--color-neutral-0);
   --bg-surface-raised: var(--color-neutral-0); /* + elevation-2, see below */
+  /* New in the Palette B rebrand — a warm featured/highlight surface tint, distinct from the
+     plain canvas/surface fills above. Not yet wired into a specific template; available for
+     whichever hero/featured-card treatment wants it. */
+  --bg-highlight: var(--color-cream);
+  /* Inputs and chips only — anything that needs a real, >3:1 boundary. Decorative dividers
+     (cards, tables, .glass panels) use --border-subtle instead; see .glass further down. */
   --border-default: var(--color-neutral-300);
+  /* Decorative only (card edges, table/panel dividers) — ~1.6:1 on white, deliberately below
+     the 3:1 non-text minimum, since nothing depends on seeing this boundary to operate the
+     page. Was --border-default (4:1+) on every card in the app, heavier than a divider needs. */
+  --border-subtle: #d9d5c9;
   --border-focus: var(--color-brand-500);
   --text-primary: var(--color-neutral-900);
-  /* #5b636d, not the raw neutral.500 primitive above — corrected so actual TEXT clears AA's
-     4.5:1 (verified: 6.09:1 on white, 5.51:1 on canvas; the raw primitive only reaches 3.88:1). */
-  --text-secondary: #5b636d;
+  /* Aliases the primitive directly (verified 9.06:1 on white, 8.25:1 on canvas) — unlike the
+     old cool palette, no separate darkened value is needed here. */
+  --text-secondary: var(--color-neutral-500);
   /* Not in the source spec (it only defines two text tiers) — this app's existing components
-     rely on three (primary/secondary/tertiary). Derived and AA-verified: 4.99:1 on white,
-     4.70:1 on canvas. */
-  --text-tertiary: #677080;
-  --text-disabled: var(--color-neutral-300);
+     rely on three (primary/secondary/tertiary). Derived and AA-verified: 6.44:1 on white,
+     5.86:1 on canvas. */
+  --text-tertiary: #625f4c;
+  /* A dimmed text-primary, not a shared token with the border — "disabled" no longer happens to
+     render at the exact same shade as the border-default primitive for an unrelated reason. */
+  --text-disabled: color-mix(in srgb, var(--text-primary) 40%, transparent);
   --text-on-brand: var(--color-neutral-0);
 
   /* Action */
@@ -155,6 +206,12 @@ body {
   --action-primary-fg: var(--color-neutral-0);
   --action-secondary-border: var(--color-neutral-300);
   --action-destructive-bg: var(--color-red-500);
+  /* New accent action (amber) — AA-verified: dark ink (--action-accent-fg) on --color-accent-500
+     reaches 5.18:1; the same dark ink on white text would only reach 2.81:1, which is why this
+     pairs with dark ink rather than white. */
+  --action-accent-bg: var(--color-accent-500);
+  --action-accent-bg-hover: var(--color-accent-400);
+  --action-accent-fg: var(--color-neutral-900);
 
   /* Status — the only five status colors anywhere in the app, per the source spec's own
      explicit rule ("resist adding more"). Text colors on the -100 tints are the spec's own
@@ -210,15 +267,16 @@ body {
 
   /* ---- Typography ----
      One humanist sans for all UI text (Inter — see index.html's <link>, IBM Plex Sans/
-     system-ui fallback for anywhere Inter fails to load). Numeric figures (amounts, receipt
-     numbers, codes) get the SAME family with tabular numerals forced on, not a separate
-     monospace face — misaligned digits erode trust on a ledger fast, but a second typeface
-     isn't needed to fix that. --font-mono is kept only because ~35 call sites across the app
-     already reference it; it now resolves to the base font, paired everywhere it's used with
-     `font-variant-numeric: tabular-nums`. */
+     system-ui fallback for anywhere Inter fails to load). */
   --font-body: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
   --font-display: var(--font-body); /* one face for both roles — hierarchy comes from size/weight */
-  --font-mono: var(--font-body);
+  /* A real monospace stack, not an alias to --font-body. The prior reasoning (tabular-nums on
+     the base font fixes digit alignment, so a second face isn't needed) holds for pure numeric
+     amounts, but receipt numbers and family codes mix letters and digits — tabular-nums doesn't
+     touch letter widths at all, so those kept rendering ragged and wrapping mid-code. A system
+     stack avoids loading a third web font (vs. JetBrains Mono) while still genuinely
+     monospacing; ~35 call sites already reference this token, so nothing else needed to change. */
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', monospace;
 
   /* Spacing — UNCHANGED by this refactor. */
   --space-xs: 4px;
@@ -239,9 +297,9 @@ body {
   --radius-full: 9999px;
 
   /* ---- Elevation (solid surfaces — cards, tables, dropdowns, modals) ---- */
-  --elevation-1: 0 1px 2px rgba(18, 21, 26, 0.06); /* table rows, list items */
-  --elevation-2: 0 4px 12px rgba(18, 21, 26, 0.1); /* cards, dropdowns */
-  --elevation-3: 0 12px 32px rgba(18, 21, 26, 0.16); /* modals */
+  --elevation-1: 0 1px 2px rgba(46, 41, 16, 0.06); /* table rows, list items */
+  --elevation-2: 0 4px 12px rgba(46, 41, 16, 0.1); /* cards, dropdowns */
+  --elevation-3: 0 12px 32px rgba(46, 41, 16, 0.16); /* modals */
 
   /* ---- Border ---- */
   --border-width-default: 1px;
@@ -279,7 +337,7 @@ body {
     directly over data tables, and the @supports fallback when backdrop-filter is unsupported */
   --glass-saturate: 1.8; /* 180%, per spec */
   --glass-border: rgba(255, 255, 255, 0.6); /* top-edge highlight */
-  --glass-shadow: 0 8px 30px rgba(18, 21, 26, 0.12);
+  --glass-shadow: 0 8px 30px rgba(46, 41, 16, 0.12);
 
   /* Legacy glass token names — aliased onto the material tiers above. .glass itself is
      redefined to be SOLID (see the .glass rule further down) since almost everywhere it's
@@ -304,15 +362,32 @@ body {
      this app's own derivation, each token re-picked for a dark ground while keeping the ROLE
      it plays in light mode (not an algorithmic inversion), and AA-verified the same way the
      light-mode corrections above were. */
-  --color-neutral-0: #0b0d0f; /* darkest — the "canvas" ground in dark mode */
-  --color-neutral-50: #121417; /* app canvas */
-  --color-neutral-100: #1b1e22; /* raised surface fill */
-  --color-neutral-300: #2a2f36; /* border/divider */
-  --color-neutral-500: #838c97; /* kept close to its light-mode counterpart's role */
-  --color-neutral-700: #c9ced6;
-  --color-neutral-900: #f3f4f6; /* headings/emphasis — near-white, not pure white */
-  --color-brand-500: #4c8ce0;
-  --color-brand-700: #6ea3ea; /* dark-mode "hover" brightens rather than darkens */
+  /* Audit correction (2026-10-06): canvas/surface/raised previously sat only ~1.1:1 apart
+     (0.0093/0.0155/0.0216 relative luminance) — barely a visible step, so every card was only
+     legible because of its (too-heavy) border, not real tonal separation. canvas moves down to
+     what was --color-neutral-0's value, opening headroom for surface/raised above it. */
+  --color-neutral-0: #15120b; /* darkest — the "canvas" ground in dark mode */
+  --color-neutral-50: #15120b; /* app canvas — same value as neutral-0 is intentional: two
+    primitives can share a hex when their ROLES (absolute-darkest ink vs. canvas fill) happen to
+    coincide; nothing ever renders both at once in a way that would blur together */
+  --color-neutral-100: #231e13; /* raised surface fill */
+  --color-neutral-300: #8f8b78; /* border/divider — SAME value as the light-mode primitive
+    above (inputs/chips only; cards/tables use --border-subtle instead): 4.8:1 on this surface */
+  --color-neutral-500: #b3a982; /* non-text (icons) role, and aliased directly as text-secondary
+    below — lifted from the first version's #a89d7a so it reads clearly apart from
+    --text-tertiary below it instead of nearly merging (7.0:1 vs. tertiary's 4.7:1 on surface) */
+  --color-neutral-700: #d6cdb2;
+  --color-neutral-900: #f4f0e0; /* headings/emphasis — near-white, not pure white */
+  --color-brand-500: #7bb398; /* a saturated sage, not the first version's pale grey-sage
+    (#abbcb5, 0.48 saturation) — that one read as a disabled button rather than the brand color;
+    dark ink on this reaches 7.8:1 */
+  --color-brand-500-rgb: 123, 179, 152;
+  --color-brand-700: #cad5d1; /* dark-mode "hover" brightens rather than darkens */
+  --color-brand-700-rgb: 202, 213, 209;
+  --color-accent-500: #f09e40; /* dark mode starts one tier brighter than light mode's base,
+    same reasoning as --color-brand-500 above */
+  --color-accent-400: #f4b873; /* hover brightens further still — 10.64:1 with dark ink */
+  --color-cream: #ebe3a7; /* unused directly in dark mode — see --bg-highlight below */
   --color-green-500: #2fae6b;
   --color-green-100: #16241c;
   --color-amber-500: #d99a1f;
@@ -327,21 +402,36 @@ body {
     --color-neutral-100
   ); /* a dark canvas needs a LIGHTER surface to read as
     "raised", the same relationship light mode has (canvas is slightly darker than surface) */
-  --bg-surface-raised: #22262b;
+  --bg-surface-raised: #2f2919;
+  /* Dark counterpart to light mode's --bg-highlight — a muted dark olive-gold tint, distinct
+     from the plain canvas/surface/raised fills above, not a tint of any single primitive. */
+  --bg-highlight: #3a3014;
   --border-default: var(--color-neutral-300);
+  /* Dark counterpart to light mode's --border-subtle — same ~1.6:1-equivalent decorative
+     role, re-picked for a dark ground rather than inverted. */
+  --border-subtle: #4a4330;
   --border-focus: var(--color-brand-500);
   --text-primary: var(--color-neutral-900);
-  --text-secondary: #a7afb9; /* AA-verified: 7.55:1 on the dark surface */
-  --text-tertiary: #88919c; /* AA-verified: 5.24:1 on the dark surface */
-  --text-disabled: var(--color-neutral-300);
-  --text-on-brand: #0b0d0f; /* dark text reads better on the lighter dark-mode brand blue
-    than white would */
+  --text-secondary: var(--color-neutral-500); /* 7.0:1 on surface */
+  --text-tertiary: #948a6b; /* AA-verified: 4.67:1 on the dark surface, 5.15:1 on canvas */
+  /* No dark-mode override needed — :root's color-mix() reads whichever --text-primary is
+     active, so one definition covers both themes. */
+  --text-on-brand: var(
+    --color-neutral-0
+  ); /* dark ink reads better on the lighter dark-mode
+    brand green than white would */
 
   --action-primary-bg: var(--color-brand-500);
   --action-primary-bg-hover: var(--color-brand-700);
   --action-primary-fg: var(--text-on-brand);
   --action-secondary-border: var(--color-neutral-300);
   --action-destructive-bg: var(--color-red-500);
+  --action-accent-bg: var(--color-accent-500);
+  --action-accent-bg-hover: var(--color-accent-400);
+  --action-accent-fg: var(
+    --color-neutral-0
+  ); /* dark ink, same pairing logic as
+    --text-on-brand above — 8.61:1 base, 10.64:1 on the hover tier */
 
   --status-verified-bg: var(--color-green-100);
   --status-verified-fg: #5fc98a;
@@ -386,12 +476,16 @@ body {
   /* Glass / Material (dark) — same tiers as light mode, re-picked for a dark ground: a dark,
      not light, translucent fill, and a much dimmer specular highlight (there's far less "shine"
      to catch on a dark surface). See the light-mode comment above --material-ultrathin-bg for
-     the full rationale on why these exist and where they're actually used. */
-  --material-ultrathin-bg: rgba(28, 28, 30, 0.45);
-  --material-thin-bg: rgba(28, 28, 30, 0.6);
-  --material-regular-bg: rgba(28, 28, 30, 0.72);
-  --material-thick-bg: rgba(28, 28, 30, 0.85);
-  --material-chrome-bg: rgba(22, 22, 24, 0.94);
+     the full rationale on why these exist and where they're actually used.
+     Audit correction (2026-10-06): the fill was a cool rgba(28,28,30) — a neutral studio-grey
+     with no relation to this palette's warm olive-brown ink (--color-neutral-0, 21,18,11) —
+     sitting behind the sidebar on a warm canvas and reading as a mismatched cool patch. Retinted
+     to the same warm ink the rest of dark mode uses. */
+  --material-ultrathin-bg: rgba(21, 18, 11, 0.45);
+  --material-thin-bg: rgba(21, 18, 11, 0.6);
+  --material-regular-bg: rgba(21, 18, 11, 0.72);
+  --material-thick-bg: rgba(21, 18, 11, 0.85);
+  --material-chrome-bg: rgba(21, 18, 11, 0.94);
   --glass-saturate: 1.8;
   --glass-border: rgba(255, 255, 255, 0.12);
   --glass-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
@@ -465,7 +559,9 @@ body {
    needed; only what the class itself renders as changed. */
 .glass {
   background: var(--bg-surface);
-  border: var(--border-width-default) solid var(--border-default);
+  /* --border-subtle, not --border-default — a card/panel edge is decorative, not an input
+     boundary; see --border-subtle's definition above for why these were split. */
+  border: var(--border-width-default) solid var(--border-subtle);
   box-shadow: var(--elevation-2);
 }
 
@@ -521,22 +617,34 @@ body {
 /* ── Section Headers ─────────────────────────────────── */
 .section-label {
   font-family: var(--font-display);
-  font-size: 1rem;
+  font-size: 1.25rem; /* 7-step type scale: 20px (section H2) */
   font-weight: 700;
   color: var(--primary-deep);
   letter-spacing: 0.01em;
   margin-bottom: var(--space-md);
   padding-bottom: var(--space-sm);
-  border-bottom: 1.5px solid rgba(15, 122, 140, 0.12);
+  border-bottom: 1.5px solid rgba(var(--color-brand-500-rgb), 0.12);
 }
 
 .sub-label {
   font-family: var(--font-body);
-  font-size: 0.7rem;
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
   font-weight: 400;
   color: var(--data-4);
   margin-bottom: var(--space-sm);
   letter-spacing: 0.03em;
+}
+
+/* A KPI tile's eyebrow label (Dashboard's "Raised today", Reports' "Total raised") — moved
+   here from admin-dashboard.scss so both pages render the same tile consistently instead of
+   one going through this and the other through the plainer .sub-label above. */
+.stat-label {
+  font-family: var(--font-body);
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--data-4);
 }
 
 /* ── Grid ────────────────────────────────────────────── */
@@ -570,14 +678,14 @@ section {
   padding: 6px 14px;
   border-radius: var(--radius-full);
   background: var(--bg-surface); /* solid, not glass — a content pill, not floating chrome */
-  border: 1.5px solid rgba(15, 122, 140, 0.18);
+  border: 1.5px solid rgba(var(--color-brand-500-rgb), 0.18);
   color: var(--primary-dark);
   cursor: default;
   transition: all 0.2s var(--ease);
 }
 .keyword:hover {
   border-color: var(--primary-deep);
-  background: rgba(10, 88, 102, 0.1);
+  background: rgba(var(--color-brand-700-rgb), 0.1);
   transform: translateY(-1px);
 }
 
@@ -593,7 +701,7 @@ section {
   height: 48px;
   border-radius: var(--radius-md);
   box-shadow:
-    0 2px 8px rgba(15, 122, 140, 0.12),
+    0 2px 8px rgba(var(--color-brand-500-rgb), 0.12),
     inset 0 0 0 1px rgba(255, 255, 255, 0.4);
   cursor: pointer;
   transition:
@@ -603,7 +711,7 @@ section {
 }
 .swatch:hover {
   transform: scale(1.12);
-  box-shadow: 0 6px 20px rgba(15, 122, 140, 0.2);
+  box-shadow: 0 6px 20px rgba(var(--color-brand-500-rgb), 0.2);
 }
 .swatch[title]:hover::after {
   content: attr(title);
@@ -630,45 +738,50 @@ section {
   color: var(--primary-dark);
   line-height: 1.1;
 }
+/* 7-step type scale (12/13/14/16/18/20/24px), audit 2026-10-06: the app had 20 distinct
+   font-sizes with no real hierarchy behind most of them (several pairs differed by under
+   0.5px). These utility classes are the actual source of most of that — used across the whole
+   app, not just admin, so fixing them here is what collapses the bulk of the duplicates. */
 .t-page-title {
   font-family: var(--font-display);
-  font-size: 1.4rem;
+  font-size: 1.5rem; /* 24px — page H1 */
   font-weight: 700;
   color: var(--primary-dark);
 }
 .t-card-title {
   font-family: var(--font-body);
-  font-size: 1.05rem;
+  font-size: 1.125rem; /* 18px — card title / H3 */
   font-weight: 700;
   color: var(--primary-dark);
 }
 .t-body-em {
   font-family: var(--font-body);
-  font-size: 0.95rem;
+  font-size: 0.875rem; /* 14px — body */
   font-weight: 600;
   color: var(--primary-dark);
 }
 .t-body {
   font-family: var(--font-body);
-  font-size: 0.9rem;
+  font-size: 0.875rem; /* 14px — body */
   font-weight: 400;
   color: var(--primary-dark);
 }
 .t-caption {
   font-family: var(--font-body);
-  font-size: 0.78rem;
+  font-size: 0.75rem; /* 12px — caption */
   font-weight: 400;
   color: var(--primary-dark);
 }
 .t-secondary {
   font-family: var(--font-body);
-  font-size: 0.78rem;
+  font-size: 0.8125rem; /* 13px — table/labels; was identical to .t-caption's 0.78rem despite
+    a different role (supporting body text, not a tiny caption) */
   font-weight: 400;
   color: var(--data-4);
 }
 .t-tertiary {
   font-family: var(--font-body);
-  font-size: 0.72rem;
+  font-size: 0.75rem; /* 12px — caption */
   font-weight: 400;
   color: var(--data-3);
 }
@@ -702,31 +815,46 @@ section {
 
 /* ── Buttons ─────────────────────────────────────────── */
 .btn {
+  box-sizing: border-box; /* explicit, not inherited — so a bordered variant (.btn-secondary)
+    can't add its border on top of the declared height */
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px; /* Story 5.1: touch target minimum */
+  gap: 8px; /* was unset — an icon + label (e.g. "Export trail") sat with no space between them */
+  /* height, not min-height — a button with an icon (whose natural line-height differs from
+     plain text) could otherwise grow taller than a text-only button of the same variant
+     (verified: 52px with an icon vs 48px without, same .btn-secondary class). An explicit
+     height forces every button to the same box regardless of what's inside it. */
+  height: 44px; /* Story 5.1: touch target minimum */
   font-family: var(--font-body);
-  font-size: 0.88rem;
+  font-size: 0.875rem; /* 7-step type scale: 14px (body) */
   font-weight: 600;
-  padding: 12px 28px;
+  padding: 0 28px;
   border-radius: var(--radius-full);
   border: none;
   cursor: pointer;
   transition: all 0.22s var(--ease);
   letter-spacing: 0.01em;
+
+  mat-icon {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    line-height: 18px;
+  }
 }
 .btn-primary {
   /* Flat fill, not a gradient — one accent color spent deliberately, not a two-tone chrome
      treatment (Design System v1). Hover deepens to --primary-mid (the accent-strong role). */
   background: var(--primary-deep);
   color: var(--bg-white);
-  box-shadow: 0 4px 16px rgba(15, 122, 140, 0.35);
+  box-shadow: 0 4px 16px rgba(var(--color-brand-500-rgb), 0.35);
 }
 .btn-primary:hover {
   background: var(--primary-mid);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(15, 122, 140, 0.45);
+  box-shadow: 0 8px 24px rgba(var(--color-brand-500-rgb), 0.45);
 }
 .btn-primary:active {
   transform: translateY(0);
@@ -735,11 +863,11 @@ section {
 .btn-secondary {
   background: transparent;
   color: var(--primary-dark);
-  border: 2px solid rgba(15, 122, 140, 0.35);
+  border: 2px solid rgba(var(--color-brand-500-rgb), 0.35);
 }
 .btn-secondary:hover {
   border-color: var(--primary-deep);
-  background: rgba(10, 88, 102, 0.06);
+  background: rgba(var(--color-brand-700-rgb), 0.06);
   transform: translateY(-1px);
 }
 
@@ -748,10 +876,12 @@ section {
   border: none;
   color: var(--primary-deep);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.875rem; /* 7-step type scale: 14px (body) — matches .btn */
   padding: 8px 0;
   cursor: pointer;
-  display: flex;
+  /* inline-flex, not flex — a block-level ghost button stacks onto its own line next to a
+     sibling action (e.g. Edit/Delete in the same table cell) instead of sitting beside it. */
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   transition: gap 0.2s var(--ease);
@@ -772,14 +902,14 @@ section {
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.82rem;
+  font-size: 0.8125rem; /* 7-step type scale: 13px (table/labels) */
 }
 .table th {
   padding: var(--space-sm) var(--space-md);
   background: var(--bg-mist);
-  border-bottom: 1.5px solid rgba(15, 122, 140, 0.12);
+  border-bottom: 1.5px solid rgba(var(--color-brand-500-rgb), 0.12);
   font-family: var(--font-body);
-  font-size: 0.68rem;
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -789,7 +919,7 @@ section {
 }
 .table td {
   padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid rgba(15, 122, 140, 0.07);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.07);
   color: var(--primary-dark);
   vertical-align: middle;
 }
@@ -797,22 +927,25 @@ section {
   transition: background 0.18s var(--ease);
 }
 .table tbody tr:hover {
-  background: rgba(10, 88, 102, 0.05);
+  background: rgba(var(--color-brand-700-rgb), 0.05);
 }
 .table tbody tr:last-child td {
   border-bottom: 0;
 }
 .table .is-num {
   text-align: right;
+  white-space: nowrap; /* "GH₵ 1,500.00" has a literal space after the currency symbol — without
+    this, a narrow column wraps it onto two lines */
 }
 .table .is-mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 0.75rem;
+  white-space: nowrap; /* receipt numbers / codes shouldn't break mid-code either */
 }
 .table .is-strong {
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.8125rem; /* 7-step type scale: 13px (table/labels), matches .table's base */
 }
 .table .is-muted {
   color: var(--data-4);
@@ -862,9 +995,9 @@ section {
   border: 1px solid var(--func-info-soft);
 }
 .tag-default {
-  background: rgba(15, 122, 140, 0.08);
+  background: rgba(var(--color-brand-500-rgb), 0.08);
   color: var(--primary-dark);
-  border: 1px solid rgba(15, 122, 140, 0.15);
+  border: 1px solid rgba(var(--color-brand-500-rgb), 0.15);
 }
 
 /* ── Form Controls ───────────────────────────────────── */
@@ -873,7 +1006,7 @@ section {
   align-items: center;
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
-  font-size: 0.88rem;
+  font-size: 0.875rem; /* 7-step type scale: 14px (body) */
   color: var(--primary-dark);
 }
 
@@ -928,7 +1061,7 @@ section {
   position: relative;
   cursor: pointer;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(15, 122, 140, 0.3);
+  box-shadow: 0 2px 8px rgba(var(--color-brand-500-rgb), 0.3);
 }
 .toggle-thumb {
   width: 18px;
@@ -960,21 +1093,35 @@ section {
 }
 .select-field {
   width: 100%;
-  padding: 12px 40px 12px 16px;
+  height: 44px; /* matches every other input/toolbar control */
+  box-sizing: border-box;
+  padding: 0 40px 0 16px;
   background: var(--bg-surface); /* solid, not glass — a form control, not floating chrome */
-  border: 1.5px solid rgba(15, 122, 140, 0.15);
+  border: 1.5px solid rgba(var(--color-brand-500-rgb), 0.15);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
-  font-size: 0.85rem;
+  font-size: 1rem; /* 7-step type scale: 16px (inputs) */
   color: var(--primary-dark);
   outline: none;
   cursor: pointer;
   appearance: none;
   transition: border-color 0.18s var(--ease);
 }
+/* A select filtering a .filters toolbar (alongside .filter-search / .filter-tags) sits in the
+   same flex-wrap row as its siblings — width: 100% above is for a standalone form row, and
+   here it was forcing the select onto its own full-width line below search + chips instead of
+   alongside them. */
+.filters .select-field {
+  width: auto;
+  flex: none;
+  min-width: 180px;
+}
+.filters .select-wrap {
+  flex: none;
+}
 .select-field:focus {
   border-color: var(--primary-deep);
-  box-shadow: 0 0 0 3px rgba(10, 88, 102, 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--color-brand-700-rgb), 0.15);
 }
 
 /* Progress */
@@ -984,7 +1131,7 @@ section {
 .progress-track {
   height: 8px;
   border-radius: var(--radius-full);
-  background: rgba(15, 122, 140, 0.12);
+  background: rgba(var(--color-brand-500-rgb), 0.12);
   overflow: hidden;
   margin-bottom: 6px;
 }
@@ -1006,7 +1153,7 @@ section {
 .progress-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 0.72rem;
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
   color: var(--data-4);
 }
 
@@ -1017,13 +1164,13 @@ section {
 }
 .filter-tag {
   font-family: var(--font-body);
-  font-size: 0.8rem;
+  font-size: 0.8125rem; /* 7-step type scale: 13px (table/labels) */
   font-weight: 500;
   padding: 7px 18px;
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: all 0.18s var(--ease);
-  border: 1.5px solid rgba(15, 122, 140, 0.2);
+  border: 1.5px solid rgba(var(--color-brand-500-rgb), 0.2);
   background: transparent;
   color: var(--primary-dark);
 }
@@ -1031,10 +1178,10 @@ section {
   background: var(--primary-deep); /* flat fill, not a gradient — see .btn-primary above */
   color: var(--bg-white);
   border-color: transparent;
-  box-shadow: 0 3px 12px rgba(15, 122, 140, 0.3);
+  box-shadow: 0 3px 12px rgba(var(--color-brand-500-rgb), 0.3);
 }
 .filter-tag:not(.active):hover {
-  background: rgba(10, 88, 102, 0.08);
+  background: rgba(var(--color-brand-700-rgb), 0.08);
   border-color: var(--primary-deep);
 }
 
@@ -1046,14 +1193,17 @@ section {
   border-radius: var(--radius-md);
   object-fit: cover;
   flex-shrink: 0;
-  background: #9abfc8; /* flat fill, not a gradient */
+  background: var(
+    --color-neutral-300
+  ); /* flat fill, not a gradient — theme-aware instead of a
+    hardcoded teal that never adapted to dark mode */
   overflow: hidden;
 }
 .card-thumb-placeholder {
   width: 64px;
   height: 64px;
   border-radius: var(--radius-md);
-  background: #9abfc8; /* flat fill, not a gradient */
+  background: var(--color-neutral-300); /* flat fill, not a gradient — see .card-thumb above */
   flex-shrink: 0;
   position: relative;
   overflow: hidden;
@@ -1075,7 +1225,7 @@ section {
 
 .divider {
   height: 1.5px;
-  background: rgba(15, 122, 140, 0.09);
+  background: rgba(var(--color-brand-500-rgb), 0.09);
   margin: var(--space-xl) 0;
 }
 
@@ -1087,7 +1237,7 @@ section {
 .token-table td {
   padding: 8px 14px;
   font-size: 0.8rem;
-  border-bottom: 1px solid rgba(15, 122, 140, 0.08);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.08);
 }
 .token-table td:first-child {
   font-family: var(--font-mono);

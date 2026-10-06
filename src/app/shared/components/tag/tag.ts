@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
-export type TagVariant = 'success' | 'error' | 'info' | 'default';
+export type TagVariant = 'success' | 'error' | 'warning' | 'info' | 'default';
 
 @Component({
   selector: 'app-tag',

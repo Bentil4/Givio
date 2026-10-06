@@ -30,85 +30,105 @@
 
     <div class="filter-tags">
       @for (t of types; track t) {
-        <button
-          type="button"
-          class="filter-tag"
-          [class.active]="filters().type === t"
-          (click)="setType(t)"
-        >{{ t === 'all' ? 'All types' : labels[t] }}</button>
+      <button
+        type="button"
+        class="filter-tag"
+        [class.active]="filters().type === t"
+        (click)="setType(t)"
+      >
+        {{ t === 'all' ? 'All types' : labels[t] }}
+      </button>
       }
     </div>
 
     @if (operators().length > 0) {
-      <select class="select-field" [value]="filters().operator" (change)="setOperator($any($event.target).value)">
+    <div class="select-wrap">
+      <select
+        class="select-field"
+        [value]="filters().operator"
+        (change)="setOperator($any($event.target).value)"
+      >
         <option value="all">All operators</option>
         @for (op of operators(); track op) {
-          <option [value]="op">{{ userName(op) }}</option>
+        <option [value]="op">{{ userName(op) }}</option>
         }
       </select>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        stroke-width="2"
+        aria-hidden="true"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6" />
+      </svg>
+    </div>
     }
   </div>
 
   @if (loading()) {
-    <div class="table-wrap glass">
-      @for (i of skeletons; track i) {
-        <div class="skel-row">
-          <span class="skel skel--sm"></span>
-          <span class="skel skel--lg"></span>
-          <span class="skel skel--md"></span>
-          <span class="skel skel--sm"></span>
-        </div>
-      }
+  <div class="table-wrap glass">
+    @for (i of skeletons; track i) {
+    <div class="skel-row">
+      <span class="skel skel--sm"></span>
+      <span class="skel skel--lg"></span>
+      <span class="skel skel--md"></span>
+      <span class="skel skel--sm"></span>
     </div>
+    }
+  </div>
   } @else if (isEmpty()) {
-    <div class="empty glass">
-      <mat-icon class="empty-icon">receipt_long</mat-icon>
-      @if (filtered()) {
-        <p class="t-card-title">No records match these filters</p>
-        <p class="t-caption">Try widening the search, or clear the filters to see every donation.</p>
-        <button type="button" class="btn btn-secondary" (click)="clearFilters()">Clear filters</button>
-      } @else {
-        <p class="t-card-title">No donations recorded yet</p>
-        <p class="t-caption">
-          Records appear here the moment an operator saves one at the desk — including donations
-          queued offline, once they sync.
-        </p>
-      }
-    </div>
+  <div class="empty glass">
+    <mat-icon class="empty-icon">receipt_long</mat-icon>
+    @if (filtered()) {
+    <p class="t-card-title">No records match these filters</p>
+    <p class="t-caption">Try widening the search, or clear the filters to see every donation.</p>
+    <button type="button" class="btn btn-secondary" (click)="clearFilters()">Clear filters</button>
+    } @else {
+    <p class="t-card-title">No donations recorded yet</p>
+    <p class="t-caption">
+      Records appear here the moment an operator saves one at the desk — including donations queued
+      offline, once they sync.
+    </p>
+    }
+  </div>
   } @else {
-    <div class="table-wrap glass">
-      <table class="table">
-        <thead>
-          <tr>
-            <th scope="col">Receipt</th>
-            <th scope="col">Donor</th>
-            <th scope="col">Phone</th>
-            <th scope="col" class="is-num">Amount</th>
-            <th scope="col">Type</th>
-            <th scope="col">On behalf of</th>
-            <th scope="col">Recorded by</th>
-            <th scope="col" class="is-actions">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (d of visible(); track d.id) {
-            <tr>
-              <td class="is-mono">{{ d.receiptNumber }}</td>
-              <td class="t-body-em">{{ d.donorName }}</td>
-              <td class="is-mono is-muted">{{ d.donorPhone || '—' }}</td>
-              <td class="is-num is-mono is-strong">{{ amountLabel(d) }}</td>
-              <td>{{ labels[d.donationType] }}</td>
-              <td class="is-muted">{{ d.onBehalfOf || '—' }}</td>
-              <td class="is-muted">{{ userName(d.recordedBy) }}</td>
-              <td class="is-actions">
-                <button type="button" class="btn-ghost" (click)="openEdit(d)">Edit</button>
-                <button type="button" class="btn-ghost is-danger" (click)="openDelete(d)">Delete</button>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+  <div class="table-wrap glass">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Receipt</th>
+          <th scope="col">Donor</th>
+          <th scope="col">Phone</th>
+          <th scope="col" class="is-num">Amount</th>
+          <th scope="col">Type</th>
+          <th scope="col">On behalf of</th>
+          <th scope="col">Recorded by</th>
+          <th scope="col" class="is-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (d of visible(); track d.id) {
+        <tr>
+          <td class="is-mono">{{ d.receiptNumber }}</td>
+          <td class="t-body-em">{{ d.donorName }}</td>
+          <td class="is-mono is-muted">{{ d.donorPhone || '—' }}</td>
+          <td class="is-num is-mono is-strong">{{ amountLabel(d) }}</td>
+          <td>{{ labels[d.donationType] }}</td>
+          <td class="is-muted">{{ d.onBehalfOf || '—' }}</td>
+          <td class="is-muted">{{ userName(d.recordedBy) }}</td>
+          <td class="is-actions">
+            <button type="button" class="btn-ghost" (click)="openEdit(d)">Edit</button>
+            <button type="button" class="btn-ghost is-danger" (click)="openDelete(d)">
+              Delete
+            </button>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
   }
 </section>
 
@@ -122,12 +142,18 @@
   <!-- This click only stops the backdrop's dismiss-click from bubbling up — it's not itself a
        keyboard-operable control, so there's no keyboard equivalent to add. -->
   <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
-  <form class="dialog glass glass-thick" [formGroup]="editForm" (ngSubmit)="saveEdit()" (click)="$event.stopPropagation()" novalidate>
+  <form
+    class="dialog glass glass-thick"
+    [formGroup]="editForm"
+    (ngSubmit)="saveEdit()"
+    (click)="$event.stopPropagation()"
+    novalidate
+  >
     <header class="dialog-head">
       <h2 class="t-page-title">Edit donation {{ record.receiptNumber }}</h2>
       <p class="t-secondary">
-        Recorded by {{ userName(record.recordedBy) }} at {{ record.recordedAt | date:'MMM d, y, h:mm a' }}.
-        The family's live total updates the moment you save.
+        Recorded by {{ userName(record.recordedBy) }} at {{ record.recordedAt | date:'MMM d, y, h:mm
+        a' }}. The family's live total updates the moment you save.
       </p>
     </header>
 
@@ -135,9 +161,15 @@
       <div class="field">
         <label class="field-label" for="editAmount">Amount (GH₵)</label>
         <div class="edit-row">
-          <input id="editAmount" class="input input--amount" type="text" inputmode="decimal" formControlName="amount" />
+          <input
+            id="editAmount"
+            class="input input--amount"
+            type="text"
+            inputmode="decimal"
+            formControlName="amount"
+          />
           @if (originalLabel('amount'); as was) {
-            <span class="was">was {{ was }}</span>
+          <span class="was">was {{ was }}</span>
           }
         </div>
       </div>
@@ -147,7 +179,7 @@
         <div class="edit-row">
           <input id="editDonor" class="input" type="text" formControlName="donorName" />
           @if (originalLabel('donorName'); as was) {
-            <span class="was">was {{ was }}</span>
+          <span class="was">was {{ was }}</span>
           }
         </div>
       </div>
@@ -156,12 +188,12 @@
         <label class="field-label" for="editType">Donation type</label>
         <div class="edit-row">
           <select id="editType" class="select-field" formControlName="donationType">
-            @for (t of types; track t) {
-              @if (t !== 'all') { <option [value]="t">{{ labels[t] }}</option> }
-            }
+            @for (t of types; track t) { @if (t !== 'all') {
+            <option [value]="t">{{ labels[t] }}</option>
+            } }
           </select>
           @if (originalLabel('donationType'); as was) {
-            <span class="was">was {{ was }}</span>
+          <span class="was">was {{ was }}</span>
           }
         </div>
       </div>
@@ -171,7 +203,7 @@
         <div class="edit-row">
           <input id="editBehalf" class="input" type="text" formControlName="onBehalfOf" />
           @if (originalLabel('onBehalfOf'); as was) {
-            <span class="was">was {{ was }}</span>
+          <span class="was">was {{ was }}</span>
           }
         </div>
       </div>
@@ -189,15 +221,15 @@
           [class.is-invalid]="invalid('edit', 'reason')"
         ></textarea>
         @if (invalid('edit', 'reason')) {
-          <p class="field-error">Say why — this goes in the audit trail.</p>
+        <p class="field-error">Say why — this goes in the audit trail.</p>
         } @else {
-          <p class="t-caption field-note">
-            Stored in the audit trail with your name. It cannot be edited later.
-          </p>
+        <p class="t-caption field-note">
+          Stored in the audit trail with your name. It cannot be edited later.
+        </p>
         }
       </div>
       @if (saveError(); as err) {
-        <p class="field-error">{{ err }}</p>
+      <p class="field-error">{{ err }}</p>
       }
     </div>
 
@@ -219,12 +251,16 @@
   <!-- This click only stops the backdrop's dismiss-click from bubbling up — it's not itself a
        keyboard-operable control, so there's no keyboard equivalent to add. -->
   <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
-  <form class="dialog dialog--sm glass glass-thick" [formGroup]="deleteForm" (ngSubmit)="confirmDelete()" (click)="$event.stopPropagation()" novalidate>
+  <form
+    class="dialog dialog--sm glass glass-thick"
+    [formGroup]="deleteForm"
+    (ngSubmit)="confirmDelete()"
+    (click)="$event.stopPropagation()"
+    novalidate
+  >
     <header class="dialog-head">
       <h2 class="t-page-title">Remove {{ record.receiptNumber }}?</h2>
-      <p class="t-secondary">
-        {{ record.donorName }} · {{ amountLabel(record) }}
-      </p>
+      <p class="t-secondary">{{ record.donorName }} · {{ amountLabel(record) }}</p>
     </header>
 
     <div class="dialog-body">
@@ -251,11 +287,11 @@
           [class.is-invalid]="invalid('delete', 'reason')"
         ></textarea>
         @if (invalid('delete', 'reason')) {
-          <p class="field-error">Say why — this goes in the audit trail.</p>
+        <p class="field-error">Say why — this goes in the audit trail.</p>
         }
       </div>
       @if (deleteError(); as err) {
-        <p class="field-error">{{ err }}</p>
+      <p class="field-error">{{ err }}</p>
       }
     </div>
 

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { auditActionClass, auditActionLabel, type AuditEntry } from './audit-entry';
+import { auditActionLabel, auditActionVariant, type AuditEntry } from './audit-entry';
+import { Tag } from '../../../shared/components/tag/tag';
 
 /**
  * The rows of an audit trail, newest first — presentational only. Shared by admin-audit
@@ -10,7 +11,7 @@ import { auditActionClass, auditActionLabel, type AuditEntry } from './audit-ent
  */
 @Component({
   selector: 'app-audit-trail-list',
-  imports: [DatePipe],
+  imports: [DatePipe, Tag],
   templateUrl: './audit-trail-list.html',
   styleUrl: './audit-trail-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -21,5 +22,5 @@ export class AuditTrailList {
   public readonly actorName = input.required<(actorId: string) => string>();
 
   public readonly actionLabel = auditActionLabel;
-  public readonly actionClass = auditActionClass;
+  public readonly actionVariant = auditActionVariant;
 }

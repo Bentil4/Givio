@@ -55,7 +55,9 @@
     id="approvals-panel-applications"
     aria-labelledby="approvals-tab-applications"
   >
-    <h2 #queueHeading class="visually-hidden" tabindex="-1">Pending organizer applications</h2>
+    <h2 #queueHeading class="visually-hidden queue-heading" tabindex="-1">
+      Pending organizer applications
+    </h2>
 
     @if (loading()) {
     <div class="queue" aria-busy="true">

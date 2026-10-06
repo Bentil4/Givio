@@ -10,7 +10,7 @@
 
 .form-label {
   font-family: var(--font-body);
-  font-size: 0.85rem;
+  font-size: 0.8125rem; /* 7-step type scale: 13px (table/labels) */
   font-weight: 500;
   color: var(--primary-dark);
 }
@@ -54,7 +54,7 @@
 
 .input-field:focus {
   border-color: var(--primary-deep);
-  box-shadow: 0 0 0 3px rgba(10, 88, 102, 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--color-brand-700-rgb), 0.15);
 }
 
 .input-field:disabled {
