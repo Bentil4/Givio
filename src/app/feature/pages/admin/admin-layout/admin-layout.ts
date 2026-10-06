@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -22,6 +23,7 @@ import { AuthService } from '../../../../data/services/auth.service';
 import { ConnectivityService } from '../../../../core/services/connectivity.service';
 import { ThemeService } from '../../../../core/services/theme.service';
 import { SyncEngineService } from '../../../../data/services/sync-engine.service';
+import { ApprovalCountsService } from '../../../../data/services/approval-counts.service';
 import { MOBILE_NAV_QUERY } from '../../../../utils/breakpoints.util';
 
 @Component({
@@ -38,6 +40,7 @@ export class AdminLayout {
   private readonly connectivityService = inject(ConnectivityService);
   private readonly syncEngine = inject(SyncEngineService);
   private readonly themeService = inject(ThemeService);
+  private readonly approvalCounts = inject(ApprovalCountsService);
 
   public readonly theme = this.themeService.theme;
   public isSidebarCollapsed = signal(false);
@@ -66,7 +69,12 @@ export class AdminLayout {
 
   public readonly navItems = computed<INavbarItem[]>(() => [
     { name: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
-    { name: 'Approvals', icon: 'how_to_reg', route: '/dashboard/approvals' },
+    {
+      name: 'Approvals',
+      icon: 'how_to_reg',
+      route: '/dashboard/approvals',
+      badge: this.approvalCounts.total(),
+    },
     { name: 'Companies', icon: 'domain', route: '/dashboard/companies' },
     { name: 'Events', icon: 'event', route: '/dashboard/events' },
     { name: 'Donations', icon: 'volunteer_activism', route: '/dashboard/donations' },
@@ -79,6 +87,8 @@ export class AdminLayout {
   ]);
 
   constructor() {
+    this.approvalCounts.pollWhileAlive(inject(DestroyRef));
+
     // The drawer (and its scrim) only exist below MOBILE_NAV_QUERY — if a resize or
     // orientation change carries the viewport back past it while open, close it. Otherwise
     // .sidebar-scrim (styled only inside that same media query) is left as a stale, unstyled

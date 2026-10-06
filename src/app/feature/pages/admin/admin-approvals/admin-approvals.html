@@ -113,7 +113,7 @@
       [reviews]="identityReviews()"
       [loading]="reviewsLoading()"
       [loadError]="reviewsError()"
-      (changed)="loadIdentityReviews()"
+      (changed)="onIdentityReviewsChanged()"
       (retry)="loadIdentityReviews()"
     />
   </div>
@@ -128,7 +128,7 @@
       [flags]="duplicateFlags()"
       [loading]="duplicatesLoading()"
       [loadError]="duplicatesError()"
-      (changed)="loadDuplicateFlags()"
+      (changed)="onDuplicateFlagsChanged()"
       (retry)="loadDuplicateFlags()"
     />
   </div>
