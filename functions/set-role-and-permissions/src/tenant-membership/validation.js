@@ -14,6 +14,7 @@ export const ACTIONS = [
   'suspendTenant',
   'designateSuperOrganizer',
   'getMyTenantStatus',
+  'updateCompanyProfile',
 ];
 
 // Story 7.2: a screened team addition that matched waits here, with no access, until Admin
@@ -36,8 +37,10 @@ export const TENANT_SIZES = ['1-10', '11-50', '51-200', '201+'];
 export const TENANT_TYPES = ['funeral', 'wedding', 'funeral_and_wedding', 'other'];
 const TENANT_TEXT_MAX = 128;
 const MAX_ESTIMATED_USERS = 100000;
+// The live `logo` column is mediumtext; the client resizes logos to 256px, far under this.
+const LOGO_MAX_LENGTH = 200000;
+const LOGO_DATA_URL_PATTERN = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/;
 
-// A self-signup applicant must never be able to choose their own trust state.
 const SERVER_OWNED_TENANT_FIELDS = [
   'status',
   'role',
@@ -159,22 +162,59 @@ const PAYLOAD_VALIDATORS = {
     return VALID;
   },
   submitTenantApplication: (payload) => {
-    const smuggled = SERVER_OWNED_TENANT_FIELDS.filter(
-      (field) =>
-        field in payload ||
-        (typeof payload.company === 'object' &&
-          payload.company !== null &&
-          field in payload.company),
-    );
-    if (smuggled.length > 0) {
-      return invalid(`Request must not include: ${smuggled.join(', ')}`);
+    const smuggled = refuseServerOwnedFields(payload, payload.company);
+    if (!smuggled.valid) {
+      return smuggled;
     }
     if (!hasValue(payload.verificationDocumentId)) {
       return invalid('Request must include verificationDocumentId');
     }
     return validateCompanyContact(payload.company, { phoneRequired: true });
   },
+  updateCompanyProfile: (payload) =>
+    firstFailure([
+      () => refuseServerOwnedFields(payload),
+      () => validateCompanyNameAndLocation(payload),
+      () => validateContactPhone(payload.contactPhone, { phoneRequired: false }),
+      () => validateOptionalLogo(payload.logo),
+    ]),
 };
+
+function firstFailure(checks) {
+  for (const check of checks) {
+    const result = check();
+    if (!result.valid) {
+      return result;
+    }
+  }
+  return VALID;
+}
+
+// A tenant member must never be able to choose their own trust state.
+function refuseServerOwnedFields(...sources) {
+  const objects = sources.filter((source) => typeof source === 'object' && source !== null);
+  const smuggled = SERVER_OWNED_TENANT_FIELDS.filter((field) =>
+    objects.some((source) => field in source),
+  );
+  return smuggled.length > 0 ? invalid(`Request must not include: ${smuggled.join(', ')}`) : VALID;
+}
+
+// null removes the logo; undefined leaves it as it is.
+function validateOptionalLogo(logo) {
+  if (logo === undefined || logo === null) {
+    return VALID;
+  }
+  if (
+    typeof logo !== 'string' ||
+    logo.length > LOGO_MAX_LENGTH ||
+    !LOGO_DATA_URL_PATTERN.test(logo)
+  ) {
+    return invalid(
+      `logo must be a PNG, JPEG or WebP data URL of at most ${LOGO_MAX_LENGTH} characters`,
+    );
+  }
+  return VALID;
+}
 
 // contactPhone is checked here rather than in validateCompanyIntake so the approval
 // precondition below still passes for applications submitted before the field existed.
@@ -183,7 +223,10 @@ function validateCompanyContact(company, { phoneRequired }) {
   if (!intake.valid) {
     return intake;
   }
-  const { contactPhone } = company;
+  return validateContactPhone(company.contactPhone, { phoneRequired });
+}
+
+function validateContactPhone(contactPhone, { phoneRequired }) {
   if (contactPhone === undefined || contactPhone === null || contactPhone === '') {
     return phoneRequired ? invalid('company.contactPhone is required') : VALID;
   }
@@ -220,15 +263,11 @@ function validateCompanyIntake(company) {
   if (typeof company !== 'object' || company === null) {
     return invalid('Request must include company');
   }
-  const { name, location, size, type, estimatedUserCount } = company;
-  for (const [field, value] of [
-    ['name', name],
-    ['location', location],
-  ]) {
-    if (!hasValue(value?.trim?.()) || value.trim().length > TENANT_TEXT_MAX) {
-      return invalid(`company.${field} is required (max ${TENANT_TEXT_MAX} characters)`);
-    }
+  const identity = validateCompanyNameAndLocation(company);
+  if (!identity.valid) {
+    return identity;
   }
+  const { size, type, estimatedUserCount } = company;
   if (!TENANT_SIZES.includes(size)) {
     return invalid(`company.size must be one of: ${TENANT_SIZES.join(', ')}`);
   }
@@ -243,6 +282,18 @@ function validateCompanyIntake(company) {
     return invalid(
       `company.estimatedUserCount must be a whole number from 1 to ${MAX_ESTIMATED_USERS}`,
     );
+  }
+  return VALID;
+}
+
+function validateCompanyNameAndLocation({ name, location }) {
+  for (const [field, value] of [
+    ['name', name],
+    ['location', location],
+  ]) {
+    if (!hasValue(value?.trim?.()) || value.trim().length > TENANT_TEXT_MAX) {
+      return invalid(`company.${field} is required (max ${TENANT_TEXT_MAX} characters)`);
+    }
   }
   return VALID;
 }

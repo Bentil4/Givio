@@ -117,6 +117,7 @@ export const ACCOUNTS = {
 
 function fakeContext({ body, as, store = seedStore(), accounts, failOn = {} }) {
   const jsonCalls = [];
+  const logs = [];
   const errors = [];
   const calls = {};
   const accountStore = structuredClone(accounts ?? ACCOUNTS);
@@ -206,7 +207,7 @@ function fakeContext({ body, as, store = seedStore(), accounts, failOn = {} }) {
         headers: { 'x-appwrite-user-jwt': `${as}-jwt`, 'x-appwrite-key': 'dynamic-key' },
       },
       res,
-      log: () => {},
+      log: (msg) => logs.push(msg),
       error: (msg) => errors.push(msg),
       ClientCtor: FakeClient,
       AccountCtor,
@@ -216,6 +217,7 @@ function fakeContext({ body, as, store = seedStore(), accounts, failOn = {} }) {
     store,
     accountStore,
     calls,
+    logs,
     errors,
   };
 }
