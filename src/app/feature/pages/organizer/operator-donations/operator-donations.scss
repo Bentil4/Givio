@@ -27,24 +27,32 @@
   font-weight: 600;
   color: var(--primary-deep);
   text-decoration: none;
-  transition: gap .2s var(--ease);
+  transition: gap 0.2s var(--ease);
 
-  &:hover { gap: 10px; }
+  &:hover {
+    gap: 10px;
+  }
 }
 
 .op-list-title {
   flex: 1;
   min-width: 0;
 
-  h1 { margin: 0 0 3px; }
-  p { margin: 0; }
+  h1 {
+    margin: 0 0 3px;
+  }
+  p {
+    margin: 0;
+  }
 }
 
 .op-list-total {
   flex: none;
   text-align: right;
 
-  .sub-label { margin-bottom: 2px; }
+  .sub-label {
+    margin-bottom: 2px;
+  }
 }
 
 .op-total-value {
@@ -60,12 +68,23 @@
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md);
-  border: 1.5px solid rgba(180, 83, 9, .28);
+  border: 1.5px solid rgba(180, 83, 9, 0.28);
   border-radius: var(--radius-md);
-  background: rgba(180, 83, 9, .08);
+  background: rgba(180, 83, 9, 0.08);
 
-  mat-icon { flex: none; color: var(--func-warning); font-size: 18px; width: 18px; height: 18px; }
-  p { margin: 0; color: var(--func-warning); line-height: 1.55; text-wrap: pretty; }
+  mat-icon {
+    flex: none;
+    color: var(--func-warning);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+  p {
+    margin: 0;
+    color: var(--func-warning);
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
 }
 
 .op-controls {
@@ -80,7 +99,7 @@
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 0.68rem;
-  opacity: .7;
+  opacity: 0.7;
 }
 
 .op-rows {
@@ -95,13 +114,19 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(15, 122, 140, .07);
-  transition: background .18s var(--ease);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.07);
+  transition: background 0.18s var(--ease);
 
-  &:last-child { border-bottom: 0; }
-  &:hover { background: rgba(10, 88, 102, .04); }
+  &:last-child {
+    border-bottom: 0;
+  }
+  &:hover {
+    background: rgba(var(--color-brand-700-rgb), 0.04);
+  }
 
-  &.is-pending { background: rgba(180, 83, 9, .05); }
+  &.is-pending {
+    background: rgba(180, 83, 9, 0.05);
+  }
 }
 
 .op-receipt {
@@ -151,6 +176,10 @@
 }
 
 @media (max-width: 720px) {
-  .op-list-head { flex-wrap: wrap; }
-  .op-receipt { display: none; }
+  .op-list-head {
+    flex-wrap: wrap;
+  }
+  .op-receipt {
+    display: none;
+  }
 }

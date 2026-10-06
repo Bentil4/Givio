@@ -201,7 +201,7 @@
 .input,
 .password-wrap {
   height: 44px;
-  border: 1.5px solid rgba(15, 122, 140, 0.15);
+  border: 1.5px solid rgba(var(--color-brand-500-rgb), 0.15);
   border-radius: var(--radius-md);
   background: var(--bg-white);
   transition:
@@ -211,7 +211,7 @@
   &:focus,
   &:focus-within {
     border-color: var(--primary-deep);
-    box-shadow: 0 0 0 3px rgba(10, 88, 102, 0.15);
+    box-shadow: 0 0 0 3px rgba(var(--color-brand-700-rgb), 0.15);
   }
 
   &.is-invalid {
@@ -285,7 +285,7 @@
     content: '';
     flex: 1;
     height: 1px;
-    background: rgba(15, 122, 140, 0.12);
+    background: rgba(var(--color-brand-500-rgb), 0.12);
   }
 }
 
