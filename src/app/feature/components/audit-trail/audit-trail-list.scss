@@ -11,13 +11,13 @@
   align-items: flex-start;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(15, 122, 140, 0.07);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.07);
 
   &:last-child {
     border-bottom: 0;
   }
   &:hover {
-    background: rgba(10, 88, 102, 0.04);
+    background: rgba(var(--color-brand-700-rgb), 0.04);
   }
 }
 
@@ -28,41 +28,15 @@
   padding-top: 2px;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 0.7rem;
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
   color: var(--data-4);
 }
 
-.trail-tag {
+/* Was its own one-off badge (.trail-tag, 9.92px uppercase, a separate hardcoded color set) —
+   now just a fixed-width slot around the shared app-tag component, for row alignment only. */
+.trail-tag-slot {
   flex: none;
   width: 78px;
-  padding: 3px 8px;
-  border-radius: var(--radius-full);
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  text-align: center;
-
-  &.is-neutral {
-    background: var(--bg-mist);
-    color: var(--data-4);
-  }
-  &.is-edit {
-    background: rgba(10, 88, 102, 0.14);
-    color: var(--primary-dark);
-  }
-  &.is-restore {
-    background: rgba(21, 128, 61, 0.14);
-    color: var(--func-success);
-  }
-  &.is-delete {
-    background: rgba(180, 83, 9, 0.14);
-    color: var(--func-warning);
-  }
-  &.is-security {
-    background: rgba(220, 38, 38, 0.12);
-    color: var(--func-error);
-  }
 }
 
 .trail-body {

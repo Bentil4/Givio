@@ -9,13 +9,13 @@
   align-items: center;
   min-height: 44px; /* Story 5.1: touch target minimum */
   font-family: var(--font-body);
-  font-size: 0.8rem;
+  font-size: 0.8125rem; /* 7-step type scale: 13px (table/labels) — matches the global .filter-tag */
   font-weight: 500;
   padding: 7px 18px;
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: all 0.18s var(--ease);
-  border: 1.5px solid rgba(15, 122, 140, 0.2);
+  border: 1.5px solid rgba(var(--color-brand-500-rgb), 0.2);
   background: transparent;
   color: var(--primary-dark);
 
@@ -23,11 +23,11 @@
     background: var(--primary-deep); /* flat fill, not a gradient */
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 3px 12px rgba(15, 122, 140, 0.3);
+    box-shadow: 0 3px 12px rgba(var(--color-brand-500-rgb), 0.3);
   }
 
   &:not(.active):hover {
-    background: rgba(10, 88, 102, 0.08);
+    background: rgba(var(--color-brand-700-rgb), 0.08);
     border-color: var(--primary-deep);
   }
 }

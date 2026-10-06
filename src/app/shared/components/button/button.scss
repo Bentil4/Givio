@@ -3,20 +3,32 @@
 }
 
 .btn {
+  box-sizing: border-box;
   width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px; /* Story 5.1: touch target minimum */
+  gap: 8px;
+  /* height, not min-height — see styles.scss's .btn for why (an icon's natural line-height can
+     otherwise grow the button taller than a text-only button of the same variant). */
+  height: 44px; /* Story 5.1: touch target minimum */
   font-family: var(--font-body);
-  font-size: 0.88rem;
+  font-size: 0.875rem; /* 7-step type scale: 14px (body) */
   font-weight: 600;
-  padding: 12px 28px;
+  padding: 0 28px;
   border-radius: var(--radius-full);
   border: none;
   cursor: pointer;
   transition: all 0.22s var(--ease);
   letter-spacing: 0.01em;
+
+  ::ng-deep mat-icon {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    line-height: 18px;
+  }
 
   &:disabled {
     opacity: 0.5;
@@ -29,12 +41,12 @@
   /* Flat fill, not a gradient — no gradients anywhere in the app. */
   background: var(--primary-deep);
   color: #fff;
-  box-shadow: 0 4px 16px rgba(15, 122, 140, 0.35);
+  box-shadow: 0 4px 16px rgba(var(--color-brand-500-rgb), 0.35);
 
   &:hover {
     background: var(--primary-mid);
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(15, 122, 140, 0.45);
+    box-shadow: 0 8px 24px rgba(var(--color-brand-500-rgb), 0.45);
   }
   &:active {
     transform: translateY(0);
@@ -44,11 +56,11 @@
 .btn-secondary {
   background: transparent;
   color: var(--primary-dark);
-  border: 2px solid rgba(15, 122, 140, 0.35);
+  border: 2px solid rgba(var(--color-brand-500-rgb), 0.35);
 
   &:hover {
     border-color: var(--primary-deep);
-    background: rgba(10, 88, 102, 0.06);
+    background: rgba(var(--color-brand-700-rgb), 0.06);
     transform: translateY(-1px);
   }
 }
@@ -68,10 +80,13 @@
   border: none;
   color: var(--primary-deep);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.875rem; /* 7-step type scale: 14px (body) */
   padding: 8px 0;
   cursor: pointer;
-  display: flex;
+  /* inline-flex, not flex — see styles.scss's .btn-ghost for why (stacking with a sibling
+     ghost action). The :host { display: block; width: 100% } above still makes <app-button>
+     itself block-level; this only matters if that's ever relaxed. */
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   transition: gap 0.2s var(--ease);

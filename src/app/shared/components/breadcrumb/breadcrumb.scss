@@ -24,7 +24,7 @@
 
 .breadcrumb-item a {
   font-family: var(--font-body);
-  font-size: 0.78rem;
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
   font-weight: 400;
   color: var(--data-4);
   text-decoration: none;
@@ -37,7 +37,7 @@
 
 .breadcrumb-item span {
   font-family: var(--font-body);
-  font-size: 0.78rem;
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
   font-weight: 500;
   color: var(--primary-dark);
 }

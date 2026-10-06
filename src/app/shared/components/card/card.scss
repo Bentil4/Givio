@@ -10,7 +10,7 @@
 
   &:hover {
     transform: translateY(-3px);
-    box-shadow: 0 16px 48px rgba(15, 122, 140, 0.14);
+    box-shadow: 0 16px 48px rgba(var(--color-brand-500-rgb), 0.14);
   }
 }
 
@@ -48,14 +48,14 @@
 
 .card-title {
   font-family: var(--font-body);
-  font-size: 1.05rem;
+  font-size: 1.125rem; /* 7-step type scale: 18px (card title / H3) */
   font-weight: 700;
   color: var(--primary-dark);
 }
 
 .card-subtitle {
   font-family: var(--font-body);
-  font-size: 0.85rem;
+  font-size: 0.8125rem; /* 7-step type scale: 13px (table/labels) */
   font-weight: 400;
   color: var(--data-4);
 }

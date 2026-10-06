@@ -25,4 +25,17 @@ export class Sidebar {
   public dismissMobile = output<void>();
   public toggleTheme = output<void>();
   public logout = output<void>();
+
+  /**
+   * routerLinkActive defaults to prefix matching, so a nav item whose route is a path-prefix
+   * of a sibling's (e.g. '/dashboard' before '/dashboard/events') stays highlighted on every
+   * other page too. True for exactly that case — any item that is itself a prefix of some
+   * other item's route — so the index link only lights up on its own exact route, while every
+   * other item keeps prefix matching (an Events link still highlights on an event detail page).
+   */
+  public isExactRoute(route: string): boolean {
+    return this.navItems().some(
+      (other) => other.route !== route && other.route.startsWith(route + '/'),
+    );
+  }
 }

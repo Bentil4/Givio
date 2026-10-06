@@ -18,13 +18,18 @@
   color: var(--func-error);
   border: 1px solid var(--func-error-soft);
 }
+.tag-warning {
+  background: var(--func-warning-soft);
+  color: var(--func-warning);
+  border: 1px solid var(--func-warning-soft);
+}
 .tag-info {
   background: var(--func-info-soft);
   color: var(--func-info);
   border: 1px solid var(--func-info-soft);
 }
 .tag-default {
-  background: rgba(15, 122, 140, 0.08);
+  background: rgba(var(--color-brand-500-rgb), 0.08);
   color: var(--primary-dark);
-  border: 1px solid rgba(15, 122, 140, 0.15);
+  border: 1px solid rgba(var(--color-brand-500-rgb), 0.15);
 }
