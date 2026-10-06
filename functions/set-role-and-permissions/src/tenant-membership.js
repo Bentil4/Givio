@@ -207,16 +207,25 @@ export async function handleTenantMembershipRequest({
   result = await grantTenantReadAfterMembershipWrite({ action, result, ...actionContext });
 
   if (result.status === 200) {
-    // Code-review fix: addTeamMember's success body carries generatedPassword — logging it
-    // verbatim would write a new Account's plaintext password into the Function's execution
-    // logs. Redact any *Password-suffixed field generically, so a future action returning a
-    // similarly-named secret doesn't reopen the same leak.
     const loggableBody = Object.fromEntries(
-      Object.entries(result.body).map(([key, value]) =>
-        key.toLowerCase().endsWith('password') ? [key, '[redacted]'] : [key, value],
-      ),
+      Object.entries(result.body).map(([key, value]) => [key, loggableValue(key, value)]),
     );
     log(`${action} succeeded (by ${caller.$id}): ${JSON.stringify(loggableBody)}`);
   }
   return res.json(result.body, result.status);
+}
+
+function loggableValue(key, value) {
+  // Code-review fix: addTeamMember's success body carries generatedPassword — logging it
+  // verbatim would write a new Account's plaintext password into the Function's execution
+  // logs. Redact any *Password-suffixed field generically, so a future action returning a
+  // similarly-named secret doesn't reopen the same leak.
+  if (key.toLowerCase().endsWith('password')) {
+    return '[redacted]';
+  }
+  // A tenant logo is an image data URL — large enough to swamp the execution log.
+  if (key === 'logo' && value !== null) {
+    return '[omitted]';
+  }
+  return value;
 }

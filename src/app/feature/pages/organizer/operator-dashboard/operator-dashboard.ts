@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { EventService } from '../../../../data/services/event.service';
+import { TenantService } from '../../../../data/services/tenant.service';
 import { ServiceError } from '../../../../core/services/service-error';
 import type { Event, EventStatus } from '../../../../data/models/event';
 import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
@@ -31,6 +32,7 @@ export class OperatorDashboard implements OnInit {
   private readonly eventService = inject(EventService);
   private readonly router = inject(Router);
   private readonly eventContext = inject(OperatorEventContext);
+  private readonly tenantService = inject(TenantService);
 
   public readonly loading = signal(true);
   public readonly loadError = signal<string | null>(null);
@@ -41,6 +43,7 @@ export class OperatorDashboard implements OnInit {
   public readonly activeEvent = this.eventContext.activeEvent;
   public readonly showSwitcher = this.eventContext.showSwitcher;
   public readonly canRecord = computed(() => this.eventContext.activeEvents().length > 0);
+  public readonly companyName = computed(() => this.tenantService.companyBrand()?.name ?? null);
 
   /** A glance, not the full list — /organizer/events is the full picker. */
   public readonly previewEvents = computed(() => this.assignedEvents().slice(0, 3));

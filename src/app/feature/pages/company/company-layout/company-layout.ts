@@ -32,6 +32,7 @@ export class CompanyLayout {
   private readonly tenantService = inject(TenantService);
 
   public readonly theme = this.themeService.theme;
+  public readonly brand = this.tenantService.companyBrand;
   public readonly isSidebarCollapsed = signal(false);
   public readonly isMobileNavOpen = signal(false);
   public readonly profile = computed(() =>

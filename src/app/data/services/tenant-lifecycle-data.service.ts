@@ -5,10 +5,16 @@ import { ServiceError } from '../../core/services/service-error';
 import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
 import { rowToTenant } from './tenant-data.service';
 import { environment } from '../../../environments/environment';
-import type { Tenant, TenantStatus } from '../models/tenant';
+import type { OwnTenantSummary, Tenant, TenantStatus } from '../models/tenant';
 import type { AddTeamMemberResult, TeamMember } from '../models/team-member';
 
 const TENANT_PAGE_SIZE = 100;
+
+interface MyTenantStatusBody {
+  tenantStatus: TenantStatus | null;
+  tenantName: string | null;
+  logo: string | null;
+}
 
 /**
  * Story 8.1 (FR-19): Admin's whole-tenant account actions, plus the one status read a tenant's
@@ -78,17 +84,14 @@ export class TenantLifecycleDataService {
     });
   }
 
-  /** The caller's own tenant status — Operators can't read their Tenant row directly. */
-  async getMyTenantStatus(): Promise<TenantStatus | null> {
-    const { tenantStatus } = await invokeAdminFunction<{ tenantStatus: TenantStatus | null }>(
-      this.functions,
-      {
-        action: 'getMyTenantStatus',
-        invokeFailureMessage: 'Failed to check your company status',
-        payload: {},
-      },
-    );
-    return tenantStatus;
+  /** The caller's own tenant status, name and logo — Operators can't read their Tenant row. */
+  async getMyTenantSummary(): Promise<OwnTenantSummary> {
+    const body = await invokeAdminFunction<MyTenantStatusBody>(this.functions, {
+      action: 'getMyTenantStatus',
+      invokeFailureMessage: 'Failed to check your company status',
+      payload: {},
+    });
+    return { status: body.tenantStatus, name: body.tenantName, logo: body.logo };
   }
 
   private async fetchAllTenantRows(): Promise<Tenant[]> {

@@ -3,7 +3,11 @@ import { AuthService } from './auth.service';
 import { TenantDataService } from './tenant-data.service';
 import { TenantLifecycleDataService } from './tenant-lifecycle-data.service';
 import type { Membership } from '../models/membership';
-import type { Tenant } from '../models/tenant';
+import type { OwnTenantSummary, Tenant } from '../models/tenant';
+import type { SidebarBrand } from '../models/user.model';
+
+/** Fails open: an Operator whose tenant can't be checked keeps working, unbranded. */
+const UNKNOWN_TENANT: OwnTenantSummary = { status: null, name: null, logo: null };
 
 export interface CompanyContext {
   membership: Membership;
@@ -25,10 +29,21 @@ export class TenantService {
   private readonly _context = signal<CompanyContext | null>(null);
   private loadedForUserId: string | null = null;
   private readonly _suspendedSignOut = signal(false);
-  private operatorSuspension: { userId: string; suspended: boolean } | null = null;
+  private readonly _operatorTenant = signal<{ userId: string; summary: OwnTenantSummary } | null>(
+    null,
+  );
 
   public readonly context = this._context.asReadonly();
   public readonly tenant = computed(() => this._context()?.tenant ?? null);
+  /**
+   * The signed-in member's company, for their sidebar. The Organizer tier reads it from the
+   * Tenant row load() fetched; Operators from the status call operatorTenantGuard already made.
+   * Matched to the current user so a previous session's company never shows.
+   */
+  public readonly companyBrand = computed<SidebarBrand | null>(() => {
+    const userId = this.authService.currentUser()?.$id;
+    return this.organizerBrand(userId) ?? this.operatorBrand(userId);
+  });
   /** Story 9.2 AC3: set when a suspended tenant's member was just signed out, for /login. */
   public readonly suspendedSignOut = this._suspendedSignOut.asReadonly();
 
@@ -65,19 +80,20 @@ export class TenantService {
     if (userId === null || this.authService.role() !== 'operator') {
       return false;
     }
-    if (!force && this.operatorSuspension?.userId === userId) {
-      return this.operatorSuspension.suspended;
+    const cached = this._operatorTenant();
+    if (!force && cached?.userId === userId) {
+      return cached.summary.status === 'suspended';
     }
-    const suspended = await this.fetchOwnTenantSuspended();
-    this.operatorSuspension = { userId, suspended };
-    return suspended;
+    const summary = await this.fetchOwnTenantSummary();
+    this._operatorTenant.set({ userId, summary });
+    return summary.status === 'suspended';
   }
 
-  private async fetchOwnTenantSuspended(): Promise<boolean> {
+  private async fetchOwnTenantSummary(): Promise<OwnTenantSummary> {
     try {
-      return (await this.lifecycleData.getMyTenantStatus()) === 'suspended';
+      return await this.lifecycleData.getMyTenantSummary();
     } catch {
-      return false;
+      return UNKNOWN_TENANT;
     }
   }
 
@@ -90,4 +106,24 @@ export class TenantService {
   clearSuspendedSignOut(): void {
     this._suspendedSignOut.set(false);
   }
+
+  private organizerBrand(userId: string | undefined): SidebarBrand | null {
+    const context = this._context();
+    if (!context?.tenant || context.membership.userId !== userId) {
+      return null;
+    }
+    return toSidebarBrand(context.tenant.name, context.tenant.logo);
+  }
+
+  private operatorBrand(userId: string | undefined): SidebarBrand | null {
+    const cached = this._operatorTenant();
+    if (!cached || cached.userId !== userId || !cached.summary.name) {
+      return null;
+    }
+    return toSidebarBrand(cached.summary.name, cached.summary.logo);
+  }
+}
+
+function toSidebarBrand(name: string, logo: string | null | undefined): SidebarBrand {
+  return logo ? { name, logo } : { name };
 }

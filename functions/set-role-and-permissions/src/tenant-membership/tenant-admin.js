@@ -189,8 +189,9 @@ async function writeDesignation(context) {
 
 /**
  * Story 9.2 AC3: the caller's own tenant status, for the client to route a suspended tenant's
- * member to a clear message — Operators can't read their Tenant row. Discloses nothing beyond
- * the status of the caller's own active Membership's tenant; `null` when there is none.
+ * member to a clear message — Operators can't read their Tenant row. Also returns that tenant's
+ * name and logo so its members see whom they work for. Discloses nothing beyond the caller's
+ * own active Membership's tenant; every field is `null` when there is none.
  */
 export async function handleGetMyTenantStatus(context) {
   const { DatabasesCtor, adminClient, caller, databaseId, error } = context;
@@ -201,26 +202,29 @@ export async function handleGetMyTenantStatus(context) {
       tableId: context.membershipsCollectionId,
       queries: [Query.equal('userId', [caller.$id]), Query.limit(1)],
     });
-    const tenantStatus = await activeMembershipTenantStatus({
-      databases,
-      context,
-      membership: rows[0],
-    });
-    return { status: 200, body: { success: true, tenantStatus } };
+    const tenant = await activeMembershipTenant({ databases, context, membership: rows[0] });
+    return { status: 200, body: { success: true, ...ownTenantIdentity(tenant) } };
   } catch (err) {
     error(`getMyTenantStatus: lookup failed for ${caller.$id}: ${err.message}`);
     return { status: 502, body: { error: 'Failed to check your company status' } };
   }
 }
 
-async function activeMembershipTenantStatus({ databases, context, membership }) {
+async function activeMembershipTenant({ databases, context, membership }) {
   if (membership?.status !== 'active') {
     return null;
   }
-  const tenant = await databases.getRow({
+  return databases.getRow({
     databaseId: context.databaseId,
     tableId: context.tenantsCollectionId,
     rowId: membership.tenantId,
   });
-  return tenant.status;
+}
+
+function ownTenantIdentity(tenant) {
+  return {
+    tenantStatus: tenant?.status ?? null,
+    tenantName: tenant?.name ?? null,
+    logo: tenant?.logo ?? null,
+  };
 }

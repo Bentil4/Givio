@@ -15,7 +15,7 @@ describe('CompanyLayout activity log nav item', () => {
       providers: [
         provideRouter([]),
         { provide: AuthService, useValue: { logout: vi.fn(), currentUser: () => null } },
-        { provide: TenantService, useValue: { context } },
+        { provide: TenantService, useValue: { context, companyBrand: signal(null) } },
       ],
     });
     const fixture = TestBed.createComponent(CompanyLayout);
