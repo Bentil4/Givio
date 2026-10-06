@@ -10,7 +10,7 @@
 
 .group-title {
   margin: 0 0 var(--space-xs);
-  font-size: 1rem;
+  font-size: 1.125rem; /* 7-step type scale: 18px (card title / H3) */
   font-weight: 700;
 }
 
@@ -64,7 +64,7 @@
 }
 
 .row-meta {
-  font-size: 0.8rem;
+  font-size: 0.8125rem; /* 7-step type scale: 13px (table/labels) */
   color: var(--text-secondary);
 }
 

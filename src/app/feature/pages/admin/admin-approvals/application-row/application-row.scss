@@ -26,7 +26,7 @@
   align-items: center;
   gap: 4px;
   padding: 3px 10px;
-  border: 1px solid rgba(15, 122, 140, 0.35);
+  border: 1px solid rgba(var(--color-brand-500-rgb), 0.35);
   border-radius: var(--radius-full);
   font-size: 0.75rem;
   font-weight: 500;
@@ -94,7 +94,7 @@
 }
 
 .row-meta {
-  font-size: 0.8rem;
+  font-size: 0.8125rem; /* 7-step type scale: 13px (table/labels) */
   color: var(--text-secondary);
 }
 
@@ -157,7 +157,7 @@
   gap: var(--space-md) var(--space-lg);
 
   dt {
-    font-size: 0.72rem;
+    font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--text-secondary);
@@ -195,7 +195,7 @@
 
 .verify-title {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1.125rem; /* 7-step type scale: 18px (card title / H3) */
 }
 
 .verify-done {

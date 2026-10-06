@@ -1,5 +1,13 @@
 @use '../admin-admins/admin-admins.scss';
 
+/* Visually hidden (the tabs above are the visible nav), but its computed typography still
+   matters for consistency — was the browser's plain default h2 (14px/400), lighter than the
+   18px/700 every other section heading (.t-card-title) in the app uses. */
+.queue-heading {
+  font-size: 1.125rem; /* 7-step type scale: 18px (card title / H3) */
+  font-weight: 700;
+}
+
 .tabs {
   display: flex;
   gap: var(--space-lg);
