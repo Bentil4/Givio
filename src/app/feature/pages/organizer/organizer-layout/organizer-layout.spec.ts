@@ -98,7 +98,10 @@ describe('OrganizerLayout event switcher (Story 6.6)', () => {
         { provide: ACCOUNT, useValue: { deleteSession: vi.fn(), get: vi.fn() } },
         {
           provide: AuthService,
-          useValue: { currentUser: () => ({ $id: 'op-1' }), logout: vi.fn() },
+          useValue: {
+            currentUser: () => ({ $id: 'op-1', name: 'Operator One', email: 'op@givio.test' }),
+            logout: vi.fn(),
+          },
         },
         { provide: EventService, useValue: { events: signal(events), loadEvents: vi.fn() } },
       ],

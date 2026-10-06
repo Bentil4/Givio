@@ -65,6 +65,27 @@ describe('AdminLayout', () => {
     });
   });
 
+  describe('sidebar profile', () => {
+    it('labels an ordinary Admin', async () => {
+      account.get.mockResolvedValueOnce({ name: 'Kofi', email: 'k@givio.test', labels: ['admin'] });
+      await TestBed.inject(AuthService).restoreSession();
+
+      expect(component.profile()?.tierLabel).toBe('Admin');
+      expect(component.profile()?.name).toBe('Kofi');
+    });
+
+    it('labels the Super Admin', async () => {
+      account.get.mockResolvedValueOnce({
+        name: 'Darko',
+        email: 'd@givio.test',
+        labels: ['admin', 'superadmin'],
+      });
+      await TestBed.inject(AuthService).restoreSession();
+
+      expect(component.profile()?.tierLabel).toBe('Super Admin');
+    });
+  });
+
   it('links every Admin to the Approvals queue (Story 6.5)', () => {
     expect(component.navItems().some((item) => item.route === '/dashboard/approvals')).toBe(true);
   });

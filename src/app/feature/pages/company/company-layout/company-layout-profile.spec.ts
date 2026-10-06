@@ -6,15 +6,15 @@ import { CompanyContext, TenantService } from '../../../../data/services/tenant.
 import type { MembershipRole } from '../../../../data/models/membership';
 import { CompanyLayout } from './company-layout';
 
-/** Story 7.5: the Activity log nav item exists only for the tenant's Super Organizer. */
-describe('CompanyLayout activity log nav item', () => {
+describe('CompanyLayout sidebar profile', () => {
   async function renderAs(role: MembershipRole): Promise<HTMLElement> {
     const context = signal({ membership: { role } } as CompanyContext);
+    const currentUser = () => ({ name: 'Ama Mensah', email: 'ama@givio.test' });
     TestBed.configureTestingModule({
       imports: [CompanyLayout],
       providers: [
         provideRouter([]),
-        { provide: AuthService, useValue: { logout: vi.fn(), currentUser: () => null } },
+        { provide: AuthService, useValue: { logout: vi.fn(), currentUser } },
         { provide: TenantService, useValue: { context } },
       ],
     });
@@ -24,16 +24,17 @@ describe('CompanyLayout activity log nav item', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('is listed for the Super Organizer', async () => {
-    const el = await renderAs('super_organizer');
+  it("shows the signed-in Super Organizer's name and tier", async () => {
+    const footer = (await renderAs('super_organizer')).querySelector('.user-profile');
 
-    const link = el.querySelector('app-sidebar nav a[href="/company/audit"]');
-    expect(link?.textContent).toContain('Activity log');
+    expect(footer?.textContent).toContain('Ama Mensah');
+    expect(footer?.textContent).toContain('Super Organizer');
   });
 
-  it('is hidden from a co-Organizer', async () => {
-    const el = await renderAs('organizer');
+  it('labels a co-Organizer as Organizer', async () => {
+    const footer = (await renderAs('organizer')).querySelector('.user-profile');
 
-    expect(el.querySelector('app-sidebar nav a[href="/company/audit"]')).toBeNull();
+    expect(footer?.textContent).toContain('Organizer');
+    expect(footer?.textContent).not.toContain('Super Organizer');
   });
 });

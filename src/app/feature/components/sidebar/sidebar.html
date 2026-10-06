@@ -15,11 +15,22 @@
   (keydown.escape)="dismissMobile.emit()"
 >
   <header class="sidebar-header">
+    @if (brand(); as b) {
+    <div class="brand">
+      @if (b.logo) {
+      <img [src]="b.logo" [alt]="b.name + ' logo'" class="brand-logo" />
+      } @else {
+      <span class="brand-initials" aria-hidden="true">{{ brandInitials() }}</span>
+      }
+      <span class="brand-name nav-label">{{ b.name }}</span>
+    </div>
+    } @else {
     <img
       [src]="theme() === 'dark' ? 'assets/images/Givio-logo-dark.png' : 'assets/images/Givio-logo.png'"
-      alt="Logo"
+      alt="Givio"
       class="logo"
     />
+    }
     <button
       type="button"
       class="collapse-toggle"
@@ -50,12 +61,16 @@
           routerLinkActive="active"
           [routerLinkActiveOptions]="{ exact: isExactRoute(item.route) }"
           class="nav-link"
+          [attr.aria-label]="navLabel(item)"
           [matTooltip]="collapsed() ? item.name : ''"
           matTooltipPosition="right"
           (click)="dismissMobile.emit()"
         >
           <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
           <span class="nav-label">{{ item.name }}</span>
+          @if (item.badge) {
+          <span class="nav-badge" aria-hidden="true">{{ item.badge }}</span>
+          }
         </a>
         }
       </li>
@@ -75,16 +90,40 @@
       <mat-icon>{{ theme() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
       <span class="nav-label">{{ theme() === 'dark' ? 'Light mode' : 'Dark mode' }}</span>
     </button>
-    <div class="notification">
-      <mat-icon matBadge="15">notifications</mat-icon>
-      <span class="status-indicator nav-label">online . 2min ago</span>
+    @if (profile(); as p) { @if (p.settingsRoute) {
+    <a
+      class="user-profile is-link"
+      [routerLink]="p.settingsRoute"
+      [attr.aria-label]="p.name + ', ' + p.tierLabel + ' — open settings'"
+      [matTooltip]="collapsed() ? p.name + ' — ' + p.tierLabel : ''"
+      matTooltipPosition="right"
+      (click)="dismissMobile.emit()"
+    >
+      <ng-container *ngTemplateOutlet="profileBody; context: { $implicit: p }" />
+    </a>
+    } @else {
+    <div
+      class="user-profile"
+      [matTooltip]="collapsed() ? p.name + ' — ' + p.tierLabel : ''"
+      matTooltipPosition="right"
+    >
+      <ng-container *ngTemplateOutlet="profileBody; context: { $implicit: p }" />
     </div>
-    <div class="user-profile">
-      <div class="user-initials">JD</div>
-    </div>
+    } }
     <button type="button" class="logout-button" (click)="logout.emit()">
       <mat-icon>logout</mat-icon>
       <span class="nav-label">Logout</span>
     </button>
   </footer>
 </aside>
+
+<ng-template #profileBody let-p>
+  <span class="user-initials" aria-hidden="true">{{ profileInitials() }}</span>
+  <span class="user-meta nav-label">
+    <span class="user-name">{{ p.name }}</span>
+    <span class="tier-badge">
+      <mat-icon class="tier-icon" aria-hidden="true">{{ p.tierIcon }}</mat-icon>
+      {{ p.tierLabel }}
+    </span>
+  </span>
+</ng-template>

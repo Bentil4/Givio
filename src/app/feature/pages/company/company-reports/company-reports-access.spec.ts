@@ -27,7 +27,7 @@ describe('Settlement reports nav item (Super Organizer only)', () => {
       imports: [CompanyLayout],
       providers: [
         provideRouter([]),
-        { provide: AuthService, useValue: { logout: vi.fn() } },
+        { provide: AuthService, useValue: { logout: vi.fn(), currentUser: () => null } },
         {
           provide: TenantService,
           useValue: { context: signal(context), load: vi.fn().mockResolvedValue(context) },
