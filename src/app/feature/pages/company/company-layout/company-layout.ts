@@ -3,7 +3,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterOutlet } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { BreakpointObserver } from '@angular/cdk/layout';
-import { INavbarItem, IUserProfile } from '../../../../data/models/user.model';
+import { INavbarItem } from '../../../../data/models/user.model';
+import { buildSidebarProfile } from '../../../../utils/sidebar-profile.util';
 import { Sidebar } from '../../../components/sidebar/sidebar';
 import { Breadcrumb } from '../../../../shared/components';
 import { AuthService } from '../../../../data/services/auth.service';
@@ -33,7 +34,12 @@ export class CompanyLayout {
   public readonly theme = this.themeService.theme;
   public readonly isSidebarCollapsed = signal(false);
   public readonly isMobileNavOpen = signal(false);
-  public readonly userProfile: IUserProfile[] = [];
+  public readonly profile = computed(() =>
+    buildSidebarProfile(
+      this.authService.currentUser(),
+      this.tenantService.context()?.membership.role ?? null,
+    ),
+  );
 
   private readonly isSuperOrganizer = computed(
     () => this.tenantService.context()?.membership.role === 'super_organizer',

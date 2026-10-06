@@ -10,7 +10,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterOutlet } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { BreakpointObserver } from '@angular/cdk/layout';
-import { INavbarItem, IUserProfile } from '../../../../data/models/user.model';
+import { INavbarItem } from '../../../../data/models/user.model';
+import { buildSidebarProfile } from '../../../../utils/sidebar-profile.util';
 import { Sidebar } from '../../../components/sidebar/sidebar';
 import { Breadcrumb } from '../../../../shared/components';
 import {
@@ -42,7 +43,12 @@ export class AdminLayout {
   public isSidebarCollapsed = signal(false);
   /** Story 5.1: off-canvas drawer state below the mobile breakpoint — see sidebar.scss. */
   public isMobileNavOpen = signal(false);
-  public userProfile: IUserProfile[] = [];
+  public readonly profile = computed(() =>
+    buildSidebarProfile(
+      this.authService.currentUser(),
+      this.authService.isSuperAdmin() ? 'super_admin' : 'admin',
+    ),
+  );
 
   public readonly online = this.connectivityService.online;
   public readonly syncing = this.syncEngine.syncing;

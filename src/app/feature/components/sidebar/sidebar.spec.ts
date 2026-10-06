@@ -17,7 +17,6 @@ describe('Sidebar', () => {
     fixture = TestBed.createComponent(Sidebar);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('navItems', []);
-    fixture.componentRef.setInput('userProfile', []);
     await fixture.whenStable();
   });
 
@@ -49,6 +48,93 @@ describe('Sidebar', () => {
     expect(link).toBeNull();
     expect(disabled).not.toBeNull();
     expect(disabled.textContent).toContain('Report');
+  });
+
+  describe('profile footer', () => {
+    const profile = {
+      name: 'Ama Mensah',
+      email: 'ama@givio.test',
+      tierLabel: 'Super Organizer',
+      tierIcon: 'domain',
+    };
+
+    it('shows the signed-in name, initials and tier badge', async () => {
+      fixture.componentRef.setInput('profile', profile);
+      await fixture.whenStable();
+      const footer: HTMLElement = fixture.nativeElement.querySelector('.user-profile');
+
+      expect(footer.querySelector('.user-initials')?.textContent?.trim()).toBe('AM');
+      expect(footer.querySelector('.user-name')?.textContent).toContain('Ama Mensah');
+      expect(footer.querySelector('.tier-badge')?.textContent).toContain('Super Organizer');
+    });
+
+    it('links to settings when a settings route is given', async () => {
+      fixture.componentRef.setInput('profile', { ...profile, settingsRoute: '/company/settings' });
+      await fixture.whenStable();
+
+      const link = fixture.nativeElement.querySelector('a.user-profile');
+      expect(link.getAttribute('href')).toBe('/company/settings');
+    });
+
+    it('renders no profile block while the account is unknown', () => {
+      expect(fixture.nativeElement.querySelector('.user-profile')).toBeNull();
+    });
+
+    it('no longer shows the placeholder notification badge', () => {
+      expect(fixture.nativeElement.textContent).not.toContain('2min ago');
+    });
+  });
+
+  describe('brand', () => {
+    it('shows the Givio logo by default', () => {
+      expect(fixture.nativeElement.querySelector('img.logo').getAttribute('alt')).toBe('Givio');
+    });
+
+    it("shows the company's logo instead of Givio's", async () => {
+      fixture.componentRef.setInput('brand', {
+        name: 'First Event',
+        logo: 'data:image/png;base64,x',
+      });
+      await fixture.whenStable();
+
+      const logo = fixture.nativeElement.querySelector('img.brand-logo');
+      expect(logo.getAttribute('alt')).toBe('First Event logo');
+      expect(fixture.nativeElement.querySelector('img.logo')).toBeNull();
+    });
+
+    it('shows the company name and initials when it has no logo', async () => {
+      fixture.componentRef.setInput('brand', { name: 'First Event' });
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.querySelector('.brand-name').textContent).toContain(
+        'First Event',
+      );
+      expect(fixture.nativeElement.querySelector('.brand-initials').textContent).toContain('FE');
+    });
+  });
+
+  describe('nav badge', () => {
+    it('shows a count and announces it with the link', async () => {
+      fixture.componentRef.setInput('navItems', [
+        { name: 'Approvals', icon: 'how_to_reg', route: '/dashboard/approvals', badge: 3 },
+      ]);
+      await fixture.whenStable();
+
+      const link = fixture.nativeElement.querySelector('a.nav-link');
+      expect(link.querySelector('.nav-badge').textContent).toContain('3');
+      expect(link.getAttribute('aria-label')).toBe('Approvals, 3 pending');
+    });
+
+    it('hides the badge at zero', async () => {
+      fixture.componentRef.setInput('navItems', [
+        { name: 'Approvals', icon: 'how_to_reg', route: '/dashboard/approvals', badge: 0 },
+      ]);
+      await fixture.whenStable();
+
+      const link = fixture.nativeElement.querySelector('a.nav-link');
+      expect(link.querySelector('.nav-badge')).toBeNull();
+      expect(link.getAttribute('aria-label')).toBeNull();
+    });
   });
 
   describe('mobile off-canvas drawer (Story 5.1)', () => {

@@ -34,6 +34,20 @@
     .nav-label {
       display: none;
     }
+
+    .nav-link {
+      position: relative;
+    }
+
+    .nav-badge {
+      position: absolute;
+      top: 2px;
+      right: 6px;
+    }
+
+    .brand-logo {
+      max-width: 40px;
+    }
   }
 }
 
@@ -47,6 +61,56 @@
 
 .logo {
   height: 32px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.brand-logo {
+  max-width: 120px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.brand-initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background-color: var(--primary-deep);
+  color: var(--bg-mist);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.brand-name {
+  overflow: hidden;
+  color: var(--primary-black);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-red-500);
+  color: var(--color-neutral-0);
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .collapse-toggle {
@@ -128,31 +192,59 @@
   border-top: 1px solid var(--bg-frost);
 }
 
-.notification {
+.user-profile {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  min-height: 44px; /* Story 5.1: touch target minimum */
+  padding: var(--space-xs);
+  border-radius: var(--radius-md);
   color: var(--primary-black);
+  text-decoration: none;
 
-  /* matBadge overlaps its host's top-right corner by default, spilling outside the icon's own
-     box — without this the badge's circle overlaps the status text that follows right after it. */
-  mat-icon {
-    margin-right: 6px;
-    /* Material's own error red (#ba1a1a), not this app's brand red — one red, not two. */
-    --mat-badge-background-color: var(--color-red-500);
-    --mat-badge-text-color: var(--color-neutral-0);
+  &.is-link {
+    transition: background-color 0.2s var(--ease);
+
+    &:hover {
+      background-color: var(--bg-mist);
+    }
   }
 }
 
-.status-indicator {
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.user-name {
+  max-width: 160px;
+  overflow: hidden;
+  font-size: 0.875rem; /* 7-step type scale: 14px (body) */
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* UX DESIGN.md tier badge: outlined, neutral pill — never status-coloured. */
+.tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
   font-size: 0.75rem;
   white-space: nowrap;
 }
 
-.user-profile {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
+.tier-icon {
+  width: 14px;
+  height: 14px;
+  font-size: 14px;
 }
 
 .user-initials {

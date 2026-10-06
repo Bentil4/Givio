@@ -10,7 +10,10 @@ describe('CompanyLayout', () => {
     logout = vi.fn().mockResolvedValue(undefined);
     await TestBed.configureTestingModule({
       imports: [CompanyLayout],
-      providers: [provideRouter([]), { provide: AuthService, useValue: { logout } }],
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: { logout, currentUser: () => null } },
+      ],
     }).compileComponents();
   });
 
