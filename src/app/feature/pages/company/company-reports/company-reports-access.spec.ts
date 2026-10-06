@@ -30,7 +30,11 @@ describe('Settlement reports nav item (Super Organizer only)', () => {
         { provide: AuthService, useValue: { logout: vi.fn(), currentUser: () => null } },
         {
           provide: TenantService,
-          useValue: { context: signal(context), load: vi.fn().mockResolvedValue(context) },
+          useValue: {
+            context: signal(context),
+            load: vi.fn().mockResolvedValue(context),
+            companyBrand: signal(null),
+          },
         },
       ],
     });
