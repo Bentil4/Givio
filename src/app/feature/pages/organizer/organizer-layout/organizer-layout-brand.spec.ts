@@ -51,4 +51,13 @@ describe('OrganizerLayout company brand', () => {
 
     expect(el.querySelector('app-sidebar .brand-name')?.textContent).toContain('Adom Funerals');
   });
+
+  it("links the Operator's profile and a Settings nav item to /organizer/settings", async () => {
+    const el = await renderFor({ status: 'approved', name: 'Adom Funerals', logo: null });
+
+    const profileLink = el.querySelector('app-sidebar a.user-profile');
+    expect(profileLink?.getAttribute('href')).toBe('/organizer/settings');
+    const navLink = el.querySelector('app-sidebar nav a[href="/organizer/settings"]');
+    expect(navLink?.textContent).toContain('Settings');
+  });
 });

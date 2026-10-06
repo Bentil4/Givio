@@ -6,7 +6,7 @@ import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
 import { AuthService } from './auth.service';
 import { environment } from '../../../environments/environment';
 import type { Membership } from '../models/membership';
-import type { CompanyIntake, Tenant } from '../models/tenant';
+import type { CompanyIntake, CompanyProfile, Tenant } from '../models/tenant';
 
 export interface InviteOrganizerResult {
   userId: string;
@@ -139,6 +139,17 @@ export class TenantDataService {
       invokeFailureMessage: 'Failed to submit the application',
       payload: input,
     });
+  }
+
+  /** Super Organizer only — the Function resolves the tenant from the caller and refuses anyone
+   *  else, so no tenantId is sent. */
+  async updateCompanyProfile(profile: CompanyProfile): Promise<CompanyProfile> {
+    const { tenant } = await invokeAdminFunction<{ tenant: CompanyProfile }>(this.functions, {
+      action: 'updateCompanyProfile',
+      invokeFailureMessage: "Couldn't save your company details",
+      payload: profile,
+    });
+    return tenant;
   }
 
   /** Admin-only (FR-6 path a) — the UI hook for Story 6.5's Admin screens. */

@@ -1,0 +1,31 @@
+// WAI-ARIA tab strip, shared by every page that switches sections with role="tablist".
+.tabs {
+  display: flex;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--border-default);
+  overflow-x: auto;
+}
+
+.tab {
+  min-height: 44px;
+  padding: 10px 2px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &.is-active {
+    color: var(--primary-deep);
+    border-bottom-color: var(--primary-deep);
+  }
+
+  &:focus-visible {
+    outline: var(--border-width-focus) solid var(--border-focus);
+    outline-offset: 2px;
+  }
+}

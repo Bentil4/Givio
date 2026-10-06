@@ -139,6 +139,18 @@ describe('AuthService', () => {
     });
   });
 
+  describe('refreshCurrentUser', () => {
+    it('replaces currentUser with the Account as it is now', async () => {
+      account.get.mockResolvedValueOnce({ $id: 'u1', name: 'Ama', labels: [] });
+      await store.refreshCurrentUser();
+      account.get.mockResolvedValueOnce({ $id: 'u1', name: 'Ama Mensah', labels: [] });
+
+      await store.refreshCurrentUser();
+
+      expect(store.currentUser()?.name).toBe('Ama Mensah');
+    });
+  });
+
   describe('restoreSession', () => {
     it('restores currentUser when a valid session exists', async () => {
       account.get.mockResolvedValueOnce({ labels: ['operator'] });

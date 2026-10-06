@@ -43,6 +43,12 @@ export const COMPANY_CHILD_ROUTES: Routes = [
     loadComponent: () => import('./company-audit/company-audit').then((m) => m.CompanyAudit),
     title: 'Activity log',
   },
+  {
+    path: 'settings',
+    loadComponent: () =>
+      import('../settings/settings-page/settings-page').then((m) => m.SettingsPage),
+    title: 'Settings',
+  },
 ];
 
 export const COMPANY_ROUTES: Routes = [

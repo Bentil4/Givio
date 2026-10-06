@@ -25,6 +25,7 @@ import {
   handleDesignateSuperOrganizer,
   handleGetMyTenantStatus,
 } from './tenant-membership/tenant-admin.js';
+import { handleUpdateCompanyProfile } from './tenant-membership/company-profile.js';
 
 export {
   ACTIONS as TENANT_MEMBERSHIP_ACTIONS,
@@ -38,8 +39,14 @@ export {
 const SELF_SERVICE_ACTIONS = new Set(['submitTenantApplication', 'getMyTenantStatus']);
 
 // Story 7.1 (FR-10/FR-11): Admin, or an active Organizer-tier member of an approved Tenant acting
-// on their own Tenant only. Every other action stays Admin-gated.
-const TEAM_ACTIONS = new Set(['addTeamMember', 'revokeMembership', 'listTeamMembers']);
+// on their own Tenant only. Every other action stays Admin-gated. updateCompanyProfile shares the
+// scope; its handler then admits only the Super Organizer.
+const TEAM_ACTIONS = new Set([
+  'addTeamMember',
+  'revokeMembership',
+  'listTeamMembers',
+  'updateCompanyProfile',
+]);
 
 /**
  * Story 6.2 (AD-1/AD-9 amended): the sole writer of Memberships, Tenants and Tenant status
@@ -203,16 +210,22 @@ export async function handleTenantMembershipRequest({
     case 'getMyTenantStatus':
       result = await handleGetMyTenantStatus(actionContext);
       break;
+    case 'updateCompanyProfile':
+      result = await handleUpdateCompanyProfile(actionContext);
+      break;
   }
   result = await grantTenantReadAfterMembershipWrite({ action, result, ...actionContext });
 
   if (result.status === 200) {
-    const loggableBody = Object.fromEntries(
-      Object.entries(result.body).map(([key, value]) => [key, loggableValue(key, value)]),
-    );
-    log(`${action} succeeded (by ${caller.$id}): ${JSON.stringify(loggableBody)}`);
+    log(`${action} succeeded (by ${caller.$id}): ${JSON.stringify(loggableBody(result.body))}`);
   }
   return res.json(result.body, result.status);
+}
+
+function loggableBody(body) {
+  return Object.fromEntries(
+    Object.entries(body).map(([key, value]) => [key, loggableValue(key, value)]),
+  );
 }
 
 function loggableValue(key, value) {
@@ -227,5 +240,13 @@ function loggableValue(key, value) {
   if (key === 'logo' && value !== null) {
     return '[omitted]';
   }
+  // Nested too: updateCompanyProfile returns the logo inside `tenant`.
+  if (isPlainObject(value)) {
+    return loggableBody(value);
+  }
   return value;
+}
+
+function isPlainObject(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

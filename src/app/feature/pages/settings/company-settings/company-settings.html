@@ -1,0 +1,118 @@
+<article class="support-card glass" aria-labelledby="company-settings-title">
+  <h2 id="company-settings-title" class="t-card-title">Company details</h2>
+
+  @if (!tenant()) {
+  <p class="t-body">We couldn't load your company's details. Reload the page to try again.</p>
+  } @else if (canEdit()) {
+  <form
+    #companyFormEl
+    class="support-form"
+    [formGroup]="form"
+    novalidate
+    (ngSubmit)="saveProfile(companyFormEl)"
+  >
+    <div class="field">
+      <label class="field-label" for="company-name">Company name</label>
+      <input
+        id="company-name"
+        class="input"
+        type="text"
+        autocomplete="organization"
+        formControlName="name"
+        [class.is-invalid]="showsError(form.controls.name)"
+        [attr.aria-invalid]="showsError(form.controls.name)"
+        [attr.aria-describedby]="showsError(form.controls.name) ? 'company-name-error' : null"
+      />
+      @if (showsError(form.controls.name)) {
+      <p id="company-name-error" class="field-error">
+        Enter the company name (up to 128 characters).
+      </p>
+      }
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="company-location">Location</label>
+      <input
+        id="company-location"
+        class="input"
+        type="text"
+        formControlName="location"
+        [class.is-invalid]="showsError(form.controls.location)"
+        [attr.aria-invalid]="showsError(form.controls.location)"
+        [attr.aria-describedby]="
+          showsError(form.controls.location) ? 'company-location-error' : null
+        "
+      />
+      @if (showsError(form.controls.location)) {
+      <p id="company-location-error" class="field-error">
+        Enter where the company is based (up to 128 characters).
+      </p>
+      }
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="company-phone">Contact phone (optional)</label>
+      <input
+        id="company-phone"
+        class="input"
+        type="tel"
+        autocomplete="tel"
+        formControlName="contactPhone"
+        [class.is-invalid]="showsError(form.controls.contactPhone)"
+        [attr.aria-invalid]="showsError(form.controls.contactPhone)"
+        [attr.aria-describedby]="
+          showsError(form.controls.contactPhone)
+            ? 'company-phone-error company-phone-hint'
+            : 'company-phone-hint'
+        "
+      />
+      <p id="company-phone-hint" class="field-hint">
+        Include the country code, e.g. +233 24 123 4567.
+      </p>
+      @if (showsError(form.controls.contactPhone)) {
+      <p id="company-phone-error" class="field-error">
+        Enter an international phone number starting with +.
+      </p>
+      }
+    </div>
+
+    <app-image-upload
+      label="Logo"
+      formControlName="logo"
+      [format]="'png'"
+      [maxDimension]="logoMaxDimension"
+    />
+
+    @if (save.error(); as err) {
+    <div class="support-error" role="alert"><p class="t-body">{{ err }}</p></div>
+    }
+    <div class="settings-status" role="status">
+      @if (save.success(); as message) {
+      <p class="support-sent t-body">{{ message }}</p>
+      }
+    </div>
+
+    <div class="support-actions">
+      <button type="submit" class="btn btn-primary" [attr.aria-disabled]="save.saving()">
+        {{ save.saving() ? 'Saving…' : 'Save company details' }}
+      </button>
+    </div>
+  </form>
+  } @else if (tenant(); as company) {
+  <dl class="settings-details">
+    <dt>Company name</dt>
+    <dd>{{ company.name }}</dd>
+    <dt>Location</dt>
+    <dd>{{ company.location }}</dd>
+    <dt>Contact phone</dt>
+    <dd>{{ company.contactPhone || 'Not set' }}</dd>
+    <dt>Logo</dt>
+    <dd>
+      @if (company.logo) {
+      <img class="settings-logo" [src]="company.logo" [alt]="company.name + ' logo'" />
+      } @else { No logo yet }
+    </dd>
+  </dl>
+  <p class="field-hint">Only your company's Super Organizer can change these details.</p>
+  }
+</article>

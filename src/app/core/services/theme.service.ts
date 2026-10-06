@@ -1,43 +1,54 @@
-import { Injectable, effect, signal } from '@angular/core';
+import { Injectable, computed, effect, signal } from '@angular/core';
 
 export type Theme = 'light' | 'dark';
+/** 'system' follows the OS colour scheme, live. */
+export type ThemePreference = Theme | 'system';
 
 const STORAGE_KEY = 'givio-theme';
 
 /**
- * System preference by default; an explicit toggle is sticky (persisted) and then wins over
- * any later OS-level change, matching how most SaaS theme switchers behave.
+ * System preference by default; an explicit choice is sticky (persisted) and then wins over
+ * any later OS-level change, matching how most SaaS theme switchers behave. Choosing 'system'
+ * again from Settings hands control back to the OS.
  */
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   private readonly media = window.matchMedia('(prefers-color-scheme: dark)');
+  private readonly systemTheme = signal<Theme>(themeFor(this.media.matches));
 
-  private readonly _theme = signal<Theme>(this.readInitialTheme());
-  public readonly theme = this._theme.asReadonly();
+  private readonly _preference = signal<ThemePreference>(readStoredPreference());
+  public readonly preference = this._preference.asReadonly();
+  /** The theme actually applied — always light or dark, whatever the preference. */
+  public readonly theme = computed<Theme>(() => {
+    const preference = this._preference();
+    return preference === 'system' ? this.systemTheme() : preference;
+  });
 
   constructor() {
     effect(() => {
-      document.documentElement.setAttribute('data-theme', this._theme());
+      document.documentElement.setAttribute('data-theme', this.theme());
     });
-
-    // Only follow a live OS change if the user has never made an explicit choice here —
-    // once toggle() runs, that choice is sticky regardless of what the OS does afterward.
     this.media.addEventListener('change', (event) => {
-      if (localStorage.getItem(STORAGE_KEY) === null) {
-        this._theme.set(event.matches ? 'dark' : 'light');
-      }
+      this.systemTheme.set(themeFor(event.matches));
     });
   }
 
   toggle(): void {
-    const next: Theme = this._theme() === 'dark' ? 'light' : 'dark';
-    this._theme.set(next);
-    localStorage.setItem(STORAGE_KEY, next);
+    this.setPreference(this.theme() === 'dark' ? 'light' : 'dark');
   }
 
-  private readInitialTheme(): Theme {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'light' || stored === 'dark') return stored;
-    return this.media.matches ? 'dark' : 'light';
+  setPreference(preference: ThemePreference): void {
+    this._preference.set(preference);
+    localStorage.setItem(STORAGE_KEY, preference);
   }
+}
+
+// Nothing stored (or an unknown value) means the user never chose — follow the OS.
+function readStoredPreference(): ThemePreference {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return stored === 'light' || stored === 'dark' ? stored : 'system';
+}
+
+function themeFor(prefersDark: boolean): Theme {
+  return prefersDark ? 'dark' : 'light';
 }

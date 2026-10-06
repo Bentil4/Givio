@@ -268,11 +268,18 @@ export async function handleSubmitTenantApplication({
 
 function companyRowData(company) {
   return {
-    name: company.name.trim(),
-    location: company.location.trim(),
+    ...companyIdentityData(company),
     size: company.size,
     type: company.type,
     estimatedUserCount: company.estimatedUserCount,
+  };
+}
+
+/** The Tenant fields its own Super Organizer may later edit (company-profile.js). */
+export function companyIdentityData(company) {
+  return {
+    name: company.name.trim(),
+    location: company.location.trim(),
     ...(hasValue(company.contactPhone)
       ? { contactPhone: normalizePhone(company.contactPhone) }
       : {}),

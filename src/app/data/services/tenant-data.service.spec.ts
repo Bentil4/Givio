@@ -185,6 +185,27 @@ describe('TenantDataService', () => {
         }),
       ).rejects.toThrow('A user with this email already exists');
     });
+
+    it('updateCompanyProfile sends only the profile — no tenantId — and returns the saved one', async () => {
+      const profile = {
+        name: 'Asante Events',
+        location: 'Kumasi',
+        contactPhone: '+233241234567',
+        logo: null,
+      };
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 200,
+        responseBody: JSON.stringify({ success: true, tenant: profile }),
+      });
+
+      const saved = await service.updateCompanyProfile(profile);
+
+      expect(saved).toEqual(profile);
+      expect(JSON.parse(functions.createExecution.mock.calls[0][0].body)).toEqual({
+        action: 'updateCompanyProfile',
+        ...profile,
+      });
+    });
   });
 
   describe('Admin approval queue (Story 6.5)', () => {

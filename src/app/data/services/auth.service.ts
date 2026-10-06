@@ -50,8 +50,13 @@ export class AuthService {
       /* no active session to clear */
     }
     await this.account.createEmailPasswordSession({ email, password });
-    this._currentUser.set(await this.account.get());
+    await this.refreshCurrentUser();
     this.recordActivity();
+  }
+
+  /** Re-reads the signed-in Account, e.g. after Settings changed its name or phone. */
+  async refreshCurrentUser(): Promise<void> {
+    this._currentUser.set(await this.account.get());
   }
 
   /**
@@ -83,7 +88,7 @@ export class AuthService {
    */
   async restoreSession(): Promise<void> {
     try {
-      this._currentUser.set(await this.account.get());
+      await this.refreshCurrentUser();
     } catch (error) {
       this._currentUser.set(null);
       const isExpectedNoSession = error instanceof AppwriteException && error.code === 401;

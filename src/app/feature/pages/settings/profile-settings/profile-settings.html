@@ -1,0 +1,213 @@
+<div class="settings-stack">
+  <article class="support-card glass" aria-labelledby="profile-name-title">
+    <h2 id="profile-name-title" class="t-card-title">Name</h2>
+    <form
+      #nameFormEl
+      class="support-form"
+      [formGroup]="nameForm"
+      novalidate
+      (ngSubmit)="saveName(nameFormEl)"
+    >
+      <div class="field">
+        <label class="field-label" for="profile-name">Full name</label>
+        <input
+          id="profile-name"
+          class="input"
+          type="text"
+          autocomplete="name"
+          formControlName="name"
+          [class.is-invalid]="showsError(nameForm.controls.name)"
+          [attr.aria-invalid]="showsError(nameForm.controls.name)"
+          [attr.aria-describedby]="showsError(nameForm.controls.name) ? 'profile-name-error' : null"
+        />
+        @if (showsError(nameForm.controls.name)) {
+        <p id="profile-name-error" class="field-error">Enter your name (up to 128 characters).</p>
+        }
+      </div>
+
+      @if (nameSave.error(); as err) {
+      <div class="support-error" role="alert"><p class="t-body">{{ err }}</p></div>
+      }
+      <div class="settings-status" role="status">
+        @if (nameSave.success(); as message) {
+        <p class="support-sent t-body">{{ message }}</p>
+        }
+      </div>
+
+      <div class="support-actions">
+        <button type="submit" class="btn btn-primary" [attr.aria-disabled]="nameSave.saving()">
+          {{ nameSave.saving() ? 'Saving…' : 'Save name' }}
+        </button>
+      </div>
+    </form>
+  </article>
+
+  <article class="support-card glass" aria-labelledby="profile-phone-title">
+    <h2 id="profile-phone-title" class="t-card-title">Phone number</h2>
+    <form
+      #phoneFormEl
+      class="support-form"
+      [formGroup]="phoneForm"
+      novalidate
+      (ngSubmit)="savePhone(phoneFormEl)"
+    >
+      <div class="field">
+        <label class="field-label" for="profile-phone">Phone number</label>
+        <input
+          id="profile-phone"
+          class="input"
+          type="tel"
+          autocomplete="tel"
+          formControlName="phone"
+          [class.is-invalid]="showsError(phoneForm.controls.phone)"
+          [attr.aria-invalid]="showsError(phoneForm.controls.phone)"
+          [attr.aria-describedby]="
+            showsError(phoneForm.controls.phone)
+              ? 'profile-phone-error profile-phone-hint'
+              : 'profile-phone-hint'
+          "
+        />
+        <p id="profile-phone-hint" class="field-hint">
+          Include the country code, e.g. +233 24 123 4567.
+        </p>
+        @if (showsError(phoneForm.controls.phone)) {
+        <p id="profile-phone-error" class="field-error">
+          Enter an international phone number starting with +.
+        </p>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="profile-phone-password">Current password</label>
+        <input
+          id="profile-phone-password"
+          class="input"
+          type="password"
+          autocomplete="current-password"
+          formControlName="password"
+          [class.is-invalid]="showsError(phoneForm.controls.password)"
+          [attr.aria-invalid]="showsError(phoneForm.controls.password)"
+          [attr.aria-describedby]="
+            showsError(phoneForm.controls.password) ? 'profile-phone-password-error' : null
+          "
+        />
+        @if (showsError(phoneForm.controls.password)) {
+        <p id="profile-phone-password-error" class="field-error">
+          Enter your current password to change your phone number.
+        </p>
+        }
+      </div>
+
+      @if (phoneSave.error(); as err) {
+      <div class="support-error" role="alert"><p class="t-body">{{ err }}</p></div>
+      }
+      <div class="settings-status" role="status">
+        @if (phoneSave.success(); as message) {
+        <p class="support-sent t-body">{{ message }}</p>
+        }
+      </div>
+
+      <div class="support-actions">
+        <button type="submit" class="btn btn-primary" [attr.aria-disabled]="phoneSave.saving()">
+          {{ phoneSave.saving() ? 'Saving…' : 'Save phone number' }}
+        </button>
+      </div>
+    </form>
+  </article>
+
+  <article class="support-card glass" aria-labelledby="profile-password-title">
+    <h2 id="profile-password-title" class="t-card-title">Password</h2>
+    <form
+      #passwordFormEl
+      class="support-form"
+      [formGroup]="passwordForm"
+      novalidate
+      (ngSubmit)="savePassword(passwordFormEl)"
+    >
+      <div class="field">
+        <label class="field-label" for="profile-current-password">Current password</label>
+        <input
+          id="profile-current-password"
+          class="input"
+          type="password"
+          autocomplete="current-password"
+          formControlName="currentPassword"
+          [class.is-invalid]="showsError(passwordForm.controls.currentPassword)"
+          [attr.aria-invalid]="showsError(passwordForm.controls.currentPassword)"
+          [attr.aria-describedby]="
+            showsError(passwordForm.controls.currentPassword)
+              ? 'profile-current-password-error'
+              : null
+          "
+        />
+        @if (showsError(passwordForm.controls.currentPassword)) {
+        <p id="profile-current-password-error" class="field-error">Enter your current password.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="profile-new-password">New password</label>
+        <input
+          id="profile-new-password"
+          class="input"
+          type="password"
+          autocomplete="new-password"
+          formControlName="newPassword"
+          [class.is-invalid]="showsError(passwordForm.controls.newPassword)"
+          [attr.aria-invalid]="showsError(passwordForm.controls.newPassword)"
+          [attr.aria-describedby]="
+            showsError(passwordForm.controls.newPassword)
+              ? 'profile-new-password-error profile-new-password-hint'
+              : 'profile-new-password-hint'
+          "
+        />
+        <p id="profile-new-password-hint" class="field-hint">
+          At least {{ passwordMinLength }} characters.
+        </p>
+        @if (showsError(passwordForm.controls.newPassword)) {
+        <p id="profile-new-password-error" class="field-error">
+          Choose a password of at least {{ passwordMinLength }} characters.
+        </p>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="profile-confirm-password">Confirm new password</label>
+        <input
+          id="profile-confirm-password"
+          class="input"
+          type="password"
+          autocomplete="new-password"
+          formControlName="confirmPassword"
+          [class.is-invalid]="showsError(passwordForm.controls.confirmPassword)"
+          [attr.aria-invalid]="showsError(passwordForm.controls.confirmPassword)"
+          [attr.aria-describedby]="
+            showsError(passwordForm.controls.confirmPassword)
+              ? 'profile-confirm-password-error'
+              : null
+          "
+        />
+        @if (showsError(passwordForm.controls.confirmPassword)) {
+        <p id="profile-confirm-password-error" class="field-error">
+          Enter the same new password again.
+        </p>
+        }
+      </div>
+
+      @if (passwordSave.error(); as err) {
+      <div class="support-error" role="alert"><p class="t-body">{{ err }}</p></div>
+      }
+      <div class="settings-status" role="status">
+        @if (passwordSave.success(); as message) {
+        <p class="support-sent t-body">{{ message }}</p>
+        }
+      </div>
+
+      <div class="support-actions">
+        <button type="submit" class="btn btn-primary" [attr.aria-disabled]="passwordSave.saving()">
+          {{ passwordSave.saving() ? 'Saving…' : 'Change password' }}
+        </button>
+      </div>
+    </form>
+  </article>
+</div>

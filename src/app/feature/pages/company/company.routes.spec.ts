@@ -115,6 +115,13 @@ describe('COMPANY_ROUTES', () => {
     expect(el.querySelector('app-pending-support')).toBeNull();
   });
 
+  it('renders the shared Settings page inside the company layout for an approved tenant', async () => {
+    const { el } = await navigate('/company/settings', contextFor('approved'));
+
+    expect(TestBed.inject(Router).url).toBe('/company/settings');
+    expect(el.querySelector('app-company-layout app-settings-page')).not.toBeNull();
+  });
+
   it('serves the dispute form to an anonymous visitor with no tenant — no redirect to /login', async () => {
     const { el } = await navigate('/company/dispute', null);
 

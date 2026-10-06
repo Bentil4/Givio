@@ -27,6 +27,7 @@ import type { DuplicateEventFlag } from '../../../../data/models/duplicate-event
 import { ApprovalCountsService } from '../../../../data/services/approval-counts.service';
 import type { AdminUser } from '../../../../data/models/admin-user';
 import type { Tenant } from '../../../../data/models/tenant';
+import { tabIndexForKey } from '../../../../utils/tabs.util';
 import type { ApplicationView } from './application-view';
 import { ApplicationRow } from './application-row/application-row';
 import {
@@ -249,13 +250,7 @@ export class AdminApprovals implements OnInit {
   /** WAI-ARIA tabs: arrow keys move between tabs; only the selected tab is in the Tab order. */
   public onTabKeydown(event: KeyboardEvent, index: number): void {
     const tabs = this.tabs();
-    const targets: Record<string, number> = {
-      ArrowRight: (index + 1) % tabs.length,
-      ArrowLeft: (index - 1 + tabs.length) % tabs.length,
-      Home: 0,
-      End: tabs.length - 1,
-    };
-    const next = targets[event.key];
+    const next = tabIndexForKey(event.key, index, tabs.length);
     if (next === undefined) return;
     event.preventDefault();
     this.selectTab(tabs[next].id);
