@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { handleDonationRecordingRequest } from '../src/donation-recording.js';
+import { handleTenantMembershipRequest } from '../src/tenant-membership.js';
 import {
   designate,
+  fakeContext,
   run,
   seedStore,
   setStatus,
@@ -92,6 +94,61 @@ test(
     });
 
     assert.equal(result.status, 502);
+  }),
+);
+
+const LOGO = 'data:image/png;base64,iVBORw0KGgo=';
+
+function storeWithIdentities() {
+  const store = seedStore();
+  Object.assign(store['tenants-1']['tenant-a'], { name: 'Adom Funerals', logo: LOGO });
+  Object.assign(store['tenants-1']['tenant-b'], { name: 'Bliss Weddings', logo: 'other' });
+  return store;
+}
+
+test(
+  "getMyTenantStatus returns only the caller's own tenant's name and logo",
+  withEnv(async () => {
+    const store = storeWithIdentities();
+
+    const { result } = await run({ body: { action: 'getMyTenantStatus' }, as: 'op-a', store });
+
+    assert.deepEqual(result.body, {
+      success: true,
+      tenantStatus: 'approved',
+      tenantName: 'Adom Funerals',
+      logo: LOGO,
+    });
+  }),
+);
+
+test(
+  'getMyTenantStatus returns a null logo for a tenant without one, and no identity to nobody',
+  withEnv(async () => {
+    const member = await run({ body: { action: 'getMyTenantStatus' }, as: 'op-b' });
+    const nobody = await run({ body: { action: 'getMyTenantStatus' }, as: 'nobody' });
+
+    assert.equal(member.result.body.logo, null);
+    assert.equal(nobody.result.body.tenantName, null);
+    assert.equal(nobody.result.body.logo, null);
+  }),
+);
+
+test(
+  "getMyTenantStatus logs the tenant's name but never its logo data URL",
+  withEnv(async () => {
+    const { ctx } = fakeContext({
+      body: { action: 'getMyTenantStatus' },
+      as: 'op-a',
+      store: storeWithIdentities(),
+    });
+    const logs = [];
+    ctx.log = (message) => logs.push(message);
+
+    await handleTenantMembershipRequest(ctx);
+
+    assert.ok(logs.some((message) => message.includes('Adom Funerals')));
+    assert.ok(logs.every((message) => !message.includes(LOGO)));
   }),
 );
 

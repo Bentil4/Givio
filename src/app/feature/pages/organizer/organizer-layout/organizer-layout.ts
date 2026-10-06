@@ -24,6 +24,7 @@ import { AuthService } from '../../../../data/services/auth.service';
 import { ConnectivityService } from '../../../../core/services/connectivity.service';
 import { ThemeService } from '../../../../core/services/theme.service';
 import { SyncEngineService } from '../../../../data/services/sync-engine.service';
+import { TenantService } from '../../../../data/services/tenant.service';
 import { MOBILE_NAV_QUERY } from '../../../../utils/breakpoints.util';
 import { OperatorEventContext } from '../operator-event-context';
 import { EventSwitcher } from '../event-switcher/event-switcher';
@@ -48,6 +49,8 @@ export class OrganizerLayout {
   public readonly showEventSwitcher = this.eventContext.showSwitcher;
 
   public readonly theme = this.themeService.theme;
+  /** Company identity from the status call operatorTenantGuard made on the way in. */
+  public readonly brand = inject(TenantService).companyBrand;
   public isSidebarCollapsed = signal(false);
   /** Story 5.1: off-canvas drawer state below the mobile breakpoint — see sidebar.scss. */
   public isMobileNavOpen = signal(false);

@@ -1,6 +1,9 @@
 <section class="page">
   <header class="page-head">
     <div>
+      @if (companyName(); as company) {
+      <p class="page-head-company">Working for <strong>{{ company }}</strong></p>
+      }
       <h1 class="t-page-title">
         Overview @if (activeEvent(); as event) {
         <span class="page-head-event">— {{ event.name }}</span>

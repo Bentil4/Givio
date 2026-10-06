@@ -1,11 +1,14 @@
 import { TestBed } from '@angular/core/testing';
 import { AuthService } from './auth.service';
 import { TenantDataService } from './tenant-data.service';
+import { TenantLifecycleDataService } from './tenant-lifecycle-data.service';
 import { TenantService } from './tenant.service';
 
 describe('TenantService', () => {
   let currentUser: { $id: string } | null;
+  let role: string | null;
   let data: { getMyMembership: ReturnType<typeof vi.fn>; getTenant: ReturnType<typeof vi.fn> };
+  let lifecycle: { getMyTenantSummary: ReturnType<typeof vi.fn> };
   let service: TenantService;
 
   const membership = {
@@ -18,11 +21,14 @@ describe('TenantService', () => {
 
   beforeEach(() => {
     currentUser = { $id: 'u1' };
+    role = null;
     data = { getMyMembership: vi.fn(), getTenant: vi.fn() };
+    lifecycle = { getMyTenantSummary: vi.fn() };
     TestBed.configureTestingModule({
       providers: [
-        { provide: AuthService, useValue: { currentUser: () => currentUser } },
+        { provide: AuthService, useValue: { currentUser: () => currentUser, role: () => role } },
         { provide: TenantDataService, useValue: data },
+        { provide: TenantLifecycleDataService, useValue: lifecycle },
       ],
     });
     service = TestBed.inject(TenantService);
@@ -70,5 +76,64 @@ describe('TenantService', () => {
     currentUser = null;
     expect(await service.load()).toBeNull();
     expect(data.getMyMembership).not.toHaveBeenCalled();
+  });
+
+  describe('companyBrand', () => {
+    const LOGO = 'data:image/png;base64,iVBORw0KGgo=';
+
+    it("is the Organizer tier's Tenant name and logo", async () => {
+      data.getMyMembership.mockResolvedValue(membership);
+      data.getTenant.mockResolvedValue({ id: 't1', name: 'Adom Funerals', logo: LOGO });
+
+      await service.load();
+
+      expect(service.companyBrand()).toEqual({ name: 'Adom Funerals', logo: LOGO });
+    });
+
+    it("is just the Tenant's name when it has no logo", async () => {
+      data.getMyMembership.mockResolvedValue(membership);
+      data.getTenant.mockResolvedValue({ id: 't1', name: 'Adom Funerals' });
+
+      await service.load();
+
+      expect(service.companyBrand()).toEqual({ name: 'Adom Funerals' });
+    });
+
+    it("is an Operator's company from the status check, without a second call", async () => {
+      role = 'operator';
+      lifecycle.getMyTenantSummary.mockResolvedValue({
+        status: 'approved',
+        name: 'Adom Funerals',
+        logo: LOGO,
+      });
+
+      await service.isOperatorTenantSuspended();
+      await service.isOperatorTenantSuspended();
+
+      expect(service.companyBrand()).toEqual({ name: 'Adom Funerals', logo: LOGO });
+      expect(lifecycle.getMyTenantSummary).toHaveBeenCalledTimes(1);
+    });
+
+    it("never shows a previous Operator's company to the next signed-in user", async () => {
+      role = 'operator';
+      lifecycle.getMyTenantSummary.mockResolvedValue({
+        status: 'approved',
+        name: 'Adom Funerals',
+        logo: null,
+      });
+      await service.isOperatorTenantSuspended();
+
+      currentUser = { $id: 'u2' };
+
+      expect(service.companyBrand()).toBeNull();
+    });
+
+    it('is null for an Operator whose company could not be checked', async () => {
+      role = 'operator';
+      lifecycle.getMyTenantSummary.mockRejectedValue(new Error('offline'));
+
+      expect(await service.isOperatorTenantSuspended()).toBe(false);
+      expect(service.companyBrand()).toBeNull();
+    });
   });
 });

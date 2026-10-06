@@ -58,6 +58,7 @@ export function rowToTenant(row: Models.DefaultRow): Tenant {
     verificationDocumentId: row['verificationDocumentId'] ?? undefined,
     verifiedBy: row['verifiedBy'] ?? undefined,
     verifiedAt: row['verifiedAt'] ?? undefined,
+    logo: row['logo'] ?? undefined,
     createdAt: row['createdAt'],
   };
 }

@@ -56,7 +56,12 @@ describe('COMPANY_ROUTES', () => {
         { provide: ACCOUNT, useValue: { get: vi.fn(), deleteSession: vi.fn() } },
         {
           provide: TenantService,
-          useValue: { load: vi.fn().mockResolvedValue(context), tenant, context: signal(context) },
+          useValue: {
+            load: vi.fn().mockResolvedValue(context),
+            tenant,
+            context: signal(context),
+            companyBrand: signal(null),
+          },
         },
       ],
     });

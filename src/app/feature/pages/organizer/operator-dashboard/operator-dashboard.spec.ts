@@ -4,7 +4,9 @@ import { Router, provideRouter } from '@angular/router';
 import { OperatorDashboard } from './operator-dashboard';
 import { EventService } from '../../../../data/services/event.service';
 import { AuthService } from '../../../../data/services/auth.service';
+import { TenantService } from '../../../../data/services/tenant.service';
 import type { Event } from '../../../../data/models/event';
+import type { SidebarBrand } from '../../../../data/models/user.model';
 import { OperatorEventContext } from '../operator-event-context';
 
 const makeEvent = (overrides: Partial<Event> = {}): Event => ({
@@ -22,7 +24,7 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
   ...overrides,
 });
 
-async function setup(events: Event[], userId = 'op-1') {
+async function setup(events: Event[], userId = 'op-1', brand: SidebarBrand | null = null) {
   const loadEvents = vi.fn().mockResolvedValue(undefined);
   await TestBed.configureTestingModule({
     imports: [OperatorDashboard],
@@ -30,6 +32,7 @@ async function setup(events: Event[], userId = 'op-1') {
       provideRouter([]),
       { provide: EventService, useValue: { events: signal(events).asReadonly(), loadEvents } },
       { provide: AuthService, useValue: { currentUser: () => ({ $id: userId }) } },
+      { provide: TenantService, useValue: { companyBrand: signal(brand) } },
       OperatorEventContext,
     ],
   }).compileComponents();
@@ -49,6 +52,19 @@ describe('OperatorDashboard', () => {
     ]);
 
     expect(component.assignedEvents().map((e) => e.id)).toEqual(['mine']);
+  });
+
+  it("names the Operator's company above the page heading", async () => {
+    const { fixture } = await setup([], 'op-1', { name: 'Adom Funerals' });
+    const company = (fixture.nativeElement as HTMLElement).querySelector('.page-head-company');
+
+    expect(company?.textContent).toContain('Working for Adom Funerals');
+  });
+
+  it('shows no company line when the company is unknown', async () => {
+    const { fixture } = await setup([]);
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.page-head-company')).toBeNull();
   });
 
   it('calls EventService.loadEvents on init', async () => {

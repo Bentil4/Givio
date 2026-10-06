@@ -39,7 +39,16 @@ export interface Tenant {
   verificationDocumentId?: string;
   verifiedBy?: string;
   verifiedAt?: string;
+  /** A PNG/JPEG data URL shown in its members' sidebar; absent until one is uploaded. */
+  logo?: string;
   createdAt: string;
+}
+
+/** What a member may learn about their own tenant without reading its row (Operators can't). */
+export interface OwnTenantSummary {
+  status: TenantStatus | null;
+  name: string | null;
+  logo: string | null;
 }
 
 /** The self-signup wizard's step-1 intake (FR-7) — the Function sets every other Tenant field. */
