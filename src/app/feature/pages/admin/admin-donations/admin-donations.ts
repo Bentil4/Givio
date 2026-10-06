@@ -7,17 +7,19 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Donation, DonationType, DONATION_TYPE_LABELS } from '../../../../data/models/donation';
 import type { AdminUser } from '../../../../data/models/admin-user';
 import { formatCedis, totalMinor } from '../../../../utils/donation.util';
+import {
+  DONATION_TYPE_FILTERS,
+  NO_DONATION_FILTERS,
+  distinctRecorders,
+  filterDonations,
+  hasNarrowingFilters,
+  type DonationFilters,
+  type DonationTypeFilter,
+} from '../../../../utils/donation-filter.util';
 import { formatUserDisplay } from '../../../../utils/user-display.util';
 import { DonationService } from '../../../../data/services/donation.service';
 import { UserService } from '../../../../data/services/user.service';
 import { ServiceError } from '../../../../core/services/service-error';
-
-interface Filters {
-  eventId: string | null;
-  type: DonationType | 'all';
-  operator: string | 'all';
-  search: string;
-}
 
 /**
  * Admin donation oversight — the full record, including the two columns no other role sees:
@@ -45,16 +47,16 @@ export class AdminDonations implements OnInit {
   public readonly donations = this.donationService.donations;
   public readonly loading = signal(true);
   public readonly usersById = signal<ReadonlyMap<string, AdminUser>>(new Map());
-  public readonly operators = computed(() => [...new Set(this.donations().map((d) => d.recordedBy))]);
+  public readonly operators = computed(() => distinctRecorders(this.donations()));
 
-  public readonly filters = signal<Filters>({ eventId: null, type: 'all', operator: 'all', search: '' });
+  public readonly filters = signal<DonationFilters>(NO_DONATION_FILTERS);
   public readonly editing = signal<Donation | null>(null);
   public readonly deleting = signal<Donation | null>(null);
   public readonly busy = signal(false);
   public readonly saveError = signal<string | null>(null);
   public readonly deleteError = signal<string | null>(null);
 
-  public readonly types: (DonationType | 'all')[] = ['all', 'cash', 'mobile_money', 'in_kind'];
+  public readonly types = DONATION_TYPE_FILTERS;
   public readonly labels = DONATION_TYPE_LABELS;
 
   public readonly editForm = this.fb.nonNullable.group({
@@ -87,39 +89,29 @@ export class AdminDonations implements OnInit {
     return formatUserDisplay(this.usersById().get(id), id);
   }
 
-  public readonly visible = computed(() => {
-    const f = this.filters();
-    const needle = f.search.trim().toLowerCase();
-    return this.donations().filter((d) => {
-      if (d.deletedAt) return false;
-      if (f.eventId && d.eventId !== f.eventId) return false;
-      if (f.type !== 'all' && d.donationType !== f.type) return false;
-      if (f.operator !== 'all' && d.recordedBy !== f.operator) return false;
-      if (needle) {
-        const hay = (d.donorName + ' ' + d.receiptNumber).toLowerCase();
-        if (!hay.includes(needle)) return false;
-      }
-      return true;
-    });
-  });
+  public readonly visible = computed(() =>
+    filterDonations(
+      this.donations().filter((d) => !d.deletedAt),
+      this.filters(),
+    ),
+  );
 
   public readonly totalLabel = computed(() => formatCedis(totalMinor(this.visible())));
   public readonly isEmpty = computed(() => !this.loading() && this.visible().length === 0);
-  public readonly filtered = computed(() => {
-    const f = this.filters();
-    return f.type !== 'all' || f.operator !== 'all' || !!f.search.trim();
-  });
+  public readonly filtered = computed(() => hasNarrowingFilters(this.filters()));
 
   public readonly skeletons = Array.from({ length: 8 }, (_, i) => i);
 
-  public amountLabel(d: Donation): string { return formatCedis(d.amountMinor); }
+  public amountLabel(d: Donation): string {
+    return formatCedis(d.amountMinor);
+  }
 
-  public setType(type: DonationType | 'all'): void {
+  public setType(type: DonationTypeFilter): void {
     this.filters.update((f) => ({ ...f, type }));
   }
 
-  public setOperator(operator: string): void {
-    this.filters.update((f) => ({ ...f, operator }));
+  public setOperator(recorder: string): void {
+    this.filters.update((f) => ({ ...f, recorder }));
   }
 
   public setSearch(value: string): void {
@@ -127,7 +119,7 @@ export class AdminDonations implements OnInit {
   }
 
   public clearFilters(): void {
-    this.filters.set({ eventId: this.filters().eventId, type: 'all', operator: 'all', search: '' });
+    this.filters.set({ ...NO_DONATION_FILTERS, eventId: this.filters().eventId });
   }
 
   public openEdit(d: Donation): void {
@@ -141,28 +133,38 @@ export class AdminDonations implements OnInit {
     });
   }
 
-  public closeEdit(): void { this.editing.set(null); }
+  public closeEdit(): void {
+    this.editing.set(null);
+  }
 
   /** Shows "was GH₵ 1,200.00" beside a field the Admin has actually changed. */
-  public originalLabel(field: 'donorName' | 'amount' | 'donationType' | 'onBehalfOf'): string | null {
+  public originalLabel(
+    field: 'donorName' | 'amount' | 'donationType' | 'onBehalfOf',
+  ): string | null {
     const d = this.editing();
     if (!d) return null;
     const control = this.editForm.controls[field];
     if (!control.dirty) return null;
 
     switch (field) {
-      case 'donorName': return control.value === d.donorName ? null : d.donorName;
+      case 'donorName':
+        return control.value === d.donorName ? null : d.donorName;
       case 'amount': {
         const original = d.amountMinor === null ? '' : (d.amountMinor / 100).toFixed(2);
         return control.value === original ? null : formatCedis(d.amountMinor);
       }
-      case 'donationType': return control.value === d.donationType ? null : DONATION_TYPE_LABELS[d.donationType];
-      case 'onBehalfOf': return control.value === (d.onBehalfOf ?? '') ? null : (d.onBehalfOf || '—');
+      case 'donationType':
+        return control.value === d.donationType ? null : DONATION_TYPE_LABELS[d.donationType];
+      case 'onBehalfOf':
+        return control.value === (d.onBehalfOf ?? '') ? null : d.onBehalfOf || '—';
     }
   }
 
   public async saveEdit(): Promise<void> {
-    if (this.editForm.invalid) { this.editForm.markAllAsTouched(); return; }
+    if (this.editForm.invalid) {
+      this.editForm.markAllAsTouched();
+      return;
+    }
     this.busy.set(true);
     this.saveError.set(null);
     try {
@@ -179,7 +181,9 @@ export class AdminDonations implements OnInit {
       );
       this.closeEdit();
     } catch (err) {
-      this.saveError.set(err instanceof ServiceError ? err.message : 'Failed to save the correction');
+      this.saveError.set(
+        err instanceof ServiceError ? err.message : 'Failed to save the correction',
+      );
     } finally {
       this.busy.set(false);
     }
@@ -190,10 +194,15 @@ export class AdminDonations implements OnInit {
     this.deleteForm.reset({ reason: '' });
   }
 
-  public closeDelete(): void { this.deleting.set(null); }
+  public closeDelete(): void {
+    this.deleting.set(null);
+  }
 
   public async confirmDelete(): Promise<void> {
-    if (this.deleteForm.invalid) { this.deleteForm.markAllAsTouched(); return; }
+    if (this.deleteForm.invalid) {
+      this.deleteForm.markAllAsTouched();
+      return;
+    }
     this.busy.set(true);
     this.deleteError.set(null);
     try {
@@ -203,7 +212,9 @@ export class AdminDonations implements OnInit {
       );
       this.closeDelete();
     } catch (err) {
-      this.deleteError.set(err instanceof ServiceError ? err.message : 'Failed to remove the donation');
+      this.deleteError.set(
+        err instanceof ServiceError ? err.message : 'Failed to remove the donation',
+      );
     } finally {
       this.busy.set(false);
     }

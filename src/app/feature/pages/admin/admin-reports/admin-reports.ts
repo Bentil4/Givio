@@ -8,21 +8,11 @@ import {
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
-import { DonationType, DONATION_TYPE_LABELS } from '../../../../data/models/donation';
-import { formatCedis, formatCedisShort, totalMinor } from '../../../../utils/donation.util';
+import type { DonationType } from '../../../../data/models/donation';
+import { donationStats, donationTypeSlices } from '../../../../utils/donation-breakdown.util';
 import { DonationService } from '../../../../data/services/donation.service';
 import { ReportService } from '../../../../data/services/report.service';
 import { appDb } from '../../../../data/dexie/app-db';
-
-interface TypeSlice {
-  type: DonationType;
-  label: string;
-  valueLabel: string;
-  percent: number;
-  /** Cumulative offsets for the conic-gradient wedge. */
-  from: number;
-  to: number;
-}
 
 interface HourBar {
   hour: string;
@@ -78,60 +68,9 @@ export class AdminReports implements OnInit {
     this.donations().filter((d) => !d.deletedAt && d.syncStatus !== 'conflict'),
   );
 
-  public readonly stats = computed(() => {
-    const rows = this.counted();
-    const total = totalMinor(rows);
-    const cash = rows.filter((d) => d.amountMinor !== null).map((d) => d.amountMinor!);
-    const sorted = [...cash].sort((a, b) => a - b);
-    const median = sorted.length
-      ? sorted.length % 2
-        ? sorted[(sorted.length - 1) / 2]
-        : Math.round((sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2)
-      : 0;
-    const largest = sorted.length ? sorted[sorted.length - 1] : 0;
-    const largestDonor = rows.find((d) => d.amountMinor === largest);
+  public readonly stats = computed(() => donationStats(this.counted(), this.dateRange()));
 
-    return [
-      {
-        key: 'Total raised',
-        value: formatCedisShort(total),
-        sub: `${rows.length} validated records`,
-      },
-      { key: 'Donors', value: String(rows.length), sub: this.dateRange() || 'this event' },
-      {
-        key: 'Average gift',
-        value: cash.length ? formatCedisShort(Math.round(total / cash.length)) : '—',
-        sub: median ? `Median ${formatCedis(median)}` : 'no cash gifts yet',
-      },
-      {
-        key: 'Largest gift',
-        value: largest ? formatCedisShort(largest) : '—',
-        sub: largestDonor?.onBehalfOf || largestDonor?.donorName || '—',
-      },
-    ];
-  });
-
-  public readonly slices = computed<TypeSlice[]>(() => {
-    const rows = this.counted();
-    const total = totalMinor(rows);
-    const byType: Record<DonationType, number> = { cash: 0, mobile_money: 0, in_kind: 0 };
-    for (const d of rows) byType[d.donationType] += d.amountMinor ?? 0;
-
-    let cursor = 0;
-    return (Object.keys(byType) as DonationType[]).map((type) => {
-      const percent = total > 0 ? Math.round((byType[type] / total) * 100) : 0;
-      const from = cursor;
-      cursor += percent;
-      return {
-        type,
-        label: DONATION_TYPE_LABELS[type],
-        valueLabel: formatCedis(byType[type]),
-        percent,
-        from,
-        to: cursor,
-      };
-    });
-  });
+  public readonly slices = computed(() => donationTypeSlices(this.counted()));
 
   /** Built as a real CSS conic-gradient so the donut needs no chart library. */
   public readonly donutGradient = computed(() => {

@@ -1,0 +1,91 @@
+import { DONATION_TYPE_LABELS, type Donation, type DonationType } from '../data/models/donation';
+import { formatCedis, formatCedisShort, totalMinor } from './donation.util';
+
+export interface TypeSlice {
+  type: DonationType;
+  label: string;
+  valueLabel: string;
+  percent: number;
+  /** Cumulative offsets, for a conic-gradient wedge. */
+  from: number;
+  to: number;
+}
+
+export interface DonationStat {
+  key: string;
+  value: string;
+  sub: string;
+}
+
+const DONATION_TYPES: readonly DonationType[] = ['cash', 'mobile_money', 'in_kind'];
+
+/**
+ * Each donation type's share of the total, in a fixed order. Callers pass the rows that count
+ * (their own exclusion rule) — this only aggregates them.
+ */
+export function donationTypeSlices(rows: readonly Donation[]): TypeSlice[] {
+  const total = totalMinor(rows);
+  let cursor = 0;
+  return DONATION_TYPES.map((type) => {
+    const typeTotal = totalMinor(rows.filter((d) => d.donationType === type));
+    const percent = total > 0 ? Math.round((typeTotal / total) * 100) : 0;
+    const from = cursor;
+    cursor += percent;
+    return {
+      type,
+      label: DONATION_TYPE_LABELS[type],
+      valueLabel: formatCedis(typeTotal),
+      percent,
+      from,
+      to: cursor,
+    };
+  });
+}
+
+/** Total raised, donors, average and largest gift — the headline figures of a report. */
+export function donationStats(rows: readonly Donation[], periodLabel: string): DonationStat[] {
+  const total = totalMinor(rows);
+  const amounts = sortedAmounts(rows);
+  return [
+    {
+      key: 'Total raised',
+      value: formatCedisShort(total),
+      sub: `${rows.length} validated records`,
+    },
+    { key: 'Donors', value: String(rows.length), sub: periodLabel || 'this event' },
+    averageStat(total, amounts),
+    largestStat(rows, amounts),
+  ];
+}
+
+function averageStat(total: number, amounts: readonly number[]): DonationStat {
+  const median = medianOf(amounts);
+  return {
+    key: 'Average gift',
+    value: amounts.length ? formatCedisShort(Math.round(total / amounts.length)) : '—',
+    sub: median ? `Median ${formatCedis(median)}` : 'no cash gifts yet',
+  };
+}
+
+function largestStat(rows: readonly Donation[], amounts: readonly number[]): DonationStat {
+  const largest = amounts.length ? amounts[amounts.length - 1] : 0;
+  const donor = rows.find((d) => d.amountMinor === largest);
+  return {
+    key: 'Largest gift',
+    value: largest ? formatCedisShort(largest) : '—',
+    sub: donor?.onBehalfOf || donor?.donorName || '—',
+  };
+}
+
+function sortedAmounts(rows: readonly Donation[]): number[] {
+  return rows
+    .map((d) => d.amountMinor)
+    .filter((amount): amount is number => amount !== null)
+    .sort((a, b) => a - b);
+}
+
+function medianOf(sorted: readonly number[]): number {
+  if (sorted.length === 0) return 0;
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : Math.round((sorted[middle - 1] + sorted[middle]) / 2);
+}
