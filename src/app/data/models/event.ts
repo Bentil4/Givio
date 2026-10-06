@@ -30,3 +30,12 @@ export const EVENT_STATUS_CHIP: Record<EventStatus, string> = {
   paused: 'tag-info',
   closed: 'tag-default',
 };
+
+/** A quiet per-occasion icon, for event rows with no uploaded photo — every type otherwise
+ *  rendered as the same generic calendar icon, giving admins no visual cue (at a glance, in a
+ *  long list) for whether a row is a funeral or a wedding. Maps to the `.event-thumb--<type>`
+ *  tint classes (see admin-events.scss). */
+export const EVENT_TYPE_ICON: Record<EventType, string> = {
+  wedding: 'favorite',
+  funeral: 'local_florist',
+};
