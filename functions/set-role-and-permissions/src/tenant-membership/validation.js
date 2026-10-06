@@ -127,11 +127,11 @@ const PAYLOAD_VALIDATORS = {
     }
     return validateOptionalPhone(phone);
   },
-  listTeamMembers: ({ tenantId }, { isAdmin }) => {
+  listTeamMembers: ({ tenantId, includeRevoked }, { isAdmin }) => {
     if (isAdmin && !hasValue(tenantId)) {
       return invalid('Request must include tenantId');
     }
-    return VALID;
+    return validateIncludeRevoked(includeRevoked, isAdmin);
   },
   listIdentityReviews: () => VALID,
   resolveIdentityReview: ({ reviewId, decision }) => {
@@ -309,4 +309,16 @@ function tenantAdminValidators() {
         : invalid('Request must include tenantId and membershipId'),
     getMyTenantStatus: () => VALID,
   };
+}
+
+// FR-13: a company's donation views name whoever recorded a gift, even after revocation. Admin
+// keeps its own user lookup, so the wider listing is an Organizer-tier option only.
+function validateIncludeRevoked(includeRevoked, isAdmin) {
+  if (includeRevoked !== undefined && typeof includeRevoked !== 'boolean') {
+    return invalid('includeRevoked must be true or false');
+  }
+  if (isAdmin && includeRevoked) {
+    return invalid('includeRevoked is only available to a company organizer');
+  }
+  return VALID;
 }
