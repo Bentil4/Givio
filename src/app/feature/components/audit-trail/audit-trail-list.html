@@ -2,7 +2,9 @@
   @for (e of entries(); track e.id) {
   <li class="trail-row">
     <span class="trail-time">{{ e.timestamp | date:'MMM d, y, h:mm a' }}</span>
-    <span class="trail-tag" [class]="actionClass(e.action)">{{ actionLabel(e.action) }}</span>
+    <span class="trail-tag-slot">
+      <app-tag [variant]="actionVariant(e.action)">{{ actionLabel(e.action) }}</app-tag>
+    </span>
     <span class="trail-body">
       <span class="t-body">{{ e.summary }}</span>
       @if (e.detail) {

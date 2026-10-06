@@ -14,8 +14,8 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-full);
-  background: rgba(10, 88, 102, .14);
-  font-size: 0.65rem;
+  background: rgba(var(--color-brand-700-rgb), 0.14);
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
   font-weight: 700;
   color: var(--primary-deep);
 }
@@ -33,18 +33,20 @@
   align-items: flex-start;
   gap: var(--space-sm);
   padding: 13px var(--space-md);
-  border: 1.5px solid rgba(15, 122, 140, .15);
+  border: 1.5px solid rgba(var(--color-brand-500-rgb), 0.15);
   border-radius: var(--radius-md);
   background: var(--bg-white);
   text-align: left;
   cursor: pointer;
-  transition: all .18s var(--ease);
+  transition: all 0.18s var(--ease);
 
-  &:hover:not(.is-selected) { border-color: var(--primary-deep); }
+  &:hover:not(.is-selected) {
+    border-color: var(--primary-deep);
+  }
 
   &.is-selected {
     border-color: var(--primary-deep);
-    background: rgba(10, 88, 102, .07);
+    background: rgba(var(--color-brand-700-rgb), 0.07);
   }
 }
 
@@ -54,10 +56,12 @@
   height: 16px;
   margin-top: 2px;
   border-radius: var(--radius-full);
-  border: 5px solid rgba(15, 122, 140, .25);
-  transition: border-color .18s var(--ease);
+  border: 5px solid rgba(var(--color-brand-500-rgb), 0.25);
+  transition: border-color 0.18s var(--ease);
 
-  .role-card.is-selected & { border-color: var(--primary-deep); }
+  .role-card.is-selected & {
+    border-color: var(--primary-deep);
+  }
 }
 
 .role-body {
@@ -71,12 +75,22 @@
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md);
-  border: 1.5px solid rgba(10, 88, 102, .25);
+  border: 1.5px solid rgba(var(--color-brand-700-rgb), 0.25);
   border-radius: var(--radius-md);
-  background: rgba(10, 88, 102, .07);
+  background: rgba(var(--color-brand-700-rgb), 0.07);
 
-  mat-icon { flex: none; color: var(--primary-deep); font-size: 18px; width: 18px; height: 18px; }
-  p { margin: 0; line-height: 1.55; text-wrap: pretty; }
+  mat-icon {
+    flex: none;
+    color: var(--primary-deep);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+  p {
+    margin: 0;
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
 }
 
 .confirm-body {
@@ -95,7 +109,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  font-size: 0.88rem;
+  font-size: 0.875rem; /* 7-step type scale: 14px (body) */
   color: var(--primary-dark);
   cursor: pointer;
 
@@ -113,6 +127,6 @@
 
 .invite-hint {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
   color: var(--data-4);
 }

@@ -5,7 +5,7 @@
 .progress-track {
   height: 8px;
   border-radius: var(--radius-full);
-  background: rgba(15, 122, 140, 0.12);
+  background: rgba(var(--color-brand-500-rgb), 0.12);
   overflow: hidden;
   margin-bottom: 6px;
 }
@@ -20,6 +20,6 @@
 .progress-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 0.72rem;
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
   color: var(--data-4);
 }

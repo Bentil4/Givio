@@ -20,8 +20,12 @@
 }
 
 .select-head-main {
-  h1 { margin: 0 0 4px; }
-  p { margin: 0; }
+  h1 {
+    margin: 0 0 4px;
+  }
+  p {
+    margin: 0;
+  }
 }
 
 .conn {
@@ -31,13 +35,13 @@
   gap: 7px;
   padding: 6px 12px;
   border-radius: var(--radius-full);
-  background: rgba(21, 128, 61, .12);
+  background: rgba(21, 128, 61, 0.12);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--func-success);
 
   &.is-off {
-    background: rgba(180, 83, 9, .12);
+    background: rgba(180, 83, 9, 0.12);
     color: var(--func-warning);
   }
 }
@@ -51,20 +55,38 @@
 }
 
 @keyframes conn-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: .35; transform: scale(.75); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
 }
 
 .notice {
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md);
-  border: 1.5px solid rgba(180, 83, 9, .28);
+  border: 1.5px solid rgba(180, 83, 9, 0.28);
   border-radius: var(--radius-md);
-  background: rgba(180, 83, 9, .08);
+  background: rgba(180, 83, 9, 0.08);
 
-  mat-icon { flex: none; color: var(--func-warning); font-size: 18px; width: 18px; height: 18px; }
-  p { margin: 0; color: var(--func-warning); line-height: 1.55; text-wrap: pretty; }
+  mat-icon {
+    flex: none;
+    color: var(--func-warning);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+  p {
+    margin: 0;
+    color: var(--func-warning);
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
 }
 
 .event-list {
@@ -83,14 +105,23 @@
   border-radius: var(--radius-lg);
   text-align: left;
   cursor: pointer;
-  transition: background .18s var(--ease), opacity .18s var(--ease);
+  transition:
+    background 0.18s var(--ease),
+    opacity 0.18s var(--ease);
 
-  &:hover:not(.is-blocked) { background: rgba(10, 88, 102, .06); }
+  &:hover:not(.is-blocked) {
+    background: rgba(var(--color-brand-700-rgb), 0.06);
+  }
 
   // Blocked events stay visible but recede: "paused" is more useful than "vanished".
-  &.is-blocked { opacity: .62; }
+  &.is-blocked {
+    opacity: 0.62;
+  }
 
-  &.is-skel { cursor: default; gap: var(--space-lg); }
+  &.is-skel {
+    cursor: default;
+    gap: var(--space-lg);
+  }
 }
 
 .event-rail {
@@ -100,7 +131,9 @@
   border-radius: var(--radius-full);
   background: var(--primary-mid);
 
-  .event-card.is-blocked & { background: var(--data-2); }
+  .event-card.is-blocked & {
+    background: var(--data-2);
+  }
 }
 
 .event-body {
@@ -117,7 +150,9 @@
   gap: var(--space-sm);
   flex-wrap: wrap;
 
-  .t-card-title { margin: 0; }
+  .t-card-title {
+    margin: 0;
+  }
 }
 
 .event-cta {
@@ -132,7 +167,7 @@
 
   &.is-muted {
     background: transparent;
-    border: 1.5px solid rgba(15, 122, 140, .22);
+    border: 1.5px solid rgba(var(--color-brand-500-rgb), 0.22);
     color: var(--data-4);
   }
 }
@@ -142,27 +177,44 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border: 1.5px dashed rgba(15, 122, 140, .22);
+  border: 1.5px dashed rgba(var(--color-brand-500-rgb), 0.22);
   border-radius: var(--radius-md);
 
-  p { flex: 1; margin: 0; line-height: 1.55; text-wrap: pretty; }
+  p {
+    flex: 1;
+    margin: 0;
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
 }
 
 .skel--line {
   flex: 1;
   height: 14px;
   border-radius: var(--radius-sm);
-  background: var(--data-1); /* flat fill, not a gradient — an opacity pulse instead of a
+  background: var(
+    --data-1
+  ); /* flat fill, not a gradient — an opacity pulse instead of a
     gradient sweep still reads as "loading" */
   animation: event-select-skel-pulse 1.4s var(--ease) infinite;
 }
 
 @keyframes event-select-skel-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .45; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
 }
 
 @media (max-width: 720px) {
-  .event-card { flex-wrap: wrap; }
-  .event-cta { width: 100%; text-align: center; }
+  .event-card {
+    flex-wrap: wrap;
+  }
+  .event-cta {
+    width: 100%;
+    text-align: center;
+  }
 }

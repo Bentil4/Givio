@@ -3,7 +3,7 @@
   align-items: center;
   min-height: 44px; /* Story 5.1: touch target minimum — the whole row is the click target */
   gap: var(--space-sm);
-  font-size: 0.88rem;
+  font-size: 0.875rem; /* 7-step type scale: 14px (body) */
   color: var(--primary-dark);
   cursor: pointer;
   user-select: none;

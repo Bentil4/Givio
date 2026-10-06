@@ -3,7 +3,7 @@
 .days {
   display: inline-block;
   margin-right: var(--space-sm);
-  font-size: 0.72rem;
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
   color: var(--data-4);
   white-space: nowrap;
 
@@ -21,15 +21,25 @@
 
 .reason-recall {
   padding: var(--space-md);
-  border-left: 2px solid rgba(15, 122, 140, .25);
+  border-left: 2px solid rgba(var(--color-brand-500-rgb), 0.25);
   background: var(--bg-white);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 
-  .sub-label { margin-bottom: 4px; }
-  p { margin: 0; line-height: 1.55; text-wrap: pretty; }
+  .sub-label {
+    margin-bottom: 4px;
+  }
+  p {
+    margin: 0;
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
 }
 
-.field-error { margin: 0; font-size: 0.75rem; color: var(--func-error); }
+.field-error {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--func-error);
+}
 
 .confirm-body {
   margin: 0;

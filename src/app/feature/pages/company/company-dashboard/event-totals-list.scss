@@ -9,7 +9,7 @@
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(15, 122, 140, 0.09);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.09);
 
   h2 {
     flex: 1;
@@ -47,7 +47,7 @@
   justify-content: space-between;
   gap: var(--space-sm) var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(15, 122, 140, 0.07);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.07);
 
   &:last-child {
     border-bottom: 0;

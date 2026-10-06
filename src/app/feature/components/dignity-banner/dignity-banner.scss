@@ -34,14 +34,14 @@
 
 .dignity-heading {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1.125rem; /* 7-step type scale: 18px (card title / H3) */
   font-weight: 700;
   line-height: 1.35;
 }
 
 .dignity-detail {
   margin: var(--space-xs) 0 0;
-  font-size: 0.9rem;
+  font-size: 0.875rem; /* 7-step type scale: 14px (body) */
   line-height: 1.5;
   text-wrap: pretty;
 }

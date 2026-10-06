@@ -118,7 +118,7 @@
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
   margin-top: var(--space-md);
-  border: 1.5px solid rgba(15, 122, 140, 0.12);
+  border: 1.5px solid rgba(var(--color-brand-500-rgb), 0.12);
   border-radius: var(--radius-md);
   background: var(--bg-white);
 }
@@ -232,7 +232,7 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md);
-  border: 1.5px solid rgba(15, 122, 140, 0.1);
+  border: 1.5px solid rgba(var(--color-brand-500-rgb), 0.1);
   border-radius: var(--radius-md);
   background: var(--bg-white);
 }
@@ -299,7 +299,7 @@
 }
 
 .sheet-cols {
-  border: 1.5px solid rgba(15, 122, 140, 0.12);
+  border: 1.5px solid rgba(var(--color-brand-500-rgb), 0.12);
   border-radius: var(--radius-md);
   overflow: hidden;
 
@@ -307,7 +307,7 @@
     margin: 0;
     padding: 11px var(--space-md);
     background: var(--bg-mist);
-    border-bottom: 1.5px solid rgba(15, 122, 140, 0.1);
+    border-bottom: 1.5px solid rgba(var(--color-brand-500-rgb), 0.1);
   }
 
   ul {

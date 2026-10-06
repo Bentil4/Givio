@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { DatePipe } from '@angular/common';
@@ -9,7 +16,7 @@ import { UserService } from '../../../../data/services/user.service';
 import { DonationService } from '../../../../data/services/donation.service';
 import { ServiceError } from '../../../../core/services/service-error';
 import type { Event, EventStatus, EventType } from '../../../../data/models/event';
-import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
+import { EVENT_STATUS_CHIP, EVENT_TYPE_ICON } from '../../../../data/models/event';
 import type { AdminUser } from '../../../../data/models/admin-user';
 import type { Donation } from '../../../../data/models/donation';
 import { formatCedis, totalMinor } from '../../../../utils/donation.util';
@@ -56,6 +63,7 @@ export class AdminEvents implements OnInit {
 
   public readonly statuses: (EventStatus | 'all')[] = ['all', 'active', 'paused', 'closed'];
   public readonly chipClass = EVENT_STATUS_CHIP;
+  public readonly typeIcon = EVENT_TYPE_ICON;
   public readonly skeletons = Array.from({ length: 5 }, (_, i) => i);
 
   public readonly form = this.fb.nonNullable.group({
@@ -139,9 +147,12 @@ export class AdminEvents implements OnInit {
 
   public actionLabel(e: Event): string {
     switch (e.status) {
-      case 'paused': return 'Resume';
-      case 'closed': return 'Export';
-      default: return 'Manage';
+      case 'paused':
+        return 'Resume';
+      case 'closed':
+        return 'Export';
+      default:
+        return 'Manage';
     }
   }
 
@@ -149,7 +160,9 @@ export class AdminEvents implements OnInit {
     return status.charAt(0).toUpperCase() + status.slice(1);
   }
 
-  public setStatus(s: EventStatus | 'all'): void { this.statusFilter.set(s); }
+  public setStatus(s: EventStatus | 'all'): void {
+    this.statusFilter.set(s);
+  }
 
   public openCreate(): void {
     this.creating.set(true);
@@ -158,12 +171,15 @@ export class AdminEvents implements OnInit {
     this.form.reset({ type: 'funeral' });
   }
 
-  public closeCreate(): void { this.creating.set(false); }
+  public closeCreate(): void {
+    this.creating.set(false);
+  }
 
   public toggleOperator(id: string): void {
     this.selectedOperators.update((set) => {
       const next = new Set(set);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
@@ -173,7 +189,10 @@ export class AdminEvents implements OnInit {
   }
 
   public async save(): Promise<void> {
-    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
     this.busy.set(true);
     this.formError.set(null);
     const { name, type, date, hostName, venue, image } = this.form.getRawValue();

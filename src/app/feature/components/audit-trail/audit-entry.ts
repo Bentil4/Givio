@@ -1,4 +1,5 @@
 import type { AuditLogEntry } from '../../../data/models/audit-log';
+import type { TagVariant } from '../../../shared/components/tag/tag';
 
 export type AuditAction =
   'create' | 'edit' | 'delete' | 'restore' | 'access' | 'assign' | 'security';
@@ -89,18 +90,19 @@ export function auditActionLabel(action: AuditAction | 'all'): string {
   return action.charAt(0).toUpperCase() + action.slice(1);
 }
 
-/** Security rows are the ones an Admin scans for, so they alone carry a warning colour. */
-export function auditActionClass(action: AuditAction): string {
+/** Security rows are the ones an Admin scans for, so they alone carry the error (red) tone;
+ *  delete gets the warning (amber) tone, restore the success (green) tone, and everything else
+ *  (create, edit, access, assign) stays neutral — shares the app-tag component's tone set
+ *  instead of a separate one-off palette. */
+export function auditActionVariant(action: AuditAction): TagVariant {
   switch (action) {
     case 'security':
-      return 'is-security';
+      return 'error';
     case 'delete':
-      return 'is-delete';
-    case 'edit':
-      return 'is-edit';
+      return 'warning';
     case 'restore':
-      return 'is-restore';
+      return 'success';
     default:
-      return 'is-neutral';
+      return 'default';
   }
 }
