@@ -2,15 +2,20 @@ const MAX_SOURCE_BYTES = 8 * 1024 * 1024;
 const DEFAULT_MAX_DIMENSION = 1024;
 const DEFAULT_QUALITY = 0.75;
 
+export type ImageOutputFormat = 'jpeg' | 'png';
+
 export interface ResizeImageOptions {
   maxDimension?: number;
   quality?: number;
+  /** PNG keeps transparency (e.g. a company logo); `quality` only applies to JPEG. */
+  format?: ImageOutputFormat;
 }
 
 /**
  * Reads an image file, downscales it to fit within `maxDimension` (preserving aspect ratio),
- * and re-encodes it as JPEG. Output is always JPEG so callers (e.g. the receipt PDF) never
- * need to sniff the format back out of the data URL.
+ * and re-encodes it as JPEG unless PNG is asked for. The format is always the caller's choice,
+ * never the source file's, so callers (e.g. the receipt PDF) never need to sniff it back out
+ * of the data URL.
  */
 export async function readAndResizeImage(
   file: File,
@@ -41,7 +46,7 @@ export async function readAndResizeImage(
     }
     ctx.drawImage(bitmap, 0, 0, width, height);
 
-    return canvas.toDataURL('image/jpeg', quality);
+    return canvas.toDataURL(`image/${opts.format ?? 'jpeg'}`, quality);
   } finally {
     bitmap.close();
   }

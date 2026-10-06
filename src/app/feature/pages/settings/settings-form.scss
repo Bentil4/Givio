@@ -1,0 +1,67 @@
+// Settings sections reuse the Contact Admin form's cards, fields, error and confirmation blocks.
+@use '../company/company-support/support-form.scss';
+
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.settings-details {
+  display: grid;
+  grid-template-columns: minmax(120px, max-content) 1fr;
+  gap: var(--space-sm) var(--space-lg);
+  margin: 0;
+
+  dt {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  dd {
+    margin: 0;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+  }
+}
+
+.settings-logo {
+  max-width: 96px;
+  max-height: 96px;
+  border-radius: var(--radius-md);
+  object-fit: contain;
+}
+
+.theme-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  border: none;
+
+  legend {
+    margin-bottom: var(--space-sm);
+  }
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  color: var(--text-primary);
+  cursor: pointer;
+
+  input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary-deep);
+  }
+
+  input:focus-visible {
+    outline: var(--border-width-focus) solid var(--border-focus);
+    outline-offset: 2px;
+  }
+}

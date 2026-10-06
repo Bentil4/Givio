@@ -29,6 +29,8 @@ import { MOBILE_NAV_QUERY } from '../../../../utils/breakpoints.util';
 import { OperatorEventContext } from '../operator-event-context';
 import { EventSwitcher } from '../event-switcher/event-switcher';
 
+const ORGANIZER_SETTINGS_ROUTE = '/organizer/settings';
+
 @Component({
   selector: 'app-organizer-layout',
   imports: [RouterOutlet, Sidebar, MatIconModule, ConnectionBanner, Breadcrumb, EventSwitcher],
@@ -55,7 +57,7 @@ export class OrganizerLayout {
   /** Story 5.1: off-canvas drawer state below the mobile breakpoint — see sidebar.scss. */
   public isMobileNavOpen = signal(false);
   public readonly profile = computed(() =>
-    buildSidebarProfile(this.authService.currentUser(), 'operator'),
+    buildSidebarProfile(this.authService.currentUser(), 'operator', ORGANIZER_SETTINGS_ROUTE),
   );
 
   public readonly online = this.connectivityService.online;
@@ -100,6 +102,7 @@ export class OrganizerLayout {
     // No Operator-facing report screen exists yet — the PRD scopes Reports & Export to
     // Admin/Family only. Shown so the intent is visible, not wired to a route.
     { name: 'Report', icon: 'bar_chart', route: '/organizer/report', disabled: true },
+    { name: 'Settings', icon: 'settings', route: ORGANIZER_SETTINGS_ROUTE },
   ];
 
   constructor() {

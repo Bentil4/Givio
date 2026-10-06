@@ -12,6 +12,8 @@ import { TenantService } from '../../../../data/services/tenant.service';
 import { ThemeService } from '../../../../core/services/theme.service';
 import { MOBILE_NAV_QUERY } from '../../../../utils/breakpoints.util';
 
+const COMPANY_SETTINGS_ROUTE = '/company/settings';
+
 /**
  * Shell for an approved tenant's Organizer tier (/company). Only ever rendered under
  * approvedCompanyMatch — a pending/rejected tenant gets PendingShell instead, never this
@@ -39,6 +41,7 @@ export class CompanyLayout {
     buildSidebarProfile(
       this.authService.currentUser(),
       this.tenantService.context()?.membership.role ?? null,
+      COMPANY_SETTINGS_ROUTE,
     ),
   );
 
@@ -57,6 +60,7 @@ export class CompanyLayout {
           { name: 'Reports', icon: 'summarize', route: '/company/reports' },
         ]
       : []),
+    { name: 'Settings', icon: 'settings', route: COMPANY_SETTINGS_ROUTE },
   ]);
 
   constructor() {

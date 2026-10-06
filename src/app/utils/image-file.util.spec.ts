@@ -43,6 +43,27 @@ describe('readAndResizeImage', () => {
     expect(bitmap.close).toHaveBeenCalled();
   });
 
+  it('encodes a PNG data URL when asked, so transparency survives', async () => {
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn().mockResolvedValue({ width: 300, height: 300, close: vi.fn() }),
+    );
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage: vi.fn(),
+    } as unknown as CanvasRenderingContext2D);
+    const toDataURL = vi
+      .spyOn(HTMLCanvasElement.prototype, 'toDataURL')
+      .mockReturnValue('data:image/png;base64,mock');
+
+    const result = await readAndResizeImage(makeFile({ type: 'image/png' }), {
+      maxDimension: 256,
+      format: 'png',
+    });
+
+    expect(toDataURL).toHaveBeenCalledWith('image/png', 0.75);
+    expect(result).toBe('data:image/png;base64,mock');
+  });
+
   it('does not upscale an image already smaller than maxDimension', async () => {
     const bitmap = { width: 200, height: 100, close: vi.fn() };
     vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));

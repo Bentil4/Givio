@@ -51,6 +51,16 @@ export interface OwnTenantSummary {
   logo: string | null;
 }
 
+/** What a Super Organizer may change about their own company; null clears a field. */
+export interface CompanyProfile {
+  name: string;
+  location: string;
+  /** E.164. */
+  contactPhone: string | null;
+  /** A PNG/JPEG data URL. Left out of an update, the logo stays as it is. */
+  logo?: string | null;
+}
+
 /** The self-signup wizard's step-1 intake (FR-7) — the Function sets every other Tenant field. */
 export interface CompanyIntake {
   name: string;

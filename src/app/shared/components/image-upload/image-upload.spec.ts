@@ -16,6 +16,11 @@ describe('ImageUpload', () => {
     await fixture.whenStable();
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
@@ -40,6 +45,32 @@ describe('ImageUpload', () => {
 
     expect(component.value()).toBeNull();
     expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  it('encodes the chosen file in the requested format and size', async () => {
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn().mockResolvedValue({ width: 1000, height: 500, close: vi.fn() }),
+    );
+    const drawImage = vi.fn();
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage,
+    } as unknown as CanvasRenderingContext2D);
+    const toDataURL = vi
+      .spyOn(HTMLCanvasElement.prototype, 'toDataURL')
+      .mockReturnValue('data:image/png;base64,logo');
+    const onChange = vi.fn();
+    component.registerOnChange(onChange);
+    fixture.componentRef.setInput('format', 'png');
+    fixture.componentRef.setInput('maxDimension', 256);
+    const file = new File([new Uint8Array(10)], 'logo.png', { type: 'image/png' });
+    const target = { files: [file], value: 'logo.png' } as unknown as HTMLInputElement;
+
+    await component.onFileSelected({ target } as unknown as Event);
+
+    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 256, 128);
+    expect(toDataURL).toHaveBeenCalledWith('image/png', 0.75);
+    expect(onChange).toHaveBeenCalledWith('data:image/png;base64,logo');
   });
 
   it('setDisabledState toggles isDisabled', () => {

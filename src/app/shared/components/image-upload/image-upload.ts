@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, forwardRef, input, signal } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { readAndResizeImage } from '../../../utils/image-file.util';
+import { type ImageOutputFormat, readAndResizeImage } from '../../../utils/image-file.util';
 
 let nextId = 0;
 
@@ -23,6 +23,8 @@ export class ImageUpload implements ControlValueAccessor {
   public disabled = input(false);
   public error = input(false);
   public errorMessage = input('');
+  public format = input<ImageOutputFormat>('jpeg');
+  public maxDimension = input<number | undefined>(undefined);
   public inputId = signal(`image-upload-${nextId++}`);
 
   public value = signal<string | null>(null);
@@ -40,7 +42,10 @@ export class ImageUpload implements ControlValueAccessor {
     if (!file) return;
 
     try {
-      const dataUrl = await readAndResizeImage(file);
+      const dataUrl = await readAndResizeImage(file, {
+        format: this.format(),
+        maxDimension: this.maxDimension(),
+      });
       this.localError.set(null);
       this.value.set(dataUrl);
       this.onChange(dataUrl);

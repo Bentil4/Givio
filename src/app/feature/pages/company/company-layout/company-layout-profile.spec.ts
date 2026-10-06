@@ -37,4 +37,14 @@ describe('CompanyLayout sidebar profile', () => {
     expect(footer?.textContent).toContain('Organizer');
     expect(footer?.textContent).not.toContain('Super Organizer');
   });
+
+  for (const role of ['super_organizer', 'organizer'] as const) {
+    it(`links a ${role}'s profile and a Settings nav item to /company/settings`, async () => {
+      const el = await renderAs(role);
+
+      expect(el.querySelector('a.user-profile')?.getAttribute('href')).toBe('/company/settings');
+      const navLink = el.querySelector('app-sidebar nav a[href="/company/settings"]');
+      expect(navLink?.textContent).toContain('Settings');
+    });
+  }
 });

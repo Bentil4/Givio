@@ -46,6 +46,12 @@ export const ORGANIZER_ROUTES: Routes = [
           import('./operator-donations/operator-donations').then((m) => m.OperatorDonations),
         title: "Today's donations",
       },
+      {
+        path: 'settings',
+        loadComponent: () =>
+          import('../settings/settings-page/settings-page').then((m) => m.SettingsPage),
+        title: 'Settings',
+      },
     ],
   },
 ];
