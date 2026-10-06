@@ -14,8 +14,14 @@
   justify-content: space-between;
   gap: var(--space-lg);
 
-  h1 { margin: 0 0 4px; }
-  p { margin: 0; max-width: 68ch; text-wrap: pretty; }
+  h1 {
+    margin: 0 0 4px;
+  }
+  p {
+    margin: 0;
+    max-width: 68ch;
+    text-wrap: pretty;
+  }
 }
 
 .page-head-actions {
@@ -30,14 +36,16 @@
   flex: none;
   text-align: right;
 
-  .sub-label { margin-bottom: 2px; }
+  .sub-label {
+    margin-bottom: 2px;
+  }
 }
 
 .page-total-value {
   display: block;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 1.35rem;
+  font-size: 1.5rem; /* 7-step type scale: 24px (page H1 / KPI numbers) */
   font-weight: 700;
   color: var(--primary-deep);
 }
@@ -63,17 +71,26 @@
   gap: var(--space-sm);
   height: 44px; /* Story 5.1: touch target minimum */
   padding: 0 var(--space-md);
-  border: 1.5px solid rgba(15, 122, 140, .15);
+  border: 1.5px solid rgba(var(--color-brand-500-rgb), 0.15);
   border-radius: var(--radius-full);
   background: var(--bg-white);
-  min-width: 260px;
+  /* 260px clipped the placeholder itself ("Search donor or receipt number" at this font-size
+     needs ~290px once the icon, gap and padding are subtracted) — not a wrapping issue, the
+     input was simply narrower than its own placeholder text. */
+  min-width: 320px;
 
   &:focus-within {
     border-color: var(--primary-deep);
-    box-shadow: 0 0 0 3px rgba(10, 88, 102, .15);
+    box-shadow: 0 0 0 3px rgba(var(--color-brand-700-rgb), 0.15);
   }
 
-  mat-icon { flex: none; color: var(--data-3); font-size: 18px; width: 18px; height: 18px; }
+  mat-icon {
+    flex: none;
+    color: var(--data-3);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
 
   input {
     flex: 1;
@@ -82,10 +99,13 @@
     outline: none;
     background: none;
     font-family: var(--font-body);
-    font-size: 0.85rem;
+    font-size: 1rem; /* 7-step type scale: 16px (inputs) — also avoids iOS Safari's auto-zoom
+      on focusing an input under 16px, same reasoning as .input's own 1rem below */
     color: var(--primary-dark);
 
-    &::placeholder { color: var(--data-3); }
+    &::placeholder {
+      color: var(--data-3);
+    }
   }
 }
 
@@ -99,7 +119,9 @@
 // .table-wrap/.table promoted to styles.scss (Story 5.1) — shared with admin-users/admin-trash/
 // admin-events, which reuse this exact markup.
 
-.btn-ghost.is-danger { color: var(--func-error); }
+.btn-ghost.is-danger {
+  color: var(--func-error);
+}
 
 // ── Empty & loading ───────────────────────────────────────────────────
 .empty {
@@ -107,8 +129,16 @@
   border-radius: var(--radius-lg);
   text-align: center;
 
-  p { margin: var(--space-sm) 0 0; max-width: 48ch; margin-inline: auto; line-height: 1.6; text-wrap: pretty; }
-  .btn { margin-top: var(--space-lg); }
+  p {
+    margin: var(--space-sm) 0 0;
+    max-width: 48ch;
+    margin-inline: auto;
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+  .btn {
+    margin-top: var(--space-lg);
+  }
 }
 
 .empty-icon {
@@ -121,26 +151,43 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md);
-  border-bottom: 1px solid rgba(15, 122, 140, .07);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.07);
 
-  &:last-child { border-bottom: 0; }
+  &:last-child {
+    border-bottom: 0;
+  }
 }
 
 .skel {
   height: 12px;
   border-radius: var(--radius-sm);
-  background: var(--data-1); /* flat fill, not a gradient — an opacity pulse instead of a
+  background: var(
+    --data-1
+  ); /* flat fill, not a gradient — an opacity pulse instead of a
     gradient sweep still reads as "loading" */
   animation: admin-donations-skel-pulse 1.4s var(--ease) infinite;
 }
 
-.skel--sm { width: 84px; flex: none; }
-.skel--md { width: 120px; flex: none; }
-.skel--lg { flex: 1; }
+.skel--sm {
+  width: 84px;
+  flex: none;
+}
+.skel--md {
+  width: 120px;
+  flex: none;
+}
+.skel--lg {
+  flex: 1;
+}
 
 @keyframes admin-donations-skel-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .45; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
 }
 
 // ── Dialogs ───────────────────────────────────────────────────────────
@@ -151,8 +198,13 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-lg);
-  background: rgba(18, 38, 43, .45);
-  z-index: 50;
+  /* Warm ink, not the old unrelated teal-blue — a scrim stays dark in both themes on purpose
+     (a light overlay wouldn't read as "dimmed"), so this isn't theme-switched. */
+  background: rgba(46, 41, 16, 0.45);
+  /* Comfortably above the sidebar (position: sticky, its own stacking context from
+     backdrop-filter) and the mobile nav toggle (z-index: 1001) — previously 50, which left the
+     sidebar visibly on top of the scrim in some stacking contexts. */
+  z-index: 1100;
 }
 
 .dialog {
@@ -163,21 +215,31 @@
   border-radius: var(--radius-lg);
   background: var(--bg-white);
 
-  &--sm { max-width: 460px; }
-  &--lg { max-width: 720px; }
+  &--sm {
+    max-width: 460px;
+  }
+  &--lg {
+    max-width: 720px;
+  }
 }
 
 .dialog-head {
   padding: var(--space-lg) var(--space-lg) var(--space-md);
 
-  h2 { margin: 0 0 4px; }
-  p { margin: 0; line-height: 1.55; text-wrap: pretty; }
+  h2 {
+    margin: 0 0 4px;
+  }
+  p {
+    margin: 0;
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
 }
 
 .dialog-body {
   padding: var(--space-md) var(--space-lg);
-  border-top: 1.5px solid rgba(15, 122, 140, .10);
-  border-bottom: 1.5px solid rgba(15, 122, 140, .10);
+  border-top: 1.5px solid rgba(var(--color-brand-500-rgb), 0.1);
+  border-bottom: 1.5px solid rgba(var(--color-brand-500-rgb), 0.1);
   background: var(--bg-mist);
   display: flex;
   flex-direction: column;
@@ -189,11 +251,16 @@
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg) var(--space-lg);
 
-  .btn:last-child { flex: 1; }
+  .btn:last-child {
+    flex: 1;
+  }
 }
 
 // ── Fields ────────────────────────────────────────────────────────────
-.field { display: flex; flex-direction: column; }
+.field {
+  display: flex;
+  flex-direction: column;
+}
 
 .field-row {
   display: flex;
@@ -201,24 +268,35 @@
 
   /* Story 5.1: flex items default to min-width:auto, which lets a native <input>'s intrinsic
      min-width force this row wider than its container at narrow viewports. */
-  > .field { flex: 1; min-width: 0; }
+  > .field {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .field-label {
-  font-size: 0.78rem;
+  font-size: 0.8125rem; /* 7-step type scale: 13px (table/labels) */
   font-weight: 600;
   color: var(--primary-dark);
   margin-bottom: 6px;
 }
 
-.field-note { margin: 6px 0 0; }
-.field-error { margin: 6px 0 0; font-size: 0.75rem; color: var(--func-error); }
-.req { color: var(--color-danger); }
+.field-note {
+  margin: 6px 0 0;
+}
+.field-error {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: var(--func-error);
+}
+.req {
+  color: var(--color-danger);
+}
 
 .input {
   height: 44px; /* Story 5.1: touch target minimum */
   padding: 0 var(--space-md);
-  border: 1.5px solid rgba(15, 122, 140, .15);
+  border: 1.5px solid rgba(var(--color-brand-500-rgb), 0.15);
   border-radius: var(--radius-md);
   background: var(--bg-white);
   font-family: var(--font-body);
@@ -226,18 +304,22 @@
   font-size: 1rem;
   color: var(--primary-dark);
   outline: none;
-  transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+  transition:
+    border-color 0.18s var(--ease),
+    box-shadow 0.18s var(--ease);
 
-  &::placeholder { color: var(--data-3); }
+  &::placeholder {
+    color: var(--data-3);
+  }
 
   &:focus {
     border-color: var(--primary-deep);
-    box-shadow: 0 0 0 3px rgba(10, 88, 102, .15);
+    box-shadow: 0 0 0 3px rgba(var(--color-brand-700-rgb), 0.15);
   }
 
   &.is-invalid {
     border-color: var(--func-error);
-    box-shadow: 0 0 0 3px rgba(220, 38, 38, .12);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
   }
 }
 
@@ -262,7 +344,11 @@
   align-items: center;
   gap: var(--space-md);
 
-  > .input, > .select-field { flex: 1; min-width: 0; }
+  > .input,
+  > .select-field {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 // "was GH₵ 1,200.00" — the original stays visible so a correction is never blind.
@@ -277,12 +363,22 @@
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md);
-  border: 1.5px solid rgba(37, 99, 235, .25);
+  border: 1.5px solid rgba(37, 99, 235, 0.25);
   border-radius: var(--radius-md);
-  background: rgba(37, 99, 235, .07);
+  background: rgba(37, 99, 235, 0.07);
 
-  mat-icon { flex: none; color: var(--func-info); font-size: 18px; width: 18px; height: 18px; }
-  p { margin: 0; line-height: 1.55; text-wrap: pretty; }
+  mat-icon {
+    flex: none;
+    color: var(--func-info);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+  p {
+    margin: 0;
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
 }
 
 // The repo has no .btn-danger; this is the one button variant added here.
@@ -291,6 +387,11 @@
   color: var(--bg-white);
   border: 0;
 
-  &:hover:not(:disabled) { background: #dc2626; }
-  &:disabled { opacity: .55; cursor: not-allowed; }
+  &:hover:not(:disabled) {
+    background: #dc2626;
+  }
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
 }
