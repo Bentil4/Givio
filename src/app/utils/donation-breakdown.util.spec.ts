@@ -1,5 +1,5 @@
 import { makeDonation } from '../data/models/donation-test-fixtures';
-import { donationStats } from './donation-breakdown.util';
+import { donationStats, giftAverages } from './donation-breakdown.util';
 
 describe('donation breakdown', () => {
   const donations = [
@@ -30,5 +30,15 @@ describe('donation breakdown', () => {
     expect(stats[1].sub).toBe('this event');
     expect(stats[2]).toEqual({ key: 'Average gift', value: '—', sub: 'no cash gifts yet' });
     expect(stats[3].value).toBe('—');
+  });
+
+  it('averages and takes the median of the gifts that carry an amount', () => {
+    expect(giftAverages(donations)).toEqual({ averageMinor: 33333, medianMinor: 30000 });
+  });
+
+  it('has no average or median when every gift is in kind', () => {
+    const inKind = [makeDonation({ amountMinor: null, donationType: 'in_kind' })];
+
+    expect(giftAverages(inKind)).toEqual({ averageMinor: null, medianMinor: null });
   });
 });
