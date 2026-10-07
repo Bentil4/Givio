@@ -222,7 +222,7 @@ function smsInviteMessage({ email, generatedPassword }) {
 }
 
 /** Falls back to '#' (never throws) so a missing APP_URL degrades to a dead link, not a failed send. */
-function resolveAppUrl(error) {
+export function resolveAppUrl(error) {
   const appUrl = process.env.APP_URL;
   if (!hasValue(appUrl)) {
     error('APP_URL is not configured — invite emails will link to "#".');

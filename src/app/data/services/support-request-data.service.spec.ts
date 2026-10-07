@@ -92,4 +92,51 @@ describe('SupportRequestDataService', () => {
       service.submitDispute({ email: 'a@b.co', tenantName: 'A', message: 'M' }),
     ).rejects.toBeInstanceOf(ServiceError);
   });
+
+  describe('Admin inbox', () => {
+    const respondWith = (body: object) =>
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 200,
+        responseBody: JSON.stringify(body),
+      });
+    const sentBody = () => JSON.parse(functions.createExecution.mock.calls[0][0].body);
+
+    it('lists a status tab through the Function and returns the page with its cursor', async () => {
+      respondWith({ success: true, requests: [{ id: 'r1' }], nextCursor: 'r1' });
+
+      const page = await service.listRequests({ status: 'open' });
+
+      expect(sentBody()).toEqual({ action: 'listSupportRequests', status: 'open' });
+      expect(page).toEqual({ requests: [{ id: 'r1' }], nextCursor: 'r1' });
+    });
+
+    it('sends the cursor only when continuing a list', async () => {
+      respondWith({ success: true, requests: [], nextCursor: null });
+
+      await service.listRequests({ status: 'closed', cursor: 'r9' });
+
+      expect(sentBody()).toEqual({ action: 'listSupportRequests', status: 'closed', cursor: 'r9' });
+    });
+
+    it('sets a request status through the Function', async () => {
+      respondWith({ success: true, request: { id: 'r1', status: 'closed' } });
+
+      await service.setStatus('r1', 'closed');
+
+      expect(sentBody()).toEqual({
+        action: 'setSupportRequestStatus',
+        requestId: 'r1',
+        status: 'closed',
+      });
+    });
+
+    it('rejects when the Function refuses the change', async () => {
+      functions.createExecution.mockResolvedValueOnce({
+        responseStatusCode: 403,
+        responseBody: JSON.stringify({ error: 'Forbidden' }),
+      });
+
+      await expect(service.setStatus('r1', 'open')).rejects.toBeInstanceOf(FunctionRejectedError);
+    });
+  });
 });

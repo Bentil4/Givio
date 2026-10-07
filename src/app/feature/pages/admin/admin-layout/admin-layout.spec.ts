@@ -14,12 +14,17 @@ describe('AdminLayout', () => {
   let router: Router;
   let approvalCounts: {
     total: WritableSignal<number>;
+    openSupportRequests: WritableSignal<number | null>;
     pollWhileAlive: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
     account = { deleteSession: vi.fn(), get: vi.fn() };
-    approvalCounts = { total: signal(0), pollWhileAlive: vi.fn() };
+    approvalCounts = {
+      total: signal(0),
+      openSupportRequests: signal<number | null>(null),
+      pollWhileAlive: vi.fn(),
+    };
     await TestBed.configureTestingModule({
       imports: [AdminLayout],
       providers: [
@@ -107,6 +112,7 @@ describe('AdminLayout', () => {
     expect(routes).toEqual([
       '/dashboard',
       '/dashboard/approvals',
+      '/dashboard/support',
       '/dashboard/companies',
       '/dashboard/audit',
       '/dashboard/users',
@@ -127,6 +133,18 @@ describe('AdminLayout', () => {
     approvalCounts.total.set(4);
 
     expect(approvalsBadge()).toBe(4);
+  });
+
+  it('shows the open support requests count as the Support badge, none until counted', () => {
+    const supportItem = () =>
+      component.navItems().find((item) => item.route === '/dashboard/support');
+
+    expect(supportItem()?.icon).toBe('support_agent');
+    expect(supportItem()?.badge).toBe(0);
+
+    approvalCounts.openSupportRequests.set(3);
+
+    expect(supportItem()?.badge).toBe(3);
   });
 
   describe('mobile nav drawer (Story 5.1)', () => {

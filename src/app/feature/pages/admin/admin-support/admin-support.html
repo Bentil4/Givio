@@ -1,0 +1,78 @@
+<section class="page" aria-labelledby="support-title">
+  <header class="page-head">
+    <div>
+      <h1 id="support-title" class="t-page-title">Support</h1>
+      <p class="t-secondary">
+        Questions from company users and disputes from suspended companies. Reply by email, then
+        mark the request closed so the open count stays accurate.
+      </p>
+    </div>
+  </header>
+
+  <p class="visually-hidden" role="status">{{ announcement() }}</p>
+
+  <div class="tabs" role="tablist" aria-label="Support requests">
+    @for (tab of tabs; track tab.id; let i = $index) {
+    <button
+      #tabButton
+      type="button"
+      role="tab"
+      class="tab"
+      [id]="'support-tab-' + tab.id"
+      [class.is-active]="activeTab() === tab.id"
+      [attr.aria-selected]="activeTab() === tab.id"
+      [attr.aria-controls]="'support-panel-' + tab.id"
+      [attr.tabindex]="activeTab() === tab.id ? 0 : -1"
+      (click)="selectTab(tab.id)"
+      (keydown)="onTabKeydown($event, i)"
+    >
+      {{ tab.label }}
+    </button>
+    }
+  </div>
+
+  <div
+    class="tab-panel"
+    role="tabpanel"
+    [id]="'support-panel-' + activeTab()"
+    [attr.aria-labelledby]="'support-tab-' + activeTab()"
+  >
+    <h2 #listHeading class="visually-hidden queue-heading" tabindex="-1">
+      {{ activeTab() === 'open' ? 'Open requests' : 'Closed requests' }}
+    </h2>
+
+    @if (actionError(); as message) {
+    <p class="action-error" role="alert">{{ message }}</p>
+    } @switch (loadState()) { @case ('loading') {
+    <app-skeleton-rows [rows]="4" label="Loading support requests…" />
+    } @case ('error') {
+    <div class="empty glass" role="alert">
+      <mat-icon class="empty-icon" aria-hidden="true">error_outline</mat-icon>
+      <p class="t-card-title">Couldn't load support requests</p>
+      <button type="button" class="btn btn-secondary" (click)="loadFirstPage()">Try again</button>
+    </div>
+    } @default { @if (requests().length === 0) {
+    <div class="empty glass">
+      <mat-icon class="empty-icon" aria-hidden="true">support_agent</mat-icon>
+      <p class="t-card-title">{{ emptyTitle() }}</p>
+    </div>
+    } @else {
+    <ul class="queue">
+      @for (request of requests(); track request.id) {
+      <li>
+        <app-support-request-card [request]="request" (statusToggled)="toggleStatus($event)" />
+      </li>
+      }
+    </ul>
+    @if (nextCursor()) {
+    <button
+      type="button"
+      class="btn btn-secondary load-more"
+      [disabled]="loadingMore()"
+      (click)="loadMore()"
+    >
+      {{ loadingMore() ? 'Loading…' : 'Load more' }}
+    </button>
+    } } } }
+  </div>
+</section>

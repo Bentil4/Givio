@@ -64,6 +64,12 @@ export class AdminLayout {
       route: '/dashboard/approvals',
       badge: this.approvalCounts.total(),
     },
+    {
+      name: 'Support',
+      icon: 'support_agent',
+      route: '/dashboard/support',
+      badge: this.approvalCounts.openSupportRequests() ?? 0,
+    },
     { name: 'Companies', icon: 'domain', route: '/dashboard/companies' },
     { name: 'Audit trail', icon: 'history', route: '/dashboard/audit' },
     { name: 'Users', icon: 'group', route: '/dashboard/users' },

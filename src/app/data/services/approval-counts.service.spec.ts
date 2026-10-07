@@ -26,8 +26,35 @@ describe('ApprovalCountsService', () => {
     vi.useRealTimers();
   });
 
-  it('starts at zero', () => {
+  it('starts at zero, with the open support count not yet known', () => {
     expect(service.total()).toBe(0);
+    expect(service.openSupportRequests()).toBeNull();
+  });
+
+  it('refresh also counts the open support requests for the Support badge', async () => {
+    createExecution.mockImplementation(async ({ body }: { body: string }) => ({
+      responseStatusCode: 200,
+      responseBody: JSON.stringify(
+        JSON.parse(body).action === 'countOpenSupportRequests'
+          ? { success: true, counts: { supportRequests: 5 } }
+          : { success: true, counts },
+      ),
+    }));
+
+    await service.refresh();
+
+    expect(service.openSupportRequests()).toBe(5);
+    expect(service.total()).toBe(6);
+  });
+
+  it('keeps the last known support count when a later count fails', async () => {
+    respond(200, { success: true, counts: { supportRequests: 2 } });
+    await service.refreshSupportRequests();
+    respond(502, { error: 'Failed to count' });
+
+    await service.refreshSupportRequests();
+
+    expect(service.openSupportRequests()).toBe(2);
   });
 
   it('refresh asks the Function and sums the three queues', async () => {
@@ -76,6 +103,7 @@ describe('ApprovalCountsService', () => {
     owner.destroy();
     await vi.advanceTimersByTimeAsync(120_000);
 
-    expect(createExecution).toHaveBeenCalledTimes(2);
+    // Each poll asks for the approvals and the support count.
+    expect(createExecution).toHaveBeenCalledTimes(4);
   });
 });

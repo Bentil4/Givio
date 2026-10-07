@@ -1,0 +1,50 @@
+<article class="card" [attr.aria-labelledby]="'support-title-' + request().id">
+  <header class="card-head">
+    <span class="tag" [class.tag-error]="isDispute()" [class.tag-info]="!isDispute()">
+      {{ typeLabel() }}
+    </span>
+    <h3 class="t-body-em card-title" [id]="'support-title-' + request().id">{{ company() }}</h3>
+    <time class="t-caption card-time" [attr.datetime]="request().createdAt">
+      @if (relativeTime(); as relative) { {{ relative }} · } {{ request().createdAt | date: 'medium'
+      }}
+    </time>
+  </header>
+
+  @if (sender(); as from) {
+  <p class="t-caption card-sender">From {{ from }}</p>
+  }
+
+  <p
+    class="t-body message"
+    [id]="'support-message-' + request().id"
+    [class.is-clamped]="isLong() && !expanded()"
+  >
+    {{ request().message }}
+  </p>
+  @if (isLong()) {
+  <button
+    type="button"
+    class="btn-ghost card-more"
+    [attr.aria-expanded]="expanded()"
+    [attr.aria-controls]="'support-message-' + request().id"
+    (click)="toggleExpanded()"
+  >
+    {{ expanded() ? 'Show less' : 'Show more' }}
+  </button>
+  }
+
+  <footer class="card-actions">
+    @if (replyHref(); as href) {
+    <a class="btn btn-secondary" [href]="href">
+      <mat-icon aria-hidden="true">mail</mat-icon>
+      Reply<span class="visually-hidden"> to {{ company() }} by email</span>
+    </a>
+    }
+    <button type="button" class="btn btn-secondary" (click)="statusToggled.emit(request())">
+      <mat-icon aria-hidden="true">{{ isClosed() ? 'undo' : 'check_circle' }}</mat-icon>
+      {{ isClosed() ? 'Reopen' : 'Mark closed' }}<span class="visually-hidden">
+        {{ company() }}</span
+      >
+    </button>
+  </footer>
+</article>
