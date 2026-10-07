@@ -5,8 +5,8 @@ import type { ConflictResolution, TenantConflict } from '../models/donation';
 
 /**
  * A Super Organizer's sync-conflict queue for their own company's Events. donation_conflicts
- * rows are Admin-read only, so both the list and the resolution go through the Function, which
- * scopes them to the caller's Tenant and applies Admin's own resolution rules.
+ * rows carry no client permissions, so both the list and the resolution go through the
+ * Function, which scopes them to the caller's Tenant.
  */
 @Injectable({ providedIn: 'root' })
 export class CompanyConflictDataService {
