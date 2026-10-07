@@ -14,7 +14,7 @@ import { countLabel, type ConsolidatedSummary } from './company-totals.util';
   imports: [SkeletonRows],
   template: `
     <article class="total-card glass" aria-labelledby="consolidated-total-title">
-      <h2 id="consolidated-total-title" class="total-title">Company total</h2>
+      <h2 id="consolidated-total-title" class="total-title">Raised so far · live</h2>
       @if (loading()) {
         <app-skeleton-rows [rows]="1" label="Loading your company total…" />
       } @else {
@@ -38,7 +38,7 @@ import { countLabel, type ConsolidatedSummary } from './company-totals.util';
   styles: `
     .total-card {
       padding: var(--space-lg);
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-lg);
     }
 
     .total-title {
