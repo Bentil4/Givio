@@ -43,6 +43,8 @@ flowchart TD
   subgraph sgr__company__approvedCompanyMatch["/company — sessionExpiryGuard + approvedCompanyMatch"]
     r__company__approvedCompanyMatch["/company<br/>Company dashboard"]
     r__company_events__approvedCompanyMatch["/company/events<br/>Events"]
+    r__company_events__id__approvedCompanyMatch["/company/events/:id<br/>Event detail"]
+    r__company_donations__approvedCompanyMatch["/company/donations<br/>Donations"]
     r__company_team__approvedCompanyMatch["/company/team<br/>Team"]
     r__company_support__approvedCompanyMatch["/company/support<br/>Contact Admin"]
     r__company_reports__approvedCompanyMatch["/company/reports<br/>Settlement reports<br/><i>superOrganizerMatch</i>"]
@@ -78,6 +80,8 @@ flowchart TD
   r__family --> r__family__code
   app --> r__company_dispute
   r__company__approvedCompanyMatch --> r__company_events__approvedCompanyMatch
+  r__company_events__approvedCompanyMatch --> r__company_events__id__approvedCompanyMatch
+  r__company__approvedCompanyMatch --> r__company_donations__approvedCompanyMatch
   r__company__approvedCompanyMatch --> r__company_team__approvedCompanyMatch
   r__company__approvedCompanyMatch --> r__company_support__approvedCompanyMatch
   r__company__approvedCompanyMatch --> r__company_reports__approvedCompanyMatch
