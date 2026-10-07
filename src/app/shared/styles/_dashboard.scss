@@ -23,34 +23,40 @@
 }
 
 // ── KPI row: 1 → 2 → 4 columns ───────────────────────────────────────
+// minmax(0, 1fr) keeps every column the same width: a plain 1fr never shrinks below its
+// content, so one tile with a sparkline would otherwise widen its column.
 .stat-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-md);
   margin: 0;
   padding: 0;
   list-style: none;
 
   @media (min-width: 600px) {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   @media (min-width: 901px) {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  > li {
+    min-width: 0;
   }
 }
 
 // ── Chart grid: 1 → 2 columns ────────────────────────────────────────
 .chart-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-md);
   margin: 0;
   padding: 0;
   list-style: none;
 
   @media (min-width: 901px) {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

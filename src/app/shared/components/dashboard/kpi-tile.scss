@@ -5,6 +5,9 @@
 :host {
   display: block;
   min-width: 0;
+  // The grid cell (<li>) is stretched to the row's tallest tile; filling it keeps every tile in
+  // a row the same height whatever its content.
+  height: 100%;
 }
 
 .kpi-tile {
