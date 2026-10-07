@@ -2,6 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { FUNCTIONS } from '../../core/appwrite/client';
 import { FunctionRejectedError, invokeAdminFunction } from '../appwrite/invoke-admin-function';
 import { ServiceError } from '../../core/services/service-error';
+import type {
+  SupportRequestListOptions,
+  SupportRequestPage,
+  SupportRequestStatus,
+} from '../models/support-request';
 
 // Keep in sync with functions/set-role-and-permissions/src/support-requests.js.
 export const SUPPORT_MESSAGE_MAX = 2000;
@@ -19,9 +24,9 @@ export interface DisputeSubmission {
 const UNREACHABLE = "Couldn't send your message. Check your connection and try again.";
 
 /**
- * SupportRequests rows are written only by the Function and readable only by Admin — this
- * service never reads them back (FR-20: a logged form, no ticket-status tracking), only
- * counts the open ones for the Admin dashboard.
+ * SupportRequests rows are written only by the Function and readable only by Admin. The
+ * submit methods never read anything back; the Admin inbox lists, counts and opens/closes
+ * requests through the Function too, since the client holds no support table ID.
  */
 @Injectable({ providedIn: 'root' })
 export class SupportRequestDataService {
@@ -48,6 +53,23 @@ export class SupportRequestDataService {
       },
     );
     return counts.supportRequests;
+  }
+
+  async listRequests({ status, cursor }: SupportRequestListOptions): Promise<SupportRequestPage> {
+    const { requests, nextCursor } = await invokeAdminFunction<SupportRequestPage>(this.functions, {
+      action: 'listSupportRequests',
+      invokeFailureMessage: 'Failed to load support requests',
+      payload: { status, ...(cursor ? { cursor } : {}) },
+    });
+    return { requests, nextCursor };
+  }
+
+  async setStatus(requestId: string, status: SupportRequestStatus): Promise<void> {
+    await invokeAdminFunction(this.functions, {
+      action: 'setSupportRequestStatus',
+      invokeFailureMessage: 'Failed to update the support request',
+      payload: { requestId, status },
+    });
   }
 
   private async invoke(action: string, payload: object): Promise<void> {

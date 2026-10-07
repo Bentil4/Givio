@@ -19,6 +19,7 @@ flowchart TD
     r__dashboard_users["/dashboard/users<br/>Users"]
     r__dashboard_admins["/dashboard/admins<br/>Admin accounts<br/><i>superAdminGuard</i>"]
     r__dashboard_approvals["/dashboard/approvals<br/>Approvals"]
+    r__dashboard_support["/dashboard/support<br/>Support"]
     r__dashboard_companies["/dashboard/companies<br/>Companies"]
     r__dashboard_audit["/dashboard/audit<br/>Audit trail"]
   end
@@ -53,6 +54,7 @@ flowchart TD
   r__dashboard --> r__dashboard_users
   r__dashboard --> r__dashboard_admins
   r__dashboard --> r__dashboard_approvals
+  r__dashboard --> r__dashboard_support
   r__dashboard --> r__dashboard_companies
   r__dashboard --> r__dashboard_audit
   r__dashboard -->|"/dashboard/** redirects"| r__dashboard
