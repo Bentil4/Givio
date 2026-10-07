@@ -32,6 +32,10 @@ export class SupportRequestCard {
     const { senderName, senderEmail, contactEmail } = this.request();
     return [senderName, senderEmail].filter(Boolean).join(' · ') || contactEmail;
   });
+  protected readonly closedBy = computed(() => {
+    const { status, closedAt, closedByName } = this.request();
+    return status === 'closed' && closedAt ? { at: closedAt, name: closedByName } : null;
+  });
   protected readonly replyHref = computed(() => {
     const { contactEmail, senderEmail } = this.request();
     const address = contactEmail ?? senderEmail;

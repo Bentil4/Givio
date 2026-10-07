@@ -16,6 +16,9 @@ const request = (id: string, overrides: Partial<SupportRequest> = {}): SupportRe
   contactEmail: `${id}@co.test`,
   senderName: null,
   senderEmail: null,
+  closedAt: null,
+  closedBy: null,
+  closedByName: null,
   ...overrides,
 });
 

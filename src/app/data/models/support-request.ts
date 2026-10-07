@@ -14,6 +14,11 @@ export interface SupportRequest {
   readonly contactEmail: string | null;
   readonly senderName: string | null;
   readonly senderEmail: string | null;
+  /** ISO timestamp, set only while the request is closed. */
+  readonly closedAt: string | null;
+  readonly closedBy: string | null;
+  /** The closing Admin's name, or email when they have no name. */
+  readonly closedByName: string | null;
 }
 
 export interface SupportRequestPage {

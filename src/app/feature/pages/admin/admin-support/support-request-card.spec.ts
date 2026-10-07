@@ -13,6 +13,9 @@ const BASE: SupportRequest = {
   contactEmail: 'kwame@asante.test',
   senderName: 'Kwame',
   senderEmail: 'kwame@asante.test',
+  closedAt: null,
+  closedBy: null,
+  closedByName: null,
 };
 
 describe('SupportRequestCard', () => {
@@ -79,6 +82,30 @@ describe('SupportRequestCard', () => {
     const fixture = await render();
 
     expect((fixture.nativeElement as HTMLElement).querySelector('.card-more')).toBeNull();
+  });
+
+  it('says when and by whom a closed request was closed', async () => {
+    const fixture = await render({
+      status: 'closed',
+      closedAt: '2026-10-08T09:30:00.000Z',
+      closedBy: 'admin-9',
+      closedByName: 'Darko',
+    });
+
+    expect(text(fixture.nativeElement as HTMLElement)).toMatch(/Closed .*2026.* by Darko/);
+  });
+
+  it('shows no closing line for an open request', async () => {
+    const fixture = await render({ closedAt: '2026-10-08T09:30:00.000Z' });
+
+    expect(text(fixture.nativeElement as HTMLElement)).not.toContain('Closed');
+  });
+
+  it('leaves out the name when the closing Admin cannot be named', async () => {
+    const fixture = await render({ status: 'closed', closedAt: '2026-10-08T09:30:00.000Z' });
+    const closing = (fixture.nativeElement as HTMLElement).querySelector('.card-closed');
+
+    expect(text(closing as HTMLElement)).not.toContain(' by ');
   });
 
   it('emits the request from a Mark closed button named for the company, Reopen when closed', async () => {

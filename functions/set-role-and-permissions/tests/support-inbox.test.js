@@ -188,16 +188,82 @@ test(
 );
 
 test(
-  'setSupportRequestStatus writes only the status column',
+  'setSupportRequestStatus records who closed a request and when',
   withInboxEnv(async () => {
     const { ctx, calls } = inboxContext({
       body: { action: 'setSupportRequestStatus', requestId: 'r1', status: 'closed' },
     });
+    const before = Date.now();
     const result = await main(ctx);
     assert.equal(result.status, 200);
-    assert.deepEqual(result.body.request, { id: 'r1', status: 'closed' });
-    assert.deepEqual(calls.updateRow[0].data, { status: 'closed' });
-    assert.equal(calls.updateRow[0].rowId, 'r1');
+    const { data, rowId } = calls.updateRow[0];
+    assert.equal(rowId, 'r1');
+    assert.equal(data.status, 'closed');
+    assert.equal(data.closedBy, 'admin-1');
+    assert.ok(Date.parse(data.closedAt) >= before, 'closedAt is the time of the change');
+    assert.deepEqual(result.body.request, { id: 'r1', ...data });
+  }),
+);
+
+test(
+  'setSupportRequestStatus clears the closer when a request is reopened',
+  withInboxEnv(async () => {
+    const { ctx, calls } = inboxContext({
+      body: { action: 'setSupportRequestStatus', requestId: 'r1', status: 'open' },
+    });
+    const result = await main(ctx);
+    assert.equal(result.status, 200);
+    assert.deepEqual(calls.updateRow[0].data, { status: 'open', closedAt: null, closedBy: null });
+    assert.deepEqual(result.body.request, {
+      id: 'r1',
+      status: 'open',
+      closedAt: null,
+      closedBy: null,
+    });
+  }),
+);
+
+test(
+  'listSupportRequests names the Admin who closed a request, in the same Users lookup',
+  withInboxEnv(async () => {
+    const closed = {
+      ...QUESTION,
+      status: 'closed',
+      closedAt: '2026-10-01T09:00:00.000Z',
+      closedBy: 'admin-9',
+    };
+    const { ctx, calls } = inboxContext({
+      body: { action: 'listSupportRequests', status: 'closed' },
+      tables: { listRows: tableRows({ support: [closed] }) },
+      users: {
+        list: () => ({
+          users: [
+            { $id: 'u1', name: 'Kwame', email: 'kwame@asante.test' },
+            { $id: 'admin-9', name: 'Darko', email: 'darko@givio.test' },
+          ],
+        }),
+      },
+    });
+    const [request] = (await main(ctx)).body.requests;
+    assert.equal(calls.usersList.length, 1);
+    assert.equal(request.closedAt, '2026-10-01T09:00:00.000Z');
+    assert.equal(request.closedBy, 'admin-9');
+    assert.equal(request.closedByName, 'Darko');
+    assert.equal(request.senderName, 'Kwame');
+  }),
+);
+
+test(
+  'listSupportRequests leaves the closer empty for an open request',
+  withInboxEnv(async () => {
+    const { ctx } = inboxContext({
+      body: { action: 'listSupportRequests' },
+      tables: { listRows: tableRows({ support: [QUESTION] }) },
+    });
+    const [request] = (await main(ctx)).body.requests;
+    assert.equal(request.closedAt, null);
+    assert.equal(request.closedBy, null);
+    assert.equal(request.closedByName, null);
   }),
 );
 

@@ -31,6 +31,10 @@
   >
     {{ expanded() ? 'Show less' : 'Show more' }}
   </button>
+  } @if (closedBy(); as closed) {
+  <p class="t-caption card-closed">
+    Closed {{ closed.at | date: 'medium' }}@if (closed.name) { by {{ closed.name }} }
+  </p>
   }
 
   <footer class="card-actions">

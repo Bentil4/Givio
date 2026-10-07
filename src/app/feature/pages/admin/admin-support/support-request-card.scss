@@ -31,7 +31,8 @@
   color: var(--text-secondary);
 }
 
-.card-sender {
+.card-sender,
+.card-closed {
   margin: 0;
   color: var(--text-secondary);
   overflow-wrap: anywhere;

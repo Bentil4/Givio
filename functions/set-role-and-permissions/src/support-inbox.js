@@ -53,6 +53,7 @@ export async function handleSupportInboxRequest({
   const { action, ...payload } = JSON.parse(req.bodyRaw);
   const context = {
     payload,
+    caller: verified.caller,
     tablesDB: new TablesDBCtor(adminClient),
     users: new UsersCtor(adminClient),
     error,
@@ -127,10 +128,15 @@ function listQueries({ status, cursor, limit }) {
 
 async function toRequests({ rows, tablesDB, users, error }) {
   const [senders, tenantNames] = await Promise.all([
-    lookupSenders({ users, userIds: distinctValues(rows, 'userId'), error }),
+    lookupSenders({ users, userIds: peopleIn(rows), error }),
     lookupTenantNames({ tablesDB, tenantIds: tenantIdsMissingName(rows), error }),
   ]);
-  return rows.map((row) => toRequest({ row, sender: senders.get(row.userId), tenantNames }));
+  return rows.map((row) => toRequest({ row, people: senders, tenantNames }));
+}
+
+// Senders and whoever closed a request are looked up together, in one Users call.
+function peopleIn(rows) {
+  return [...new Set([...distinctValues(rows, 'userId'), ...distinctValues(rows, 'closedBy')])];
 }
 
 function distinctValues(rows, field) {
@@ -144,7 +150,9 @@ function tenantIdsMissingName(rows) {
   );
 }
 
-function toRequest({ row, sender, tenantNames }) {
+function toRequest({ row, people, tenantNames }) {
+  const sender = people.get(row.userId);
+  const closer = people.get(row.closedBy);
   return {
     id: row.$id,
     type: row.type,
@@ -156,6 +164,9 @@ function toRequest({ row, sender, tenantNames }) {
     contactEmail: row.contactEmail ?? null,
     senderName: sender?.name || null,
     senderEmail: sender?.email ?? null,
+    closedAt: row.closedAt ?? null,
+    closedBy: row.closedBy ?? null,
+    closedByName: closer?.name || closer?.email || null,
   };
 }
 
@@ -193,11 +204,14 @@ async function lookupTenantNames({ tablesDB, tenantIds, error }) {
   }
 }
 
-/**
- * Only `status` is written: the live table has no closedAt/closedBy columns, and Appwrite
- * rejects a write naming an unknown column.
- */
-async function setSupportRequestStatus({ payload, tablesDB, error }) {
+/** Closing records who and when; reopening clears both, so a request never shows a stale closer. */
+function statusChange({ status, caller }) {
+  return status === 'closed'
+    ? { status, closedAt: new Date().toISOString(), closedBy: caller.$id }
+    : { status, closedAt: null, closedBy: null };
+}
+
+async function setSupportRequestStatus({ payload, caller, tablesDB, error }) {
   const { requestId, status } = payload;
   if (typeof requestId !== 'string' || !ROW_ID_PATTERN.test(requestId)) {
     return badRequest('requestId must be a row id');
@@ -210,15 +224,24 @@ async function setSupportRequestStatus({ payload, tablesDB, error }) {
       databaseId: process.env.APPWRITE_DATABASE_ID,
       tableId: process.env.APPWRITE_SUPPORT_REQUESTS_COLLECTION_ID,
       rowId: requestId,
-      data: { status },
+      data: statusChange({ status, caller }),
     });
-    return { status: 200, body: { success: true, request: { id: row.$id, status } } };
+    return { status: 200, body: { success: true, request: changedRequest(row) } };
   } catch (err) {
     error(`setSupportRequestStatus: update failed for ${requestId}: ${err.message}`);
     return err?.code === 404
       ? { status: 404, body: { error: 'Request not found' } }
       : { status: 502, body: { error: 'Failed to update the request' } };
   }
+}
+
+function changedRequest(row) {
+  return {
+    id: row.$id,
+    status: row.status,
+    closedAt: row.closedAt ?? null,
+    closedBy: row.closedBy ?? null,
+  };
 }
 
 export { ACTIONS as SUPPORT_INBOX_ACTIONS };
