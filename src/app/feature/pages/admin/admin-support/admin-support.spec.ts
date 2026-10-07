@@ -66,6 +66,7 @@ describe('AdminSupport', () => {
     expect(el().querySelector('app-skeleton-rows')).not.toBeNull();
     resolve({ requests: [request('a')], nextCursor: null });
     await fixture.whenStable();
+    fixture.detectChanges();
     expect(el().querySelector('app-skeleton-rows')).toBeNull();
     expect(supportData.listRequests).toHaveBeenCalledWith({ status: 'open' });
     expect(cards().length).toBe(1);
