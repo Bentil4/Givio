@@ -17,7 +17,7 @@ class FakeClient {
   }
 }
 
-function fakeContext({ body, headers = {}, getAccount, users = {}, databases = {} }) {
+function fakeContext({ body, headers = {}, getAccount, databases = {} }) {
   const jsonCalls = [];
   const logs = [];
   const errors = [];
@@ -36,10 +36,6 @@ function fakeContext({ body, headers = {}, getAccount, users = {}, databases = {
     async get() {
       return getAccount();
     }
-  }
-
-  class UsersCtor {
-    get = record('get', users);
   }
 
   class DatabasesCtor {
@@ -68,7 +64,6 @@ function fakeContext({ body, headers = {}, getAccount, users = {}, databases = {
       error: (msg) => errors.push(msg),
       ClientCtor: FakeClient,
       AccountCtor,
-      UsersCtor,
       DatabasesCtor,
     },
     jsonCalls,
@@ -78,9 +73,9 @@ function fakeContext({ body, headers = {}, getAccount, users = {}, databases = {
   };
 }
 
-const ADMIN_HEADERS = { 'x-appwrite-user-jwt': 'admin-jwt', 'x-appwrite-key': 'dynamic-key' };
-const asAdmin = async () => ({ $id: 'admin-1', labels: ['admin'] });
-const asOperatorAccount = (userId) => ({ $id: userId, labels: ['operator'] });
+const HEADERS = { 'x-appwrite-user-jwt': 'caller-jwt', 'x-appwrite-key': 'dynamic-key' };
+const asOrganizer = async () => ({ $id: 'org-1', labels: [] });
+const ASSIGN = { action: 'assignOperators', eventId: 'e1', assignedUserIds: [] };
 
 function withEnv(fn) {
   return async () => {
@@ -95,34 +90,42 @@ function withEnv(fn) {
   };
 }
 
+for (const [label, labels] of [
+  ['an Admin', ['admin']],
+  ['the Super Admin', ['admin', 'superadmin']],
+  ['an Operator', ['operator']],
+]) {
+  test(
+    `AD-12 amended: ${label} is refused with 403 before any event is read`,
+    withEnv(async () => {
+      const { ctx, calls } = fakeContext({
+        body: { ...ASSIGN, assignedUserIds: ['op-1'] },
+        headers: HEADERS,
+        getAccount: async () => ({ $id: 'caller-1', labels }),
+      });
+
+      const result = await handleEventAssignmentRequest(ctx);
+
+      assert.equal(result.status, 403);
+      assert.equal(calls.getRow, undefined);
+      assert.equal(calls.updateRow, undefined);
+    }),
+  );
+}
+
 test(
-  'rejects a verified non-admin caller with 403',
+  "AD-12 amended: Admin's former setEventStatus action no longer exists",
   withEnv(async () => {
     const { ctx, calls } = fakeContext({
-      body: { action: 'assignOperators', eventId: 'e1', assignedUserIds: [] },
-      headers: { 'x-appwrite-user-jwt': 'operator-jwt' },
-      getAccount: async () => ({ $id: 'op-1', labels: ['operator'] }),
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 403);
-    assert.equal(calls.getRow, undefined);
-  }),
-);
-
-test(
-  'rejects an unknown action with 400',
-  withEnv(async () => {
-    const { ctx } = fakeContext({
-      body: { action: 'notARealAction' },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
+      body: { action: 'setEventStatus', eventId: 'e1', status: 'paused' },
+      headers: HEADERS,
+      getAccount: asOrganizer,
     });
 
     const result = await handleEventAssignmentRequest(ctx);
 
     assert.equal(result.status, 400);
+    assert.equal(calls.updateRow, undefined);
   }),
 );
 
@@ -131,8 +134,8 @@ test(
   withEnv(async () => {
     const { ctx, calls } = fakeContext({
       body: { action: 'assignOperators', assignedUserIds: [] },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
+      headers: HEADERS,
+      getAccount: asOrganizer,
     });
 
     const result = await handleEventAssignmentRequest(ctx);
@@ -146,9 +149,9 @@ test(
   'rejects a non-array assignedUserIds with 400',
   withEnv(async () => {
     const { ctx } = fakeContext({
-      body: { action: 'assignOperators', eventId: 'e1', assignedUserIds: 'op-1' },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
+      body: { ...ASSIGN, assignedUserIds: 'op-1' },
+      headers: HEADERS,
+      getAccount: asOrganizer,
     });
 
     const result = await handleEventAssignmentRequest(ctx);
@@ -161,9 +164,9 @@ test(
   'returns a distinct 500 when the dynamic x-appwrite-key is missing',
   withEnv(async () => {
     const { ctx } = fakeContext({
-      body: { action: 'assignOperators', eventId: 'e1', assignedUserIds: [] },
-      headers: { 'x-appwrite-user-jwt': 'admin-jwt' },
-      getAccount: asAdmin,
+      body: ASSIGN,
+      headers: { 'x-appwrite-user-jwt': 'caller-jwt' },
+      getAccount: asOrganizer,
     });
 
     const result = await handleEventAssignmentRequest(ctx);
@@ -176,310 +179,9 @@ test('returns a distinct 500 when APPWRITE_DATABASE_ID/APPWRITE_EVENTS_COLLECTIO
   delete process.env.APPWRITE_DATABASE_ID;
   delete process.env.APPWRITE_EVENTS_COLLECTION_ID;
 
-  const { ctx } = fakeContext({
-    body: { action: 'assignOperators', eventId: 'e1', assignedUserIds: [] },
-    headers: ADMIN_HEADERS,
-    getAccount: asAdmin,
-  });
+  const { ctx } = fakeContext({ body: ASSIGN, headers: HEADERS, getAccount: asOrganizer });
 
   const result = await handleEventAssignmentRequest(ctx);
 
   assert.equal(result.status, 500);
 });
-
-test(
-  'rejects an assignedUserIds entry that does not exist',
-  withEnv(async () => {
-    const { ctx, calls } = fakeContext({
-      body: { action: 'assignOperators', eventId: 'e1', assignedUserIds: ['ghost'] },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
-      users: {
-        get: async () => {
-          throw new Error('user_not_found');
-        },
-      },
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 400);
-    assert.match(result.body.error, /ghost/);
-    assert.equal(calls.getRow, undefined);
-  }),
-);
-
-test(
-  'rejects an assignedUserIds entry that exists but is not an Operator',
-  withEnv(async () => {
-    const { ctx, calls } = fakeContext({
-      body: { action: 'assignOperators', eventId: 'e1', assignedUserIds: ['admin-2'] },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
-      users: { get: async () => ({ $id: 'admin-2', labels: ['admin'] }) },
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 400);
-    assert.match(result.body.error, /not an Operator/);
-    assert.equal(calls.getRow, undefined);
-  }),
-);
-
-test(
-  'returns 404 when the event does not exist',
-  withEnv(async () => {
-    const { ctx } = fakeContext({
-      body: { action: 'assignOperators', eventId: 'missing-event', assignedUserIds: ['op-1'] },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
-      users: { get: async (args) => asOperatorAccount(args.userId) },
-      databases: {
-        getRow: async () => {
-          throw new Error('row_not_found');
-        },
-      },
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 404);
-  }),
-);
-
-test(
-  'on success, writes assignedUserIds and admin+per-operator read permissions in one updateRow call',
-  withEnv(async () => {
-    const { ctx, calls } = fakeContext({
-      body: { action: 'assignOperators', eventId: 'e1', assignedUserIds: ['op-1', 'op-2'] },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
-      users: { get: async (args) => asOperatorAccount(args.userId) },
-      databases: {
-        getRow: async () => ({ $id: 'e1' }),
-        updateRow: async () => ({ $id: 'e1' }),
-      },
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 200);
-    assert.deepEqual(result.body, { success: true, eventId: 'e1', assignedUserIds: ['op-1', 'op-2'] });
-
-    assert.equal(calls.updateRow.length, 1);
-    const [update] = calls.updateRow[0];
-    assert.equal(update.databaseId, 'db-1');
-    assert.equal(update.tableId, 'events-1');
-    assert.equal(update.rowId, 'e1');
-    assert.deepEqual(update.data, { assignedUserIds: ['op-1', 'op-2'] });
-    assert.equal(update.permissions.length, 5); // 3 admin + 2 operator
-  }),
-);
-
-test(
-  'assigning an empty array is allowed — it un-assigns every operator',
-  withEnv(async () => {
-    const { ctx, calls } = fakeContext({
-      body: { action: 'assignOperators', eventId: 'e1', assignedUserIds: [] },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
-      databases: {
-        getRow: async () => ({ $id: 'e1' }),
-        updateRow: async () => ({ $id: 'e1' }),
-      },
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 200);
-    const [update] = calls.updateRow[0];
-    assert.equal(update.permissions.length, 3); // admin CRUD only
-  }),
-);
-
-test(
-  'returns a structured 502, not a throw, when updateRow fails',
-  withEnv(async () => {
-    const { ctx } = fakeContext({
-      body: { action: 'assignOperators', eventId: 'e1', assignedUserIds: [] },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
-      databases: {
-        getRow: async () => ({ $id: 'e1' }),
-        updateRow: async () => {
-          throw new Error('boom');
-        },
-      },
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 502);
-  }),
-);
-
-test(
-  'setEventStatus rejects a verified non-admin caller with 403',
-  withEnv(async () => {
-    const { ctx } = fakeContext({
-      body: { action: 'setEventStatus', eventId: 'e1', status: 'paused' },
-      headers: { 'x-appwrite-user-jwt': 'operator-jwt' },
-      getAccount: async () => ({ $id: 'op-1', labels: ['operator'] }),
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 403);
-  }),
-);
-
-test(
-  'setEventStatus rejects a missing eventId with 400',
-  withEnv(async () => {
-    const { ctx } = fakeContext({
-      body: { action: 'setEventStatus', status: 'paused' },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 400);
-  }),
-);
-
-test(
-  'setEventStatus rejects an invalid status value with 400',
-  withEnv(async () => {
-    const { ctx } = fakeContext({
-      body: { action: 'setEventStatus', eventId: 'e1', status: 'archived' },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 400);
-  }),
-);
-
-test(
-  'setEventStatus does not run the operator-roster check — a missing assignedUserIds must not throw',
-  withEnv(async () => {
-    const { ctx } = fakeContext({
-      body: { action: 'setEventStatus', eventId: 'e1', status: 'paused' },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
-      databases: {
-        getRow: async () => ({ $id: 'e1', status: 'active' }),
-        updateRow: async () => ({ $id: 'e1', status: 'paused' }),
-      },
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 200);
-  }),
-);
-
-test(
-  'setEventStatus returns 404 when the event does not exist',
-  withEnv(async () => {
-    const { ctx } = fakeContext({
-      body: { action: 'setEventStatus', eventId: 'missing-event', status: 'paused' },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
-      databases: {
-        getRow: async () => {
-          throw new Error('row_not_found');
-        },
-      },
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 404);
-  }),
-);
-
-test(
-  'setEventStatus rejects a no-op transition to the same status with 400',
-  withEnv(async () => {
-    const { ctx, calls } = fakeContext({
-      body: { action: 'setEventStatus', eventId: 'e1', status: 'active' },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
-      databases: {
-        getRow: async () => ({ $id: 'e1', status: 'active' }),
-      },
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 400);
-    assert.equal(calls.updateRow, undefined);
-  }),
-);
-
-test(
-  'setEventStatus rejects closed -> paused — a closed event can only be reopened to active',
-  withEnv(async () => {
-    const { ctx, calls } = fakeContext({
-      body: { action: 'setEventStatus', eventId: 'e1', status: 'paused' },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
-      databases: {
-        getRow: async () => ({ $id: 'e1', status: 'closed' }),
-      },
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 400);
-    assert.equal(calls.updateRow, undefined);
-  }),
-);
-
-test(
-  'setEventStatus allows reopening a closed event back to active',
-  withEnv(async () => {
-    const { ctx, calls } = fakeContext({
-      body: { action: 'setEventStatus', eventId: 'e1', status: 'active' },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
-      databases: {
-        getRow: async () => ({ $id: 'e1', status: 'closed' }),
-        updateRow: async () => ({ $id: 'e1', status: 'active' }),
-      },
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 200);
-    assert.deepEqual(result.body, { success: true, eventId: 'e1', status: 'active' });
-    const [update] = calls.updateRow[0];
-    assert.deepEqual(update.data, { status: 'active' });
-  }),
-);
-
-test(
-  'setEventStatus returns a structured 502, not a throw, when updateRow fails',
-  withEnv(async () => {
-    const { ctx } = fakeContext({
-      body: { action: 'setEventStatus', eventId: 'e1', status: 'paused' },
-      headers: ADMIN_HEADERS,
-      getAccount: asAdmin,
-      databases: {
-        getRow: async () => ({ $id: 'e1', status: 'active' }),
-        updateRow: async () => {
-          throw new Error('boom');
-        },
-      },
-    });
-
-    const result = await handleEventAssignmentRequest(ctx);
-
-    assert.equal(result.status, 502);
-  }),
-);

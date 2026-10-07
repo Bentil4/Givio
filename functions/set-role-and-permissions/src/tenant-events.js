@@ -17,8 +17,7 @@ const ACTIONS = Object.keys(ACTION_HANDLERS);
 
 /**
  * Story 6.7: an approved Tenant's Organizer-tier members (Super Organizer and co-Organizer
- * alike) create and manage their own Events. Online-only through this Function, like Admin's
- * setEventStatus — no Dexie outbox, so the Tenant is resolved from the caller's Membership at
+ * alike) create and manage their own Events. Online-only through this Function — no Dexie outbox, so the Tenant is resolved from the caller's Membership at
  * write time and never cached client-side. Every action is refused unless that Membership is
  * active and its Tenant approved (FR-9), and only ever touches that Tenant's own Events (FR-2).
  * Operator assignment and the family code reuse event-assignment.js / family-access.js.

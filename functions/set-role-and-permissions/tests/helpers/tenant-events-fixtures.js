@@ -74,6 +74,7 @@ const unlabelled = ['so-a', 'org-a', 'so-b', 'so-p', 'so-r', 'so-s', 'nobody'];
 export const ACCOUNTS = {
   ...Object.fromEntries(unlabelled.map((id) => [id, { $id: id, labels: [] }])),
   'admin-1': { $id: 'admin-1', labels: ['admin'] },
+  'superadmin-1': { $id: 'superadmin-1', labels: ['admin', 'superadmin'] },
   'op-a': { $id: 'op-a', labels: ['operator'] },
   'gone-a': { $id: 'gone-a', labels: [] },
   'op-b': { $id: 'op-b', labels: ['operator'] },

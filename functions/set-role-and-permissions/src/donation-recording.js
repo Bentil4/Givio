@@ -64,10 +64,9 @@ function provisionalReceiptMismatch(receiptNumber, event) {
 
 /**
  * Records a Donation with server-derived permissions (AD-2, AD-9): a regular Operator session
- * cannot itself grant `Role.label('admin')` or `Role.user(otherOperatorId)` permissions on a
- * document it creates — only a role it already holds — so unlike EventDataService.createEvent
- * (which only ever grants `Role.label('admin')`, a role the creating Admin already has), this
- * write must go through the Function the same way Story 2.3's assignOperators does. The
+ * cannot itself grant `Role.user(otherUserId)` permissions on a document it creates — only a
+ * role it already holds — so this write must go through the Function the same way Story 2.3's
+ * assignOperators does. The
  * `receiptNumber` arrives client-generated and provisional (AD-4: the offline write already has
  * one before this call ever happens) but is NOT used verbatim (Story 3.6/AD-8) — this Function
  * is the sole assigner of the canonical sequential number, via an atomic increment of the
@@ -108,9 +107,8 @@ async function handleRecordDonation({
     return { status: 404, body: { error: 'Event not found' } };
   }
 
-  const isAdmin = (caller.labels ?? []).includes('admin');
-  const assignedUserIds = event.assignedUserIds ?? [];
-  if (!isAdmin && !assignedUserIds.includes(caller.$id)) {
+  // AD-12 (amended 2026-10-07): no Admin bypass — only the Event's own assigned uids.
+  if (!(event.assignedUserIds ?? []).includes(caller.$id)) {
     return { status: 403, body: { error: 'You are not assigned to this event' } };
   }
   if (event.status !== 'active') {

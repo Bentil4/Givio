@@ -41,13 +41,12 @@ test(
 );
 
 test(
-  "the new Event's permissions follow AD-2: Admin plus every organizer-tier member, no Operator",
+  "the new Event's permissions follow AD-2: every organizer-tier member, no Operator, no Admin",
   withEnv(async () => {
     const { store } = await create({ as: 'so-a' });
 
     const permissions = createdEvent(store).$permissions;
-    assert.ok(permissions.includes('read("label:admin")'));
-    assert.ok(permissions.includes('update("label:admin")'));
+    assert.ok(!permissions.some((p) => p.includes('label:admin')));
     assert.ok(permissions.includes('read("user:so-a")'));
     assert.ok(permissions.includes('read("user:org-a")'));
     assert.ok(!permissions.some((p) => p.includes('op-a') || p.includes('so-b')));

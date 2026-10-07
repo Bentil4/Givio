@@ -30,8 +30,7 @@ export async function handleCreateMembership({
     return { status: 404, body: { error: 'Tenant not found' } };
   }
 
-  // Mirrors rejectNonOperatorIds's existing precedent in event-assignment.js: confirm the
-  // target is a real account before writing an association to it.
+  // Confirm the target is a real account before writing an association to it.
   try {
     await new UsersCtor(adminClient).get({ userId });
   } catch (err) {

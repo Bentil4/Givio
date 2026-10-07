@@ -1,5 +1,6 @@
-import { ID, Permission, Role } from 'node-appwrite';
+import { ID } from 'node-appwrite';
 import { hasValue } from '../shared.js';
+import { auditLogReadPermissions } from '../audit-log-grants.js';
 
 /**
  * Story 6.7: the server-side twin of the app's audit-log-writer.ts, same row shape (entityType
@@ -10,6 +11,7 @@ import { hasValue } from '../shared.js';
  * write is logged, never turned into a failed action. Returns whether the entry was written.
  * Story 7.5: every caller already stamps the Event's tenantId into newValues; it is lifted into
  * the row's own tenantId column too, which is what listTenantAuditLog filters on (FR-15).
+ * AD-12 (amended 2026-10-07): a company entry carries no Admin read — see auditLogReadPermissions.
  */
 export function writeEventAuditLog({ entry, ...context }) {
   const { eventId, ...rest } = entry;
@@ -32,7 +34,7 @@ export async function writeTenantAuditLog({ DatabasesCtor, adminClient, entry, e
       tableId,
       rowId: ID.unique(),
       data: auditRowData(entry),
-      permissions: [Permission.read(Role.label('admin'))],
+      permissions: auditLogReadPermissions(entry.newValues.tenantId),
     });
     return true;
   } catch (err) {

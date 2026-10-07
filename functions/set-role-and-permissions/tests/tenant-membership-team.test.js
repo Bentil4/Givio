@@ -325,8 +325,18 @@ test(
     // Query.equal('tenantId', ...) filter, this fake would start returning event-b1 too and
     // the assertions below would catch it; the previous version of this test could not.
     const allEvents = [
-      { $id: 'event-a1', tenantId: 'tenant-a', assignedUserIds: ['user-a'] },
-      { $id: 'event-b1', tenantId: 'tenant-b', assignedUserIds: ['user-b'] },
+      {
+        $id: 'event-a1',
+        tenantId: 'tenant-a',
+        assignedUserIds: ['user-a'],
+        $permissions: ['read("user:user-a")'],
+      },
+      {
+        $id: 'event-b1',
+        tenantId: 'tenant-b',
+        assignedUserIds: ['user-b'],
+        $permissions: ['read("user:user-b")'],
+      },
     ];
     const membershipsById = {
       'membership-a': { $id: 'membership-a', userId: 'user-a', tenantId: 'tenant-a' },

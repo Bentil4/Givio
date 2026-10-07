@@ -17,7 +17,14 @@ class FakeClient {
 
 export const ADMIN = { $id: 'admin-1', labels: ['admin'] };
 const HEADERS = { 'x-appwrite-user-jwt': 'jwt', 'x-appwrite-key': 'dynamic-key' };
-export const ADMIN_ONLY = ['read("label:admin")', 'update("label:admin")', 'delete("label:admin")'];
+// A row nobody may read — since AD-12 (amended 2026-10-07) not even the Admin Label.
+export const NO_READS = [];
+// What every Event/Donation row carried before the AD-12 amendment; the backfill strips it.
+export const PRE_AMENDMENT_ADMIN_GRANTS = [
+  'read("label:admin")',
+  'update("label:admin")',
+  'delete("label:admin")',
+];
 const COMPANY = {
   name: 'Kente Events',
   location: 'Accra',
@@ -52,6 +59,7 @@ export function inMemoryStore(tables, { failUpdate = () => false } = {}) {
   const matches = (row, query) => {
     const { method, attribute, values } = JSON.parse(query);
     if (method === 'equal') return values.includes(row[attribute]);
+    if (method === 'isNull') return (row[attribute] ?? null) === null;
     if (method === 'contains') return (row[attribute] ?? []).some((v) => values.includes(v));
     return true;
   };
@@ -132,7 +140,7 @@ export const membership = (id, userId, role, status = 'active', tenantId = 't1')
   role,
   status,
 });
-export const donation = (id, eventId, permissions = ADMIN_ONLY) => ({
+export const donation = (id, eventId, permissions = NO_READS) => ({
   $id: id,
   eventId,
   donorName: id,
@@ -142,7 +150,7 @@ export const donation = (id, eventId, permissions = ADMIN_ONLY) => ({
 
 /** An approved tenant whose rows already carry correct pre-amendment operator grants. */
 export function tenantFixture({ tenantStatus = 'approved', memberships, extraTables = {} } = {}) {
-  const opGrant = [...ADMIN_ONLY, 'read("user:op-1")'];
+  const opGrant = [...NO_READS, 'read("user:op-1")'];
   return inMemoryStore({
     'tenants-1': [
       {
@@ -166,7 +174,7 @@ export function tenantFixture({ tenantStatus = 'approved', memberships, extraTab
         type: 'wedding',
         status: 'active',
         assignedUserIds: ['op-1'],
-        $permissions: tenantStatus === 'approved' ? opGrant : ADMIN_ONLY,
+        $permissions: tenantStatus === 'approved' ? opGrant : NO_READS,
       },
       {
         $id: 'e2',
@@ -174,12 +182,12 @@ export function tenantFixture({ tenantStatus = 'approved', memberships, extraTab
         type: 'funeral',
         status: 'active',
         assignedUserIds: [],
-        $permissions: ADMIN_ONLY,
+        $permissions: NO_READS,
       },
     ],
     'donations-1': [
-      donation('d1', 'e1', tenantStatus === 'approved' ? opGrant : ADMIN_ONLY),
-      donation('d2', 'e1', tenantStatus === 'approved' ? opGrant : ADMIN_ONLY),
+      donation('d1', 'e1', tenantStatus === 'approved' ? opGrant : NO_READS),
+      donation('d2', 'e1', tenantStatus === 'approved' ? opGrant : NO_READS),
       donation('d3', 'e2'),
     ],
     ...extraTables,

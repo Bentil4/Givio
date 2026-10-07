@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { handleTenantMembershipRequest } from '../src/tenant-membership.js';
 import {
-  ADMIN_ONLY,
+  NO_READS,
   withEnv,
   invoke,
   canRead,
@@ -22,7 +22,7 @@ test(
     for (const row of [...store.tables['events-1'], ...store.tables['donations-1']]) {
       assert.ok(canRead(row, 'org-1'), `${row.$id} readable by super_organizer`);
       assert.ok(canRead(row, 'org-2'), `${row.$id} readable by organizer`);
-      // Organizer-tier grants are read-only; write stays with the Admin Label.
+      // Organizer-tier grants are read-only; every write goes through the Function.
       assert.ok(!row.$permissions.some((p) => /^(update|delete)\("user:/.test(p)));
     }
   }),
@@ -61,7 +61,7 @@ test(
 
     assert.equal(result.status, 200);
     for (const row of [...store.tables['events-1'], ...store.tables['donations-1']]) {
-      assert.deepEqual(row.$permissions, ADMIN_ONLY);
+      assert.deepEqual(row.$permissions, NO_READS);
     }
   }),
 );
@@ -143,7 +143,7 @@ test(
 
     assert.equal(result.status, 200);
     for (const row of [...store.tables['events-1'], ...store.tables['donations-1']]) {
-      assert.deepEqual(row.$permissions, ADMIN_ONLY, `${row.$id} swept`);
+      assert.deepEqual(row.$permissions, NO_READS, `${row.$id} swept`);
     }
   }),
 );

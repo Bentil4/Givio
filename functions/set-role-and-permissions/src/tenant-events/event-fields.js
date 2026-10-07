@@ -1,10 +1,19 @@
 import { VALID, invalid, hasValue } from '../shared.js';
-import { EVENT_STATUSES } from '../event-assignment.js';
 
 const EVENT_TYPES = ['wedding', 'funeral'];
 
-// Matches the Admin create form's limits (admin-events.ts) inside the events table's column
-// sizes (name/hostName 128, venue/description/notes 1024, image 500000).
+export const EVENT_STATUSES = ['active', 'paused', 'closed'];
+
+// Story 2.2: pause/resume/close are the forward transitions; a Closed event can only be
+// reopened back to Active, never straight to Paused — it must be resumed first.
+const ALLOWED_TRANSITIONS = {
+  active: ['paused', 'closed'],
+  paused: ['active', 'closed'],
+  closed: ['active'],
+};
+
+// The original event form's limits, inside the events table's column sizes (name/hostName
+// 128, venue/description/notes 1024, image 500000).
 const TEXT_LIMITS = {
   name: { min: 3, max: 120 },
   hostName: { min: 1, max: 120 },
@@ -26,6 +35,17 @@ export const PAYLOAD_VALIDATORS = {
   setTenantEventStatus: (payload) =>
     firstInvalid([requireEventId(payload), validateStatus(payload)]),
 };
+
+/** Story 2.2's transition rule: an error message, or null when `from` may become `to`. */
+export function statusTransitionError(from, to) {
+  if (from === to) {
+    return `Event is already ${to}`;
+  }
+  if (!(ALLOWED_TRANSITIONS[from] ?? []).includes(to)) {
+    return `Cannot change status from ${from} to ${to}`;
+  }
+  return null;
+}
 
 /** The editable fields present in the payload, with blank optional text cleared to null. */
 export function pickEventDetails(payload) {

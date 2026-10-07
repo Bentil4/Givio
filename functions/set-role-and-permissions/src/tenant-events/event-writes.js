@@ -1,8 +1,7 @@
 import { ID } from 'node-appwrite';
 import { resolveEventReadPermissions } from '../tenant-grants.js';
-import { statusTransitionError } from '../event-assignment.js';
 import { authorizeOrganizerEventAccess, resolveOrganizerTenant } from './organizer-scope.js';
-import { pickEventDetails } from './event-fields.js';
+import { pickEventDetails, statusTransitionError } from './event-fields.js';
 import { writeEventAuditLog } from './event-audit.js';
 import { runDuplicateEventCheck } from './duplicate-event-check.js';
 

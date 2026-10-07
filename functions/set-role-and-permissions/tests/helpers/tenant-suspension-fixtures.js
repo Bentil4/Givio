@@ -7,7 +7,7 @@ import { seedStore, ACCOUNTS } from './team-management-fixtures.js';
 
 export { seedStore, ACCOUNTS };
 
-export const ADMIN_ONLY = ['read("label:admin")', 'update("label:admin")', 'delete("label:admin")'];
+export const NO_READS = [];
 
 class FakeClient {
   setEndpoint() {

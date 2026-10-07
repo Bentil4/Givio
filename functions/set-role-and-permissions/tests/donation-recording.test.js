@@ -232,7 +232,7 @@ test(
 );
 
 test(
-  "admin can record a donation even when not in the event's assignedUserIds",
+  "AD-12 amended: an Admin not in the event's assignedUserIds is refused like anyone else",
   withEnv(async () => {
     const { ctx, calls } = fakeContext({
       body: BASE_PAYLOAD,
@@ -245,15 +245,13 @@ test(
           status: 'active',
           assignedUserIds: ['op-1'],
         }),
-        incrementRowColumn: async () => ({ nextReceiptSeq: 1 }),
-        createRow: async () => ({ $id: 'd1' }),
       },
     });
 
     const result = await handleDonationRecordingRequest(ctx);
 
-    assert.equal(result.status, 200);
-    assert.equal(calls.createRow.length, 1);
+    assert.equal(result.status, 403);
+    assert.equal(calls.createRow, undefined);
   }),
 );
 
@@ -292,7 +290,7 @@ test(
     assert.notEqual(create.data.receiptNumber, BASE_PAYLOAD.receiptNumber);
     assert.equal(create.data.recordedBy, 'op-1');
     assert.equal(create.data.syncStatus, 'synced');
-    assert.equal(create.permissions.length, 5); // 3 admin + 2 operator
+    assert.deepEqual(create.permissions, ['read("user:op-1")', 'read("user:op-2")']);
   }),
 );
 

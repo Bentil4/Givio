@@ -6,6 +6,7 @@ import {
   computeEventPermissions,
   listAllRows,
   pageRows,
+  samePermissions,
 } from './shared.js';
 
 const ACTIONS = ['recomputeTenantReadGrants'];
@@ -13,9 +14,8 @@ const ACTIONS = ['recomputeTenantReadGrants'];
 export const ORGANIZER_TIER_ROLES = ['super_organizer', 'organizer'];
 
 // Appwrite rejects a `permissions` array longer than 100 entries (the server's array-param
-// limit; not stated in the public docs). Three go to the Admin Label, so at most 97 uids fit.
+// limit; not stated in the public docs). Each uid takes one read entry.
 export const MAX_ROW_PERMISSIONS = 100;
-const MAX_READ_USER_IDS = MAX_ROW_PERMISSIONS - computeEventPermissions([]).length;
 
 // Enough to diagnose a failed sweep from the response without echoing thousands of row ids.
 const MAX_REPORTED_FAILURES = 20;
@@ -98,9 +98,9 @@ export function readUserIdsFor(event, context) {
 }
 
 function boundedPermissions(readUserIds) {
-  const truncated = readUserIds.length > MAX_READ_USER_IDS;
+  const truncated = readUserIds.length > MAX_ROW_PERMISSIONS;
   return {
-    permissions: computeEventPermissions(readUserIds.slice(0, MAX_READ_USER_IDS)),
+    permissions: computeEventPermissions(readUserIds.slice(0, MAX_ROW_PERMISSIONS)),
     truncated,
   };
 }
@@ -121,12 +121,6 @@ export async function resolveEventReadPermissions({ DatabasesCtor, adminClient, 
     tenantId: event.tenantId,
   });
   return boundedPermissions(readUserIdsFor(event, context)).permissions;
-}
-
-function samePermissions(current = [], desired) {
-  const a = [...new Set(current)].sort();
-  const b = [...new Set(desired)].sort();
-  return a.length === b.length && a.every((p, i) => p === b[i]);
 }
 
 function newReport(tenantId) {
@@ -327,10 +321,60 @@ export async function recomputeTenantReadGrants({
 }
 
 /**
+ * AD-12 (amended 2026-10-07): the sweep for Events with no tenantId (Admin-created,
+ * pre-Story-6.2). Each one and its Donations are rewritten to exactly the reads
+ * resolveEventReadPermissions derives for it — every assigned uid — dropping the Admin Label
+ * grants such rows were created with. Idempotent and never throws, like the tenant sweep.
+ */
+export async function recomputeLegacyEventReadGrants({ DatabasesCtor, adminClient, error }) {
+  const { databaseId, eventsTableId } = grantTables();
+  const report = newReport(null);
+  try {
+    for await (const events of pageRows({
+      DatabasesCtor,
+      adminClient,
+      databaseId,
+      tableId: eventsTableId,
+      queries: [Query.isNull('tenantId')],
+    })) {
+      await recomputeLegacyEventRows({ DatabasesCtor, adminClient, events, report, error });
+    }
+  } catch (err) {
+    recordFailure(report, error, { table: 'events', rowId: null, reason: err.message });
+  }
+  return finish(report);
+}
+
+async function recomputeLegacyEventRows({ DatabasesCtor, adminClient, events, report, error }) {
+  for (const event of events) {
+    const context = legacyGrantContext(event);
+    await recomputeEventRow({
+      DatabasesCtor,
+      adminClient,
+      event,
+      context,
+      report,
+      error,
+      force: true,
+    });
+  }
+}
+
+/** Grants every assigned uid, with no tenant to check them against — today's legacy rule. */
+function legacyGrantContext(event) {
+  return {
+    tenantId: event.tenantId,
+    approved: true,
+    activeUserIds: new Set(event.assignedUserIds ?? []),
+    organizerUserIds: [],
+  };
+}
+
+/**
  * Admin-only backfill: `{ action: 'recomputeTenantReadGrants', tenantId? }` re-derives every
  * Event and Donation read grant for one tenant, or for every tenant when tenantId is omitted,
- * always fanning out to Donations. Safe to re-run; 502 with the per-tenant report on any
- * failure.
+ * always fanning out to Donations. Omitting tenantId also sweeps the Events with no tenant
+ * (`legacyEvents` in the response). Safe to re-run; 502 with the report on any failure.
  */
 export async function handleTenantGrantsRequest({
   req,
@@ -417,11 +461,16 @@ export async function handleTenantGrantsRequest({
     );
   }
 
-  const ok = tenants.every((t) => t.ok);
-  const result = { success: ok, tenants };
+  const legacyEvents =
+    tenantId === undefined
+      ? await recomputeLegacyEventReadGrants({ DatabasesCtor, adminClient, error })
+      : null;
+  const ok = tenants.every((t) => t.ok) && (legacyEvents?.ok ?? true);
+  const result = { success: ok, tenants, ...(legacyEvents && { legacyEvents }) };
   log(
     `recomputeTenantReadGrants (by admin ${caller.$id}): ${tenants.length} tenant(s), ` +
-      `${tenants.filter((t) => !t.ok).length} with failures`,
+      `${tenants.filter((t) => !t.ok).length} with failures` +
+      (legacyEvents ? `, ${legacyEvents.eventsUpdated} legacy event(s) updated` : ''),
   );
   return res.json(result, ok ? 200 : 502);
 }

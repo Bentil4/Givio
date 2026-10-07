@@ -86,17 +86,20 @@ export function isConflictError(err) {
 
 /**
  * The Appwrite permissions for an Event or Donation row, given its derived read set (AD-2):
- * Admin keeps full CRUD via the Label; each uid gets read-only access. Who belongs in the read
- * set is tenant-grants.js's readUserIdsFor — this only shapes it. Relocated here from
- * event-assignment.js (Story 6.2) so every module writing either row type shares one shape.
+ * read-only access for each uid, nothing else. No Admin Label (AD-12, amended 2026-10-07):
+ * platform Admins have no access to company Events or Donations, and every write goes through
+ * this Function's API key, so no row needs a client-side update/delete grant either. Who
+ * belongs in the read set is tenant-grants.js's readUserIdsFor — this only shapes it.
  */
 export function computeEventPermissions(readUserIds) {
-  return [
-    Permission.read(Role.label('admin')),
-    Permission.update(Role.label('admin')),
-    Permission.delete(Role.label('admin')),
-    ...[...new Set(readUserIds)].map((userId) => Permission.read(Role.user(userId))),
-  ];
+  return [...new Set(readUserIds)].map((userId) => Permission.read(Role.user(userId)));
+}
+
+/** Whether a row's current permissions already match the desired set, ignoring order. */
+export function samePermissions(current = [], desired) {
+  const a = [...new Set(current)].sort();
+  const b = [...new Set(desired)].sort();
+  return a.length === b.length && a.every((p, i) => p === b[i]);
 }
 
 /**
