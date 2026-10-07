@@ -1,6 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { ConflictPair, ConflictResolution, Donation, DONATION_TYPE_LABELS } from '../../../data/models/donation';
+import {
+  ConflictPair,
+  ConflictResolution,
+  Donation,
+  DONATION_TYPE_LABELS,
+} from '../../../data/models/donation';
 import type { AdminUser } from '../../../data/models/admin-user';
 import { formatCedis } from '../../../utils/donation.util';
 import { formatUserDisplay } from '../../../utils/user-display.util';
@@ -35,9 +40,9 @@ export class ConflictResolver {
 
   public conflict = input.required<ConflictPair>();
   public busy = input(false);
-  /** id→AdminUser lookup, supplied by the parent (AdminConflicts) — kept a presentational
-   *  input rather than injecting UserService here, so this component stays a dumb view. */
-  public users = input<ReadonlyMap<string, AdminUser>>(new Map());
+  /** id→person lookup, supplied by the parent (Admin's users, or a company's team) — kept a
+   *  presentational input rather than injecting a service here, so this stays a dumb view. */
+  public users = input<ReadonlyMap<string, Pick<AdminUser, 'name' | 'email'>>>(new Map());
   public resolved = output<ConflictResolution>();
 
   public rows = computed<ComparisonRow[]>(() => {
@@ -56,9 +61,14 @@ export class ConflictResolver {
       build('On behalf of', (d) => d.onBehalfOf || '—'),
       build(
         'Recorded by',
-        (d) => formatUserDisplay(users.get(d.recordedBy), d.recordedBy) + (d.deskLabel ? ` · ${d.deskLabel}` : ''),
+        (d) =>
+          formatUserDisplay(users.get(d.recordedBy), d.recordedBy) +
+          (d.deskLabel ? ` · ${d.deskLabel}` : ''),
       ),
-      build('Saved at', (d) => this.datePipe.transform(d.recordedAt, 'MMM d, y, h:mm a') ?? d.recordedAt),
+      build(
+        'Saved at',
+        (d) => this.datePipe.transform(d.recordedAt, 'MMM d, y, h:mm a') ?? d.recordedAt,
+      ),
     ];
   });
 

@@ -1,15 +1,25 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { DatePipe } from '@angular/common';
 import { Donation } from '../../../../data/models/donation';
 import type { AdminUser } from '../../../../data/models/admin-user';
 import { formatCedis } from '../../../../utils/donation.util';
 import { formatUserDisplay } from '../../../../utils/user-display.util';
+import {
+  isRecoveryExpiring,
+  recoveryDaysLabel,
+  recoveryDaysLeft,
+} from '../../../../utils/donation-recovery.util';
 import { DonationService } from '../../../../data/services/donation.service';
 import { UserService } from '../../../../data/services/user.service';
 import { ServiceError } from '../../../../core/services/service-error';
-
-const RECOVERY_WINDOW_DAYS = 30;
 
 /**
  * Deleted donations and recovery.
@@ -30,7 +40,9 @@ export class AdminTrash implements OnInit {
   private readonly donationService = inject(DonationService);
   private readonly userService = inject(UserService);
 
-  public readonly deleted = computed(() => this.donationService.donations().filter((d) => !!d.deletedAt));
+  public readonly deleted = computed(() =>
+    this.donationService.donations().filter((d) => !!d.deletedAt),
+  );
   public readonly loading = signal(true);
   public readonly usersById = signal<ReadonlyMap<string, AdminUser>>(new Map());
 
@@ -60,25 +72,28 @@ export class AdminTrash implements OnInit {
     formatCedis(this.deleted().reduce((sum, d) => sum + (d.amountMinor ?? 0), 0)),
   );
 
-  public amountLabel(d: Donation): string { return formatCedis(d.amountMinor); }
+  public amountLabel(d: Donation): string {
+    return formatCedis(d.amountMinor);
+  }
 
   public daysLeft(d: Donation): number {
-    if (!d.deletedAt) return RECOVERY_WINDOW_DAYS;
-    const elapsed = (Date.now() - new Date(d.deletedAt).getTime()) / 86_400_000;
-    return Math.max(0, Math.ceil(RECOVERY_WINDOW_DAYS - elapsed));
+    return recoveryDaysLeft(d.deletedAt, Date.now());
   }
 
-  /** Under a week left is worth flagging — after that the record only lives in the archive. */
-  public isExpiring(d: Donation): boolean { return this.daysLeft(d) <= 7; }
+  public isExpiring(d: Donation): boolean {
+    return isRecoveryExpiring(this.daysLeft(d));
+  }
 
   public daysLabel(d: Donation): string {
-    const days = this.daysLeft(d);
-    if (days === 0) return 'archived';
-    return days === 1 ? '1 day left' : `${days} days left`;
+    return recoveryDaysLabel(this.daysLeft(d));
   }
 
-  public askRecover(d: Donation): void { this.recovering.set(d); }
-  public dismiss(): void { this.recovering.set(null); }
+  public askRecover(d: Donation): void {
+    this.recovering.set(d);
+  }
+  public dismiss(): void {
+    this.recovering.set(null);
+  }
 
   public async confirmRecover(): Promise<void> {
     this.busy.set(true);
@@ -89,7 +104,9 @@ export class AdminTrash implements OnInit {
       await this.donationService.recoverDonation(this.recovering()!.id);
       this.dismiss();
     } catch (err) {
-      this.recoverError.set(err instanceof ServiceError ? err.message : 'Failed to recover the donation');
+      this.recoverError.set(
+        err instanceof ServiceError ? err.message : 'Failed to recover the donation',
+      );
     } finally {
       this.busy.set(false);
     }
