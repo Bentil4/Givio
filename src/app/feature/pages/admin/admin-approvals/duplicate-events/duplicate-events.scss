@@ -29,15 +29,3 @@
 .side-name {
   font-weight: 700;
 }
-
-.side-link {
-  align-self: flex-start;
-  margin-top: var(--space-xs);
-  color: var(--primary-deep);
-  font-weight: 600;
-
-  &:focus-visible {
-    outline: var(--border-width-focus) solid var(--border-focus);
-    outline-offset: 2px;
-  }
-}

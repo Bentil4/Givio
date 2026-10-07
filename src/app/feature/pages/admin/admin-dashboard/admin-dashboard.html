@@ -2,91 +2,62 @@
   <header class="page-head">
     <div>
       <h1 class="t-page-title">Overview</h1>
-      <p class="t-secondary">Every live event, the running totals, and anything needing attention.</p>
+      <p class="t-secondary">Companies, approvals, people and support across the platform.</p>
     </div>
   </header>
 
-  <div class="stat-grid">
+  @if (loadError(); as err) {
+  <p class="panel-empty t-caption" role="alert">{{ err }}</p>
+  }
+
+  <div class="stat-grid" [attr.aria-busy]="loading()">
     <article class="stat-tile glass">
-      <div class="stat-label">Raised today</div>
-      <div class="stat-value">{{ raisedTodayLabel() }}</div>
-      <div class="stat-delta">Across every event</div>
+      <div class="stat-label">Active companies</div>
+      <div class="stat-value">{{ loading() ? '—' : companiesByStatus().approved }}</div>
+      <div class="stat-delta">{{ companiesByStatus().suspended }} suspended</div>
     </article>
     <article class="stat-tile glass">
-      <div class="stat-label">Donors today</div>
-      <div class="stat-value">{{ donorsToday() }}</div>
-      <div class="stat-delta">Across every event</div>
+      <div class="stat-label">Pending approvals</div>
+      <div class="stat-value">{{ pendingApprovals() }}</div>
+      <a class="stat-delta panel-link" routerLink="/dashboard/approvals">Review approvals</a>
     </article>
     <article class="stat-tile glass">
-      <div class="stat-label">Live events</div>
-      <div class="stat-value">{{ liveEventCount() }}</div>
-      <div class="stat-delta">{{ events().length }} total</div>
+      <div class="stat-label">Users</div>
+      <div class="stat-value">{{ loading() ? '—' : userCounts().total }}</div>
+      <div class="stat-delta">
+        {{ userCounts().admins }} admins · {{ userCounts().operators }} operators · {{
+        userCounts().companyAccounts }} company accounts
+      </div>
     </article>
     <article class="stat-tile glass">
-      <div class="stat-label">Awaiting sync</div>
-      <div class="stat-value">—</div>
-      <div class="stat-delta is-muted">Not available yet</div>
+      <div class="stat-label">Open support requests</div>
+      <div class="stat-value">{{ openSupportRequests() ?? '—' }}</div>
+      <div class="stat-delta" [class.is-muted]="openSupportRequests() === null">
+        {{ supportNote() }}
+      </div>
     </article>
   </div>
 
-  <div class="panel-row">
-    <article class="panel panel--events glass">
-      <header class="panel-head">
-        <h2 class="t-card-title">Live events</h2>
-        <a class="panel-link" routerLink="/dashboard/events">Manage events</a>
-      </header>
-
-      @if (loading()) {
-        <div class="panel-body">
-          @for (i of [0, 1, 2]; track i) {
-            <div class="skel-row"><span class="skel skel--lg"></span></div>
-          }
-        </div>
-      } @else if (loadError(); as err) {
-        <p class="panel-empty t-caption">{{ err }}</p>
-      } @else if (dashboardEvents().length === 0) {
-        <p class="panel-empty t-caption">
-          No events yet. <a routerLink="/dashboard/events">Create one</a> to get started.
-        </p>
-      } @else {
-        @for (e of dashboardEvents(); track e.id) {
-          <a class="event-row" [routerLink]="['/dashboard/events', e.id]">
-            <div class="event-main">
-              <div class="event-name-row">
-                <span class="t-body-em">{{ e.name }}</span>
-                <span class="tag" [class]="chipClass[e.status]">{{ statusLabel(e.status) }}</span>
-              </div>
-              <div class="event-meta t-caption">{{ eventMeta(e) }}</div>
-            </div>
-            <div class="event-total">
-              <div class="is-mono is-strong">{{ eventTotalLabel(e.id) }}</div>
-              <div class="t-tertiary">{{ eventDonorCount(e.id) }} donors</div>
-            </div>
-          </a>
-        }
+  <article class="panel glass">
+    <header class="panel-head">
+      <h2 class="t-card-title">Companies by status</h2>
+      <a class="panel-link" routerLink="/dashboard/companies">Manage companies</a>
+    </header>
+    @if (loading()) {
+    <div class="panel-body">
+      @for (i of [0, 1, 2, 3]; track i) {
+      <div class="skel-row"><span class="skel skel--lg"></span></div>
       }
-    </article>
-
-    <article class="panel panel--feed glass">
-      <header class="panel-head">
-        <span class="live-dot" aria-hidden="true"></span>
-        <h2 class="t-card-title">Live feed</h2>
-      </header>
-      @if (liveFeed().length === 0) {
-        <p class="panel-empty t-caption">
-          Nothing recorded yet — new donations from any desk appear here instantly.
-        </p>
-      } @else {
-        @for (d of liveFeed(); track d.id) {
-          <div class="feed-row">
-            <div class="feed-main">
-              <span class="t-body-em">{{ d.donorName }}</span>
-              <span class="t-tertiary">{{ d.recordedAt | date:'MMM d, y, h:mm a' }}</span>
-            </div>
-            <span class="is-mono is-strong">{{ feedAmountLabel(d) }}</span>
-          </div>
-        }
+    </div>
+    } @else {
+    <ul class="panel-body status-list">
+      @for (status of statuses; track status) {
+      <li class="feed-row">
+        <span class="t-body-em">{{ statusLabels[status] }}</span>
+        <span class="is-mono is-strong">{{ companiesByStatus()[status] }}</span>
+      </li>
       }
-    </article>
-  </div>
+    </ul>
+    }
+  </article>
 </section>

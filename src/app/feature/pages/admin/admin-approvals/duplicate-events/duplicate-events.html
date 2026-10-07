@@ -51,9 +51,6 @@
             @if (side.date) { {{ side.date | date: 'mediumDate' : 'UTC' }} } @if (side.hostName) { ·
             Host: {{ side.hostName }} } @if (side.venue) { · {{ side.venue }} }
           </span>
-          <a class="side-link" [routerLink]="['/dashboard/events', side.id]">
-            View event<span class="visually-hidden"> {{ side.name ?? side.id }}</span>
-          </a>
         </li>
         }
       </ul>

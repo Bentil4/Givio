@@ -20,7 +20,8 @@ const UNREACHABLE = "Couldn't send your message. Check your connection and try a
 
 /**
  * SupportRequests rows are written only by the Function and readable only by Admin — this
- * service never reads them back (FR-20: a logged form, no ticket-status tracking).
+ * service never reads them back (FR-20: a logged form, no ticket-status tracking), only
+ * counts the open ones for the Admin dashboard.
  */
 @Injectable({ providedIn: 'root' })
 export class SupportRequestDataService {
@@ -34,6 +35,19 @@ export class SupportRequestDataService {
   /** Unauthenticated: a suspended tenant's Organizer can't sign in to use submitQuestion. */
   async submitDispute(dispute: DisputeSubmission): Promise<void> {
     await this.invoke('submitDispute', dispute);
+  }
+
+  /** Admin-only, through the Function: the client holds no support table ID to count with. */
+  async countOpenRequests(): Promise<number> {
+    const { counts } = await invokeAdminFunction<{ counts: { supportRequests: number } }>(
+      this.functions,
+      {
+        action: 'countOpenSupportRequests',
+        invokeFailureMessage: 'Failed to count open support requests',
+        payload: {},
+      },
+    );
+    return counts.supportRequests;
   }
 
   private async invoke(action: string, payload: object): Promise<void> {

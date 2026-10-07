@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
 import { ServiceError } from '../../../../../core/services/service-error';
 import { DuplicateEventFlagDataService } from '../../../../../data/services/duplicate-event-flag-data.service';
 import type {
@@ -58,7 +57,6 @@ describe('DuplicateEvents', () => {
     await TestBed.configureTestingModule({
       imports: [DuplicateEvents],
       providers: [
-        provideRouter([]),
         { provide: DuplicateEventFlagDataService, useValue: { resolveDuplicateEventFlag } },
       ],
     }).compileComponents();
@@ -77,11 +75,8 @@ describe('DuplicateEvents', () => {
     expect(text()).toContain('Kwame Mensah Burial Service');
     expect(text()).toContain('Created by Admin');
     expect(text()).toContain('Nov 10, 2026');
-    const links = [...el().querySelectorAll<HTMLAnchorElement>('.side-link')];
-    expect(links.map((a) => a.getAttribute('href'))).toEqual([
-      '/dashboard/events/e-new',
-      '/dashboard/events/e-old',
-    ]);
+    // AD-12 (amended 2026-10-07): Admin has no event detail page to link to.
+    expect(el().querySelector('.side-link')).toBeNull();
   });
 
   it('shows the empty-queue state when nothing is waiting', () => {

@@ -31,6 +31,18 @@ describe('SupportRequestDataService', () => {
     );
   });
 
+  it("counts open support and dispute requests through the Function's Admin-only action", async () => {
+    functions.createExecution.mockResolvedValueOnce({
+      responseStatusCode: 200,
+      responseBody: JSON.stringify({ success: true, counts: { supportRequests: 4 } }),
+    });
+
+    expect(await service.countOpenRequests()).toBe(4);
+    expect(functions.createExecution).toHaveBeenCalledWith(
+      expect.objectContaining({ body: JSON.stringify({ action: 'countOpenSupportRequests' }) }),
+    );
+  });
+
   it('sends email, tenant name and message for a dispute', async () => {
     functions.createExecution.mockResolvedValueOnce({
       responseStatusCode: 200,

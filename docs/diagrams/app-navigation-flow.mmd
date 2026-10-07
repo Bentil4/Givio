@@ -21,14 +21,11 @@ flowchart TD
     subgraph Admin["/dashboard — sessionExpiryGuard + roleGuard(admin)"]
         AdminHome["/dashboard<br/>Admin Dashboard"]
         AdminHome --> Users["/dashboard/users"]
-        AdminHome --> Events["/dashboard/events"]
-        Events --> EventDetail["/dashboard/events/:id"]
-        Events --> EditEvent["/dashboard/events/:id/edit"]
-        AdminHome --> Donations["/dashboard/donations<br/>Donation oversight"]
-        Donations --> Conflicts["/dashboard/donations/conflicts"]
-        Donations --> Deleted["/dashboard/donations/deleted"]
-        AdminHome --> Reports["/dashboard/reports"]
-        AdminHome --> Audit["/dashboard/audit"]
+        AdminHome --> Admins["/dashboard/admins<br/>superAdminGuard"]
+        AdminHome --> Approvals["/dashboard/approvals"]
+        AdminHome --> Companies["/dashboard/companies"]
+        AdminHome --> Audit["/dashboard/audit<br/>platform entries only"]
+        AdminHome -. "any other path (AD-12 amended)" .-> AdminHome
     end
 
     subgraph Organizer["/organizer — sessionExpiryGuard + roleGuard(operator)"]

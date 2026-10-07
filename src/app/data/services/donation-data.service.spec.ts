@@ -9,13 +9,12 @@ import {
   type TestUser,
 } from './donation-data-test-fixtures';
 
-/** Reads, createDonation and Realtime. Edits and sync live in the .edits spec. */
+/** Reads, createDonation and Realtime. Outbox retries live in the .outbox spec. */
 describe('DonationDataService', () => {
   let service: DonationDataService;
   let functions: DonationDataTestBed['functions'];
   let databases: DonationDataTestBed['databases'];
   let realtime: DonationDataTestBed['realtime'];
-  // No labels by default, so no pre-existing test sees an extra Story 8.2 access-log createRow.
   let currentUser: TestUser;
 
   beforeEach(async () => {
@@ -329,136 +328,13 @@ describe('DonationDataService', () => {
     });
   });
 
-  describe('listAllDonations', () => {
-    it('pulls without an eventId filter', async () => {
-      databases.listRows.mockResolvedValueOnce({
-        total: 1,
-        rows: [
-          {
-            $id: 'any-event',
-            eventId: 'e9',
-            receiptNumber: 'P-3',
-            donorName: 'Esi',
-            amountMinor: 3000,
-            donationType: 'cash',
-            recordedBy: 'op-2',
-            recordedAt: '2026-01-01T00:00:00.000Z',
-            syncStatus: 'synced',
-          },
-        ],
-      });
+  it("AD-12 amended: an Admin's read writes no access entry — Admin reads of donations are not logged", async () => {
+    currentUser = { $id: 'admin-1', labels: ['admin'] };
+    databases.listRows.mockResolvedValueOnce({ total: 0, rows: [] });
 
-      const result = await service.listAllDonations();
+    await service.listDonationsForEvent('e1');
 
-      expect(result.map((d) => d.id)).toEqual(['any-event']);
-      const queries = databases.listRows.mock.calls[0][0].queries as string[];
-      expect(queries.some((q) => q.includes('eventId'))).toBe(false);
-    });
-  });
-
-  describe('Admin access logging (Story 8.2)', () => {
-    const makeRow = (id: string, eventId: string) => ({
-      $id: id,
-      eventId,
-      receiptNumber: `R-${id}`,
-      donorName: 'Esi',
-      amountMinor: 3000,
-      donationType: 'cash',
-      recordedBy: 'op-2',
-      recordedAt: '2026-01-01T00:00:00.000Z',
-      syncStatus: 'synced',
-    });
-    const accessLogWrites = () =>
-      databases.createRow.mock.calls.filter(([arg]) => arg.data?.action === 'access');
-    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
-
-    beforeEach(() => {
-      currentUser = { $id: 'admin-1', labels: ['admin'] };
-    });
-
-    it('listAllDonations writes exactly one entry recording every tenant it touched', async () => {
-      await appDb.events.bulkPut([
-        makeEvent({ id: 'e1', tenantId: 'tenant-a' }),
-        makeEvent({ id: 'e2', tenantId: 'tenant-b' }),
-      ]);
-      databases.listRows.mockResolvedValueOnce({
-        total: 4,
-        rows: [makeRow('d1', 'e1'), makeRow('d2', 'e1'), makeRow('d3', 'e2'), makeRow('d4', 'e3')],
-      });
-
-      await service.listAllDonations();
-      await vi.waitFor(() => expect(accessLogWrites()).toHaveLength(1));
-      await flush();
-
-      expect(accessLogWrites()).toHaveLength(1);
-      const { data } = accessLogWrites()[0][0];
-      expect(data).toMatchObject({
-        entityType: 'donation',
-        entityId: '*',
-        action: 'access',
-        performedBy: 'admin-1',
-      });
-      expect(JSON.parse(data.newValues)).toEqual({
-        query: 'listAllDonations',
-        tenantId: null,
-        tenantIds: ['tenant-a', 'tenant-b'],
-        rowCount: 4,
-      });
-    });
-
-    it("listDonationsForEvent writes one entry naming the event's tenant", async () => {
-      await appDb.events.put(makeEvent({ id: 'e1', tenantId: 'tenant-a' }));
-      databases.listRows.mockResolvedValueOnce({
-        total: 2,
-        rows: [makeRow('d1', 'e1'), makeRow('d2', 'e1')],
-      });
-
-      await service.listDonationsForEvent('e1');
-      await vi.waitFor(() => expect(accessLogWrites()).toHaveLength(1));
-
-      const { data } = accessLogWrites()[0][0];
-      expect(data).toMatchObject({ entityType: 'donation', entityId: 'e1', action: 'access' });
-      expect(JSON.parse(data.newValues)).toEqual({
-        query: 'listDonationsForEvent',
-        tenantId: 'tenant-a',
-        tenantIds: ['tenant-a'],
-        eventId: 'e1',
-        eventName: 'Ama & Kojo',
-        rowCount: 2,
-      });
-    });
-
-    it('writes nothing for an Operator read', async () => {
-      currentUser = { $id: 'op-1', labels: ['operator'] };
-      databases.listRows.mockResolvedValue({ total: 1, rows: [makeRow('d1', 'e1')] });
-
-      await service.listDonationsForEvent('e1');
-      await service.listAllDonations();
-      await flush();
-
-      expect(databases.createRow).not.toHaveBeenCalled();
-    });
-
-    it('still returns the donations when the audit write fails', async () => {
-      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-      databases.createRow.mockRejectedValue(new Error('enum value not allowed'));
-      databases.listRows.mockResolvedValueOnce({ total: 1, rows: [makeRow('d1', 'e1')] });
-
-      const result = await service.listAllDonations();
-      await vi.waitFor(() => expect(consoleError).toHaveBeenCalled());
-
-      expect(result.map((d) => d.id)).toEqual(['d1']);
-      consoleError.mockRestore();
-    });
-
-    it('writes nothing when the read fell back to the offline local cache', async () => {
-      databases.listRows.mockRejectedValueOnce(new Error('offline'));
-
-      await service.listAllDonations();
-      await flush();
-
-      expect(databases.createRow).not.toHaveBeenCalled();
-    });
+    expect(databases.createRow).not.toHaveBeenCalled();
   });
 
   describe('subscribeToChanges', () => {

@@ -40,7 +40,7 @@ export class Sidebar {
 
   /**
    * routerLinkActive defaults to prefix matching, so a nav item whose route is a path-prefix
-   * of a sibling's (e.g. '/dashboard' before '/dashboard/events') stays highlighted on every
+   * of a sibling's (e.g. '/dashboard' before '/dashboard/users') stays highlighted on every
    * other page too. True for exactly that case — any item that is itself a prefix of some
    * other item's route — so the index link only lights up on its own exact route, while every
    * other item keeps prefix matching (an Events link still highlights on an event detail page).

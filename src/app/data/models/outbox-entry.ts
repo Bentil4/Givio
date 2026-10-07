@@ -1,10 +1,10 @@
+/** A Donation an Operator recorded on this device, waiting for the Function to accept it. */
 export interface OutboxEntry {
   localId?: number;
-  entityType: 'event' | 'donation';
+  entityType: 'donation';
   entityId: string;
-  op: 'create' | 'update';
+  op: 'create';
   payload: unknown;
-  baseUpdatedAt?: string;
   /** 'failed' is terminal: the server definitively rejected this entry (a 4xx), so the sync
    *  engine stops retrying it and it no longer counts as pending. */
   status: 'pending' | 'synced' | 'conflict' | 'failed';

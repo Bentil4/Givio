@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { AppwriteException, ID, Models } from 'appwrite';
 import { ACCOUNT } from '../../core/appwrite/client';
 import { SUPER_ADMIN_LABEL, type Role } from '../models/role';
+import { purgeCompanyCacheIfAdmin } from '../dexie/company-cache-purge';
 
 export type { Role };
 
@@ -54,9 +55,24 @@ export class AuthService {
     this.recordActivity();
   }
 
-  /** Re-reads the signed-in Account, e.g. after Settings changed its name or phone. */
+  /**
+   * Re-reads the signed-in Account, e.g. after Settings changed its name or phone. Also the
+   * one step login and restoreSession share, so it is where an Admin's device drops any
+   * cached company data (AD-12, amended 2026-10-07).
+   */
   async refreshCurrentUser(): Promise<void> {
-    this._currentUser.set(await this.account.get());
+    const user = await this.account.get();
+    this._currentUser.set(user);
+    await this.purgeCompanyCache(user);
+  }
+
+  /** A failed purge must not fail the sign-in itself — the next sign-in retries it. */
+  private async purgeCompanyCache(user: Models.User<Models.Preferences>): Promise<void> {
+    try {
+      await purgeCompanyCacheIfAdmin(user);
+    } catch (error) {
+      console.error('AuthService: failed to clear cached company data', error);
+    }
   }
 
   /**

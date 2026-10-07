@@ -97,6 +97,18 @@ describe('AdminLayout', () => {
     });
   });
 
+  it('offers no Events, Donations or Reports entry (AD-12, amended 2026-10-07)', () => {
+    const routes = component.navItems().map((item) => item.route);
+
+    expect(routes).toEqual([
+      '/dashboard',
+      '/dashboard/approvals',
+      '/dashboard/companies',
+      '/dashboard/audit',
+      '/dashboard/users',
+    ]);
+  });
+
   it('links every Admin to the Approvals queue (Story 6.5)', () => {
     expect(component.navItems().some((item) => item.route === '/dashboard/approvals')).toBe(true);
   });

@@ -60,16 +60,6 @@
 }
 
 // ── Panels ────────────────────────────────────────────────────────────
-.panel-row {
-  display: flex;
-  gap: var(--space-md);
-  align-items: flex-start;
-
-  @media (max-width: 900px) {
-    flex-direction: column;
-  }
-}
-
 .panel {
   /* radius-lg — matches the global .panel rule (and every other card); this local override
      was shadowing it down to radius-md. */
@@ -79,10 +69,6 @@
 
 .panel--events {
   flex: 1.5;
-  min-width: 0;
-}
-.panel--feed {
-  flex: 1;
   min-width: 0;
 }
 
@@ -125,6 +111,11 @@
   padding: 0;
 }
 
+.status-list {
+  margin: 0;
+  list-style: none;
+}
+
 .event-row {
   display: flex;
   align-items: center;
@@ -158,22 +149,6 @@
   margin-top: 3px;
 }
 
-.event-total {
-  flex: none;
-  text-align: right;
-
-  .is-mono {
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap; /* "GH₵ 1,500.00" has a literal space after the currency symbol */
-  }
-  .is-strong {
-    font-weight: 700;
-    font-size: 0.875rem; /* 7-step type scale: 14px (body) */
-    color: var(--primary-dark);
-  }
-}
-
 .feed-row {
   display: flex;
   align-items: center;
@@ -187,7 +162,7 @@
   }
 
   .is-mono {
-    flex: none; /* sibling .feed-main has min-width: 0 and absorbs the shrink instead */
+    flex: none; /* the label beside it absorbs any shrink instead */
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -196,33 +171,6 @@
     font-weight: 700;
     font-size: 0.875rem; /* 7-step type scale: 14px (body) */
     color: var(--primary-dark);
-  }
-}
-
-.feed-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.live-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: var(--func-success);
-  animation: dashboard-pulse 2s var(--ease) infinite;
-}
-
-@keyframes dashboard-pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.35;
-    transform: scale(0.8);
   }
 }
 

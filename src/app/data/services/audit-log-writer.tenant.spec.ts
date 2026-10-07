@@ -41,6 +41,22 @@ describe('audit-log-writer tenant stamping', () => {
     expect(writtenData(createRow)).not.toHaveProperty('tenantId');
   });
 
+  it('AD-12 amended: gives a company entry no read permission at all — not even the Admin Label', async () => {
+    const { databases, createRow } = fakeDatabases();
+
+    await writeAuditLog(databases, { ...entry, tenantId: 'tenant-a' });
+
+    expect(createRow.mock.calls[0][0].permissions).toEqual([]);
+  });
+
+  it('keeps the Admin read on a platform entry with no tenant', async () => {
+    const { databases, createRow } = fakeDatabases();
+
+    await writeAuditLog(databases, entry);
+
+    expect(createRow.mock.calls[0][0].permissions).toEqual(['read("label:admin")']);
+  });
+
   it("resolves a donation's tenant from its locally cached Event", async () => {
     await appDb.events.put({ id: 'e1', tenantId: 'tenant-a' } as Event);
 

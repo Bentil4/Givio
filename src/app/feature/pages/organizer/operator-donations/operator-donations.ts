@@ -31,7 +31,7 @@ type Tab = 'all' | 'mine' | 'pending' | DonationType;
  *
  * Realtime (Story 5.3): "All desks" is exactly the "my event list" AC 5.3.2 describes — a
  * desk's whole reason for existing is other Operators recording against the same event, so it
- * subscribes the same way admin-dashboard does (Story 4.1) and just re-runs
+ * subscribes to DonationService's Realtime changes (Story 4.1) and just re-runs
  * loadDonationsForEvent on any change. Safe to also refresh this device's own pending entries
  * because pullDonations (inside loadDonationsForEvent) already skips any row with a pending
  * outbox entry — a live push here can never clobber a not-yet-synced local write.

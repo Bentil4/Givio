@@ -13,10 +13,6 @@ export class DonationService {
     this._donations.set(await this.donationDataService.listDonationsForEvent(eventId));
   }
 
-  async loadAllDonations(): Promise<void> {
-    this._donations.set(await this.donationDataService.listAllDonations());
-  }
-
   /** See DonationDataService.subscribeToChanges — the caller decides what to refetch. */
   async subscribeToChanges(onChange: () => void): Promise<() => void> {
     return this.donationDataService.subscribeToChanges(onChange);
@@ -25,28 +21,6 @@ export class DonationService {
   async createDonation(draft: DonationDraft): Promise<Donation> {
     const donation = await this.donationDataService.createDonation(draft);
     this._donations.update((donations) => [donation, ...donations]);
-    return donation;
-  }
-
-  async updateDonation(
-    id: string,
-    patch: Parameters<DonationDataService['updateDonation']>[1],
-    reason: string,
-  ): Promise<Donation> {
-    const donation = await this.donationDataService.updateDonation(id, patch, reason);
-    this._donations.update((donations) => donations.map((d) => (d.id === id ? donation : d)));
-    return donation;
-  }
-
-  async softDeleteDonation(id: string, reason: string): Promise<Donation> {
-    const donation = await this.donationDataService.softDeleteDonation(id, reason);
-    this._donations.update((donations) => donations.map((d) => (d.id === id ? donation : d)));
-    return donation;
-  }
-
-  async recoverDonation(id: string): Promise<Donation> {
-    const donation = await this.donationDataService.recoverDonation(id);
-    this._donations.update((donations) => donations.map((d) => (d.id === id ? donation : d)));
     return donation;
   }
 }

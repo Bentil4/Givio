@@ -12,9 +12,7 @@ export interface DonationDataTestBed {
   functions: { createExecution: ReturnType<typeof vi.fn> };
   databases: {
     listRows: ReturnType<typeof vi.fn>;
-    updateRow: ReturnType<typeof vi.fn>;
     createRow: ReturnType<typeof vi.fn>;
-    getRow: ReturnType<typeof vi.fn>;
   };
   realtime: { subscribe: ReturnType<typeof vi.fn> };
 }
@@ -62,11 +60,7 @@ function createDonationBackendMocks(): Omit<DonationDataTestBed, 'service'> {
     functions: { createExecution: vi.fn() },
     databases: {
       listRows: vi.fn().mockResolvedValue({ total: 0, rows: [] }),
-      updateRow: vi.fn().mockResolvedValue({}),
       createRow: vi.fn().mockResolvedValue({}),
-      // No `updatedAt` (undefined -> null) matches a freshly-seeded donation's own baseUpdatedAt
-      // (also undefined -> null) by default — individual conflict tests override this.
-      getRow: vi.fn().mockResolvedValue({}),
     },
     realtime: {
       subscribe: vi.fn().mockResolvedValue({ close: vi.fn().mockResolvedValue(undefined) }),

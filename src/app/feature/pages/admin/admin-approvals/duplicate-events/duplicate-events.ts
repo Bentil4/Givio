@@ -12,7 +12,6 @@ import {
   viewChild,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { MatIconModule } from '@angular/material/icon';
 import { ServiceError } from '../../../../../core/services/service-error';
@@ -73,7 +72,7 @@ function errorMessage(err: unknown): string {
  */
 @Component({
   selector: 'app-duplicate-events',
-  imports: [MatIconModule, DatePipe, RouterLink, CdkTrapFocus],
+  imports: [MatIconModule, DatePipe, CdkTrapFocus],
   templateUrl: './duplicate-events.html',
   styleUrl: './duplicate-events.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

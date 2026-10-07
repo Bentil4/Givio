@@ -29,7 +29,7 @@ export interface AdminFunctionRequest {
 /**
  * Calls the one trusted Appwrite Function (AD-9) that writes user Labels and, per Story 2.3,
  * Event.assignedUserIds + the Appwrite permissions derived from it (AD-2). Shared by every
- * data-layer service that needs it (UserService, EventDataService) so the
+ * data-layer service that needs it (UserService, DonationDataService, ...) so the
  * execute/parse/error-shape logic exists exactly once.
  */
 export async function invokeAdminFunction<T>(

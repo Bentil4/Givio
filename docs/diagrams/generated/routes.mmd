@@ -18,15 +18,8 @@ flowchart TD
     r__dashboard["/dashboard<br/>Admin Dashboard"]
     r__dashboard_users["/dashboard/users<br/>Users"]
     r__dashboard_admins["/dashboard/admins<br/>Admin accounts<br/><i>superAdminGuard</i>"]
-    r__dashboard_events["/dashboard/events<br/>Events"]
-    r__dashboard_events__id_edit["/dashboard/events/:id/edit<br/>Edit Event"]
-    r__dashboard_events__id["/dashboard/events/:id<br/>Event detail"]
-    r__dashboard_donations["/dashboard/donations<br/>Donation oversight"]
-    r__dashboard_donations_conflicts["/dashboard/donations/conflicts<br/>Resolve sync conflicts"]
-    r__dashboard_donations_deleted["/dashboard/donations/deleted<br/>Deleted donations"]
     r__dashboard_approvals["/dashboard/approvals<br/>Approvals"]
     r__dashboard_companies["/dashboard/companies<br/>Companies"]
-    r__dashboard_reports["/dashboard/reports<br/>Reports"]
     r__dashboard_audit["/dashboard/audit<br/>Audit trail"]
   end
   subgraph sgr__organizer["/organizer — sessionExpiryGuard + roleGuard(operator) + operatorTenantGuard"]
@@ -43,6 +36,8 @@ flowchart TD
   subgraph sgr__company__approvedCompanyMatch["/company — sessionExpiryGuard + approvedCompanyMatch"]
     r__company__approvedCompanyMatch["/company<br/>Company dashboard"]
     r__company_events__approvedCompanyMatch["/company/events<br/>Events"]
+    r__company_events__id__approvedCompanyMatch["/company/events/:id<br/>Event detail"]
+    r__company_donations__approvedCompanyMatch["/company/donations<br/>Donations"]
     r__company_team__approvedCompanyMatch["/company/team<br/>Team"]
     r__company_support__approvedCompanyMatch["/company/support<br/>Contact Admin"]
     r__company_reports__approvedCompanyMatch["/company/reports<br/>Settlement reports<br/><i>superOrganizerMatch</i>"]
@@ -57,16 +52,10 @@ flowchart TD
   app --> r__auth_signup
   r__dashboard --> r__dashboard_users
   r__dashboard --> r__dashboard_admins
-  r__dashboard --> r__dashboard_events
-  r__dashboard_events__id --> r__dashboard_events__id_edit
-  r__dashboard_events --> r__dashboard_events__id
-  r__dashboard --> r__dashboard_donations
-  r__dashboard_donations --> r__dashboard_donations_conflicts
-  r__dashboard_donations --> r__dashboard_donations_deleted
   r__dashboard --> r__dashboard_approvals
   r__dashboard --> r__dashboard_companies
-  r__dashboard --> r__dashboard_reports
   r__dashboard --> r__dashboard_audit
+  r__dashboard -->|"/dashboard/** redirects"| r__dashboard
   app --> r__dashboard
   r__organizer --> r__organizer_events
   r__organizer --> r__organizer_entry
@@ -78,6 +67,8 @@ flowchart TD
   r__family --> r__family__code
   app --> r__company_dispute
   r__company__approvedCompanyMatch --> r__company_events__approvedCompanyMatch
+  r__company_events__approvedCompanyMatch --> r__company_events__id__approvedCompanyMatch
+  r__company__approvedCompanyMatch --> r__company_donations__approvedCompanyMatch
   r__company__approvedCompanyMatch --> r__company_team__approvedCompanyMatch
   r__company__approvedCompanyMatch --> r__company_support__approvedCompanyMatch
   r__company__approvedCompanyMatch --> r__company_reports__approvedCompanyMatch
