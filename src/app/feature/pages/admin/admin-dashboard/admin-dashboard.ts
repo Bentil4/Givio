@@ -1,86 +1,105 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  OnInit,
-  computed,
-  inject,
-  signal,
-} from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { ServiceError } from '../../../../core/services/service-error';
-import type { AdminUser } from '../../../../data/models/admin-user';
+import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal } from '@angular/core';
+import type { AuditLogEntry } from '../../../../data/models/audit-log';
 import type { Tenant } from '../../../../data/models/tenant';
-import { ApprovalCountsService } from '../../../../data/services/approval-counts.service';
-import { SupportRequestDataService } from '../../../../data/services/support-request-data.service';
-import { TenantLifecycleDataService } from '../../../../data/services/tenant-lifecycle-data.service';
-import { UserService } from '../../../../data/services/user.service';
+import { AuthService } from '../../../../data/services/auth.service';
+import { DEFAULT_PERIOD_OPTIONS, PeriodFilter } from '../../../../shared/components/dashboard';
 import {
-  COMPANY_STATUSES,
-  COMPANY_STATUS_LABELS,
-  countCompaniesByStatus,
-  countUsersByRole,
+  DASHBOARD_PERIODS,
+  bucketsFor,
+  comparisonLabelFor,
+  periodRange,
+  previousRange,
+  readStoredPeriod,
+  storePeriod,
+  type DashboardPeriod,
+} from '../../../../utils/dashboard-period.util';
+import { AdminDashboardData } from './admin-dashboard-data';
+import { loadStateOf, loadedValueOr } from './load-state';
+import { ApprovalQueuePanel } from './approval-queue-panel';
+import { BreakdownChart } from './breakdown-chart';
+import { PlatformActivityPanel } from './platform-activity-panel';
+import { PlatformKpis } from './platform-kpis';
+import type { PeriodWindow } from './platform-kpis.util';
+import {
+  companyStatusCounts,
+  companyTypeCounts,
+  signupsAndApprovalsPerBucket,
+  userRoleCounts,
 } from './platform-metrics';
+import { SignupsApprovalsChart } from './signups-approvals-chart';
+
+const DEFAULT_PERIOD: DashboardPeriod = '30d';
+const NO_TENANTS: readonly Tenant[] = [];
+const NO_ENTRIES: readonly AuditLogEntry[] = [];
 
 /**
- * Admin overview — platform governance only (AD-12, amended 2026-10-07): companies by status,
- * pending approvals, people and open support requests. Platform Admins have no access to
- * company Events or Donations, so nothing here totals or lists them.
+ * Admin overview — platform governance only (AD-12, amended 2026-10-07): companies, signups,
+ * approval speed, approval queues, people, support and platform activity. Platform Admins have
+ * no access to company Events or Donations, so nothing here reads, totals or lists them.
  */
 @Component({
   selector: 'app-admin-dashboard',
-  imports: [RouterLink],
+  imports: [
+    PeriodFilter,
+    PlatformKpis,
+    SignupsApprovalsChart,
+    BreakdownChart,
+    ApprovalQueuePanel,
+    PlatformActivityPanel,
+  ],
+  providers: [AdminDashboardData],
   templateUrl: './admin-dashboard.html',
   styleUrl: './admin-dashboard.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AdminDashboard implements OnInit {
-  private readonly tenantLifecycleData = inject(TenantLifecycleDataService);
-  private readonly userService = inject(UserService);
-  private readonly supportRequests = inject(SupportRequestDataService);
-  private readonly approvalCounts = inject(ApprovalCountsService);
+export class AdminDashboard {
+  protected readonly data = inject(AdminDashboardData);
+  private readonly auth = inject(AuthService);
+  private readonly now = new Date();
 
-  private readonly tenants = signal<Tenant[]>([]);
-  private readonly users = signal<AdminUser[]>([]);
+  protected readonly periodOptions = DEFAULT_PERIOD_OPTIONS;
+  private readonly periodKey = computed(
+    () => `givio.admin-dashboard.period.${this.auth.currentUser()?.$id ?? 'signed-out'}`,
+  );
+  public readonly period = linkedSignal(
+    () => readStoredPeriod(this.periodKey(), DASHBOARD_PERIODS) ?? DEFAULT_PERIOD,
+  );
 
-  public readonly loading = signal(true);
-  public readonly loadError = signal<string | null>(null);
-  /** null when the count couldn't be read — shown as unavailable, never as zero. */
-  public readonly openSupportRequests = signal<number | null>(null);
+  protected readonly tenantsState = computed(() => loadStateOf(this.data.tenants));
+  protected readonly usersState = computed(() => loadStateOf(this.data.users));
+  protected readonly supportState = computed(() => loadStateOf(this.data.openSupportRequests));
+  protected readonly activityState = computed(() => loadStateOf(this.data.recentActivity));
+  protected readonly tenants = computed(() => loadedValueOr(this.data.tenants, NO_TENANTS));
+  protected readonly activity = computed(() => loadedValueOr(this.data.recentActivity, NO_ENTRIES));
+  protected readonly openSupportRequests = computed(() =>
+    loadedValueOr(this.data.openSupportRequests, null),
+  );
 
-  public readonly statuses = COMPANY_STATUSES;
-  public readonly statusLabels = COMPANY_STATUS_LABELS;
-  public readonly companiesByStatus = computed(() => countCompaniesByStatus(this.tenants()));
-  public readonly userCounts = computed(() => countUsersByRole(this.users()));
-  public readonly pendingApprovals = this.approvalCounts.total;
-  public readonly supportNote = computed(() => {
-    if (this.openSupportRequests() !== null) return 'Questions and disputes';
-    return this.loading() ? 'Loading' : 'Not available';
+  protected readonly window = computed<PeriodWindow>(() => {
+    const current = periodRange(this.period(), this.now, earliestSignup(this.tenants()));
+    const comparisonLabel = comparisonLabelFor(this.period());
+    return { current, previous: previousRange(current), comparisonLabel };
   });
+  private readonly buckets = computed(() => bucketsFor(this.window().current, this.period()));
+  protected readonly bucketLabels = computed(() => this.buckets().map((b) => b.label));
+  protected readonly signupsAndApprovals = computed(() =>
+    signupsAndApprovalsPerBucket(this.tenants(), this.buckets()),
+  );
 
-  async ngOnInit(): Promise<void> {
-    void this.approvalCounts.refresh();
-    await Promise.all([this.loadCompaniesAndUsers(), this.loadOpenSupportRequests()]);
-    this.loading.set(false);
-  }
+  protected readonly statusCounts = computed(() => companyStatusCounts(this.tenants()));
+  protected readonly typeCounts = computed(() => companyTypeCounts(this.tenants()));
+  protected readonly users = computed(() => loadedValueOr(this.data.users, []));
+  protected readonly roleCounts = computed(() => userRoleCounts(this.users()));
+  protected readonly usersById = computed(
+    () => new Map(this.users().map((user) => [user.id, user])),
+  );
 
-  private async loadCompaniesAndUsers(): Promise<void> {
-    try {
-      const [tenants, users] = await Promise.all([
-        this.tenantLifecycleData.listTenants(),
-        this.userService.listUsers(),
-      ]);
-      this.tenants.set(tenants);
-      this.users.set(users);
-    } catch (err) {
-      this.loadError.set(err instanceof ServiceError ? err.message : 'Failed to load the overview');
-    }
+  public choosePeriod(period: DashboardPeriod): void {
+    this.period.set(period);
+    storePeriod(this.periodKey(), period);
   }
+}
 
-  private async loadOpenSupportRequests(): Promise<void> {
-    try {
-      this.openSupportRequests.set(await this.supportRequests.countOpenRequests());
-    } catch {
-      this.openSupportRequests.set(null);
-    }
-  }
+function earliestSignup(tenants: readonly Tenant[]): string | undefined {
+  return tenants.map((tenant) => tenant.createdAt).sort()[0];
 }

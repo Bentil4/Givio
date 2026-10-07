@@ -1,63 +1,78 @@
 <section class="page">
-  <header class="page-head">
+  <header class="page-head overview-head">
     <div>
       <h1 class="t-page-title">Overview</h1>
       <p class="t-secondary">Companies, approvals, people and support across the platform.</p>
     </div>
+    <app-period-filter
+      label="Time range for signups and approvals"
+      [options]="periodOptions"
+      [value]="period()"
+      (valueChange)="choosePeriod($event)"
+    />
   </header>
 
-  @if (loadError(); as err) {
-  <p class="panel-empty t-caption" role="alert">{{ err }}</p>
-  }
+  <app-platform-kpis
+    [tenants]="tenants()"
+    [tenantsState]="tenantsState()"
+    [window]="window()"
+    [signupTrend]="signupsAndApprovals().signups"
+    [pendingApprovals]="data.pendingApprovals()"
+    [pendingApprovalsState]="data.pendingApprovalsState()"
+    [openSupportRequests]="openSupportRequests()"
+    [supportState]="supportState()"
+  />
 
-  <div class="stat-grid" [attr.aria-busy]="loading()">
-    <article class="stat-tile glass">
-      <div class="stat-label">Active companies</div>
-      <div class="stat-value">{{ loading() ? '—' : companiesByStatus().approved }}</div>
-      <div class="stat-delta">{{ companiesByStatus().suspended }} suspended</div>
-    </article>
-    <article class="stat-tile glass">
-      <div class="stat-label">Pending approvals</div>
-      <div class="stat-value">{{ pendingApprovals() }}</div>
-      <a class="stat-delta panel-link" routerLink="/dashboard/approvals">Review approvals</a>
-    </article>
-    <article class="stat-tile glass">
-      <div class="stat-label">Users</div>
-      <div class="stat-value">{{ loading() ? '—' : userCounts().total }}</div>
-      <div class="stat-delta">
-        {{ userCounts().admins }} admins · {{ userCounts().operators }} operators · {{
-        userCounts().companyAccounts }} company accounts
-      </div>
-    </article>
-    <article class="stat-tile glass">
-      <div class="stat-label">Open support requests</div>
-      <div class="stat-value">{{ openSupportRequests() ?? '—' }}</div>
-      <div class="stat-delta" [class.is-muted]="openSupportRequests() === null">
-        {{ supportNote() }}
-      </div>
-    </article>
+  <div class="chart-grid">
+    <app-signups-approvals-chart
+      [state]="tenantsState()"
+      [labels]="bucketLabels()"
+      [counts]="signupsAndApprovals()"
+      (retry)="data.tenants.reload()"
+    />
+    <app-breakdown-chart
+      title="Companies by status"
+      subtitle="Every company, as it stands now"
+      categoryHeading="Status"
+      countHeading="Companies"
+      errorText="Couldn't load companies."
+      [horizontal]="true"
+      [items]="statusCounts()"
+      [state]="tenantsState()"
+      (retry)="data.tenants.reload()"
+    />
+    <app-breakdown-chart
+      title="Users by role"
+      subtitle="Every account, as it stands now"
+      kind="doughnut"
+      categoryHeading="Role"
+      countHeading="Users"
+      errorText="Couldn't load users."
+      emptyText="No user accounts yet."
+      [items]="roleCounts()"
+      [state]="usersState()"
+      (retry)="data.users.reload()"
+    />
+    <app-breakdown-chart
+      title="Companies by type"
+      subtitle="What every company says it organises"
+      categoryHeading="Type"
+      countHeading="Companies"
+      errorText="Couldn't load companies."
+      emptyText="No companies yet."
+      [items]="typeCounts()"
+      [state]="tenantsState()"
+      (retry)="data.tenants.reload()"
+    />
+    <app-approval-queue-panel
+      [counts]="data.pendingApprovals()"
+      [state]="data.pendingApprovalsState()"
+    />
+    <app-platform-activity-panel
+      [entries]="activity()"
+      [state]="activityState()"
+      [usersById]="usersById()"
+      (retry)="data.recentActivity.reload()"
+    />
   </div>
-
-  <article class="panel glass">
-    <header class="panel-head">
-      <h2 class="t-card-title">Companies by status</h2>
-      <a class="panel-link" routerLink="/dashboard/companies">Manage companies</a>
-    </header>
-    @if (loading()) {
-    <div class="panel-body">
-      @for (i of [0, 1, 2, 3]; track i) {
-      <div class="skel-row"><span class="skel skel--lg"></span></div>
-      }
-    </div>
-    } @else {
-    <ul class="panel-body status-list">
-      @for (status of statuses; track status) {
-      <li class="feed-row">
-        <span class="t-body-em">{{ statusLabels[status] }}</span>
-        <span class="is-mono is-strong">{{ companiesByStatus()[status] }}</span>
-      </li>
-      }
-    </ul>
-    }
-  </article>
 </section>

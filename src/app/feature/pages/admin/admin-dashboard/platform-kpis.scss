@@ -1,0 +1,35 @@
+@use '../../../../shared/styles/dashboard';
+
+:host {
+  display: block;
+}
+
+// Five figures: the 4-column dashboard row would orphan the fifth, so wide screens get five.
+.stat-grid {
+  @media (min-width: 1200px) {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.turnaround-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+// Colour only supports the icon and the words.
+.turnaround-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+  color: var(--func-success);
+
+  .is-over & {
+    color: var(--func-warning);
+  }
+}
