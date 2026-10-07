@@ -1,0 +1,58 @@
+// Shared by the dashboard's sections: the kit's anatomy plus the company's list rows.
+@use '../../../../shared/styles/dashboard';
+
+:host {
+  display: contents;
+}
+
+.feed-list,
+.rank-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// The card body already pads the sides; rows only keep their vertical rhythm.
+.feed-list .feed-row {
+  padding-inline: 0;
+}
+
+.feed-main {
+  flex: 1;
+  min-width: 0;
+
+  p {
+    margin: 0;
+  }
+}
+
+.feed-donor {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-link {
+  color: var(--primary-dark);
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--primary-deep);
+    text-decoration: underline;
+  }
+}
+
+// The top events' links sit under their bars, one tap target per event (WCAG 2.5.8).
+.rank-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-md);
+  padding: var(--space-sm) 0 0;
+
+  a {
+    display: inline-block;
+    min-height: 24px;
+    padding: 4px 0;
+  }
+}

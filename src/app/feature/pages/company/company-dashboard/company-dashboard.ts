@@ -1,79 +1,68 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  effect,
+  inject,
+  untracked,
+} from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { RouterLink } from '@angular/router';
 import { TenantService } from '../../../../data/services/tenant.service';
+import { DEFAULT_PERIOD_OPTIONS, PeriodFilter } from '../../../../shared/components/dashboard';
+import { CompanyInsightsStore } from './company-insights.store';
+import { CompanyKpiRow } from './company-kpis';
+import { CompanyRankingCharts } from './company-ranking-charts';
 import { CompanyTotalsStore } from './company-totals.store';
+import { CompanyTrendCharts } from './company-trend-charts';
 import { ConsolidatedTotal } from './consolidated-total';
+import { DonationFeed } from './donation-feed';
 import { EventTotalsList } from './event-totals-list';
+import { UpcomingEvents } from './upcoming-events';
 
 /**
- * The approved Organizer's landing page: a live consolidated total across the company's
- * running Events with a per-Event breakdown underneath (Story 8.4, FR-21).
+ * The Organizer tier's landing page (Super Organizer and co-Organizer alike, read-only): the
+ * live consolidated total (Story 8.4, FR-21), then the chosen period's figures, charts and
+ * activity, all from one read of the company's events and donations.
  */
 @Component({
   selector: 'app-company-dashboard',
-  imports: [MatIconModule, ConsolidatedTotal, EventTotalsList],
-  providers: [CompanyTotalsStore],
-  template: `
-    <section class="page" aria-labelledby="company-dashboard-title">
-      <header class="page-head">
-        <h1 id="company-dashboard-title" class="t-page-title">{{ companyName() }}</h1>
-        <p class="t-secondary">Live totals across your running events.</p>
-      </header>
-      @if (store.loadError(); as error) {
-        <div class="load-error" role="alert">
-          <mat-icon aria-hidden="true">error_outline</mat-icon>
-          <p class="t-caption">{{ error }}</p>
-          <button type="button" class="btn-ghost" (click)="store.start()">Try again</button>
-        </div>
-      } @else {
-        <app-consolidated-total [summary]="store.summary()" [loading]="store.loading()" />
-        <app-event-totals-list
-          [rows]="store.rows()"
-          [loading]="store.loading()"
-          (retry)="store.retryEvent($event)"
-        />
-      }
-    </section>
-  `,
-  styles: `
-    .page {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-md);
-    }
-
-    .page-head > * {
-      margin: 0 0 4px;
-    }
-
-    .load-error {
-      display: flex;
-      align-items: center;
-      gap: var(--space-sm);
-      padding: var(--space-md);
-      border: 1.5px solid var(--func-error);
-      border-radius: var(--radius-md);
-      background: var(--func-error-soft);
-
-      mat-icon {
-        color: var(--func-error);
-      }
-
-      p {
-        flex: 1;
-        margin: 0;
-      }
-    }
-  `,
+  imports: [
+    MatIconModule,
+    RouterLink,
+    PeriodFilter,
+    ConsolidatedTotal,
+    EventTotalsList,
+    CompanyKpiRow,
+    CompanyTrendCharts,
+    CompanyRankingCharts,
+    DonationFeed,
+    UpcomingEvents,
+  ],
+  providers: [CompanyTotalsStore, CompanyInsightsStore],
+  templateUrl: './company-dashboard.html',
+  styleUrl: './company-dashboard.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CompanyDashboard implements OnInit {
   private readonly tenant = inject(TenantService).tenant;
 
-  protected readonly store = inject(CompanyTotalsStore);
+  protected readonly totals = inject(CompanyTotalsStore);
+  protected readonly insights = inject(CompanyInsightsStore);
+  protected readonly periodOptions = DEFAULT_PERIOD_OPTIONS;
   public readonly companyName = computed(() => this.tenant()?.name ?? 'Your company');
 
+  constructor() {
+    effect(() => {
+      if (this.totals.donationChangeCount() > 0) {
+        untracked(() => this.insights.refreshSoon());
+      }
+    });
+  }
+
   ngOnInit(): void {
-    void this.store.start();
+    void this.totals.start();
+    void this.insights.load();
   }
 }

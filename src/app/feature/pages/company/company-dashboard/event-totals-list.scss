@@ -1,8 +1,8 @@
 @use '../../../../shared/styles/dashboard-panel';
 
-// Same panel/row rhythm as the other dashboards' panels, without their row links.
+// The dashboard kit's panel shape and row rhythm, without its clickable rows.
 .panel {
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
