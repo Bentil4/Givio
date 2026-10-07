@@ -1,0 +1,33 @@
+<article class="panel glass" aria-labelledby="my-recent-donations-title">
+  <header class="panel-head">
+    <h2 class="t-card-title" id="my-recent-donations-title">My recent donations</h2>
+    <a class="panel-link" routerLink="/organizer/donations">View all</a>
+  </header>
+
+  @switch (state()) { @case ('loading') {
+  <app-skeleton-rows [rows]="3" label="Loading your recent donations…" />
+  } @case ('error') {
+  <div class="panel-error" role="alert">
+    <p class="panel-empty">Couldn't load your recent donations.</p>
+    <button type="button" class="btn btn-secondary" (click)="retry.emit()">Try again</button>
+  </div>
+  } @default { @if (rows().length === 0) {
+  <p class="panel-empty">{{ emptyText() }}</p>
+  } @else {
+  <ul class="recent-list">
+    @for (row of rows(); track row.id) {
+    <li class="feed-row">
+      <span class="recent-main">
+        <span class="is-strong recent-donor">{{ row.donor }}</span>
+        <span class="t-caption recent-meta">
+          <span class="recent-receipt">{{ row.receipt }}</span> · {{ row.type }} ·
+          <time [attr.datetime]="row.recordedAt">{{ row.time }}</time>
+          @if (row.pending) { · <span class="recent-pending">Waiting to sync</span> }
+        </span>
+      </span>
+      <span class="is-mono is-strong">{{ row.amount }}</span>
+    </li>
+    }
+  </ul>
+  } } }
+</article>
