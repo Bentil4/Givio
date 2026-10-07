@@ -399,3 +399,101 @@ test(
     assert.deepEqual(calls.updateRow[0][0].data, { status: 'rejected' });
   }),
 );
+
+// An Admin's verification and approval go on the platform audit trail (readable by Admin, no
+// tenantId, so never in the company's own Activity log).
+
+const withAuditTable = (fn) =>
+  withEnv(async () => {
+    process.env.APPWRITE_AUDIT_LOGS_COLLECTION_ID = 'audit-1';
+    try {
+      await fn();
+    } finally {
+      delete process.env.APPWRITE_AUDIT_LOGS_COLLECTION_ID;
+    }
+  });
+
+const auditEntries = (calls) =>
+  (calls.createRow ?? []).map(([args]) => args).filter((args) => args.tableId === 'audit-1');
+
+test(
+  'recordTenantVerification records who verified the application',
+  withAuditTable(async () => {
+    const { ctx, calls } = fakeContext({
+      body: verifyBody(),
+      databases: { getRow: async () => pendingTenant(), updateRow: async () => ({}) },
+      storage: { getFile: async () => ({ $id: 'file-1' }) },
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 200);
+    const [entry] = auditEntries(calls);
+    assert.equal(entry.data.entityType, 'tenant');
+    assert.equal(entry.data.entityId, 't1');
+    assert.equal(entry.data.performedBy, 'admin-1');
+    assert.deepEqual(JSON.parse(entry.data.newValues), {
+      decision: 'verified',
+      status: 'pending',
+      tenantName: 'Asante Events',
+    });
+    assert.equal('tenantId' in entry.data, false);
+    assert.deepEqual(entry.permissions, ['read("label:admin")']);
+  }),
+);
+
+test(
+  'a repeat recordTenantVerification does not record the verification again',
+  withAuditTable(async () => {
+    const { ctx, calls } = fakeContext({
+      body: verifyBody(),
+      databases: {
+        getRow: async () =>
+          pendingTenant({ verifiedBy: 'admin-0', verifiedAt: '2026-09-30T10:00:00.000Z' }),
+      },
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 200);
+    assert.equal(auditEntries(calls).length, 0);
+  }),
+);
+
+test(
+  'approving a verified application records the approval by the calling Admin',
+  withAuditTable(async () => {
+    const { ctx, calls } = fakeContext({
+      body: { action: 'setTenantStatus', tenantId: 't1', status: 'approved' },
+      databases: {
+        getRow: async () =>
+          pendingTenant({ verifiedBy: 'admin-0', verifiedAt: '2026-09-30T10:00:00.000Z' }),
+        listRows: async () => ({ rows: [], total: 0 }),
+        updateRow: async () => ({}),
+      },
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 200);
+    const [entry] = auditEntries(calls);
+    assert.equal(entry.data.performedBy, 'admin-1');
+    assert.deepEqual(JSON.parse(entry.data.previousValues), { status: 'pending' });
+    assert.equal(JSON.parse(entry.data.newValues).decision, 'approved');
+  }),
+);
+
+test(
+  'an approval refused for missing verification records nothing',
+  withAuditTable(async () => {
+    const { ctx, calls } = fakeContext({
+      body: { action: 'setTenantStatus', tenantId: 't1', status: 'approved' },
+      databases: { getRow: async () => pendingTenant() },
+    });
+
+    const result = await handleTenantMembershipRequest(ctx);
+
+    assert.equal(result.status, 409);
+    assert.equal(auditEntries(calls).length, 0);
+  }),
+);

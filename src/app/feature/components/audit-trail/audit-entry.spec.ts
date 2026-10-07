@@ -55,6 +55,41 @@ describe('toAuditEntry — company profile changes', () => {
   });
 });
 
+describe('toAuditEntry — Admin decisions on a company', () => {
+  const decision = (decision: string, tenantName: string | null = 'Asante Events') =>
+    entry({
+      performedBy: 'admin-1',
+      previousValues: { status: 'pending' },
+      newValues: { decision, status: 'approved', tenantName },
+    });
+
+  it.each(['approved', 'rejected', 'suspended', 'reinstated'])(
+    'names the company and the decision: %s',
+    (word) => {
+      const mapped = toAuditEntry(decision(word));
+
+      expect(mapped.summary).toBe(`Company Asante Events ${word}`);
+      expect(mapped.actor).toBe('admin-1');
+      expect(mapped.detail).toBeUndefined();
+    },
+  );
+
+  it('explains what a verification attests to', () => {
+    const mapped = toAuditEntry(decision('verified'));
+
+    expect(mapped.summary).toBe('Company Asante Events verified');
+    expect(mapped.detail).toBe('Verification document reviewed and phone call completed');
+  });
+
+  it('still reads well when the company has no name on record', () => {
+    expect(toAuditEntry(decision('suspended', null)).summary).toBe('A company was suspended');
+  });
+
+  it('is not mistaken for a profile change', () => {
+    expect(toAuditEntry(decision('approved')).summary).not.toContain('profile');
+  });
+});
+
 describe('toAuditEntry — existing entity types', () => {
   it('still describes an event and a donation', () => {
     const event = toAuditEntry(

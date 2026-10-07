@@ -21,7 +21,7 @@ export interface AuditEntry {
  *  admin-audit (platform-wide) and company-audit (one tenant, Story 7.5). */
 export function toAuditEntry(entry: AuditLogEntry): AuditEntry {
   if (entry.action === 'access') return toAccessEntry(entry);
-  if (entry.entityType === 'tenant') return toProfileEntry(entry);
+  if (entry.entityType === 'tenant') return toTenantEntry(entry);
   const before = asRecord(entry.previousValues);
   const after = asRecord(entry.newValues);
   const noun = entry.entityType === 'event' ? 'Event' : 'Donation';
@@ -59,6 +59,33 @@ const LOGO_CHANGES: Record<string, string> = {
   replaced: 'Logo replaced',
   none: 'Logo removed',
 };
+
+/** A 'tenant' row is either a Super Organizer's profile change or an Admin's decision on the
+ *  company; only a decision names what was decided. */
+function toTenantEntry(entry: AuditLogEntry): AuditEntry {
+  const after = asRecord(entry.newValues);
+  return typeof after['decision'] === 'string'
+    ? toDecisionEntry(entry, after)
+    : toProfileEntry(entry);
+}
+
+const DECISION_DETAILS: Record<string, string> = {
+  verified: 'Verification document reviewed and phone call completed',
+};
+
+/** An Admin verifying, approving, rejecting, suspending or reinstating a company. */
+function toDecisionEntry(entry: AuditLogEntry, after: Record<string, unknown>): AuditEntry {
+  const decision = String(after['decision']);
+  const name = typeof after['tenantName'] === 'string' ? after['tenantName'] : '';
+  return {
+    id: entry.id,
+    timestamp: entry.timestamp,
+    action: entry.action,
+    summary: name ? `Company ${name} ${decision}` : `A company was ${decision}`,
+    detail: DECISION_DETAILS[decision],
+    actor: entry.performedBy,
+  };
+}
 
 /** A company profile change: the function stores only the fields that changed, and the logo
  *  as a state ('set', 'replaced', 'none') rather than the image itself. */
