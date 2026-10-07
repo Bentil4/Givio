@@ -205,3 +205,104 @@ test(
     assert.equal(result.status, 502);
   }),
 );
+
+// Every profile change is recorded in the company's own activity log (FR-15): only the fields
+// that changed, never the logo image itself, and never visible to platform Admins (AD-12).
+
+const auditRows = (store) => Object.values(store['audit-1']);
+
+test(
+  'a profile change is recorded against the tenant with only the changed fields',
+  withEnv(async () => {
+    const seed = seedStore();
+    Object.assign(seed['tenants-1']['tenant-a'], { name: 'Old Name', location: 'Kumasi' });
+    const { store } = await run({
+      body: update({ name: 'Asante Events', contactPhone: '' }),
+      as: 'so-a',
+      store: seed,
+    });
+
+    const [entry] = auditRows(store);
+    assert.equal(entry.entityType, 'tenant');
+    assert.equal(entry.entityId, 'tenant-a');
+    assert.equal(entry.action, 'edit');
+    assert.equal(entry.performedBy, 'so-a');
+    assert.equal(entry.tenantId, 'tenant-a');
+    assert.deepEqual(JSON.parse(entry.previousValues), { name: 'Old Name', logo: 'none' });
+    assert.deepEqual(JSON.parse(entry.newValues), {
+      name: 'Asante Events',
+      logo: 'set',
+      tenantId: 'tenant-a',
+    });
+  }),
+);
+
+test(
+  'the audit entry never holds the logo image and carries no Admin read',
+  withEnv(async () => {
+    const { store } = await run({ body: update(), as: 'so-a' });
+
+    const [entry] = auditRows(store);
+    assert.ok(!entry.newValues.includes('base64'));
+    assert.deepEqual(entry.$permissions, []);
+  }),
+);
+
+test(
+  'replacing and removing a logo are told apart',
+  withEnv(async () => {
+    const seed = seedStore();
+    seed['tenants-1']['tenant-a'].logo = PNG_LOGO;
+    const replaced = await run({
+      body: update({ logo: 'data:image/png;base64,QUJD' }),
+      as: 'so-a',
+      store: seed,
+    });
+    assert.equal(JSON.parse(auditRows(replaced.store)[0].newValues).logo, 'replaced');
+
+    const removed = await run({ body: update({ logo: null }), as: 'so-a', store: seed });
+    const removal = JSON.parse(auditRows(removed.store).at(-1).newValues);
+    assert.equal(removal.logo, 'none');
+  }),
+);
+
+test(
+  'a save that changes nothing leaves no audit entry',
+  withEnv(async () => {
+    const seed = seedStore();
+    Object.assign(seed['tenants-1']['tenant-a'], {
+      name: 'Asante Events',
+      location: 'Kumasi',
+      contactPhone: '+233241234567',
+      logo: PNG_LOGO,
+    });
+    const { result, store } = await run({ body: update(), as: 'so-a', store: seed });
+
+    assert.equal(result.status, 200);
+    assert.equal(auditRows(store).length, 0);
+  }),
+);
+
+test(
+  'a failed audit write never fails the profile save',
+  withEnv(async () => {
+    const { result, store, errors } = await run({
+      body: update(),
+      as: 'so-a',
+      failOn: { createRow: true },
+    });
+
+    assert.equal(result.status, 200);
+    assert.equal(store['tenants-1']['tenant-a'].location, 'Kumasi');
+    assert.ok(errors.some((message) => message.includes('writeTenantAuditLog')));
+  }),
+);
+
+test(
+  'a refused change (co-Organizer) writes no audit entry',
+  withEnv(async () => {
+    const { store } = await run({ body: update(), as: 'org-a' });
+
+    assert.equal(auditRows(store).length, 0);
+  }),
+);
