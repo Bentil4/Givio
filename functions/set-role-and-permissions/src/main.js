@@ -12,6 +12,7 @@ import { handleFamilyAccessRequest, FAMILY_ACCESS_ACTIONS } from './family-acces
 import { handleTenantMembershipRequest, TENANT_MEMBERSHIP_ACTIONS } from './tenant-membership.js';
 import { handleTenantGrantsRequest, TENANT_GRANT_ACTIONS } from './tenant-grants.js';
 import { handleSupportRequestsRequest, SUPPORT_REQUEST_ACTIONS } from './support-requests.js';
+import { handleSupportInboxRequest, SUPPORT_INBOX_ACTIONS } from './support-inbox.js';
 import { handleTenantEventsRequest, TENANT_EVENT_ACTIONS } from './tenant-events.js';
 import { handleDuplicateEventsRequest, DUPLICATE_EVENT_ACTIONS } from './duplicate-events.js';
 import { handleTenantAuditRequest, TENANT_AUDIT_ACTIONS } from './tenant-audit.js';
@@ -58,6 +59,9 @@ export default async (context) => {
   }
   if (SUPPORT_REQUEST_ACTIONS.includes(action)) {
     return handleSupportRequestsRequest(context);
+  }
+  if (SUPPORT_INBOX_ACTIONS.includes(action)) {
+    return handleSupportInboxRequest(context);
   }
   if (TENANT_EVENT_ACTIONS.includes(action)) {
     return handleTenantEventsRequest(context);

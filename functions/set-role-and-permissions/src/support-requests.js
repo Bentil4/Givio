@@ -1,4 +1,15 @@
-import { Client, Account, TablesDB, ID, Query, Permission, Role } from 'node-appwrite';
+import {
+  Client,
+  Account,
+  Users,
+  Messaging,
+  TablesDB,
+  ID,
+  Query,
+  Permission,
+  Role,
+} from 'node-appwrite';
+import { notifyAdminsOfDispute } from './dispute-notification.js';
 import { buildClient, verifyCaller, VALID, invalid, hasValue, isValidEmail } from './shared.js';
 
 const ACTIONS = ['submitSupportRequest', 'submitDispute'];
@@ -173,6 +184,7 @@ async function handleSubmitDispute({
   supportRequestsTableId,
   now,
   error,
+  notification,
 }) {
   const contactEmail = payload.email.trim().toLowerCase();
   const at = now();
@@ -210,21 +222,26 @@ async function handleSubmitDispute({
     return { status: 502, body: { error: "Couldn't send your message, try again" } };
   }
 
-  return createSupportRow({
+  const data = {
+    type: 'dispute',
+    tenantId: null,
+    userId: null,
+    contactEmail,
+    tenantName: payload.tenantName.trim(),
+    message: payload.message.trim(),
+    createdAt: at.toISOString(),
+  };
+  const stored = await createSupportRow({
     tablesDB,
     databaseId,
     tableId: supportRequestsTableId,
     error,
-    data: {
-      type: 'dispute',
-      tenantId: null,
-      userId: null,
-      contactEmail,
-      tenantName: payload.tenantName.trim(),
-      message: payload.message.trim(),
-      createdAt: at.toISOString(),
-    },
+    data,
   });
+  if (stored.status === 200) {
+    await notifyAdminsOfDispute({ ...notification, dispute: data, error });
+  }
+  return stored;
 }
 
 /**
@@ -240,6 +257,8 @@ export async function handleSupportRequestsRequest({
   ClientCtor = Client,
   AccountCtor = Account,
   TablesDBCtor = TablesDB,
+  UsersCtor = Users,
+  MessagingCtor = Messaging,
   now = () => new Date(),
 }) {
   const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT;
@@ -310,6 +329,7 @@ export async function handleSupportRequestsRequest({
     membershipsTableId,
     now,
     error,
+    notification: { adminClient, UsersCtor, MessagingCtor },
   };
 
   const result =
