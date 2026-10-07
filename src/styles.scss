@@ -265,6 +265,19 @@ body {
   --data-3: var(--text-tertiary);
   --data-4: var(--text-secondary);
 
+  /* Categorical data-viz slots (validated palette: CVD-separated, AA-checked on the surface).
+     Assigned in this fixed order, never cycled: 1 cash, 2 mobile money, 3 in-kind; a
+     single-series chart uses slot 1. Light slot 3 is a contrast WARN on white, so every chart
+     carries visible labels and a table view. Text never wears these — only marks do. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  /* Recessive chart furniture, aliased onto the divider and secondary-text roles so dark mode
+     follows them without its own values. */
+  --chart-grid: var(--border-subtle);
+  --chart-axis: var(--text-secondary);
+  --chart-surface: var(--bg-surface);
+
   /* ---- Typography ----
      One humanist sans for all UI text (Inter — see index.html's <link>, IBM Plex Sans/
      system-ui fallback for anywhere Inter fails to load). */
@@ -472,6 +485,11 @@ body {
   --data-2: var(--color-neutral-300);
   --data-3: var(--text-tertiary);
   --data-4: var(--text-secondary);
+
+  /* The same three slots re-stepped for the dark surface (validated separately, not flipped). */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
 
   /* Glass / Material (dark) — same tiers as light mode, re-picked for a dark ground: a dark,
      not light, translucent fill, and a much dimmer specular highlight (there's far less "shine"
