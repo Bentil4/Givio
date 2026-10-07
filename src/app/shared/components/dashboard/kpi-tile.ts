@@ -9,6 +9,7 @@ import { describeDelta, type GoodDirection } from './kpi-delta';
 /**
  * One headline figure: its value, its change against the previous period (icon + words, colour
  * only supporting), a hint line, an optional sparkline and an optional link to the detail.
+ * Projected content sits under the hint, e.g. a status against a target.
  */
 @Component({
   selector: 'app-kpi-tile',

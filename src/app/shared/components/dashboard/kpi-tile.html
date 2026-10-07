@@ -24,7 +24,9 @@
   </p>
   } @if (hint()) {
   <p class="stat-delta is-muted">{{ hint() }}</p>
-  } @if (sparkline().length > 1) {
+  }
+  <ng-content />
+  @if (sparkline().length > 1) {
   <div class="kpi-spark" aria-hidden="true">
     <app-chart
       kind="line"
