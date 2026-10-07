@@ -7,7 +7,7 @@
 // Five figures: the 4-column dashboard row would orphan the fifth, so wide screens get five.
 .stat-grid {
   @media (min-width: 1200px) {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
