@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { MatIconModule } from '@angular/material/icon';
+import { ActivatedRoute } from '@angular/router';
 import { ServiceError } from '../../../../core/services/service-error';
 import {
   TenantDataService,
@@ -36,8 +37,9 @@ import {
 } from './invite-organizer-dialog/invite-organizer-dialog';
 import { FlaggedAdditions } from './flagged-additions/flagged-additions';
 import { DuplicateEvents } from './duplicate-events/duplicate-events';
+import { APPROVALS_TABS, type ApprovalsTab } from './approvals-tab';
 
-export type ApprovalsTab = 'applications' | 'flagged' | 'duplicates';
+export type { ApprovalsTab } from './approvals-tab';
 
 interface TabDef {
   readonly id: ApprovalsTab;
@@ -117,6 +119,7 @@ export class AdminApprovals implements OnInit {
   private readonly duplicateFlagData = inject(DuplicateEventFlagDataService);
   private readonly approvalCounts = inject(ApprovalCountsService);
   private readonly injector = inject(Injector);
+  private readonly route = inject(ActivatedRoute);
   private readonly queueHeading = viewChild<ElementRef<HTMLElement>>('queueHeading');
   private readonly tabButtons = viewChildren<ElementRef<HTMLButtonElement>>('tabButton');
 
@@ -124,7 +127,7 @@ export class AdminApprovals implements OnInit {
   public readonly applications = signal<readonly ApplicationView[]>([]);
   public readonly loading = signal(true);
   public readonly loadError = signal<string | null>(null);
-  public readonly activeTab = signal<ApprovalsTab>('applications');
+  public readonly activeTab = signal<ApprovalsTab>(this.requestedTab());
   public readonly pending = signal<PendingDecision | null>(null);
   public readonly deciding = signal(false);
   public readonly rowError = signal<RowError | null>(null);
@@ -241,6 +244,12 @@ export class AdminApprovals implements OnInit {
     } catch (err) {
       this.loadError.set(errorMessage(err, 'Failed to load pending applications'));
     }
+  }
+
+  /** The overview's queue links open a tab directly, e.g. `?tab=duplicates`. */
+  private requestedTab(): ApprovalsTab {
+    const requested = this.route.snapshot.queryParamMap.get('tab');
+    return APPROVALS_TABS.find((tab) => tab === requested) ?? 'applications';
   }
 
   public selectTab(tab: ApprovalsTab): void {
