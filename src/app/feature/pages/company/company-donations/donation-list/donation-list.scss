@@ -1,0 +1,45 @@
+@use '../../company-team/company-team.scss';
+
+.donation-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.donation-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+
+  app-donation-row {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.donation-meta {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.receipt {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .donation-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .donation-meta {
+    justify-content: flex-end;
+  }
+}

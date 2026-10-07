@@ -1,0 +1,31 @@
+<ul class="donation-list" [attr.aria-label]="label()">
+  @for (d of donations(); track d.id) {
+  <li class="donation-item">
+    <app-donation-row
+      [donation]="d"
+      [showPhone]="true"
+      [showRecordedBy]="true"
+      [recorderName]="store.recorderName(d.recordedBy)"
+    />
+    <div class="donation-meta">
+      <span class="receipt t-tertiary">{{ d.receiptNumber }}</span>
+      @if (store.canManage()) {
+      <button
+        type="button"
+        class="btn-ghost"
+        (click)="actionRequested.emit({ kind: 'edit', donation: d })"
+      >
+        Correct<span class="visually-hidden"> {{ d.receiptNumber }}</span>
+      </button>
+      <button
+        type="button"
+        class="btn-ghost is-danger"
+        (click)="actionRequested.emit({ kind: 'remove', donation: d })"
+      >
+        Remove<span class="visually-hidden"> {{ d.receiptNumber }}</span>
+      </button>
+      }
+    </div>
+  </li>
+  }
+</ul>

@@ -15,7 +15,9 @@
     @for (row of rowViews(); track row.id) {
     <li class="event-row">
       <div class="event-main">
-        <span class="t-body-em">{{ row.name }}</span>
+        <a class="t-body-em event-link" [routerLink]="['/company/events', row.id]"
+          >{{ row.name }}</a
+        >
         <span class="tag" [class]="row.chipClass">{{ row.statusLabel }}</span>
       </div>
       <div class="event-figures">

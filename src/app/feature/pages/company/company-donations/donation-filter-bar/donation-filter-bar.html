@@ -1,0 +1,61 @@
+<div class="filters" role="search" aria-label="Filter donations">
+  <div class="filter-search">
+    <mat-icon aria-hidden="true">search</mat-icon>
+    <label class="visually-hidden" for="donationSearch">Search donor or receipt number</label>
+    <input
+      id="donationSearch"
+      type="search"
+      placeholder="Search donor or receipt number"
+      [value]="filters().search"
+      (input)="setSearch($any($event.target).value)"
+    />
+  </div>
+
+  <div class="filter-tags" role="group" aria-label="Donation type">
+    @for (t of types; track t) {
+    <button
+      type="button"
+      class="filter-tag"
+      [class.active]="filters().type === t"
+      [attr.aria-pressed]="filters().type === t"
+      (click)="setType(t)"
+    >
+      {{ typeLabel(t) }}
+    </button>
+    }
+  </div>
+
+  @if (events().length > 1) {
+  <div class="select-wrap">
+    <label class="visually-hidden" for="donationEvent">Event</label>
+    <select
+      id="donationEvent"
+      class="select-field"
+      [value]="filters().eventId ?? 'all'"
+      (change)="setEvent($any($event.target).value)"
+    >
+      <option value="all">All events</option>
+      @for (e of events(); track e.id) {
+      <option [value]="e.id">{{ e.label }}</option>
+      }
+    </select>
+    <mat-icon aria-hidden="true">expand_more</mat-icon>
+  </div>
+  } @if (recorders().length > 0) {
+  <div class="select-wrap">
+    <label class="visually-hidden" for="donationRecorder">Recorded by</label>
+    <select
+      id="donationRecorder"
+      class="select-field"
+      [value]="filters().recorder"
+      (change)="setRecorder($any($event.target).value)"
+    >
+      <option value="all">Everyone who recorded</option>
+      @for (r of recorders(); track r.id) {
+      <option [value]="r.id">{{ r.label }}</option>
+      }
+    </select>
+    <mat-icon aria-hidden="true">expand_more</mat-icon>
+  </div>
+  }
+</div>

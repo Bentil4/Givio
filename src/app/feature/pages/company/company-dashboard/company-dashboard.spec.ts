@@ -105,6 +105,16 @@ describe('CompanyDashboard', () => {
     expect(el.textContent).toContain('(1 active, 1 paused)');
   });
 
+  it("links each Event's row to its detail page", async () => {
+    loadEventFigures.mockResolvedValue(figures(50000, 3));
+
+    const { el } = await render([makeEvent({ id: 'e1', name: 'Odoi Funeral' })]);
+
+    const link = el.querySelector<HTMLAnchorElement>('.event-row a');
+    expect(link?.textContent?.trim()).toBe('Odoi Funeral');
+    expect(link?.getAttribute('href')).toBe('/company/events/e1');
+  });
+
   it('is a real GH₵ 0.00 for a company with no Events yet', async () => {
     const { el } = await render([]);
 

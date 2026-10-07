@@ -52,6 +52,7 @@ export class CompanyLayout {
   public readonly navItems = computed<INavbarItem[]>(() => [
     { name: 'Dashboard', icon: 'dashboard', route: '/company' },
     { name: 'Events', icon: 'event', route: '/company/events' },
+    { name: 'Donations', icon: 'volunteer_activism', route: '/company/donations' },
     { name: 'Team', icon: 'group', route: '/company/team' },
     { name: 'Contact Admin', icon: 'support_agent', route: '/company/support' },
     ...(this.isSuperOrganizer()

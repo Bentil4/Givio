@@ -1,0 +1,21 @@
+@use '../../company-team/company-team.scss';
+
+.filters {
+  margin-bottom: var(--space-md);
+}
+
+.select-wrap mat-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--data-4);
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .filter-search {
+    min-width: 0;
+    width: 100%;
+  }
+}

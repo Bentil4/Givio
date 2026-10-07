@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { DatePipe, TitleCasePipe } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
+import { RouterLink } from '@angular/router';
 import { OrganizerEventDataService } from '../../../../data/services/organizer-event-data.service';
 import { TenantService } from '../../../../data/services/tenant.service';
 import { ServiceError } from '../../../../core/services/service-error';
@@ -24,7 +25,7 @@ import { statusLabel } from './event-status-actions';
  */
 @Component({
   selector: 'app-company-events',
-  imports: [MatIconModule, DatePipe, TitleCasePipe, EventFormDialog, EventManageDialog],
+  imports: [MatIconModule, RouterLink, DatePipe, TitleCasePipe, EventFormDialog, EventManageDialog],
   templateUrl: './company-events.html',
   styleUrl: './company-events.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

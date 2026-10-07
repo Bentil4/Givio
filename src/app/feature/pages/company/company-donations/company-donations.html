@@ -1,0 +1,56 @@
+<section class="page" aria-labelledby="donations-title">
+  <header class="page-head">
+    <div>
+      <h1 id="donations-title" class="t-page-title">Donations</h1>
+      <p class="t-secondary">
+        Every donation recorded across your company's events, with donor contact details and who
+        recorded each one.
+      </p>
+    </div>
+  </header>
+
+  @if (store.loading()) {
+  <app-skeleton-rows [rows]="6" label="Loading your company's donations…" />
+  } @else if (store.loadError(); as err) {
+  <div class="code-note is-error" role="alert">
+    <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <p class="t-caption">{{ err }}</p>
+    <button type="button" class="btn-ghost" (click)="load()">Try again</button>
+  </div>
+  } @else {
+  <div class="tabs" role="tablist" aria-label="Donation views">
+    @for (tab of tabs(); track tab.id; let i = $index) {
+    <button
+      #tabButton
+      type="button"
+      role="tab"
+      class="tab"
+      [id]="'donations-tab-' + tab.id"
+      [class.is-active]="activeTab() === tab.id"
+      [attr.aria-selected]="activeTab() === tab.id"
+      [attr.aria-controls]="'donations-panel-' + tab.id"
+      [attr.tabindex]="activeTab() === tab.id ? 0 : -1"
+      (click)="selectTab(tab.id)"
+      (keydown)="onTabKeydown($event, i)"
+    >
+      {{ tab.label }}
+    </button>
+    }
+  </div>
+
+  <div
+    class="tab-panel"
+    role="tabpanel"
+    [id]="'donations-panel-' + activeTab()"
+    [attr.aria-labelledby]="'donations-tab-' + activeTab()"
+  >
+    @switch (activeTab()) { @case ('all') {
+    <app-donation-browser [donations]="liveDonations()" [eventOptions]="eventOptions()" />
+    } @case ('deleted') {
+    <app-deleted-donations [donations]="deletedDonations()" />
+    } @case ('conflicts') {
+    <app-donation-conflicts />
+    } }
+  </div>
+  }
+</section>

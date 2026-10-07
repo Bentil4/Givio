@@ -1,0 +1,58 @@
+@if (loading()) {
+<app-skeleton-rows [rows]="2" label="Loading sync conflicts…" />
+} @else if (loadError(); as err) {
+<div class="code-note is-error" role="alert">
+  <mat-icon aria-hidden="true">error_outline</mat-icon>
+  <p class="t-caption">{{ err }}</p>
+  <button type="button" class="btn-ghost" (click)="load()">Try again</button>
+</div>
+} @else if (conflicts().length === 0) {
+<article class="empty glass" aria-labelledby="conflicts-clear-title">
+  <mat-icon class="empty-icon is-clear" aria-hidden="true">task_alt</mat-icon>
+  <h3 id="conflicts-clear-title" class="t-card-title">Nothing to resolve</h3>
+  <p class="t-caption">
+    Every donation that came back from an offline desk matched the server. All records are counting
+    toward your totals.
+  </p>
+</article>
+} @else {
+<p class="excluded t-tertiary">
+  {{ conflicts().length }} {{ conflicts().length === 1 ? 'record' : 'records' }} waiting · {{
+  excludedLabel() }} left out of totals until resolved
+</p>
+<div class="conflict-layout">
+  @if (conflicts().length > 1) {
+  <nav class="conflict-list glass" aria-label="Conflicts waiting on you">
+    <ul>
+      @for (c of conflicts(); track c.conflictId; let i = $index) {
+      <li>
+        <button
+          type="button"
+          class="conflict-pick"
+          [class.is-active]="activeIndex() === i"
+          [attr.aria-current]="activeIndex() === i ? 'true' : null"
+          (click)="select(i)"
+        >
+          <span class="conflict-pick-receipt">{{ c.receiptNumber }}</span>
+          <span class="t-body-em">{{ donorOf(c) }}</span>
+        </button>
+      </li>
+      }
+    </ul>
+  </nav>
+  }
+
+  <div class="conflict-main">
+    @if (resolveError(); as err) {
+    <p class="field-error" role="alert">{{ err }}</p>
+    } @if (active(); as c) {
+    <app-conflict-resolver
+      [conflict]="c"
+      [busy]="busy()"
+      [users]="store.membersById()"
+      (resolved)="resolve($event)"
+    />
+    }
+  </div>
+</div>
+}

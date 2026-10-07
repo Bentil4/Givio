@@ -1,0 +1,39 @@
+@if (donations().length === 0) {
+<article class="empty glass" aria-labelledby="donations-empty-title">
+  <mat-icon class="empty-icon" aria-hidden="true">receipt_long</mat-icon>
+  <h3 id="donations-empty-title" class="t-card-title">No donations recorded yet</h3>
+  <p class="t-caption">
+    Donations appear here once an Operator saves one at the desk — including ones queued offline,
+    once they sync.
+  </p>
+</article>
+} @else {
+<app-donation-filter-bar
+  [(filters)]="filters"
+  [recorders]="recorders()"
+  [events]="eventOptions()"
+/>
+
+<p class="showing t-tertiary" role="status">
+  Showing {{ visible().length }} {{ visible().length === 1 ? 'donation' : 'donations' }} · {{
+  totalLabel() }}
+</p>
+
+@if (visible().length === 0) {
+<article class="empty glass" aria-labelledby="donations-none-match-title">
+  <mat-icon class="empty-icon" aria-hidden="true">filter_alt_off</mat-icon>
+  <h3 id="donations-none-match-title" class="t-card-title">No donations match these filters</h3>
+  <p class="t-caption">Widen the search, or clear the filters to see every donation.</p>
+  @if (narrowed()) {
+  <button type="button" class="btn btn-secondary" (click)="clearFilters()">Clear filters</button>
+  }
+</article>
+} @else {
+<app-donation-list
+  label="Donations"
+  [donations]="visible()"
+  (actionRequested)="action.set($event)"
+/>
+} } @if (action(); as current) {
+<app-donation-action-dialogs [action]="current" (closed)="action.set(null)" />
+}
