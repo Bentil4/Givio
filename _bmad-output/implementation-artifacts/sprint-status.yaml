@@ -1,5 +1,5 @@
 # generated: 2026-07-26
-# last_updated: 2026-10-06
+# last_updated: 2026-10-07
 # project: givio
 # project_key: NOKEY
 # tracking_system: file-system
@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-07-26
-last_updated: 2026-10-06-wave-5-verified
+last_updated: 2026-10-07-epic-10-in-review
 project: givio
 project_key: NOKEY
 tracking_system: file-system
@@ -545,3 +545,36 @@ development_status:
   # question). 120/120 Function, lint green. Needs Function redeploy. Status "review".
   9-3-full-donation-visibility-for-family: review
   epic-9-retrospective: optional
+
+  # Epic 10 - post-MVP company experience (2026-10-07). Not in epics.md: it came from the
+  # product owner's feedback after Epics 1-9 shipped, and was planned and built as phases P1-P6
+  # (company experience) and D1-D4 (dashboards), plus the support inbox. Every story below is
+  # merged to dev and passes lint, size and the full test suite, but none has been checked by
+  # hand in the app yet - hence "review", not "done". P6 reverses PRD FR-19 / AD-12 (platform
+  # Admins have no access to company events or donations); both docs are amended in PR #149.
+  epic-10: in-progress
+  # P1 + P2 (PRs #142, #144): real name and tier badge in every sidebar; company users see their
+  # company's logo or name instead of Givio; Operators get it from getMyTenantStatus.
+  10-1-sidebar-profile-and-company-branding: review
+  # P4 (PR #143): count badge on Approvals from the admin-only countPendingApprovals action.
+  10-2-admin-approvals-count-badge: review
+  # P3 (PR #145): My profile, Company (logo, name, location, phone) and Appearance. Known gap:
+  # company profile changes are not audit-logged (audit_logs.entityType has no tenant value).
+  10-3-company-settings-page: review
+  # P5 (PR #147): event detail and donations pages for Super Organizer and co-Organizer; the
+  # Super Organizer corrects, deletes and restores donations and resolves sync conflicts.
+  10-4-company-events-and-donations-for-organizers: review
+  # P6 (PR #149): Admins and the Super Admin lose all access to company events and donations,
+  # enforced in row permissions; backfills run live 2026-10-07. Known gaps: no new sync
+  # conflicts can be filed; legacy Admin-created events have no manager.
+  10-5-admin-isolation-from-company-data: review
+  # D1 (PR #150): Chart.js kit - chart, chart card with table view, KPI tile, period filter.
+  10-6-dashboard-kit-and-charts: review
+  # D2 (PR #151), D3 (PR #152), D4 (PR #153), plus the equal-size KPI tile fix (PR #154).
+  10-7-company-dashboard-insights: review
+  10-8-operator-dashboard-insights: review
+  10-9-admin-platform-dashboard: review
+  # PR #155: Support page with open/closed tabs, close/reopen recording who and when
+  # (support_requests.closedAt / closedBy), nav badge, and an email to active Admins per dispute.
+  10-10-admin-support-inbox: review
+  epic-10-retrospective: optional
