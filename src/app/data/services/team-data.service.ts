@@ -18,12 +18,12 @@ export class TeamDataService {
   private readonly functions = inject(FUNCTIONS);
 
   async listTeamMembers(): Promise<TeamMember[]> {
-    const { members } = await invokeAdminFunction<{ members: TeamMember[] }>(this.functions, {
-      action: 'listTeamMembers',
-      invokeFailureMessage: 'Failed to load your team',
-      payload: {},
-    });
-    return members;
+    return this.fetchTeamMembers({});
+  }
+
+  /** FR-13: revoked members too, so a donation's recorder keeps their name after leaving. */
+  async listTeamMembersIncludingRevoked(): Promise<TeamMember[]> {
+    return this.fetchTeamMembers({ includeRevoked: true });
   }
 
   async addTeamMember(input: {
@@ -45,5 +45,14 @@ export class TeamDataService {
       invokeFailureMessage: 'Failed to revoke access',
       payload: { membershipId, ...choice },
     });
+  }
+
+  private async fetchTeamMembers(payload: { includeRevoked?: true }): Promise<TeamMember[]> {
+    const { members } = await invokeAdminFunction<{ members: TeamMember[] }>(this.functions, {
+      action: 'listTeamMembers',
+      invokeFailureMessage: 'Failed to load your team',
+      payload,
+    });
+    return members;
   }
 }
