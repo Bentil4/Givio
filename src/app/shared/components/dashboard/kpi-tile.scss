@@ -1,0 +1,76 @@
+@use '../../styles/stat-tile';
+@use '../../styles/dashboard-panel';
+@use '../../styles/visually-hidden';
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.kpi-tile {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+
+  p {
+    margin: 0;
+  }
+
+  &.is-warning {
+    border-left: 3px solid var(--func-warning);
+  }
+}
+
+.kpi-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kpi-warning-icon {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+  color: var(--func-warning);
+}
+
+.kpi-delta {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+
+  // Colour only supports the arrow and the words; it never carries the meaning alone.
+  &.is-good .kpi-delta-icon {
+    color: var(--func-success);
+  }
+  &.is-bad .kpi-delta-icon {
+    color: var(--func-error);
+  }
+}
+
+.kpi-delta-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  font-size: 14px;
+}
+
+.kpi-skel {
+  display: block;
+  width: 60%;
+  height: 1.5rem;
+  margin-top: var(--space-xs);
+  border-radius: var(--radius-sm);
+  background: var(--data-1);
+}
+
+.kpi-spark {
+  margin-top: var(--space-sm);
+}
+
+.kpi-link {
+  margin-top: auto;
+  padding-top: var(--space-sm);
+  min-height: 24px; // WCAG 2.5.8 minimum target size
+}

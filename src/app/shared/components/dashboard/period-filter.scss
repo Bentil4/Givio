@@ -1,0 +1,38 @@
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+}
+
+.segment {
+  min-height: 32px;
+  padding: 0 var(--space-md);
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.8125rem; /* 7-step type scale: 13px (labels) */
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+
+  // A filled pill, not only a colour change, marks the chosen option.
+  &.is-active {
+    background: var(--primary-deep);
+    color: var(--text-on-brand);
+  }
+
+  &:focus-visible {
+    outline: var(--border-width-focus) solid var(--border-focus);
+    outline-offset: 2px;
+  }
+}

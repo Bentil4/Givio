@@ -22,6 +22,8 @@ export type ChartCardState = 'loading' | 'ready' | 'empty' | 'error';
 export interface LegendItem {
   label: string;
   colorToken: string;
+  /** Shown after the label in text ink, e.g. `GH₵ 500.00 · 71%` — a direct label. */
+  detail?: string;
 }
 
 export interface ChartTableColumn {

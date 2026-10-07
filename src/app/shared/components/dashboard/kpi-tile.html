@@ -1,0 +1,46 @@
+<article
+  class="stat-tile kpi-tile glass"
+  [class.is-warning]="tone() === 'warning'"
+  [attr.aria-busy]="loading()"
+>
+  <p class="stat-label kpi-label">
+    @if (tone() === 'warning') {
+    <mat-icon class="kpi-warning-icon" aria-hidden="true">warning</mat-icon>
+    } {{ label() }}
+  </p>
+
+  @if (loading()) {
+  <span class="kpi-skel" aria-hidden="true"></span>
+  <span class="visually-hidden">Loading {{ label() }}</span>
+  } @else {
+  <p class="stat-value">{{ value() }}</p>
+
+  @if (deltaView(); as view) {
+  <p class="stat-delta kpi-delta" [class]="'is-' + view.tone">
+    <mat-icon class="kpi-delta-icon" aria-hidden="true">{{ view.icon }}</mat-icon>
+    @if (view.spokenDirection) {
+    <span class="visually-hidden">{{ view.spokenDirection }}</span>
+    } {{ view.text }}
+  </p>
+  } @if (hint()) {
+  <p class="stat-delta is-muted">{{ hint() }}</p>
+  } @if (sparkline().length > 1) {
+  <div class="kpi-spark" aria-hidden="true">
+    <app-chart
+      kind="line"
+      [compact]="true"
+      [labels]="sparkLabels()"
+      [series]="sparkSeries()"
+      [ariaSummary]="label() + ' trend'"
+    />
+  </div>
+  } } @if (link(); as target) {
+  <a
+    class="panel-link kpi-link"
+    [routerLink]="target"
+    [attr.aria-label]="linkLabel() + ': ' + label()"
+  >
+    {{ linkLabel() }}
+  </a>
+  }
+</article>

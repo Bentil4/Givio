@@ -1,0 +1,83 @@
+@use '../../styles/dashboard-panel';
+@use '../../styles/visually-hidden';
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.chart-card {
+  height: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.chart-card-heading {
+  flex: 1;
+  min-width: 0;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.chart-card-subtitle {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+}
+
+.table-toggle {
+  flex: none;
+  min-height: 24px; // WCAG 2.5.8 minimum target size
+  font-size: 0.75rem;
+
+  &[aria-pressed='true'] {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: var(--border-width-focus) solid var(--border-focus);
+    outline-offset: 2px;
+  }
+}
+
+.chart-card-body {
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+}
+
+.chart-card-legend {
+  display: block;
+  margin-bottom: var(--space-sm);
+}
+
+.chart-card-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+
+  .panel-empty {
+    padding: 0;
+    color: var(--func-error);
+  }
+}
+
+.chart-card-body > .panel-empty {
+  padding: var(--space-md) 0;
+}
+
+// Row headers name the category — read as body text, not as an uppercase column heading.
+.table tbody th {
+  background: none;
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.07);
+  font-size: inherit;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text-primary);
+}
+
+.table .is-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

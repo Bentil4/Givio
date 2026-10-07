@@ -1,0 +1,70 @@
+<article class="chart-card glass" [attr.aria-labelledby]="titleId">
+  <header class="panel-head">
+    <div class="chart-card-heading">
+      <h2 class="t-card-title" [id]="titleId">{{ title() }}</h2>
+      @if (subtitle()) {
+      <p class="chart-card-subtitle t-caption">{{ subtitle() }}</p>
+      }
+    </div>
+    <ng-content select="[chartCardActions]" />
+    @if (canToggleTable()) {
+    <button
+      type="button"
+      class="btn-ghost table-toggle"
+      [attr.aria-pressed]="showTable()"
+      (click)="toggleTable()"
+    >
+      View as table
+    </button>
+    }
+  </header>
+
+  <div class="chart-card-body">
+    @switch (state()) { @case ('loading') {
+    <app-skeleton-rows [rows]="4" [label]="'Loading ' + title() + '…'" />
+    } @case ('error') {
+    <div class="chart-card-error" role="alert">
+      <p class="panel-empty">{{ errorText() }}</p>
+      @if (retryable()) {
+      <button type="button" class="btn btn-secondary" (click)="retry.emit()">Try again</button>
+      }
+    </div>
+    } @case ('empty') {
+    <p class="panel-empty">{{ emptyText() }}</p>
+    } } @if (showLegend()) {
+    <app-chart-legend class="chart-card-legend" [items]="legend()" />
+    }
+
+    <div class="chart-card-plot" [hidden]="!showPlot()">
+      <ng-content />
+    </div>
+
+    @if (showTable() && table(); as data) {
+    <div class="table-wrap">
+      <table class="table">
+        <caption class="visually-hidden">
+          {{ title() }}
+        </caption>
+        <thead>
+          <tr>
+            @for (column of data.columns; track column.key) {
+            <th scope="col" [class.is-num]="column.numeric">{{ column.label }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of data.rows; track $index) {
+          <tr>
+            @for (column of data.columns; track column.key; let first = $first) { @if (first) {
+            <th scope="row">{{ row[column.key] }}</th>
+            } @else {
+            <td [class.is-num]="column.numeric">{{ row[column.key] }}</td>
+            } }
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+  </div>
+</article>
