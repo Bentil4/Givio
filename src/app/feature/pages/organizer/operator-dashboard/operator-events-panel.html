@@ -1,0 +1,30 @@
+<article class="panel glass" aria-labelledby="operator-events-title">
+  <header class="panel-head">
+    <h2 class="t-card-title" id="operator-events-title">Your events</h2>
+    <a class="panel-link" routerLink="/organizer/events">View all</a>
+  </header>
+
+  @if (loading()) {
+  <app-skeleton-rows [rows]="3" label="Loading your events…" />
+  } @else if (loadError(); as err) {
+  <p class="panel-empty" role="alert">{{ err }}</p>
+  } @else if (events().length === 0) {
+  <p class="panel-empty">Nothing assigned yet. Ask an Admin to add you to an event.</p>
+  } @else {
+  <ul class="event-list">
+    @for (e of events(); track e.id) {
+    <li>
+      <a class="event-row" routerLink="/organizer/events">
+        <span class="event-main">
+          <span class="event-name-row">
+            <span class="t-body-em event-name">{{ e.name }}</span>
+            <span class="tag" [class]="chipClass[e.status]">{{ statusLabel(e.status) }}</span>
+          </span>
+          <span class="event-meta t-caption">{{ eventMeta(e) }}</span>
+        </span>
+      </a>
+    </li>
+    }
+  </ul>
+  }
+</article>

@@ -3,27 +3,52 @@ import {
   Component,
   OnInit,
   computed,
+  effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
-import { EventService } from '../../../../data/services/event.service';
-import { TenantService } from '../../../../data/services/tenant.service';
+import { Router } from '@angular/router';
 import { ServiceError } from '../../../../core/services/service-error';
-import type { Event, EventStatus } from '../../../../data/models/event';
-import { EVENT_STATUS_CHIP } from '../../../../data/models/event';
+import type { Event } from '../../../../data/models/event';
+import { AuthService } from '../../../../data/services/auth.service';
+import { EventService } from '../../../../data/services/event.service';
+import { SyncEngineService } from '../../../../data/services/sync-engine.service';
+import { TenantService } from '../../../../data/services/tenant.service';
+import { PeriodFilter, type ChartCardState } from '../../../../shared/components/dashboard';
 import { OperatorEventContext } from '../operator-event-context';
+import { minuteClock } from './current-time';
+import { MyRecentDonations } from './my-recent-donations';
+import { OperatorCharts } from './operator-charts';
+import { OperatorDashboardData } from './operator-dashboard-data';
+import { OperatorEventsPanel } from './operator-events-panel';
+import {
+  donationsForPeriod,
+  myRecentDonations,
+  operatorKpis,
+  type OperatorDataState,
+  type OperatorInsightSource,
+} from './operator-insights.util';
+import { OperatorKpiRow } from './operator-kpi-row';
+import {
+  EMPTY_PERIOD_TEXT,
+  OPERATOR_PERIOD_OPTIONS,
+  readOperatorPeriod,
+  storeOperatorPeriod,
+  type OperatorPeriod,
+} from './operator-period';
+
+const PREVIEW_EVENT_LIMIT = 3;
 
 /**
- * Operator overview — "what am I assigned to, at a glance" before diving into My Events or
- * Donations. Assigned-event count/list is real (EventService, filtered by assignedUserIds,
- * same as event-select); donation stats are honest placeholders, not fabricated numbers —
- * Epic 3's Donation collection doesn't exist yet, matching AdminDashboard's own precedent
- * for the identical gap.
+ * The Operator's overview: what the desk has raised, what they recorded themselves and what is
+ * still waiting to sync, for today, the picked Event or all their Events. Figures come from the
+ * Dexie-backed donation reads, so the page still answers offline.
  */
 @Component({
   selector: 'app-operator-dashboard',
-  imports: [RouterLink],
+  imports: [PeriodFilter, OperatorKpiRow, OperatorCharts, MyRecentDonations, OperatorEventsPanel],
+  providers: [OperatorDashboardData],
   templateUrl: './operator-dashboard.html',
   styleUrl: './operator-dashboard.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -33,20 +58,63 @@ export class OperatorDashboard implements OnInit {
   private readonly router = inject(Router);
   private readonly eventContext = inject(OperatorEventContext);
   private readonly tenantService = inject(TenantService);
+  private readonly authService = inject(AuthService);
+  private readonly data = inject(OperatorDashboardData);
+  private readonly now = minuteClock();
 
   public readonly loading = signal(true);
   public readonly loadError = signal<string | null>(null);
-
-  public readonly chipClass = EVENT_STATUS_CHIP;
 
   public readonly assignedEvents = this.eventContext.assignedEvents;
   public readonly activeEvent = this.eventContext.activeEvent;
   public readonly showSwitcher = this.eventContext.showSwitcher;
   public readonly canRecord = computed(() => this.eventContext.activeEvents().length > 0);
   public readonly companyName = computed(() => this.tenantService.companyBrand()?.name ?? null);
+  public readonly previewEvents = computed(() =>
+    this.assignedEvents().slice(0, PREVIEW_EVENT_LIMIT),
+  );
+  public readonly pendingCount = inject(SyncEngineService).pendingCount;
 
-  /** A glance, not the full list — /organizer/events is the full picker. */
-  public readonly previewEvents = computed(() => this.assignedEvents().slice(0, 3));
+  private readonly userId = computed(() => this.authService.currentUser()?.$id ?? '');
+  protected readonly periodOptions = OPERATOR_PERIOD_OPTIONS;
+  public readonly period = signal<OperatorPeriod>(readOperatorPeriod(this.userId()));
+
+  /** All assigned Events, or only the picked one unless "All my events" is chosen. */
+  private readonly scopeEvents = computed<readonly Event[]>(() => {
+    const event = this.activeEvent();
+    return this.period() === 'all' || !event ? this.assignedEvents() : [event];
+  });
+  private readonly scopeEventIds = computed(() => this.scopeEvents().map((e) => e.id), {
+    equal: sameIds,
+  });
+  public readonly scopeText = computed(() => describeScope(this.scopeEvents()));
+
+  public readonly dataState = computed<OperatorDataState>(() =>
+    this.loading() ? 'loading' : this.data.state(),
+  );
+  public readonly insightSource = computed<OperatorInsightSource>(() => ({
+    donations: this.data.donations(),
+    period: this.period(),
+    now: this.now(),
+  }));
+  public readonly kpis = computed(() => operatorKpis(this.insightSource(), this.userId()));
+  public readonly chartState = computed<ChartCardState>(() => {
+    const state = this.dataState();
+    if (state !== 'ready') return state;
+    return this.kpis().donors > 0 ? 'ready' : 'empty';
+  });
+  public readonly recentDonations = computed(() =>
+    myRecentDonations(donationsForPeriod(this.insightSource()), this.userId()),
+  );
+  public readonly emptyText = computed(() => EMPTY_PERIOD_TEXT[this.period()]);
+
+  constructor() {
+    effect(() => {
+      if (this.loading()) return;
+      const eventIds = this.scopeEventIds();
+      untracked(() => void this.data.load(eventIds));
+    });
+  }
 
   async ngOnInit(): Promise<void> {
     this.loading.set(true);
@@ -60,6 +128,15 @@ export class OperatorDashboard implements OnInit {
     }
   }
 
+  public choosePeriod(period: OperatorPeriod): void {
+    this.period.set(period);
+    storeOperatorPeriod(this.userId(), period);
+  }
+
+  public retryDonations(): void {
+    void this.data.retry();
+  }
+
   public recordDonation(): void {
     const event = this.activeEvent();
     if (event) {
@@ -68,13 +145,14 @@ export class OperatorDashboard implements OnInit {
     }
     this.eventContext.requestPick();
   }
+}
 
-  public eventMeta(e: Event): string {
-    const type = e.type.charAt(0).toUpperCase() + e.type.slice(1);
-    return e.venue ? `${type} · ${e.date} · ${e.venue}` : `${type} · ${e.date}`;
-  }
+function describeScope(events: readonly Event[]): string {
+  if (events.length === 0) return '';
+  if (events.length === 1) return `Every desk at ${events[0].name}`;
+  return `Every desk across your ${events.length} events`;
+}
 
-  public statusLabel(status: EventStatus): string {
-    return status.charAt(0).toUpperCase() + status.slice(1);
-  }
+function sameIds(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((id, i) => id === b[i]);
 }
