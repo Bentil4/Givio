@@ -9,7 +9,7 @@ const asUser = (labels: string[]) => ({ $id: 'u1', labels }) as Models.User<Mode
 
 const PENDING_DONATION: OutboxEntry = {
   entityType: 'donation',
-  entityId: 'd1',
+  entityId: 'd2',
   op: 'create',
   payload: {},
   status: 'pending',
@@ -17,19 +17,25 @@ const PENDING_DONATION: OutboxEntry = {
   createdAt: '2026-10-07T10:00:00.000Z',
 };
 
+/** e1 holds only synced work; e2 holds a donation still waiting in the outbox. */
 async function seedCompanyCache(): Promise<void> {
-  await appDb.events.put({ id: 'e1', tenantId: 'tenant-a' } as Event);
-  await appDb.donations.put({ id: 'd1', eventId: 'e1' } as Donation);
+  await appDb.events.bulkPut([
+    { id: 'e1', tenantId: 'tenant-a' } as Event,
+    { id: 'e2', tenantId: 'tenant-a' } as Event,
+  ]);
+  await appDb.donations.bulkPut([
+    { id: 'd1', eventId: 'e1', syncStatus: 'synced' } as Donation,
+    { id: 'd2', eventId: 'e2', syncStatus: 'pending' } as Donation,
+  ]);
   await appDb.outbox.add(PENDING_DONATION);
 }
 
-async function cachedRowCount(): Promise<number> {
-  const counts = await Promise.all([
-    appDb.events.count(),
-    appDb.donations.count(),
-    appDb.outbox.count(),
+async function remainingIds() {
+  const [events, donations] = await Promise.all([
+    appDb.events.toCollection().primaryKeys(),
+    appDb.donations.toCollection().primaryKeys(),
   ]);
-  return counts.reduce((sum, count) => sum + count, 0);
+  return { events, donations, outbox: await appDb.outbox.count() };
 }
 
 describe('purgeCompanyCacheIfAdmin (AD-12, amended 2026-10-07)', () => {
@@ -38,22 +44,28 @@ describe('purgeCompanyCacheIfAdmin (AD-12, amended 2026-10-07)', () => {
     await seedCompanyCache();
   });
 
-  it('clears cached Events, Donations and the outbox for an Admin', async () => {
+  it('clears synced Events and Donations for an Admin', async () => {
     await purgeCompanyCacheIfAdmin(asUser(['admin']));
 
-    expect(await cachedRowCount()).toBe(0);
+    const remaining = await remainingIds();
+    expect(remaining.donations).not.toContain('d1');
+    expect(remaining.events).not.toContain('e1');
   });
 
-  it('clears them for the Super Admin too', async () => {
+  it("keeps an Operator's unsynced donation, its Event and the outbox on a shared device", async () => {
     await purgeCompanyCacheIfAdmin(asUser(['admin', 'superadmin']));
 
-    expect(await cachedRowCount()).toBe(0);
+    expect(await remainingIds()).toEqual({ events: ['e2'], donations: ['d2'], outbox: 1 });
   });
 
   it("never touches an Operator's or an Organizer's cache", async () => {
     await purgeCompanyCacheIfAdmin(asUser(['operator']));
     await purgeCompanyCacheIfAdmin(asUser([]));
 
-    expect(await cachedRowCount()).toBe(3);
+    expect(await remainingIds()).toEqual({
+      events: ['e1', 'e2'],
+      donations: ['d1', 'd2'],
+      outbox: 1,
+    });
   });
 });

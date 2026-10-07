@@ -63,10 +63,13 @@ export class AuthService {
   async refreshCurrentUser(): Promise<void> {
     const user = await this.account.get();
     this._currentUser.set(user);
-    await this.purgeCompanyCache(user);
+    void this.purgeCompanyCache(user);
   }
 
-  /** A failed purge must not fail the sign-in itself — the next sign-in retries it. */
+  /**
+   * Housekeeping, not part of signing in: it runs in the background so a slow or failing
+   * IndexedDB never delays or fails the sign-in — the next sign-in retries it.
+   */
   private async purgeCompanyCache(user: Models.User<Models.Preferences>): Promise<void> {
     try {
       await purgeCompanyCacheIfAdmin(user);

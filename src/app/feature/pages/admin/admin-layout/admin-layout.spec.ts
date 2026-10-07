@@ -61,14 +61,18 @@ describe('AdminLayout', () => {
       component.navItems().some((item) => item.route === '/dashboard/admins');
 
     it('is hidden from an ordinary Admin', async () => {
-      account.get.mockResolvedValueOnce({ labels: ['admin'] });
+      account.get.mockResolvedValueOnce({ name: 'A', email: 'a@givio.test', labels: ['admin'] });
       await TestBed.inject(AuthService).restoreSession();
 
       expect(hasAdminsLink()).toBe(false);
     });
 
     it('is shown to the Super Admin, alongside every ordinary Admin entry', async () => {
-      account.get.mockResolvedValueOnce({ labels: ['admin', 'superadmin'] });
+      account.get.mockResolvedValueOnce({
+        name: 'S',
+        email: 's@givio.test',
+        labels: ['admin', 'superadmin'],
+      });
       await TestBed.inject(AuthService).restoreSession();
 
       expect(hasAdminsLink()).toBe(true);

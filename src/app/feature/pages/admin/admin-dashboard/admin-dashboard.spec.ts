@@ -71,7 +71,7 @@ describe('AdminDashboard (platform metrics only — AD-12, amended 2026-10-07)',
     const el = await render();
 
     const rows = [...el.querySelectorAll('.status-list li')].map((li) =>
-      li.textContent?.replace(/\s+/g, ' ').trim(),
+      [...li.querySelectorAll('span')].map((span) => span.textContent?.trim()).join(' '),
     );
     expect(rows).toEqual(['Active 2', 'Awaiting approval 1', 'Suspended 1', 'Rejected 0']);
   });
