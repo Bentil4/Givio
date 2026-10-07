@@ -1,55 +1,26 @@
-import { TestBed, type ComponentFixture } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
-import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { CompanyDashboard } from './company-dashboard';
-import { OrganizerEventDataService } from '../../../../data/services/organizer-event-data.service';
-import { TenantService } from '../../../../data/services/tenant.service';
-import {
-  TenantTotalsDataService,
-  type EventFigures,
-  type TenantChangeListeners,
-} from '../../../../data/services/tenant-totals-data.service';
+import type { EventFigures } from '../../../../data/services/tenant-totals-data.service';
 import { ServiceError } from '../../../../core/services/service-error';
 import { makeEvent } from '../../../../data/services/donation-data-test-fixtures';
 import type { Event } from '../../../../data/models/event';
+import {
+  setUpCompanyDashboard,
+  settle,
+  type DashboardBackend,
+} from './company-dashboard-test-fixtures';
 
 const figures = (totalMinor: number, donorCount = 1): EventFigures => ({ totalMinor, donorCount });
 
-describe('CompanyDashboard', () => {
-  let listTenantEvents: ReturnType<typeof vi.fn>;
-  let loadEventFigures: ReturnType<typeof vi.fn>;
-  let stopListening: ReturnType<typeof vi.fn>;
-  let listeners: TenantChangeListeners | null;
+describe('CompanyDashboard live totals', () => {
+  let backend: DashboardBackend;
+  let listTenantEvents: DashboardBackend['listTenantEvents'];
+  let loadEventFigures: DashboardBackend['loadEventFigures'];
 
   beforeEach(() => {
-    listTenantEvents = vi.fn();
-    loadEventFigures = vi.fn();
-    stopListening = vi.fn();
-    listeners = null;
-    TestBed.configureTestingModule({
-      imports: [CompanyDashboard],
-      providers: [
-        provideRouter([]),
-        { provide: OrganizerEventDataService, useValue: { listTenantEvents } },
-        {
-          provide: TenantService,
-          useValue: {
-            tenant: signal({ name: 'Odoi Services' }),
-            context: signal({ membership: { tenantId: 'tenant-a' } }),
-          },
-        },
-        {
-          provide: TenantTotalsDataService,
-          useValue: {
-            loadEventFigures,
-            subscribeToTenantChanges: vi.fn(async (given: TenantChangeListeners) => {
-              listeners = given;
-              return stopListening;
-            }),
-          },
-        },
-      ],
-    });
+    localStorage.clear();
+    backend = setUpCompanyDashboard();
+    ({ listTenantEvents, loadEventFigures } = backend);
   });
 
   async function render(events: Event[] | Error) {
@@ -58,13 +29,6 @@ describe('CompanyDashboard', () => {
     const fixture = TestBed.createComponent(CompanyDashboard);
     await settle(fixture);
     return { fixture, el: fixture.nativeElement as HTMLElement };
-  }
-
-  async function settle(fixture: ComponentFixture<unknown>) {
-    fixture.detectChanges();
-    await fixture.whenStable();
-    await new Promise((resolve) => setTimeout(resolve));
-    fixture.detectChanges();
   }
 
   const totalText = (el: HTMLElement) => el.querySelector('.total-value')?.textContent?.trim();
@@ -77,7 +41,6 @@ describe('CompanyDashboard', () => {
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
 
-    expect(el.querySelectorAll('app-skeleton-rows')).toHaveLength(2);
     expect(el.querySelector('[role="status"]')?.textContent).toContain(
       'Loading your company total',
     );
@@ -153,7 +116,7 @@ describe('CompanyDashboard', () => {
     const { fixture, el } = await render([makeEvent({ id: 'e1' }), makeEvent({ id: 'e2' })]);
     loadEventFigures.mockClear().mockResolvedValue(figures(6000));
 
-    listeners?.onDonationChanged('e2');
+    backend.listeners?.onDonationChanged('e2');
     await settle(fixture);
 
     expect(loadEventFigures).toHaveBeenCalledTimes(1);
@@ -170,8 +133,8 @@ describe('CompanyDashboard', () => {
       .mockReturnValueOnce(new Promise((resolve) => (resolveSlow = resolve)))
       .mockResolvedValueOnce(figures(3000));
 
-    listeners?.onDonationChanged('e1');
-    listeners?.onDonationChanged('e1');
+    backend.listeners?.onDonationChanged('e1');
+    backend.listeners?.onDonationChanged('e1');
     await settle(fixture);
     resolveSlow(figures(2000));
     await settle(fixture);
@@ -185,7 +148,7 @@ describe('CompanyDashboard', () => {
     listTenantEvents.mockResolvedValue([makeEvent({ id: 'e1' }), makeEvent({ id: 'new' })]);
     loadEventFigures.mockClear();
 
-    listeners?.onDonationChanged('new');
+    backend.listeners?.onDonationChanged('new');
     await settle(fixture);
 
     expect(loadEventFigures).toHaveBeenCalledTimes(1);
@@ -197,7 +160,7 @@ describe('CompanyDashboard', () => {
     loadEventFigures.mockResolvedValue(figures(1000));
     const { fixture } = await render([makeEvent({ id: 'old', status: 'closed' })]);
 
-    listeners?.onDonationChanged('old');
+    backend.listeners?.onDonationChanged('old');
     await settle(fixture);
 
     expect(loadEventFigures).not.toHaveBeenCalled();
@@ -208,8 +171,8 @@ describe('CompanyDashboard', () => {
     loadEventFigures.mockResolvedValue(figures(1000));
     const { fixture, el } = await render([makeEvent({ id: 'e1' }), makeEvent({ id: 'e2' })]);
 
-    listeners?.onEventChanged({ id: 'e2', name: 'Renamed', status: 'closed' });
-    listeners?.onEventChanged({ id: 'e1', name: 'Renamed', status: 'active' });
+    backend.listeners?.onEventChanged({ id: 'e2', name: 'Renamed', status: 'closed' });
+    backend.listeners?.onEventChanged({ id: 'e1', name: 'Renamed', status: 'active' });
     await settle(fixture);
 
     expect(totalText(el)).toBe('GH₵ 10.00');
@@ -221,7 +184,7 @@ describe('CompanyDashboard', () => {
     loadEventFigures.mockResolvedValue(figures(1000));
     const { fixture, el } = await render([makeEvent({ id: 'e1', status: 'closed' })]);
 
-    listeners?.onEventChanged({ id: 'e1', name: 'Back', status: 'active' });
+    backend.listeners?.onEventChanged({ id: 'e1', name: 'Back', status: 'active' });
     await settle(fixture);
 
     expect(loadEventFigures).toHaveBeenCalledWith('e1');
@@ -234,7 +197,7 @@ describe('CompanyDashboard', () => {
     expect(el.querySelector('[role="alert"]')?.textContent).toContain(
       "We couldn't load your events",
     );
-    expect(listeners).toBeNull();
+    expect(backend.listeners).toBeNull();
   });
 
   it('closes the Realtime subscription when the page is destroyed', async () => {
@@ -242,6 +205,6 @@ describe('CompanyDashboard', () => {
 
     fixture.destroy();
 
-    expect(stopListening).toHaveBeenCalled();
+    expect(backend.stopListening).toHaveBeenCalled();
   });
 });

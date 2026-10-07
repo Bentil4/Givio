@@ -1,0 +1,43 @@
+@use '../../../../shared/styles/dashboard';
+
+.dashboard-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.load-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1.5px solid var(--func-error);
+  border-radius: var(--radius-md);
+  background: var(--func-error-soft);
+
+  mat-icon {
+    color: var(--func-error);
+  }
+
+  p {
+    flex: 1;
+    margin: 0;
+  }
+}
+
+// EXPERIENCE L123: a new company's next step is the most prominent thing on the page.
+.first-run {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+
+  h2,
+  p {
+    margin: 0;
+  }
+}

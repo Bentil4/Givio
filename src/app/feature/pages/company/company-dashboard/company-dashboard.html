@@ -1,0 +1,68 @@
+<section class="page" aria-labelledby="company-dashboard-title">
+  <header class="page-head dashboard-head">
+    <div>
+      <h1 id="company-dashboard-title" class="t-page-title">{{ companyName() }}</h1>
+      <p class="t-secondary">Live totals, and how your events did over time.</p>
+    </div>
+    @if (!insights.isFirstRun()) {
+    <app-period-filter
+      label="Dashboard time range"
+      [options]="periodOptions"
+      [value]="insights.period()"
+      (valueChange)="insights.choosePeriod($event)"
+    />
+    }
+  </header>
+
+  @if (totals.loadError(); as error) {
+  <div class="load-error" role="alert">
+    <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <p class="t-caption">{{ error }}</p>
+    <button type="button" class="btn-ghost" (click)="totals.start()">Try again</button>
+  </div>
+  } @else {
+  <app-consolidated-total [summary]="totals.summary()" [loading]="totals.loading()" />
+  } @if (insights.isFirstRun()) {
+  <section class="first-run glass" aria-labelledby="first-run-title">
+    <h2 id="first-run-title" class="t-card-title">Set up your first event</h2>
+    <p class="t-secondary">
+      Your figures, charts and latest donations appear here once an event starts recording.
+    </p>
+    <a class="btn btn-primary" routerLink="/company/events">Create your first event</a>
+  </section>
+  } @else {
+  <app-company-kpis [kpis]="insights.kpis()" [status]="insights.status()" />
+
+  <div class="chart-grid">
+    <app-company-trend-charts
+      [insights]="insights.insights()"
+      [status]="insights.status()"
+      (retry)="insights.load()"
+    />
+    <app-company-ranking-charts
+      [insights]="insights.insights()"
+      [status]="insights.status()"
+      [recorderNames]="insights.recorderNames()"
+      [recorderNamesMissing]="insights.recorderNamesMissing()"
+      (retry)="insights.load()"
+    />
+    <app-donation-feed
+      [insights]="insights.insights()"
+      [status]="insights.status()"
+      (retry)="insights.load()"
+    />
+    <app-upcoming-events
+      [insights]="insights.insights()"
+      [status]="insights.status()"
+      (retry)="insights.load()"
+    />
+  </div>
+
+  @if (!totals.loadError()) {
+  <app-event-totals-list
+    [rows]="totals.rows()"
+    [loading]="totals.loading()"
+    (retry)="totals.retryEvent($event)"
+  />
+  } }
+</section>

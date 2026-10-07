@@ -1,6 +1,11 @@
 import type { Donation, DonationType } from '../data/models/donation';
 import { formatCedis, formatCedisShort, totalMinor } from './donation.util';
 
+export interface GiftAverages {
+  averageMinor: number | null;
+  medianMinor: number | null;
+}
+
 export interface DonationStat {
   key: string;
   value: string;
@@ -21,17 +26,27 @@ export function donationStats(rows: readonly Donation[], periodLabel: string): D
       sub: `${rows.length} validated records`,
     },
     { key: 'Donors', value: String(rows.length), sub: periodLabel || 'this event' },
-    averageStat(total, amounts),
+    averageStat(rows),
     largestStat(rows, amounts),
   ];
 }
 
-function averageStat(total: number, amounts: readonly number[]): DonationStat {
-  const median = medianOf(amounts);
+/** Mean and median of the gifts that carry an amount; null when none do (in-kind only). */
+export function giftAverages(rows: readonly Donation[]): GiftAverages {
+  const amounts = sortedAmounts(rows);
+  if (amounts.length === 0) return { averageMinor: null, medianMinor: null };
+  return {
+    averageMinor: Math.round(totalMinor(rows) / amounts.length),
+    medianMinor: medianOf(amounts),
+  };
+}
+
+function averageStat(rows: readonly Donation[]): DonationStat {
+  const { averageMinor, medianMinor } = giftAverages(rows);
   return {
     key: 'Average gift',
-    value: amounts.length ? formatCedisShort(Math.round(total / amounts.length)) : '—',
-    sub: median ? `Median ${formatCedis(median)}` : 'no cash gifts yet',
+    value: averageMinor === null ? '—' : formatCedisShort(averageMinor),
+    sub: medianMinor ? `Median ${formatCedis(medianMinor)}` : 'no cash gifts yet',
   };
 }
 
