@@ -59,4 +59,15 @@ describe('AuditLogDataService', () => {
     databases.listRows.mockRejectedValueOnce(new Error('offline'));
     await expect(service.listAuditLogs()).rejects.toThrow('offline');
   });
+
+  it('reads only the newest entries for a summary, in one request', async () => {
+    databases.listRows.mockResolvedValueOnce({ total: 0, rows: [] });
+
+    await service.listRecentAuditLogs(8);
+
+    expect(databases.listRows).toHaveBeenCalledTimes(1);
+    const queries = databases.listRows.mock.calls[0][0].queries as string[];
+    expect(queries.some((q) => q.includes('orderDesc') && q.includes('timestamp'))).toBe(true);
+    expect(queries.some((q) => q.includes('limit') && q.includes('8'))).toBe(true);
+  });
 });

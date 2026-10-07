@@ -1,0 +1,21 @@
+@use '../../../../shared/styles/dashboard-panel';
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.activity-head {
+  padding-left: 0;
+  padding-right: 0;
+  border-bottom: 0;
+}
+
+.activity-box {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.retry {
+  margin: 0 var(--space-lg) var(--space-lg);
+}

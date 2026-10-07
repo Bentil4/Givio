@@ -36,4 +36,14 @@ export class AuditLogDataService {
 
     return entries;
   }
+
+  /** The newest `limit` entries in one read, for a summary that needs no full history. */
+  async listRecentAuditLogs(limit: number): Promise<AuditLogEntry[]> {
+    const page = await this.databases.listRows<Models.DefaultRow>({
+      databaseId: environment.appwriteDatabaseId,
+      tableId: environment.auditLogsCollectionId,
+      queries: [Query.orderDesc('timestamp'), Query.limit(limit)],
+    });
+    return page.rows.map(rowToAuditLogEntry);
+  }
 }

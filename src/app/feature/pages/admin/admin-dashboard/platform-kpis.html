@@ -1,0 +1,60 @@
+<ul class="stat-grid" aria-label="Platform figures">
+  <li>
+    <app-kpi-tile
+      label="Active companies"
+      [value]="activeCompanies().value"
+      [delta]="activeCompanies().delta"
+      [hint]="activeCompanies().hint"
+      [loading]="tenantsLoading()"
+      link="/dashboard/companies"
+      linkLabel="Manage companies"
+    />
+  </li>
+  <li>
+    <app-kpi-tile
+      label="New signups"
+      [value]="newSignups().value"
+      [delta]="newSignups().delta"
+      [hint]="newSignups().hint"
+      [sparkline]="signupTrend()"
+      [loading]="tenantsLoading()"
+    />
+  </li>
+  <li>
+    <app-kpi-tile
+      label="Approval turnaround"
+      goodDirection="down"
+      [value]="turnaround().value"
+      [delta]="turnaround().delta"
+      [hint]="turnaround().hint"
+      [loading]="tenantsLoading()"
+      [tone]="turnaround().status === 'over-target' ? 'warning' : 'default'"
+    >
+      @if (turnaround().status; as status) {
+      <p class="turnaround-status" [class.is-over]="status === 'over-target'">
+        <mat-icon class="turnaround-icon" aria-hidden="true">{{ statusIcons[status] }}</mat-icon>
+        {{ statusText[status] }}
+      </p>
+      }
+    </app-kpi-tile>
+  </li>
+  <li>
+    <app-kpi-tile
+      label="Pending approvals"
+      goodDirection="down"
+      [value]="pending().value"
+      [hint]="pending().hint"
+      [loading]="pendingApprovalsState() === 'loading'"
+      link="/dashboard/approvals"
+      linkLabel="Review approvals"
+    />
+  </li>
+  <li>
+    <app-kpi-tile
+      label="Open support requests"
+      [value]="support().value"
+      [hint]="support().hint"
+      [loading]="supportState() === 'loading'"
+    />
+  </li>
+</ul>

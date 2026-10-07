@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { ServiceError } from '../../../../core/services/service-error';
 import { TenantDataService } from '../../../../data/services/tenant-data.service';
 import { UserService } from '../../../../data/services/user.service';
@@ -311,6 +311,16 @@ describe('AdminApprovals', () => {
     const panel = el().querySelector('[role="tabpanel"]')!;
     expect(panel.getAttribute('aria-labelledby')).toBe(tabs[2].id);
     expect(panel.textContent).toContain('Owusu Services');
+  });
+
+  it('opens the tab named in the ?tab= query, as the overview links to it', async () => {
+    TestBed.overrideProvider(ActivatedRoute, {
+      useValue: { snapshot: { queryParamMap: convertToParamMap({ tab: 'flagged' }) } },
+    });
+    await render();
+
+    const tabs = el().querySelectorAll<HTMLButtonElement>('[role="tab"]');
+    expect(tabs[1].getAttribute('aria-selected')).toBe('true');
   });
 
   it('shows the duplicates tab without a count when its queue fails to load', async () => {

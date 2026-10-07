@@ -3,12 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { timer } from 'rxjs';
 import { FUNCTIONS } from '../../core/appwrite/client';
 import { invokeAdminFunction } from '../appwrite/invoke-admin-function';
-
-export interface PendingApprovalCounts {
-  readonly applications: number;
-  readonly identityReviews: number;
-  readonly duplicateEvents: number;
-}
+import type { ApprovalCountsState, PendingApprovalCounts } from '../models/approval-counts';
 
 const NO_PENDING_APPROVALS: PendingApprovalCounts = {
   applications: 0,
@@ -26,8 +21,11 @@ const POLL_INTERVAL_MS = 60_000;
 export class ApprovalCountsService {
   private readonly functions = inject(FUNCTIONS);
   private readonly latestCounts = signal(NO_PENDING_APPROVALS);
+  private readonly latestState = signal<ApprovalCountsState>('loading');
 
   public readonly counts = this.latestCounts.asReadonly();
+  /** Lets a screen tell "none pending" from "not counted yet". */
+  public readonly state = this.latestState.asReadonly();
   public readonly total = computed(() => {
     const { applications, identityReviews, duplicateEvents } = this.latestCounts();
     return applications + identityReviews + duplicateEvents;
@@ -51,8 +49,10 @@ export class ApprovalCountsService {
         },
       );
       this.latestCounts.set(counts);
+      this.latestState.set('ready');
     } catch {
       // A badge is a hint, not a result: keep the last known count rather than flash 0.
+      this.latestState.update((state) => (state === 'ready' ? state : 'unavailable'));
     }
   }
 }
