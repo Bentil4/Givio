@@ -50,6 +50,17 @@ describe('ApprovalCountsService', () => {
     await expect(service.refresh()).resolves.toBeUndefined();
 
     expect(service.total()).toBe(6);
+    expect(service.state()).toBe('ready');
+  });
+
+  it('reports the counts as loading, then unavailable when the first count fails', async () => {
+    expect(service.state()).toBe('loading');
+    respond(502, { error: 'Failed to count pending approvals' });
+
+    await service.refresh();
+
+    expect(service.state()).toBe('unavailable');
+    expect(service.total()).toBe(0);
   });
 
   it('polls every minute until its owner is destroyed', async () => {
