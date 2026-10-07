@@ -52,6 +52,15 @@ describe('PlatformKpis', () => {
     expect(tile(el, 'Open support requests')).toContain('4');
   });
 
+  it('links the open support requests tile to the support inbox', async () => {
+    const el = await render();
+
+    const link = [...el.querySelectorAll('a.kpi-link')].find((a) =>
+      a.getAttribute('aria-label')?.includes('Open support requests'),
+    );
+    expect(link?.getAttribute('href')).toBe('/dashboard/support');
+  });
+
   it('states an over-target turnaround with an icon and words, as a warning', async () => {
     const el = await render();
 

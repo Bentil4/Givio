@@ -1,0 +1,35 @@
+@use '../admin-admins/admin-admins.scss';
+@use '../../../../shared/styles/tabs';
+
+.queue-heading {
+  font-size: 1.125rem; /* 7-step type scale: 18px (card title / H3) */
+  font-weight: 700;
+}
+
+.queue {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.empty {
+  background: var(--bg-white);
+  border: 1px solid var(--border-default);
+}
+
+.action-error {
+  margin: 0 0 var(--space-sm);
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  background: var(--func-error-soft);
+  color: var(--func-error);
+}
+
+.load-more {
+  align-self: center;
+  margin: var(--space-md) auto 0;
+  min-height: 44px;
+}

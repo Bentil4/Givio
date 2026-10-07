@@ -15,7 +15,16 @@ describe('ADMIN_ROUTES (AD-12, amended 2026-10-07)', () => {
   it('holds only platform governance pages — no Events, Donations or Reports', () => {
     const paths = adminChildren().map((route) => route.path);
 
-    expect(paths).toEqual(['', 'users', 'admins', 'approvals', 'companies', 'audit', '**']);
+    expect(paths).toEqual([
+      '',
+      'users',
+      'admins',
+      'approvals',
+      'support',
+      'companies',
+      'audit',
+      '**',
+    ]);
   });
 
   for (const removed of ['events', 'events/e1', 'events/e1/edit', 'donations', 'reports']) {

@@ -1,0 +1,68 @@
+@use '../../../../shared/styles/visually-hidden';
+
+:host {
+  display: block;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-white);
+}
+
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.card-title {
+  flex: 1 1 12rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.card-time {
+  color: var(--text-secondary);
+}
+
+.card-sender {
+  margin: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.message {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+
+  &.is-clamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+.card-more {
+  align-self: flex-start;
+  min-height: 44px;
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs, 4px);
+
+  .btn {
+    min-height: 44px;
+    text-decoration: none;
+  }
+}
