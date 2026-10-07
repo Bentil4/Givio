@@ -81,7 +81,10 @@ async function setup(
 
   const fixture = TestBed.createComponent(OperatorDashboard);
   const component = fixture.componentInstance;
-  await component.ngOnInit();
+  // The first detectChanges runs ngOnInit (loading the Events); the next one runs the effect that
+  // reads their donations, which needs another macrotask to land.
+  fixture.detectChanges();
+  await settle();
   fixture.detectChanges();
   await settle();
   fixture.detectChanges();
