@@ -93,7 +93,10 @@ describe('CompanyDashboard insights', () => {
     );
     const kinds = backend.charts.created.map((chart) => chart.createdWith.type);
     expect(kinds).toEqual(expect.arrayContaining(['line', 'doughnut', 'bar']));
-    expect(el.textContent).toContain('Yaw Boateng');
+    const chartLabels = backend.charts.created.flatMap(
+      (chart) => (chart.data?.labels ?? []) as string[],
+    );
+    expect(chartLabels).toContain('Yaw Boateng');
   });
 
   it('lists the newest donations with links to their events, and the upcoming events', async () => {
