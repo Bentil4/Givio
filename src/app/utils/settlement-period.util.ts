@@ -67,10 +67,12 @@ function periodStartingAt(start: Date): SettlementPeriod {
   };
 }
 
-function monthStart(date: Date): Date {
+/** The first instant of `date`'s calendar month in Accra (= UTC). */
+export function monthStart(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
 }
 
-function addMonths(date: Date, months: number): Date {
+/** The first instant of the month `months` after `date`'s month. */
+export function addMonths(date: Date, months: number): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
 }

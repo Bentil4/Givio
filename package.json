@@ -39,6 +39,7 @@
     "@ng-icons/material-icons": "^36.1.0",
     "@tailwindcss/postcss": "^4.3.3",
     "appwrite": "^28.1.0",
+    "chart.js": "^4.5.1",
     "dexie": "^4.4.6",
     "jspdf": "^4.2.1",
     "postcss": "^8.5.28",

@@ -1,37 +1,9 @@
-// Same panel/row rhythm as the admin-dashboard's "Live events" panel, without its row links.
+@use '../../../../shared/styles/dashboard-panel';
+
+// Same panel/row rhythm as the other dashboards' panels, without their row links.
 .panel {
   border-radius: var(--radius-md);
   overflow: hidden;
-}
-
-.panel-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.09);
-
-  h2 {
-    flex: 1;
-    margin: 0;
-  }
-}
-
-.panel-link {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--primary-deep);
-  text-decoration: none;
-
-  &:hover,
-  &:focus-visible {
-    text-decoration: underline;
-  }
-}
-
-.panel-empty {
-  margin: 0;
-  padding: var(--space-lg);
 }
 
 .event-rows {

@@ -1,0 +1,27 @@
+// A KPI tile's value and change line — shared by app-kpi-tile and pages that still render raw
+// .stat-tile markup. The eyebrow .stat-label is global (styles.scss).
+.stat-tile {
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+}
+
+.stat-value {
+  margin-top: var(--space-xs);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--primary-dark);
+}
+
+.stat-delta {
+  margin-top: 5px;
+  font-size: 0.75rem;
+  color: var(--data-4);
+
+  &.is-muted {
+    color: var(--data-3);
+  }
+}

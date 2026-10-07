@@ -1,0 +1,37 @@
+// A dashboard panel's head, its "View all" link and its empty line — shared by every dashboard
+// panel and by app-chart-card.
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.09);
+
+  h2 {
+    margin: 0;
+    flex: 1;
+  }
+}
+
+.panel-link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary-deep);
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+  }
+}
+
+.panel-empty {
+  margin: 0;
+  padding: var(--space-lg);
+  color: var(--data-3);
+
+  a {
+    color: var(--primary-deep);
+    font-weight: 600;
+  }
+}

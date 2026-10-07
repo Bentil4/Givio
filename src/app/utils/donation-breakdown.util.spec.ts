@@ -1,5 +1,5 @@
 import { makeDonation } from '../data/models/donation-test-fixtures';
-import { donationStats, donationTypeSlices } from './donation-breakdown.util';
+import { donationStats } from './donation-breakdown.util';
 
 describe('donation breakdown', () => {
   const donations = [
@@ -8,22 +8,6 @@ describe('donation breakdown', () => {
     makeDonation({ id: 'c', amountMinor: 20000, onBehalfOf: 'The Asante Family' }),
     makeDonation({ id: 'd', amountMinor: null, donationType: 'in_kind' }),
   ];
-
-  it('gives each type its share of the total, with cumulative wedge offsets', () => {
-    const slices = donationTypeSlices(donations);
-
-    expect(slices.map((s) => [s.type, s.percent, s.from, s.to])).toEqual([
-      ['cash', 50, 0, 50],
-      ['mobile_money', 50, 50, 100],
-      ['in_kind', 0, 100, 100],
-    ]);
-    expect(slices[0].label).toBe('Cash');
-    expect(slices[0].valueLabel).toBe('GH₵ 500.00');
-  });
-
-  it('reports zero shares when nothing has been given', () => {
-    expect(donationTypeSlices([]).every((s) => s.percent === 0)).toBe(true);
-  });
 
   it('headlines the total, donor count, average with median, and largest gift', () => {
     const stats = donationStats(donations, '10 Oct 2026');

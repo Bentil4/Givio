@@ -1,0 +1,157 @@
+// The dashboard anatomy every role's overview shares: page head, KPI row, chart grid and
+// activity panels. Uses only the tokens in src/styles.scss and its global .tag / .glass /
+// .stat-label / .t-* classes.
+@use 'stat-tile';
+@use 'dashboard-panel';
+
+.page {
+  font-family: var(--font-body);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.page-head {
+  h1 {
+    margin: 0 0 4px;
+  }
+  p {
+    margin: 0;
+    max-width: 68ch;
+    text-wrap: pretty;
+  }
+}
+
+// ── KPI row: 1 → 2 → 4 columns ───────────────────────────────────────
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  @media (min-width: 600px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: 901px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+// ── Chart grid: 1 → 2 columns ────────────────────────────────────────
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  @media (min-width: 901px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+// ── Panels ───────────────────────────────────────────────────────────
+.panel {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.panel-body {
+  padding: 0;
+}
+
+.event-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.07);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.18s var(--ease);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+  &:hover {
+    background: var(--bg-mist);
+  }
+}
+
+.event-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.event-meta {
+  margin-top: 3px;
+}
+
+// ── Activity feed ────────────────────────────────────────────────────
+.feed-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.07);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  .is-mono {
+    flex: none; /* the label beside it absorbs any shrink instead */
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .is-strong {
+    font-weight: 700;
+    font-size: 0.875rem; /* 7-step type scale: 14px (body) */
+    color: var(--primary-dark);
+  }
+}
+
+// ── Skeleton ─────────────────────────────────────────────────────────
+.skel-row {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.07);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.skel {
+  display: block;
+  height: 12px;
+  border-radius: var(--radius-sm);
+  /* flat fill, not a gradient — an opacity pulse still reads as "loading" */
+  background: var(--data-1);
+  animation: dashboard-skel-pulse 1.4s var(--ease) infinite;
+}
+
+.skel--lg {
+  width: 100%;
+}
+
+@keyframes dashboard-skel-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
