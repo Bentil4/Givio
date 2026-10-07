@@ -33,6 +33,7 @@ export class CompanyTotalsStore {
   private requestCount = 0;
   private stopListening: (() => void) | null = null;
   private destroyed = false;
+  private readonly donationPushes = signal(0);
 
   public readonly loading = signal(true);
   public readonly loadError = signal<string | null>(null);
@@ -45,6 +46,9 @@ export class CompanyTotalsStore {
   );
 
   public readonly summary = computed(() => summarizeEventTotals(this.rows()));
+
+  /** Counts donation pushes on any Event, closed ones included, for views built on donations. */
+  public readonly donationChangeCount = this.donationPushes.asReadonly();
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.stopRealtime());
@@ -122,6 +126,7 @@ export class CompanyTotalsStore {
   }
 
   private applyDonationChange(eventId: string): void {
+    this.donationPushes.update((count) => count + 1);
     const event = this.events().find((candidate) => candidate.id === eventId);
     if (event === undefined) {
       void this.resyncEventsQuietly();
