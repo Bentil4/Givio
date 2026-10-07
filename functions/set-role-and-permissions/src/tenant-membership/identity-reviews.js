@@ -8,7 +8,7 @@ import { PENDING_REVIEW_STATUS, ROUTINE_REVOCATION } from './validation.js';
 
 // The review states still waiting on Admin: a flagged addition, or a co-Organizer addition
 // Admin hasn't yet seen (FR-12 notifies on every one, match or not).
-const QUEUED_REVIEW_STATUSES = ['open', 'unmatched'];
+export const QUEUED_REVIEW_STATUSES = ['open', 'unmatched'];
 
 const DECISION_OUTCOMES = {
   confirm: { from: 'open', to: 'confirmed' },

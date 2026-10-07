@@ -35,6 +35,7 @@ flowchart TD
     r__organizer_entry["/organizer/entry<br/>Record a donation"]
     r__organizer_entry_phone["/organizer/entry/phone<br/>Record a donation"]
     r__organizer_donations["/organizer/donations<br/>Today's donations"]
+    r__organizer_settings["/organizer/settings<br/>Settings"]
   end
   r__family["/family<br/>Enter your event code"]
   r__family__code["/family/:code<br/>Live giving"]
@@ -46,6 +47,7 @@ flowchart TD
     r__company_support__approvedCompanyMatch["/company/support<br/>Contact Admin"]
     r__company_reports__approvedCompanyMatch["/company/reports<br/>Settlement reports<br/><i>superOrganizerMatch</i>"]
     r__company_audit__approvedCompanyMatch["/company/audit<br/>Activity log<br/><i>superOrganizerMatch</i>"]
+    r__company_settings__approvedCompanyMatch["/company/settings<br/>Settings"]
   end
   subgraph sgr__company__pendingCompanyMatch["/company — sessionExpiryGuard + pendingCompanyMatch"]
     r__company__pendingCompanyMatch["/company<br/>Application status"]
@@ -70,6 +72,7 @@ flowchart TD
   r__organizer --> r__organizer_entry
   r__organizer_entry --> r__organizer_entry_phone
   r__organizer --> r__organizer_donations
+  r__organizer --> r__organizer_settings
   app --> r__organizer
   app --> r__family
   r__family --> r__family__code
@@ -79,6 +82,7 @@ flowchart TD
   r__company__approvedCompanyMatch --> r__company_support__approvedCompanyMatch
   r__company__approvedCompanyMatch --> r__company_reports__approvedCompanyMatch
   r__company__approvedCompanyMatch --> r__company_audit__approvedCompanyMatch
+  r__company__approvedCompanyMatch --> r__company_settings__approvedCompanyMatch
   app --> r__company__approvedCompanyMatch
   r__company__pendingCompanyMatch --> r__company_support__pendingCompanyMatch
   r__company__pendingCompanyMatch -->|"/company/** redirects"| r__company__pendingCompanyMatch
