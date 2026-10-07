@@ -8,6 +8,17 @@
   gap: var(--space-md);
 }
 
+.page-head-text {
+  min-width: 0;
+}
+
+.page-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .page-head-event {
   color: var(--text-secondary);
 }
