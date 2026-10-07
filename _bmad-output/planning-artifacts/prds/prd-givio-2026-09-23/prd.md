@@ -2,7 +2,7 @@
 title: Givio Organizer Multi-Tenancy & Role Hierarchy
 status: final
 created: 2026-09-23
-updated: 2026-09-23
+updated: 2026-10-07
 ---
 
 # PRD: Givio Organizer Multi-Tenancy & Role Hierarchy
@@ -82,7 +82,7 @@ Every design choice here is anchored in one theme the brainstorming session kept
   - **Entry state:** authenticated as Admin.
   - **Path:** Admin suspends the entire Organizer account; the Organizer and every one of their Operators immediately lose login/write access.
   - **Climax:** the grieving family, mid-event, opens their family-code link and sees the donation total exactly as expected — frozen or still updating — with no indication anything happened behind the scenes.
-  - **Resolution:** Admin resolves the investigation without the family's experience ever being touched by it — and because Admin's own access to the tenant's Events is itself logged (FR-19), the investigation leaves its own accountable trail, and the suspended Operators' historical donations still display their names (FR-13), unaffected by the suspension.
+  - **Resolution:** Admin resolves the investigation without the family's experience ever being touched by it — the suspension itself is in the platform-wide audit trail (FR-15), and the suspended Operators' historical donations still display their names (FR-13), unaffected by the suspension. *(Amended 2026-10-07: Admin investigates through governance actions — suspension, the company's own dispute submissions, the platform audit trail — and never opens the tenant's Events or donations; see FR-19.)*
   - Realizes FR-17, FR-19, FR-13, FR-15.
 
 - **UJ-6. Kwame checks his cross-event total on a busy weekend and flags a number that looks off.**
@@ -104,7 +104,7 @@ Every design choice here is anchored in one theme the brainstorming session kept
 ## 3. Glossary
 
 - **Super Admin** — The single designated platform owner. Holds every Admin capability plus the exclusive power to create, promote, demote, or suspend Admin accounts. Exactly one account holds this role at a time.
-- **Admin** — Platform-wide super-user. Approves/rejects Organizer applications, retains full system access at all times, sees the platform-wide audit log. Distinct from v1's overloaded "Admin," which conflated this role with company-level ownership (see §0 Brownfield note). Unlike Super Admin, an Admin's own access can itself be suspended (by Super Admin only).
+- **Admin** — Platform-wide super-user. Approves/rejects Organizer applications, retains full control of the platform's governance at all times (companies, users, admins, approvals, support intake), sees the platform-wide audit log of platform actions. Has no access to a company's Events or donations (FR-19, amended 2026-10-07). Distinct from v1's overloaded "Admin," which conflated this role with company-level ownership (see §0 Brownfield note). Unlike Super Admin, an Admin's own access can itself be suspended (by Super Admin only).
 - **Tenant / Event Company** — An organization onboarded onto Givio as an Organizer entity. Owns one or more Events. Two tenants must never be able to detect each other's existence.
 - **Super Organizer** — The first Organizer account created for a tenant. Can add co-Organizers and Operators; manages/revokes privileges for both; sees the tenant's own audit trail and a consolidated cross-event donation total.
 - **Organizer** (incl. **Co-Organizer**) — An account added to a tenant by its Super Organizer. Can add/manage Operators only; cannot add another Organizer. "Co-Organizer" refers to any Organizer beyond the first (Super) one.
@@ -147,7 +147,7 @@ The system must guarantee that no tenant can detect the existence of another ten
 - No shared, guessable, or sequential identifiers are exposed across tenants in URLs, API responses, or error messages.
 - An Organizer's add-Operator/add-co-Organizer flow can never list, search, or accidentally select a person or Event belonging to another tenant.
 - Error responses (e.g., "not found," "access denied") are identical in shape whether an Event doesn't exist or belongs to another tenant — never distinguishable.
-- This guarantee holds **between tenants**. It does not constrain Admin: FR-19 defines Admin's own cross-tenant access as a separate, explicitly logged exception, not a hole in this guarantee.
+- This guarantee holds **between tenants**, and — since FR-19's amendment of 2026-10-07 — between every tenant and the platform Admins too: Admin has no read or write access to any tenant's Events or donations, so there is no Admin exception left to log.
 
 **Out of Scope:** Isolation between two Events within the *same* tenant is governed by FR-1, not this FR — same-tenant users may legitimately see their own tenant's other Events depending on their grants.
 
@@ -266,7 +266,7 @@ Revoking any person's access (Organizer, co-Organizer, or Operator) must remove 
 The system must detect potential duplicate Event registrations — including across different tenants, not only within one (e.g., the same event or deceased individual registered more than once, a pattern consistent with double-collecting donations) — and notify Admin.
 
 **Consequences (testable):**
-- The comparison runs at Admin's platform-wide layer, the only layer with cross-tenant visibility (per FR-2/FR-19) — it is never delegated to a tenant-scoped role, since a same-tenant Organizer duplicating their own event is a different, much lower-severity case than two unrelated tenants registering the same deceased.
+- The comparison runs at the platform layer — inside the trusted Function, the only code with cross-tenant visibility (per FR-2/FR-19; Admin sees the flagged pair, not the tenants' Event data) — it is never delegated to a tenant-scoped role, since a same-tenant Organizer duplicating their own event is a different, much lower-severity case than two unrelated tenants registering the same deceased.
 - A flagged duplicate does not block Event creation outright; it surfaces to Admin for review (avoids blocking legitimate re-created/rescheduled events — see SM-C2), tracked against SM-7's review-time target.
 
 #### FR-15: Tenant-scoped audit log visibility
@@ -328,12 +328,17 @@ A Family Member's view must reflect every donation actually entered for their Ev
 
 #### FR-19: Cross-account independence guarantees
 
-The system must guarantee, at all times: Admin can manage multiple tenants' accounts and Events independently with no cross-account interference; no Organizer can see or manage another tenant's account info or Events; no Organizer ever gains full Admin privileges; the platform itself never loses full system control/access — Super Admin's own access can never be suspended or revoked by anyone (§4.8), though an ordinary Admin's access can be, by Super Admin. Realizes UJ-5.
+> **Amended 2026-10-07 (user decision).** The original FR-19 gave Admin standing, unconditional access to every tenant's Event data, made accountable by logging each access. That is reversed: platform Admins — the Super Admin included — have **no** access to company Events or donations, enforced at the data layer. Platform Admins have no business with a company's events or money, and a company's own Super Organizer already owns every correction Admin used to make (edit, soft-delete and restore a donation, resolve its sync conflicts). The superseded consequences are kept below, struck through, for traceability.
+
+The system must guarantee, at all times: Admin can manage multiple tenants' accounts independently with no cross-account interference; no Organizer can see or manage another tenant's account info or Events; no Organizer ever gains full Admin privileges; no platform Admin can read or change a tenant's Events or donations; the platform itself never loses full governance control — Super Admin's own access can never be suspended or revoked by anyone (§4.8), though an ordinary Admin's access can be, by Super Admin. Realizes UJ-5.
 
 **Consequences (testable):**
 - No action available to any Organizer or Operator role can modify Admin's own access level or another tenant's account state.
-- Admin's access to any tenant's Event data requires no per-Event grant — access is standing and unconditional, unlike every other role (FR-1). This is the one explicit exception to FR-1's "no code path grants access without a per-event grant" rule.
-- Every instance of Admin accessing a tenant's Event data is written to the platform-wide audit log (FR-15) — actor, tenant, event, and timestamp — visible to Admin, never to the tenant itself. FR-2's "structural isolation" is scoped to hold *between tenants*; it does not extend to Admin, whose standing access is instead made accountable through this immutable log rather than through a grant requirement.
+- *(Amended 2026-10-07)* No Event or Donation row grants any permission to the Admin Label, and no server action reads or writes a tenant's Event or Donation for an Admin caller (assigning Operators, changing status, regenerating a family code, recording a donation and resolving a sync conflict all refuse an Admin). Corrections to a company's donations belong to its Super Organizer.
+- *(Amended 2026-10-07)* Admin keeps platform governance only: approvals (including duplicate-event review, which the trusted Function runs — FR-14, AD-13), companies/tenants, users, admins, support and dispute intake (FR-20), and the platform-wide audit trail of **platform** actions. A tenant's own audit entries are readable only by its Super Organizer (FR-15).
+- *(Amended 2026-10-07)* An Admin's device keeps no cached company Events, donations or queued writes: they are cleared whenever an Admin signs in.
+- ~~Admin's access to any tenant's Event data requires no per-Event grant — access is standing and unconditional, unlike every other role (FR-1). This is the one explicit exception to FR-1's "no code path grants access without a per-event grant" rule.~~ *(Superseded 2026-10-07 — FR-1 now has no exception.)*
+- ~~Every instance of Admin accessing a tenant's Event data is written to the platform-wide audit log (FR-15) — actor, tenant, event, and timestamp — visible to Admin, never to the tenant itself.~~ *(Superseded 2026-10-07 — there is no Admin access left to log; historic access entries stay readable in the platform audit trail.)*
 
 #### FR-20: Contact Admin support form (v1)
 
@@ -352,7 +357,7 @@ The system must provide a simple, logged "Contact Admin" form as the sole v1 sup
 A Super Organizer must see a near-real-time consolidated donation total across all of their tenant's concurrently running Events, at the same consistency bar as the existing Family live view.
 
 **Consequences (testable):**
-- The consolidated total reflects a new donation recorded on any of the tenant's Events within 15 seconds without requiring a manual refresh — matching v1's existing Family live view, which currently updates on a 15-second poll (Family has no Appwrite session to subscribe with, per AD-10). Architecture may exceed this bound (e.g., a true push subscription, as the existing Admin per-event dashboard already uses) but must not fall behind it.
+- The consolidated total reflects a new donation recorded on any of the tenant's Events within 15 seconds without requiring a manual refresh — matching v1's existing Family live view, which currently updates on a 15-second poll (Family has no Appwrite session to subscribe with, per AD-10). Architecture may exceed this bound (e.g., a true push subscription, as the Operator donations view already uses) but must not fall behind it.
 
 #### FR-22: Periodic settlement/export report
 
@@ -371,11 +376,11 @@ The system must provide a periodic (non-real-time) settlement/export report of a
 
 #### FR-25: Super Admin has full Admin capabilities
 
-The system must give the single Super Admin account every capability and access guarantee an ordinary Admin has — including FR-19's cross-account independence guarantees and FR-15's platform-wide audit visibility — with nothing withheld.
+The system must give the single Super Admin account every capability and access guarantee an ordinary Admin has — including FR-19's cross-account independence guarantees and FR-15's platform-wide audit visibility — with nothing withheld. *(Amended 2026-10-07: that includes FR-19's restriction — Super Admin has no access to company Events or donations either.)*
 
 **Consequences (testable):**
 - Every action available to Admin is also available to Super Admin, with no separate capability gate blocking Super Admin from an Admin-level action.
-- Super Admin's own reads and writes of tenant data are logged identically to an ordinary Admin's — FR-19's logging consequence applies without exception for Super Admin.
+- ~~Super Admin's own reads and writes of tenant data are logged identically to an ordinary Admin's — FR-19's logging consequence applies without exception for Super Admin.~~ *(Superseded 2026-10-07: Super Admin, like every Admin, has no read or write access to tenant Event/donation data — FR-19.)*
 
 #### FR-26: Super Admin manages Admin accounts
 
@@ -397,6 +402,7 @@ The system must let Super Admin — and only Super Admin — create, promote, de
 - **Re-scoping v1's already-shipped donation recording, receipts, or reporting mechanics.** This PRD is scoped to the tenant/role/access layer only (Epics 1–5's donation/offline/receipt/reporting behavior is unchanged).
 - **Billing/monetization.** The Approval Gate exists for fraud/trust protection, not billing (root-caused in the source brainstorm); whether and how tenants are billed is a separate, out-of-scope concern.
 - **In-app Super Admin succession/transfer.** Moving the Super Admin role to a different account (§4.8) is a manual, out-of-band operation in v1, not a product flow.
+- **Platform Admin access to company Events or donations** *(added 2026-10-07, FR-19 amended)*. Admin does not view, total, export, edit, soft-delete, restore or resolve conflicts on any company's Events or donations — not even read-only, not even for an investigation. A company's Super Organizer owns those corrections; Admin acts through governance (approval, suspension, support/dispute intake).
 - **Super Admin operational security hardening** (dedicated MFA, credential rotation, anomaly detection on Super Admin's own actions). Surfaced during epic/story elicitation (2026-09-24 pre-mortem): the single Super Admin account is the platform's highest-value, least-replaceable credential, and v1 gives it no protection beyond what an ordinary Appwrite Account already has. Explicitly deferred to a follow-on pass after this capability ships — not resolved here — rather than silently left unaddressed.
 
 ## 6. MVP Scope
@@ -458,7 +464,7 @@ All of FR-1 through FR-26 above constitute v1 scope — the brainstorm's decisio
 | Same event/deceased registered twice by two *different* tenants to double-collect donations | Platform-wide (not tenant-scoped) duplicate-event detection, executed at Admin's cross-tenant layer (FR-14) |
 | A fraud-flagged Operator, who never went through Organizer-level vetting, is added under a different name at the same or another tenant | Operator-addition identity check (FR-23); post-approval for-cause revocations feed the same bypass list new signups/additions are checked against (FR-24) |
 | A family access code leaks beyond the intended family (forwarded, posted, guessed) | Organizer-triggerable code invalidation/reissue (FR-16), extending v1's existing regenerate capability (AD-10) |
-| Admin's own standing cross-tenant access becomes an unaccountable backdoor around the isolation guarantee it's meant to police | Every Admin access to a tenant's Event data is immutably logged and visible in the platform-wide audit log (FR-19, FR-15) |
+| Admin's own standing cross-tenant access becomes an unaccountable backdoor around the isolation guarantee it's meant to police | *(Amended 2026-10-07)* Removed at the source: Admin has no access to tenant Events or donations, enforced by row permissions and by every server action refusing an Admin caller (FR-19). Previously mitigated by logging each Admin access. |
 | An Admin account is compromised or goes rogue, with no one able to rein it in | Super Admin — and only Super Admin — can suspend an Admin account; the suspended Admin's past actions stay attributed, only further action is blocked (FR-25, FR-26) |
 
 ## 11. Integration and Dependencies
@@ -466,7 +472,7 @@ All of FR-1 through FR-26 above constitute v1 scope — the brainstorm's decisio
 - **Extends the existing Appwrite Label-based role writer** (Architecture Spine AD-9): the current model writes a single global role Label per user. Architecture's coaching pass (2026-09-23) resolved this: a new `Memberships` collection (`{userId, tenantId, role, status, grantedBy, grantedAt}`) becomes the sole source of truth for Super Organizer/Organizer/Operator, written only by the AD-9 Function — AD-1's Label narrows to platform-wide Admin/Super Admin only (the single Super Admin account holds both an `admin` and a new `superadmin` Label).
 - **Extends the existing `Event.assignedUserIds`-derived permission model** (AD-2): `Event` gains a `tenantId`; the Function now refuses to add `Role.user(uid)` to an Event's derived permissions unless that `uid` holds an active Membership in the Event's own tenant — this is where structural isolation (FR-2) is actually enforced.
 - **Extends, does not replace, v1's family access-code login** (AD-10, already implemented as a single hashed read-only `accessCode`): FR-16/FR-17's dignity safeguards layer onto this existing mechanism.
-- **Admin read/write logging (FR-19, FR-25)** is client-side, not Function-proxied: the existing Data-layer classes (`EventDataService`/`DonationDataService`) fire an audit-log write whenever the caller holds `Role.label('admin')`, at query granularity — a deliberate trade-off (best-effort/accountability, not tamper-proof) Architecture chose to preserve the existing pure-client paradigm rather than proxy every Admin read through the Function.
+- ~~**Admin read/write logging (FR-19, FR-25)** is client-side, not Function-proxied: the existing Data-layer classes (`EventDataService`/`DonationDataService`) fire an audit-log write whenever the caller holds `Role.label('admin')`, at query granularity — a deliberate trade-off (best-effort/accountability, not tamper-proof) Architecture chose to preserve the existing pure-client paradigm rather than proxy every Admin read through the Function.~~ *(Superseded 2026-10-07: FR-19 now removes Admin access to tenant Event/donation data instead of logging it — Event/Donation rows carry no Admin Label permission, and a tenant's audit entries carry no Admin read. See Architecture AD-12, amended 2026-10-07.)*
 
 ## 12. Rollout and Change Management
 
@@ -482,7 +488,7 @@ v1's Admin/Operator/Family model is already live in production — Epics 1 throu
 6. **FR-23's exact matching rules.** What specific fields (name, email, phone, national ID?) does the Operator-addition identity check compare, and what counts as a "match" worth flagging to Admin versus a coincidental near-match (e.g., a common name)?
 7. **Super Admin succession.** If the single Super Admin account is ever lost, compromised, or needs to be handed to a different person, what's the actual mechanism? v1 leaves this as a manual, out-of-band operation (§4.8, FR-26) — worth a real answer once the platform has more than a handful of Admins.
 
-*Resolved during finalize:* Admin's cross-tenant access model (formerly Open Question 5) is now decided in FR-19 — standing access, immutably logged, never a per-Event grant requirement.
+*Resolved during finalize:* Admin's cross-tenant access model (formerly Open Question 5) is now decided in FR-19 — standing access, immutably logged, never a per-Event grant requirement. *(Re-decided 2026-10-07: no Admin access to tenant Events or donations at all — FR-19 amended.)*
 
 *Resolved during Architecture coaching (2026-09-23):* the migration path (formerly Open Question 1) is decided in §12 — clean-slate launch, no real tenant data to reconcile.
 
@@ -496,3 +502,4 @@ v1's Admin/Operator/Family model is already live in production — Epics 1 throu
 - §7 SM-4 — no v1 numeric target for duplicate-event flag precision, tracked only.
 - §7 SM-7 — duplicate-event flag review-time target of ≤ 24 hours.
 - §9 — manual verification's Admin/ops-time cost is acceptable at current expected signup volume.
+- §4.7 FR-19 (amended 2026-10-07) — Events created by Admin before the tenant model (no tenantId) are test/dev data per §12's clean-slate launch, so leaving them with no owner who can manage them (only their already-assigned Operators can still read them and record against them) is acceptable; a real one would need moving into a tenant out-of-band.

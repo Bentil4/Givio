@@ -111,7 +111,7 @@ FR-15: Audit log visibility shall follow the tenant boundary — Admin sees the 
 FR-16: On family access-code entry, the system shall ask whether the device is personal; if not, the session shall auto-logout on navigation away, and the Organizer shall be able to invalidate/reissue a leaked code.
 FR-17: If Admin suspends an Organizer account, the Family Member's read-only view for that tenant's Events shall keep working.
 FR-18: A Family Member's view shall reflect every donation actually entered for their Event, with no partial or hidden totals.
-FR-19: The system shall guarantee Admin can manage tenants independently with no cross-account interference, no Organizer gains Admin privileges, and every Admin access to tenant data is logged.
+FR-19: The system shall guarantee Admin can manage tenants independently with no cross-account interference, no Organizer gains Admin privileges, and every Admin access to tenant data is logged. *(Amended 2026-10-07: FR-19/AD-12 reversed — platform Admins, Super Admin included, have no access to company Events or donations at all, enforced at the data layer, so there is no Admin access left to log. See PRD FR-19 and Architecture AD-12, both amended 2026-10-07.)*
 FR-20: The system shall provide a simple, logged Contact Admin form as the sole v1 support channel.
 FR-21: A Super Organizer shall see a near-real-time consolidated donation total across their tenant's concurrent Events, updating within 15 seconds.
 FR-22: The system shall provide a periodic settlement/export report of a tenant's consolidated donation totals.
@@ -184,7 +184,7 @@ AD-1, AD-2, and AD-9 above are **amended**, not superseded — their bullets are
 - AD-2 (amended): `Event` gains a `tenantId`. The Function refuses to grant `Role.user(uid)` unless `uid` holds an *active* Membership matching the Event's own tenant — this is where FR-2's structural isolation is enforced. Revocation or Tenant suspension now immediately sweeps and retracts affected permissions, not just on an `assignedUserIds` edit.
 - AD-9 (amended, scope grown): the one Function is now also the sole writer of Memberships, Tenant approval state (`pending→approved/rejected/suspended`), the `IdentityFlags` banned/rejected cross-reference, and Admin/Super Admin account management — decomposed internally into per-concern files (extending the existing `admin-users.js`/`event-assignment.js` convention), still one deployable.
 - AD-11 (new): Super Admin is dual-Labeled (`admin` + `superadmin`), bootstrapped out-of-band; admin-account management gates exclusively on `superadmin`.
-- AD-12 (new): Admin/Super Admin read+write access logging is client-side (`AuditDataService`, extending the existing create/edit/delete pattern), at one-entry-per-Data-layer-method-invocation granularity — best-effort/accountability, not tamper-proof (deliberate trade-off, not a gap).
+- AD-12 (new): Admin/Super Admin read+write access logging is client-side (`AuditDataService`, extending the existing create/edit/delete pattern), at one-entry-per-Data-layer-method-invocation granularity — best-effort/accountability, not tamper-proof (deliberate trade-off, not a gap). *(Amended 2026-10-07: FR-19/AD-12 reversed — platform Admins, Super Admin included, have no access to company Events or donations at all, enforced at the data layer, so there is no Admin access left to log. See PRD FR-19 and Architecture AD-12, both amended 2026-10-07.)*
 - AD-13 (new): duplicate-event detection runs only inside the Function (the one cross-tenant-visible trust boundary), writing to a dedicated `DuplicateEventFlags` collection; never blocks Event creation.
 - New collections not covered above: `Tenants` (onboarding/approval state), a verification-document Storage bucket (Admin-only read), `SupportRequest` (Contact Admin form), and `audit_logs` gaining a `tenantId` column.
 - Migration: existing test Admin/Event/Donation data clears before launch; new tenant-model code paths stay behind a feature flag until that reset is confirmed complete — no manual per-account reconciliation (production accounts are test data, not real tenants).
@@ -209,7 +209,7 @@ UX-DR6: Build the Tenant-switcher component — `Select`-shaped, brand-blue bord
 UX-DR7: Build the Step-wizard shell for Organizer self-signup — numbered steps (company info → document upload → phone-verification-pending confirmation), Back always available, a single step's failure retains every other step's already-entered data, non-disclosing failure messaging when the identity/bypass check flags a match (never reveals why to the applicant).
 UX-DR8: Implement the 7 new State Pattern rows: Tenant audit log empty state; Reports no-period-elapsed-yet state; Contact Admin submission-confirmation and submission-error states; consolidated cross-event total's loading (skeleton) and per-Event aggregation-error states (a failed Event's figure shows inline, never silently drops from or blocks the whole total).
 UX-DR9: Implement the pending/rejected Organizer-dashboard full-page shell — while `Tenant.status` isn't `approved`, no sidebar nav renders at all (not merely hidden), matching FR-9's access boundary at the UI-shell level, not just the route-guard level.
-UX-DR10: Wire the existing platform audit log screen (`admin-audit`, unchanged route) to display Admin/Super Admin's own tenant-data reads and writes as new rows — no new screen, an existing screen gains a row source (FR-19/FR-25's logging requirement made visible).
+UX-DR10: Wire the existing platform audit log screen (`admin-audit`, unchanged route) to display Admin/Super Admin's own tenant-data reads and writes as new rows — no new screen, an existing screen gains a row source (FR-19/FR-25's logging requirement made visible). *(Superseded 2026-10-07: no new 'access' rows are written; historic ones stay readable, and the screen shows platform entries only.)*
 
 ### FR Coverage Map
 
@@ -275,7 +275,7 @@ FR-24: Epic 7 - Post-approval revocations feed the bypass check
 FR-16: Epic 9 - Personal-device prompt and auto-logout
 FR-17: Epic 9 - Family view survives Organizer suspension
 FR-18: Epic 9 - Full donation visibility for family
-FR-19: Epic 8 - Cross-account independence guarantees (Admin logging, Tenant suspend)
+FR-19: Epic 8 - Cross-account independence guarantees (Admin logging, Tenant suspend) — amended 2026-10-07: no Admin access to company data instead of logging it
 FR-20: Epic 8 - Contact Admin support form
 FR-21: Epic 8 - Consolidated cross-event total
 FR-22: Epic 8 - Periodic settlement/export report
@@ -324,7 +324,7 @@ Organizer leadership can grow their team safely — add co-Organizers and Operat
 ### Epic 8: Admin Oversight, Reporting & Platform Administration (added 2026-09-23)
 Admin gets platform-wide oversight and support tooling; Super Organizer gets tenant-wide reporting; exactly one Super Admin can manage Admin accounts themselves.
 **FRs covered:** FR-19..FR-22, FR-25, FR-26
-**Implementation notes:** Implements AD-11 (Super Admin dual-Label) and AD-12 (client-side Admin access logging). Delivers `/dashboard/admins` inside the *existing* Admin route tree, gated by an additional `superadmin` check layered on the existing admin guard — no separate route tree/layout (this matches what the Architecture Spine's Capability Map already said; an earlier UX draft had introduced a redundant `/super-admin` tree, caught and dropped via Occam's Razor elicitation, 2026-09-25). This is where "suspend a Tenant" (consumed by FR-17 in Epic 9) actually gets built.
+**Implementation notes:** Implements AD-11 (Super Admin dual-Label) and AD-12 (client-side Admin access logging — amended 2026-10-07 to "no Admin access to company Events/donations"; Story 8.2's logging is superseded). Delivers `/dashboard/admins` inside the *existing* Admin route tree, gated by an additional `superadmin` check layered on the existing admin guard — no separate route tree/layout (this matches what the Architecture Spine's Capability Map already said; an earlier UX draft had introduced a redundant `/super-admin` tree, caught and dropped via Occam's Razor elicitation, 2026-09-25). This is where "suspend a Tenant" (consumed by FR-17 in Epic 9) actually gets built.
 
 ### Epic 9: Family Dignity & Access Safeguards (added 2026-09-23)
 A grieving family always sees their event's true, complete donation picture — safely, even from a borrowed device, even if their Organizer's account is suspended.
@@ -1185,13 +1185,15 @@ So that its Organizer and Operators lose access immediately without me having to
 
 **Given** a tenant whose sole Super Organizer has been revoked (Story 7.3), leaving co-Organizers or Operators with no one able to add/manage the team
 **When** Admin reviews the tenant
-**Then** Admin can designate an existing co-Organizer (or a newly-added person) as the new Super Organizer, using Admin's own standing cross-tenant access (FR-19) — a tenant is never permanently orphaned by losing its Super Organizer
+**Then** Admin can designate an existing co-Organizer (or a newly-added person) as the new Super Organizer, using Admin's governance access to the tenant's Memberships (FR-19 — not its Events or donations, per the 2026-10-07 amendment) — a tenant is never permanently orphaned by losing its Super Organizer
 
 **Given** the suspend action's permission-sweep is attempted (Story 6.2's cascade)
 **When** the underlying Function call fails or times out (e.g. during an outage) rather than succeeding
 **Then** the suspend is reported to Admin as failed, not as succeeded — the UI never shows "Tenant suspended" unless the sweep is confirmed complete, since a silently-incomplete sweep would leave a suspended tenant's Operators with live access exactly when the investigation needs them cut off
 
 ### Story 8.2: Admin/Super Admin Access Logging
+
+> **Superseded 2026-10-07.** FR-19 and AD-12 were amended: Admins no longer have any access to company Events or donations, so there is nothing to log. The logging this story built has been removed; historic 'access' rows stay readable in `admin-audit` as platform entries.
 
 As Admin,
 I want my own reads and writes of any tenant's data to be logged, the same way an Organizer's actions already are,
