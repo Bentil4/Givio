@@ -1,0 +1,50 @@
+@use '../../../../shared/styles/dashboard';
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.panel {
+  height: 100%;
+}
+
+.event-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    border-bottom: 1px solid rgba(var(--color-brand-500-rgb), 0.07);
+
+    &:last-child {
+      border-bottom: 0;
+    }
+  }
+}
+
+.event-row {
+  color: inherit;
+  border-bottom: 0;
+
+  &:focus-visible {
+    outline: var(--border-width-focus) solid var(--border-focus);
+    outline-offset: -2px;
+  }
+}
+
+.event-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.event-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-meta {
+  color: var(--text-secondary);
+}

@@ -1,0 +1,56 @@
+@use '../../../../shared/styles/dashboard';
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.panel {
+  height: 100%;
+}
+
+.panel-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+
+  .panel-empty {
+    padding: 0;
+  }
+}
+
+.recent-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recent-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.recent-donor,
+.recent-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-meta {
+  color: var(--text-secondary);
+}
+
+.recent-receipt {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.recent-pending {
+  color: var(--text-primary);
+  font-weight: 600;
+}
