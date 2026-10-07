@@ -1,15 +1,5 @@
-import { DONATION_TYPE_LABELS, type Donation, type DonationType } from '../data/models/donation';
+import type { Donation, DonationType } from '../data/models/donation';
 import { formatCedis, formatCedisShort, totalMinor } from './donation.util';
-
-export interface TypeSlice {
-  type: DonationType;
-  label: string;
-  valueLabel: string;
-  percent: number;
-  /** Cumulative offsets, for a conic-gradient wedge. */
-  from: number;
-  to: number;
-}
 
 export interface DonationStat {
   key: string;
@@ -19,29 +9,6 @@ export interface DonationStat {
 
 /** The fixed order donation types are listed and coloured in, everywhere. */
 export const DONATION_TYPES: readonly DonationType[] = ['cash', 'mobile_money', 'in_kind'];
-
-/**
- * Each donation type's share of the total, in a fixed order. Callers pass the rows that count
- * (their own exclusion rule) — this only aggregates them.
- */
-export function donationTypeSlices(rows: readonly Donation[]): TypeSlice[] {
-  const total = totalMinor(rows);
-  let cursor = 0;
-  return DONATION_TYPES.map((type) => {
-    const typeTotal = totalMinor(rows.filter((d) => d.donationType === type));
-    const percent = total > 0 ? Math.round((typeTotal / total) * 100) : 0;
-    const from = cursor;
-    cursor += percent;
-    return {
-      type,
-      label: DONATION_TYPE_LABELS[type],
-      valueLabel: formatCedis(typeTotal),
-      percent,
-      from,
-      to: cursor,
-    };
-  });
-}
 
 /** Total raised, donors, average and largest gift — the headline figures of a report. */
 export function donationStats(rows: readonly Donation[], periodLabel: string): DonationStat[] {

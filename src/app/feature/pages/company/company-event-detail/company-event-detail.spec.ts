@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { ServiceError } from '../../../../core/services/service-error';
 import type { MembershipRole } from '../../../../data/models/membership';
+import { createFakeCharts, type FakeCharts } from '../../../../../testing/fake-chart';
 import { CompanyEventDetail } from './company-event-detail';
 import {
   buttonNamed,
@@ -13,9 +14,11 @@ import {
 
 describe('CompanyEventDetail', () => {
   let backend: CompanyDonationsBackend;
+  let charts: FakeCharts;
 
   beforeEach(() => {
     backend = createCompanyDonationsBackend();
+    charts = createFakeCharts();
   });
 
   async function render(role: MembershipRole, eventId = 'e1') {
@@ -23,6 +26,7 @@ describe('CompanyEventDetail', () => {
       imports: [CompanyEventDetail],
       providers: [
         provideRouter([]),
+        charts.provider,
         ...provideCompanyDonationsBackend(backend, role),
         {
           provide: ActivatedRoute,
@@ -48,13 +52,16 @@ describe('CompanyEventDetail', () => {
     expect(el.querySelector('.page-head-total')?.textContent).toContain('2 donors');
   });
 
-  it('breaks the total down by donation type', async () => {
+  it('breaks the total down by donation type, labelled beside the doughnut', async () => {
     const { el } = await render('organizer');
 
-    const types = Array.from(el.querySelectorAll('.type-row')).map((r) => r.textContent ?? '');
+    const types = Array.from(el.querySelectorAll('app-chart-legend li')).map(
+      (item) => item.textContent ?? '',
+    );
     expect(types[0]).toContain('Cash');
     expect(types[0]).toContain('71%');
     expect(types[1]).toContain('Mobile Money');
+    expect(charts.created[0].createdWith.type).toBe('doughnut');
   });
 
   it("lists each live donation with the donor's phone and the recorder's name, revoked or not", async () => {
