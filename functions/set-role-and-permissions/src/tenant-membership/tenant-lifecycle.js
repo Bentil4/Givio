@@ -1,6 +1,7 @@
 import { hasValue } from '../shared.js';
 import { recomputeTenantReadGrants } from '../tenant-grants.js';
 import { isTenantIntakeComplete } from './validation.js';
+import { auditTenantDecision, decisionFor } from './tenant-decision-audit.js';
 
 // Story 6.2's own scope: Tenant creation itself (the initial 'pending' row at self-signup) is
 // Story 6.4's job, not this one — so 'pending' is a starting state this Function reads, never
@@ -15,16 +16,17 @@ const ALLOWED_TENANT_TRANSITIONS = {
 // Statuses whose write is followed by a sweep, so a same-status call means "retry the sweep".
 const SWEEP_RETRY_STATUSES = ['approved', 'suspended', 'rejected'];
 
-export async function handleSetTenantStatus({
-  DatabasesCtor,
-  adminClient,
-  payload,
-  databaseId,
-  tenantsCollectionId,
-  eventsCollectionId,
-  membershipsCollectionId,
-  error,
-}) {
+export async function handleSetTenantStatus(context) {
+  const {
+    DatabasesCtor,
+    adminClient,
+    payload,
+    databaseId,
+    tenantsCollectionId,
+    eventsCollectionId,
+    membershipsCollectionId,
+    error,
+  } = context;
   const { tenantId, status } = payload;
   const databases = new DatabasesCtor(adminClient);
 
@@ -73,6 +75,13 @@ export async function handleSetTenantStatus({
       error(`setTenantStatus: updateRow failed: ${err.message}`);
       return { status: 502, body: { error: 'Failed to change the tenant status' } };
     }
+    // Before the sweep, so a decision is on record even when the sweep below fails and is retried.
+    await auditTenantDecision({
+      ...context,
+      decision: decisionFor({ from, to: status }),
+      tenant: { ...tenant, status },
+      from,
+    });
   }
 
   // AD-2: approval grants every active organizer-tier member read on the tenant's Events and
@@ -107,17 +116,18 @@ export async function handleSetTenantStatus({
  * The first attestation stands: a repeat call returns the existing record rather than
  * re-attributing it to whoever clicked last.
  */
-export async function handleRecordTenantVerification({
-  DatabasesCtor,
-  StorageCtor,
-  adminClient,
-  payload,
-  caller,
-  databaseId,
-  tenantsCollectionId,
-  documentsBucketId,
-  error,
-}) {
+export async function handleRecordTenantVerification(context) {
+  const {
+    DatabasesCtor,
+    StorageCtor,
+    adminClient,
+    payload,
+    caller,
+    databaseId,
+    tenantsCollectionId,
+    documentsBucketId,
+    error,
+  } = context;
   const { tenantId } = payload;
   const databases = new DatabasesCtor(adminClient);
 
@@ -171,6 +181,7 @@ export async function handleRecordTenantVerification({
     error(`recordTenantVerification: updateRow failed: ${err.message}`);
     return { status: 502, body: { error: 'Failed to record the verification' } };
   }
+  await auditTenantDecision({ ...context, decision: 'verified', tenant, from: tenant.status });
 
   return { status: 200, body: { success: true, tenantId, verifiedBy: caller.$id, verifiedAt } };
 }

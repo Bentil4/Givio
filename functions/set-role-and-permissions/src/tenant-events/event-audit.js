@@ -54,7 +54,7 @@ function auditRowData({ entityType, entityId, action, performedBy, previousValue
     performedBy,
     previousValues: JSON.stringify(previousValues),
     newValues: JSON.stringify(newValues),
-    tenantId: newValues.tenantId,
+    ...(hasValue(newValues.tenantId) ? { tenantId: newValues.tenantId } : {}),
     timestamp: new Date().toISOString(),
   };
 }

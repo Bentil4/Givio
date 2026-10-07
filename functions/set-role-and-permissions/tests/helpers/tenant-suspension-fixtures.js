@@ -67,6 +67,12 @@ function fakeTablesDB({ store, track }) {
       if (args.permissions) row.$permissions = args.permissions;
       return structuredClone(row);
     }
+    async createRow(args) {
+      track('createRow', args);
+      const row = { $id: args.rowId, ...args.data, $permissions: args.permissions };
+      store[args.tableId][row.$id] = row;
+      return structuredClone(row);
+    }
   };
 }
 
