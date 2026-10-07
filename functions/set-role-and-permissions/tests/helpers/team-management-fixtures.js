@@ -105,6 +105,7 @@ export function seedStore() {
     // Story 7.2: screening fails closed without these, so every team add needs them.
     'identity-flags-1': {},
     'identity-reviews-1': {},
+    'audit-1': {},
   };
 }
 
@@ -145,7 +146,8 @@ function fakeContext({ body, as, store = seedStore(), accounts, failOn = {} }) {
       track('getRow', args);
       const row = store[args.tableId]?.[args.rowId];
       if (!row) throw new Error('Row not found');
-      return row;
+      // A copy, like Appwrite's: a later updateRow must not rewrite a row already read.
+      return structuredClone(row);
     }
     async listRows(args) {
       track('listRows', args);
@@ -236,6 +238,7 @@ export function withEnv(fn) {
     process.env.APPWRITE_MEMBERSHIPS_COLLECTION_ID = 'memberships-1';
     process.env.APPWRITE_IDENTITY_FLAGS_COLLECTION_ID = 'identity-flags-1';
     process.env.APPWRITE_IDENTITY_REVIEWS_COLLECTION_ID = 'identity-reviews-1';
+    process.env.APPWRITE_AUDIT_LOGS_COLLECTION_ID = 'audit-1';
     try {
       await fn();
     } finally {
@@ -246,6 +249,7 @@ export function withEnv(fn) {
       delete process.env.APPWRITE_MEMBERSHIPS_COLLECTION_ID;
       delete process.env.APPWRITE_IDENTITY_FLAGS_COLLECTION_ID;
       delete process.env.APPWRITE_IDENTITY_REVIEWS_COLLECTION_ID;
+      delete process.env.APPWRITE_AUDIT_LOGS_COLLECTION_ID;
     }
   };
 }

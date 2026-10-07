@@ -5,7 +5,7 @@ import { ServiceError } from '../../core/services/service-error';
 import { appDb } from '../dexie/app-db';
 
 export interface WriteAuditLogInput {
-  entityType: AuditEntityType;
+  entityType: Exclude<AuditEntityType, 'tenant'>;
   entityId: string;
   action: AuditAction;
   performedBy: string;

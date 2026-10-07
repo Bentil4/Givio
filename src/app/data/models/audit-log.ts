@@ -1,4 +1,5 @@
-export type AuditEntityType = 'event' | 'donation';
+/** 'tenant' rows are the Function's: a company profile change, never written by a client. */
+export type AuditEntityType = 'event' | 'donation' | 'tenant';
 /** Mirrors the audit_logs table's actual `action` enum exactly — 'restore', not 'recover'.
  *  'access' rows are Story 8.2's Admin read log, no longer written since AD-12's 2026-10-07
  *  amendment removed Admin access to company data; historic ones still display. */

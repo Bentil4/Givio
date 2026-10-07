@@ -21,6 +21,7 @@ export interface AuditEntry {
  *  admin-audit (platform-wide) and company-audit (one tenant, Story 7.5). */
 export function toAuditEntry(entry: AuditLogEntry): AuditEntry {
   if (entry.action === 'access') return toAccessEntry(entry);
+  if (entry.entityType === 'tenant') return toProfileEntry(entry);
   const before = asRecord(entry.previousValues);
   const after = asRecord(entry.newValues);
   const noun = entry.entityType === 'event' ? 'Event' : 'Donation';
@@ -45,6 +46,41 @@ export function toAuditEntry(entry: AuditLogEntry): AuditEntry {
     detail,
     actor: entry.performedBy,
   };
+}
+
+const PROFILE_FIELDS = [
+  ['name', 'Name'],
+  ['location', 'Location'],
+  ['contactPhone', 'Contact phone'],
+] as const;
+
+const LOGO_CHANGES: Record<string, string> = {
+  set: 'Logo added',
+  replaced: 'Logo replaced',
+  none: 'Logo removed',
+};
+
+/** A company profile change: the function stores only the fields that changed, and the logo
+ *  as a state ('set', 'replaced', 'none') rather than the image itself. */
+function toProfileEntry(entry: AuditLogEntry): AuditEntry {
+  const before = asRecord(entry.previousValues);
+  const after = asRecord(entry.newValues);
+  const changes = PROFILE_FIELDS.filter(([field]) => field in after).map(
+    ([field, label]) => `${label}: ${shown(before[field])} → ${shown(after[field])}`,
+  );
+  const logo = LOGO_CHANGES[String(after['logo'])];
+  return {
+    id: entry.id,
+    timestamp: entry.timestamp,
+    action: entry.action,
+    summary: 'Company profile edited',
+    detail: (logo ? [...changes, logo] : changes).join(' · ') || undefined,
+    actor: entry.performedBy,
+  };
+}
+
+function shown(value: unknown): string {
+  return typeof value === 'string' && value !== '' ? value : 'none';
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
