@@ -26,9 +26,9 @@ import { AuditTrailList } from '../../../components/audit-trail/audit-trail-list
  * this number, when, and why". Every mutation elsewhere in the app writes a row here with a
  * reason attached, which is why the edit and delete dialogs make the reason mandatory.
  *
- * Admin's own reads of tenant Events/Donations land here too (Story 8.2, 'access' rows), so the
- * viewer's own access is self-visible. Loading this page reads audit_logs only, which is never
- * itself access-logged — otherwise every visit would add to the trail it displays.
+ * Only platform entries reach this page (AD-12, amended 2026-10-07): a company's entries
+ * carry no Admin read and belong to its Super Organizer's activity log. Historic 'access' rows
+ * (Story 8.2's Admin read log, no longer written) still display, under All actions.
  */
 @Component({
   selector: 'app-admin-audit',
@@ -79,7 +79,6 @@ export class AdminAudit implements OnInit {
     'edit',
     'delete',
     'restore',
-    'access',
     'assign',
     'security',
   ];

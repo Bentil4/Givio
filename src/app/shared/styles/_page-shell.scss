@@ -1,5 +1,6 @@
-// Uses only the tokens in src/styles.scss and its global .btn / .tag / .glass /
-// .filter-tag / .select-field / .t-* classes.
+// The shared page shell — head, filters, empty/skeleton states, dialogs and form fields — for
+// every list-and-dialog page. Uses only the tokens in src/styles.scss and its global .btn /
+// .tag / .glass / .filter-tag / .select-field / .t-* classes.
 .page {
   font-family: var(--font-body);
   display: flex;
@@ -165,7 +166,7 @@
     --data-1
   ); /* flat fill, not a gradient — an opacity pulse instead of a
     gradient sweep still reads as "loading" */
-  animation: admin-donations-skel-pulse 1.4s var(--ease) infinite;
+  animation: page-shell-skel-pulse 1.4s var(--ease) infinite;
 }
 
 .skel--sm {
@@ -180,7 +181,7 @@
   flex: 1;
 }
 
-@keyframes admin-donations-skel-pulse {
+@keyframes page-shell-skel-pulse {
   0%,
   100% {
     opacity: 1;
@@ -337,26 +338,6 @@
   padding: 11px var(--space-md);
   resize: vertical;
   line-height: 1.5;
-}
-
-.edit-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-
-  > .input,
-  > .select-field {
-    flex: 1;
-    min-width: 0;
-  }
-}
-
-// "was GH₵ 1,200.00" — the original stays visible so a correction is never blind.
-.was {
-  flex: none;
-  font-size: 0.75rem;
-  color: var(--data-4);
-  white-space: nowrap;
 }
 
 .delete-note {

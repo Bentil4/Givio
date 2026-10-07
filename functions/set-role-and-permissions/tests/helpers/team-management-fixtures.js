@@ -95,7 +95,12 @@ export function seedStore() {
       },
     },
     'events-1': {
-      'event-a1': { $id: 'event-a1', tenantId: 'tenant-a', assignedUserIds: ['org-a', 'op-a'] },
+      'event-a1': {
+        $id: 'event-a1',
+        tenantId: 'tenant-a',
+        assignedUserIds: ['org-a', 'op-a'],
+        $permissions: ['read("user:op-a")'],
+      },
     },
     // Story 7.2: screening fails closed without these, so every team add needs them.
     'identity-flags-1': {},

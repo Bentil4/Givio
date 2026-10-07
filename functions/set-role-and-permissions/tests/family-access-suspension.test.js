@@ -51,10 +51,12 @@ function inMemoryStore(tables) {
   return { TablesDBCtor, tables, reads };
 }
 
-function invoke(handler, store, { body, headers, randomBytes }) {
+const ADMIN = { $id: 'admin-1', labels: ['admin'] };
+
+function invoke(handler, store, { body, headers, randomBytes, account = ADMIN }) {
   class AccountCtor {
     async get() {
-      return { $id: 'admin-1', labels: ['admin'] };
+      return account;
     }
   }
   return handler({
@@ -207,13 +209,22 @@ test(
 
 test(
   'resolveAccessCode: after generateAccessCode regenerates, the old code is rejected with the exact body family-live keys off, and the new code resolves',
-  withEnv(async () => {
+  withSuspensionEnv(async () => {
     const store = suspensionFixture();
+    const organizer = { $id: 'org-1', labels: [] };
+    store.tables['memberships-1'].push({
+      $id: 'm2',
+      userId: organizer.$id,
+      tenantId: 't1',
+      role: 'organizer',
+      status: 'active',
+    });
     assert.equal((await resolve(store, 'ABCD2345')).status, 200);
 
     const generated = await invoke(handleFamilyAccessRequest, store, {
       body: { action: 'generateAccessCode', eventId: 'e1' },
       headers: ADMIN_HEADERS,
+      account: organizer,
       randomBytes: (n) => Buffer.from(Array.from({ length: n }, (_, i) => i + 10)),
     });
     assert.equal(generated.status, 200);

@@ -11,10 +11,11 @@ interface TenantAuditResponse {
 }
 
 /**
- * Story 7.5 (FR-15): a Super Organizer's own tenant's audit trail. audit_logs rows are
- * Admin-read-only, so the read goes through the Function, which resolves the tenant from the
- * caller's own Membership and filters server-side — no tenantId is sent from here, and nothing
- * in this service narrows the result: what comes back is all the caller may see.
+ * Story 7.5 (FR-15): a Super Organizer's own tenant's audit trail. A company's audit_logs rows
+ * carry no client read at all (AD-12, amended 2026-10-07), so the read goes through the
+ * Function, which resolves the tenant from the caller's own Membership and filters
+ * server-side — no tenantId is sent from here, and nothing in this service narrows the result:
+ * what comes back is all the caller may see.
  */
 @Injectable({ providedIn: 'root' })
 export class TenantAuditDataService {

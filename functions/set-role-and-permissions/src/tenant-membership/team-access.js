@@ -119,8 +119,8 @@ export async function syncTenantReadGrants({
 
 /**
  * Operators still sign in through the Label-gated /organizer tier (Story 6.2's known interim
- * gap) and event-assignment.js only assigns Accounts carrying the `operator` Label, so an
- * Operator added here needs it too, and loses it again on revoke.
+ * gap), so an Operator added here needs the `operator` Label too, and loses it again on
+ * revoke.
  */
 export async function setOperatorLabel({ UsersCtor, adminClient, userId, enabled }) {
   const users = new UsersCtor(adminClient);

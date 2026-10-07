@@ -63,8 +63,8 @@ test(
           }
           return {
             rows: [
-              { $id: 'event-1', assignedUserIds: ['u1'] },
-              { $id: 'event-2', assignedUserIds: ['u2'] },
+              { $id: 'event-1', assignedUserIds: ['u1'], $permissions: ['read("user:u1")'] },
+              { $id: 'event-2', assignedUserIds: ['u2'], $permissions: ['read("user:u2")'] },
             ],
           };
         },
@@ -126,7 +126,10 @@ test(
         // sweep must have failed (the previous test's scenario), leaving stale Event grants.
         getRow: async () => ({ $id: 't1', status: 'suspended' }),
         listRows: async ({ tableId }) => ({
-          rows: tableId === 'events-1' ? [{ $id: 'event-1', assignedUserIds: ['u1'] }] : [],
+          rows:
+            tableId === 'events-1'
+              ? [{ $id: 'event-1', assignedUserIds: ['u1'], $permissions: ['read("user:u1")'] }]
+              : [],
         }),
         updateRow: async () => ({}),
       },
@@ -147,9 +150,12 @@ test(
   withEnv(async () => {
     const page1 = Array.from({ length: 100 }, (_, i) => ({
       $id: `event-${i}`,
+      $permissions: ['read("user:u1")'],
       assignedUserIds: ['u1'],
     }));
-    const page2 = [{ $id: 'event-100', assignedUserIds: ['u1'] }];
+    const page2 = [
+      { $id: 'event-100', assignedUserIds: ['u1'], $permissions: ['read("user:u1")'] },
+    ];
     let callCount = 0;
 
     const { ctx, calls } = fakeContext({

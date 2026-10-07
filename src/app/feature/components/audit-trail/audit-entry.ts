@@ -51,8 +51,8 @@ function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 }
 
-/** Story 8.2 (AD-12): an Admin read — one row per Data-layer query, so the summary names the
- *  query's scope and size rather than a single record. */
+/** Story 8.2 (AD-12): a historic Admin read — one row per Data-layer query, so the summary
+ *  names the query's scope and size rather than a single record. */
 function toAccessEntry(entry: AuditLogEntry): AuditEntry {
   const details = asRecord(entry.newValues);
   const rowCount = typeof details['rowCount'] === 'number' ? details['rowCount'] : 0;

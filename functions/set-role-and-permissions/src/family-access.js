@@ -1,7 +1,6 @@
 import { randomBytes as nodeRandomBytes } from 'node:crypto';
 import { Client, Account, TablesDB, Query } from 'node-appwrite';
 import { buildClient, verifyCaller, VALID, invalid, hasValue, listAllRows } from './shared.js';
-import { isAdminCaller } from './tenant-membership/team-access.js';
 import { authorizeOrganizerEventAccess } from './tenant-events/organizer-scope.js';
 
 const ACTIONS = ['generateAccessCode', 'resolveAccessCode'];
@@ -44,10 +43,10 @@ function randomCode(randomBytes) {
 
 /**
  * Stored in plaintext on Event.accessCode, not hashed — a deliberate deviation from the
- * architecture doc's "one hashed... accessCode" wording. admin-event-detail.ts's existing
- * copyCode() already expects to re-read and re-share the code at any time (not just once at
- * generation), and Admin + the event's assigned Operators already hold read permission on
- * this exact row (computeEventPermissions, event-assignment.js) — hashing would only protect
+ * architecture doc's "one hashed... accessCode" wording. The event screens' copyCode()
+ * expects to re-read and re-share the code at any time (not just once at generation), and
+ * everyone who can read this exact row already holds its read permission
+ * (computeEventPermissions, tenant-grants.js) — hashing would only protect
  * against a party who can't already read the field anyway, at the cost of breaking that
  * already-built "copy code" UI entirely.
  */
@@ -228,9 +227,10 @@ export async function handleFamilyAccessRequest({
       return res.json(errorResponse.body, errorResponse.status);
     }
     caller = verifiedCaller;
-    // Story 6.7: Admin, or an unlabelled (Organizer-tier) Account for its own Tenant's Event —
-    // checked once the admin client exists, below.
-    if (!isAdminCaller(caller) && (caller.labels ?? []).length > 0) {
+    // Story 6.7: only an unlabelled (Organizer-tier) Account, for its own Tenant's Event —
+    // checked once the admin client exists, below. AD-12 (amended 2026-10-07): Admin is
+    // refused like every other labelled Account; it has no access to company Events.
+    if ((caller.labels ?? []).length > 0) {
       return res.json({ error: 'Forbidden' }, 403);
     }
   }
@@ -254,7 +254,7 @@ export async function handleFamilyAccessRequest({
 
   const adminClient = buildClient(ClientCtor, endpoint, projectId).setKey(dynamicKey);
 
-  if (caller && !isAdminCaller(caller)) {
+  if (caller) {
     const access = await authorizeOrganizerEventAccess({
       DatabasesCtor: TablesDBCtor,
       adminClient,

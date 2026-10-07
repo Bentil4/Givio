@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ADMIN_ONLY,
+  NO_READS,
   run,
   seedStore,
   setStatus,
@@ -39,7 +39,7 @@ test(
     assert.equal(result.body.status, 'suspended');
     assert.equal(result.body.membersSignedOut, TENANT_A_MEMBERS.length);
     assert.equal(store['tenants-1']['tenant-a'].status, 'suspended');
-    assert.deepEqual(store['events-1']['event-a1'].$permissions, ADMIN_ONLY);
+    assert.deepEqual(store['events-1']['event-a1'].$permissions, NO_READS);
     assert.deepEqual(signedOutUserIds(calls), TENANT_A_MEMBERS);
   }),
 );

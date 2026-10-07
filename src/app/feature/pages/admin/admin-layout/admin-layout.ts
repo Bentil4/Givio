@@ -3,7 +3,6 @@ import {
   Component,
   DestroyRef,
   computed,
-  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -22,7 +21,6 @@ import {
 import { AuthService } from '../../../../data/services/auth.service';
 import { ConnectivityService } from '../../../../core/services/connectivity.service';
 import { ThemeService } from '../../../../core/services/theme.service';
-import { SyncEngineService } from '../../../../data/services/sync-engine.service';
 import { ApprovalCountsService } from '../../../../data/services/approval-counts.service';
 import { MOBILE_NAV_QUERY } from '../../../../utils/breakpoints.util';
 
@@ -38,7 +36,6 @@ export class AdminLayout {
   private readonly router = inject(Router);
   private readonly breakpointObserver = inject(BreakpointObserver);
   private readonly connectivityService = inject(ConnectivityService);
-  private readonly syncEngine = inject(SyncEngineService);
   private readonly themeService = inject(ThemeService);
   private readonly approvalCounts = inject(ApprovalCountsService);
 
@@ -53,19 +50,11 @@ export class AdminLayout {
     ),
   );
 
-  public readonly online = this.connectivityService.online;
-  public readonly syncing = this.syncEngine.syncing;
-  public readonly pendingCount = this.syncEngine.pendingCount;
-  public readonly syncedCount = signal(0);
-  private previousPendingCount = 0;
-
-  /** Mirrors donation-entry's connection() so every shell reports connectivity the same way. */
-  public readonly connection = computed<ConnectionState>(() => {
-    if (!this.online()) return 'offline';
-    if (this.syncing()) return 'syncing';
-    if (this.syncedCount() > 0 && this.pendingCount() === 0) return 'synced';
-    return 'online';
-  });
+  /** An Admin device queues nothing offline (AD-12, amended 2026-10-07), so there is no sync
+   *  progress to report — only whether the connection is up. */
+  public readonly connection = computed<ConnectionState>(() =>
+    this.connectivityService.online() ? 'online' : 'offline',
+  );
 
   public readonly navItems = computed<INavbarItem[]>(() => [
     { name: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
@@ -76,9 +65,6 @@ export class AdminLayout {
       badge: this.approvalCounts.total(),
     },
     { name: 'Companies', icon: 'domain', route: '/dashboard/companies' },
-    { name: 'Events', icon: 'event', route: '/dashboard/events' },
-    { name: 'Donations', icon: 'volunteer_activism', route: '/dashboard/donations' },
-    { name: 'Reports', icon: 'bar_chart', route: '/dashboard/reports' },
     { name: 'Audit trail', icon: 'history', route: '/dashboard/audit' },
     { name: 'Users', icon: 'group', route: '/dashboard/users' },
     ...(this.authService.isSuperAdmin()
@@ -101,18 +87,6 @@ export class AdminLayout {
           this.closeMobileNav();
         }
       });
-
-    // Same transient "just synced" pattern as donation-entry.ts: once a drain finishes and
-    // the global outbox is empty, show a brief confirmation instead of silently going quiet.
-    effect(() => {
-      if (this.syncing()) return;
-      const count = this.pendingCount();
-      if (this.previousPendingCount > 0 && count === 0) {
-        this.syncedCount.set(this.previousPendingCount);
-        setTimeout(() => this.syncedCount.set(0), 5000);
-      }
-      this.previousPendingCount = count;
-    });
   }
 
   public toggleSidebar(): void {

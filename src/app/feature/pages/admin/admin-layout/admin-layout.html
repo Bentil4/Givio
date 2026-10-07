@@ -22,11 +22,7 @@
     (logout)="onLogout()"
   />
   <div class="main-content">
-    <app-connection-banner
-      [state]="connection()"
-      [pendingCount]="pendingCount()"
-      [syncedCount]="syncedCount()"
-    />
+    <app-connection-banner [state]="connection()" />
     <app-breadcrumb />
     <router-outlet />
   </div>

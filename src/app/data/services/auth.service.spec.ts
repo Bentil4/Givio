@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { AppwriteException } from 'appwrite';
 import { AuthService } from './auth.service';
 import { ACCOUNT } from '../../core/appwrite/client';
+import { appDb } from '../dexie/app-db';
+import type { Event } from '../models/event';
 
 describe('AuthService', () => {
   let store: AuthService;
@@ -28,6 +30,7 @@ describe('AuthService', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('starts with no current user and no role', () => {
@@ -148,6 +151,48 @@ describe('AuthService', () => {
       await store.refreshCurrentUser();
 
       expect(store.currentUser()?.name).toBe('Ama Mensah');
+    });
+  });
+
+  describe('cached company data on an Admin device (AD-12, amended 2026-10-07)', () => {
+    beforeEach(async () => {
+      await appDb.events.clear();
+      await appDb.events.put({ id: 'e1', tenantId: 'tenant-a' } as Event);
+      account.createEmailPasswordSession.mockResolvedValue({});
+    });
+
+    it('is cleared when an Admin signs in', async () => {
+      account.get.mockResolvedValueOnce({ $id: 'a1', labels: ['admin'] });
+
+      await store.login('admin@givio.test', 'correct-password');
+
+      expect(await appDb.events.count()).toBe(0);
+    });
+
+    it("is cleared when an Admin's session is restored", async () => {
+      account.get.mockResolvedValueOnce({ $id: 'a1', labels: ['admin'] });
+
+      await store.restoreSession();
+
+      expect(await appDb.events.count()).toBe(0);
+    });
+
+    it('is kept when an Operator signs in or restores a session', async () => {
+      account.get.mockResolvedValue({ $id: 'op-1', labels: ['operator'] });
+
+      await store.login('op@givio.test', 'correct-password');
+      await store.restoreSession();
+
+      expect(await appDb.events.count()).toBe(1);
+    });
+
+    it('a failed purge never fails the sign-in', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.spyOn(appDb, 'transaction').mockRejectedValueOnce(new Error('blocked'));
+      account.get.mockResolvedValueOnce({ $id: 'a1', labels: ['admin'] });
+
+      await expect(store.login('admin@givio.test', 'correct-password')).resolves.toBeUndefined();
+      expect(store.role()).toBe('admin');
     });
   });
 

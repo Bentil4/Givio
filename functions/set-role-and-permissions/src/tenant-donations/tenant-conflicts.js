@@ -14,8 +14,9 @@ import { donationSnapshot } from './donation-writes.js';
 const EVENT_IDS_PER_QUERY = 100;
 
 /**
- * The open sync conflicts on the caller's own Events. donation_conflicts rows stay Admin-read
- * only, so a Super Organizer reads them here, filtered by their Tenant's Event ids (FR-2).
+ * The open sync conflicts on the caller's own Events. donation_conflicts rows carry no client
+ * read permission, so a Super Organizer reads them here, filtered by their Tenant's Event ids
+ * (FR-2).
  */
 export async function listTenantConflicts(context) {
   const scope = await resolveSuperOrganizerTenant(context);
@@ -32,7 +33,7 @@ export async function listTenantConflicts(context) {
   }
 }
 
-/** Admin's resolution (conflict-resolution.js), on a conflict from the caller's own Event. */
+/** The shared resolution (conflict-resolution.js), on a conflict from the caller's own Event. */
 export async function resolveTenantConflict(context) {
   const access = await authorizeTenantConflictAccess(context);
   if (access.errorResponse) {

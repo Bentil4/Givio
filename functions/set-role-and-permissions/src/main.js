@@ -17,6 +17,7 @@ import { handleDuplicateEventsRequest, DUPLICATE_EVENT_ACTIONS } from './duplica
 import { handleTenantAuditRequest, TENANT_AUDIT_ACTIONS } from './tenant-audit.js';
 import { handleTenantDonationsRequest, TENANT_DONATION_ACTIONS } from './tenant-donations.js';
 import { handleApprovalCountsRequest, APPROVAL_COUNT_ACTIONS } from './approval-counts.js';
+import { handleAuditLogGrantsRequest, AUDIT_LOG_GRANT_ACTIONS } from './audit-log-grants.js';
 
 /**
  * One deployed Function, routed by `action` in the request body — all seven modules share the
@@ -72,6 +73,9 @@ export default async (context) => {
   }
   if (APPROVAL_COUNT_ACTIONS.includes(action)) {
     return handleApprovalCountsRequest(context);
+  }
+  if (AUDIT_LOG_GRANT_ACTIONS.includes(action)) {
+    return handleAuditLogGrantsRequest(context);
   }
   // Falls through to admin-users.js for everything else, including an unrecognized action —
   // that module's own validatePayload() is what turns an unknown action into a 400.

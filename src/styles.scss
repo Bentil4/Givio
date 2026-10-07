@@ -544,8 +544,8 @@ body {
   margin: 0 auto;
   /* Top padding lives here, not on .page-head, so every page gets consistent breathing room
      from the browser edge regardless of whether its first child happens to be a .page-head —
-     several screens (admin-event-detail, edit-event's loading/not-found states) had no
-     .page-head at all and their content touched the top of the viewport directly. Kept at the
+     screens whose loading/not-found states have no .page-head would otherwise touch the top
+     of the viewport directly. Kept at the
      same 2rem .page-head used to provide, so pages that already had a .page-head render
      pixel-identical to before. */
   padding: 2rem var(--space-lg) var(--space-2xl);
@@ -891,8 +891,8 @@ section {
 }
 
 /* ── Tables ──────────────────────────────────────────── */
-/* Story 5.1: promoted from admin-donations.scss (the only screen that had it) to global, since
-   admin-users/admin-trash/admin-events all reuse this exact table-wrap/table markup too —
+/* Story 5.1: promoted from the page shell (the only screen that had it) to global, since
+   every list page reuses this exact table-wrap/table markup too —
    Angular's per-component style encapsulation meant they got none of it, including the
    overflow-x: auto that's the actual fix for tables overflowing at narrow viewports. */
 .table-wrap {

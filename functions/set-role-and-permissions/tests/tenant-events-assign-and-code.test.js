@@ -80,19 +80,22 @@ test(
   }),
 );
 
-test(
-  "an Organizer cannot use Admin's setEventStatus action",
-  withEnv(async () => {
-    const context = fakeContext({
-      body: { action: 'setEventStatus', eventId: 'event-a1', status: 'paused' },
-      as: 'so-a',
-    });
-    const result = await handleEventAssignmentRequest(context.ctx);
+for (const as of ['admin-1', 'superadmin-1']) {
+  for (const eventId of ['event-a1', 'event-admin']) {
+    test(
+      `AD-12 amended: ${as} can neither assign Operators nor generate a code on ${eventId}`,
+      withEnv(async () => {
+        const assigned = await assign({ as, eventId, assignedUserIds: ['op-a'] });
+        const generated = await generateCode({ as, eventId });
 
-    assert.equal(result.status, 403);
-    assert.equal(context.calls.updateRow, undefined);
-  }),
-);
+        assert.equal(assigned.result.status, 403);
+        assert.equal(generated.result.status, 403);
+        assert.equal(assigned.calls.updateRow, undefined);
+        assert.equal(generated.calls.updateRow, undefined);
+      }),
+    );
+  }
+}
 
 test(
   'an Organizer generates a family code for their own Event',

@@ -19,8 +19,9 @@ const ACTION_HANDLERS = {
 const ACTIONS = Object.keys(ACTION_HANDLERS);
 
 /**
- * A company's Super Organizer takes over, for their own company's donations, what Admin does
- * platform-wide: correct, soft-delete and restore a donation, and resolve its sync conflicts.
+ * A company's Super Organizer is the only one who corrects their own company's donations:
+ * correct, soft-delete and restore a donation, and resolve its sync conflicts (platform Admins
+ * have no access to company donations — AD-12, amended 2026-10-07).
  * Online-only through this Function, like tenant-events.js: the Tenant comes from the caller's
  * active super_organizer Membership in an approved Tenant (never the client), and a donation or
  * conflict counts as theirs only when its Event's tenantId is that Tenant (FR-2). Everyone

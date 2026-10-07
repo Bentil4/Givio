@@ -2,14 +2,12 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { SyncEngineService } from './sync-engine.service';
 import { ConnectivityService } from '../../core/services/connectivity.service';
-import { EventDataService } from './event-data.service';
 import { DonationDataService } from './donation-data.service';
 import { appDb } from '../dexie/app-db';
 import type { OutboxEntry } from '../models/outbox-entry';
 
 describe('SyncEngineService', () => {
   let online: ReturnType<typeof signal<boolean>>;
-  let eventDataService: { retryOutboxEntry: ReturnType<typeof vi.fn> };
   let donationDataService: {
     retryOutboxEntry: ReturnType<typeof vi.fn>;
     dismissRejected: ReturnType<typeof vi.fn>;
@@ -18,7 +16,6 @@ describe('SyncEngineService', () => {
 
   beforeEach(async () => {
     online = signal(true);
-    eventDataService = { retryOutboxEntry: vi.fn().mockResolvedValue(true) };
     donationDataService = {
       retryOutboxEntry: vi.fn().mockResolvedValue('synced'),
       dismissRejected: vi.fn().mockResolvedValue(undefined),
@@ -27,7 +24,6 @@ describe('SyncEngineService', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: ConnectivityService, useValue: { online } },
-        { provide: EventDataService, useValue: eventDataService },
         { provide: DonationDataService, useValue: donationDataService },
       ],
     });
@@ -60,14 +56,14 @@ describe('SyncEngineService', () => {
     expect(service.pendingCount()).toBe(2);
   });
 
-  it('drainOutbox dispatches each entry to the matching data service by entityType', async () => {
-    await addOutboxEntry({ entityType: 'donation', entityId: 'd1' });
-    await addOutboxEntry({ entityType: 'event', entityId: 'e1' });
+  it('drainOutbox retries every queued donation in insertion order', async () => {
+    await addOutboxEntry({ entityId: 'd1' });
+    await addOutboxEntry({ entityId: 'd2' });
 
     await service.drainOutbox();
 
-    expect(donationDataService.retryOutboxEntry).toHaveBeenCalledTimes(1);
-    expect(eventDataService.retryOutboxEntry).toHaveBeenCalledTimes(1);
+    const retried = donationDataService.retryOutboxEntry.mock.calls.map(([e]) => e.entityId);
+    expect(retried).toEqual(['d1', 'd2']);
   });
 
   it('drainOutbox refreshes the pending count afterward and clears the syncing flag', async () => {

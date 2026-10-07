@@ -12,11 +12,12 @@ const FORBIDDEN = { status: 403, body: { error: 'Forbidden' } };
 const ROW_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,35}$/;
 
 /**
- * Story 7.5 (FR-15): a Super Organizer's read of their own tenant's audit trail. audit_logs rows
- * stay Admin-read-only, so this Function is the only way a tenant reads them: the Tenant comes
- * from the caller's own active super_organizer Membership in an approved Tenant (never the
- * client — a payload tenantId that differs is refused), and the API-key query is filtered by
- * that tenantId, so another tenant's entries are unreachable even by calling the API directly.
+ * Story 7.5 (FR-15): a Super Organizer's read of their own tenant's audit trail. A tenant's
+ * audit_logs rows carry no read permission at all (AD-12, amended 2026-10-07), so this
+ * Function is the only way a tenant reads them: the Tenant comes from the caller's own active
+ * super_organizer Membership in an approved Tenant (never the client — a payload tenantId that
+ * differs is refused), and the API-key query is filtered by that tenantId, so another
+ * tenant's entries are unreachable even by calling the API directly.
  * One cursor-paginated page per call, newest first.
  *
  * ClientCtor/AccountCtor/DatabasesCtor are injectable so tests can substitute fakes.
@@ -114,7 +115,7 @@ function badRequest(error) {
  * FR-15 names the Super Organizer as the tenant's audit reader: a co-Organizer is refused like
  * any other non-owner, so the trail of what co-Organizers did stays with the account that
  * answers for the tenant. Labelled Accounts (Admin, Operators) never reach here — Admin reads
- * the platform-wide log directly.
+ * only the platform entries (no tenantId) directly.
  */
 async function resolveSuperOrganizerTenant(context) {
   const scope = await resolveOrganizerTenant(context);

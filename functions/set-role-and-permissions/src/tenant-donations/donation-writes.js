@@ -3,8 +3,8 @@ import { pickDonationPatch } from './donation-fields.js';
 import { authorizeTenantDonationAccess, donationsTableId } from './donation-scope.js';
 
 /**
- * A Super Organizer's correction to one of their company's donations, under the same rules as
- * Admin's: a soft-deleted record can't be edited, and the reason goes in the audit trail.
+ * A Super Organizer's correction to one of their company's donations: a soft-deleted record
+ * can't be edited, and the reason goes in the audit trail.
  * The row's permissions are left exactly as recordDonation derived them (AD-2) — updateRow is
  * never given a permissions list here.
  */
@@ -20,7 +20,7 @@ export async function editTenantDonation(context) {
   return saveDonationChange({ ...context, ...access, changes, action: 'edit' });
 }
 
-/** Hidden from every total and export, never erased — Admin's soft delete, with its reason. */
+/** Hidden from every total and export, never erased — a soft delete, with its reason. */
 export async function softDeleteTenantDonation(context) {
   const access = await authorizeTenantDonationAccess(context);
   if (access.errorResponse) {
@@ -37,7 +37,7 @@ export async function softDeleteTenantDonation(context) {
   return saveDonationChange({ ...context, ...access, changes, action: 'delete' });
 }
 
-/** Puts a soft-deleted donation back into every total, as Admin's recover does. */
+/** Puts a soft-deleted donation back into every total. */
 export async function restoreTenantDonation(context) {
   const access = await authorizeTenantDonationAccess(context);
   if (access.errorResponse) {
@@ -70,7 +70,7 @@ async function saveDonationChange(context) {
   return { status: 200, body: { success: true, donation: row } };
 }
 
-/** The same entry Admin's client writes (entityType 'donation'), plus the Event's tenantId. */
+/** The same entry shape the app's audit-log-writer.ts writes, plus the Event's tenantId. */
 async function auditDonationChange(context) {
   const { DatabasesCtor, adminClient, caller, tenantId, action, before, after, error } = context;
   const reason = action === 'edit' ? { reason: context.payload.reason.trim() } : {};

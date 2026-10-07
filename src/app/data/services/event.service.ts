@@ -12,37 +12,4 @@ export class EventService {
   async loadEvents(): Promise<void> {
     this._events.set(await this.eventDataService.listEvents());
   }
-
-  async createEvent(input: Parameters<EventDataService['createEvent']>[0]): Promise<Event> {
-    const event = await this.eventDataService.createEvent(input);
-    this._events.update((events) => [...events, event]);
-    return event;
-  }
-
-  async updateEvent(
-    id: string,
-    patch: Parameters<EventDataService['updateEvent']>[1],
-  ): Promise<Event> {
-    const event = await this.eventDataService.updateEvent(id, patch);
-    this._events.update((events) => events.map((e) => (e.id === id ? event : e)));
-    return event;
-  }
-
-  async assignOperators(eventId: string, assignedUserIds: string[]): Promise<Event> {
-    const event = await this.eventDataService.assignOperators(eventId, assignedUserIds);
-    this._events.update((events) => events.map((e) => (e.id === eventId ? event : e)));
-    return event;
-  }
-
-  async regenerateAccessCode(eventId: string): Promise<Event> {
-    const event = await this.eventDataService.regenerateAccessCode(eventId);
-    this._events.update((events) => events.map((e) => (e.id === eventId ? event : e)));
-    return event;
-  }
-
-  async setEventStatus(eventId: string, status: Event['status']): Promise<Event> {
-    const event = await this.eventDataService.setEventStatus(eventId, status);
-    this._events.update((events) => events.map((e) => (e.id === eventId ? event : e)));
-    return event;
-  }
 }

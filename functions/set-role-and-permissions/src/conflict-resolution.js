@@ -1,8 +1,7 @@
-import { Client, Account, TablesDB, ID, Permission, Role } from 'node-appwrite';
+import { Client, Account, TablesDB, ID } from 'node-appwrite';
 import {
   buildClient,
   verifyCaller,
-  verifyAdminCaller,
   VALID,
   invalid,
   hasValue,
@@ -10,7 +9,7 @@ import {
 } from './shared.js';
 import { resolveEventReadPermissions } from './tenant-grants.js';
 
-const ACTIONS = ['recordConflict', 'resolveConflict'];
+const ACTIONS = ['recordConflict'];
 export const RESOLUTIONS = ['keep-local', 'keep-server', 'keep-both'];
 
 const PAYLOAD_VALIDATORS = {
@@ -25,13 +24,6 @@ const PAYLOAD_VALIDATORS = {
     }
     return VALID;
   },
-  resolveConflict: ({ conflictId, resolution }) => {
-    if (!hasValue(conflictId)) return invalid('Request must include conflictId');
-    if (!RESOLUTIONS.includes(resolution)) {
-      return invalid(`Request must include resolution as one of: ${RESOLUTIONS.join(', ')}`);
-    }
-    return VALID;
-  },
 };
 
 function validatePayload(action, payload) {
@@ -43,13 +35,11 @@ function validatePayload(action, payload) {
 }
 
 /**
- * Files a conflict record (Story 3.5, FR-OFF-005): whichever device (usually an Operator's,
- * mid-sync) detects that its `baseUpdatedAt` no longer matches the server row's current
- * `$updatedAt` calls this instead of applying its own update blindly. Needs the same elevated
- * trust as recordDonation (AD-9): the caller's own session can't grant
- * `Role.label('admin')`-only read/update permissions on a row it creates, only a role it
- * already holds itself — and an Operator holds neither `admin` nor a specific stake in who
- * else can read this conflict.
+ * Files a conflict record (Story 3.5, FR-OFF-005): whichever device detects that its
+ * `baseUpdatedAt` no longer matches the server row's current `$updatedAt` calls this instead
+ * of applying its own update blindly. The row carries no permissions at all (AD-12, amended
+ * 2026-10-07): a company's conflicts are read and resolved only through this Function, by its
+ * Super Organizer (tenant-donations/tenant-conflicts.js) — never by a platform Admin.
  */
 async function handleRecordConflict({
   TablesDBCtor,
@@ -74,7 +64,7 @@ async function handleRecordConflict({
         serverVersion: JSON.stringify(serverVersion),
         detectedAt: new Date().toISOString(),
       },
-      permissions: [Permission.read(Role.label('admin')), Permission.update(Role.label('admin'))],
+      permissions: [],
     });
     return { status: 200, body: { success: true, conflictId: row.$id } };
   } catch (err) {
@@ -83,26 +73,7 @@ async function handleRecordConflict({
   }
 }
 
-/**
- * Admin-only (verifyAdminCaller, unlike recordConflict): applies the chosen resolution and
- * marks the conflict row resolved. `keep-both` needs the same elevated permission-granting as
- * recordDonation to correctly re-derive the new row's operator read access from the event's
- * assignedUserIds — an Admin's own session could only ever grant its own label, not an
- * arbitrary operator's Role.user(uid).
- */
-async function handleResolveConflict(context) {
-  const loaded = await loadConflict({ ...context, conflictId: context.payload.conflictId });
-  if (loaded.errorResponse) {
-    return loaded.errorResponse;
-  }
-  return applyConflictResolution({
-    ...context,
-    conflict: loaded.conflict,
-    resolution: context.payload.resolution,
-  });
-}
-
-/** `{ conflict }` or `{ errorResponse }` (404). Shared with a Super Organizer's resolution. */
+/** `{ conflict }` or `{ errorResponse }` (404), for a Super Organizer's resolution. */
 export async function loadConflict({
   TablesDBCtor,
   adminClient,
@@ -125,8 +96,7 @@ export async function loadConflict({
 }
 
 /**
- * The resolution itself, whoever is allowed to choose it (Admin here, a Super Organizer in
- * tenant-donations): keep-server writes nothing to the donation, keep-local overwrites it with
+ * The resolution itself, chosen by the Event's Super Organizer (tenant-donations): keep-server writes nothing to the donation, keep-local overwrites it with
  * the device's version, keep-both saves the device's version as a second `-B` receipt.
  * Expects `{ TablesDBCtor, adminClient, conflict, resolution, databaseId, eventsTableId,
  * donationsTableId, conflictsTableId, error }`.
@@ -280,8 +250,6 @@ export async function handleConflictResolutionRequest({
   const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT;
   const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID;
   const databaseId = process.env.APPWRITE_DATABASE_ID;
-  const eventsTableId = process.env.APPWRITE_EVENTS_COLLECTION_ID;
-  const donationsTableId = process.env.APPWRITE_DONATIONS_COLLECTION_ID;
   const conflictsTableId = process.env.APPWRITE_DONATION_CONFLICTS_COLLECTION_ID;
 
   let body;
@@ -292,10 +260,9 @@ export async function handleConflictResolutionRequest({
   }
   const { action, ...payload } = body ?? {};
 
-  // recordConflict is callable by any authenticated caller (usually an Operator mid-sync);
-  // resolveConflict is Admin-only, same asymmetry as donation-recording.js/event-assignment.js.
-  const verify = action === 'resolveConflict' ? verifyAdminCaller : verifyCaller;
-  const { errorResponse, caller } = await verify({
+  // recordConflict is callable by any authenticated caller; resolving one is a Super
+  // Organizer's tenant-donations action.
+  const { errorResponse, caller } = await verifyCaller({
     req,
     ClientCtor,
     AccountCtor,
@@ -320,15 +287,9 @@ export async function handleConflictResolutionRequest({
     return res.json({ error: 'Server misconfiguration: missing execution API key' }, 500);
   }
 
-  if (
-    !hasValue(databaseId) ||
-    !hasValue(eventsTableId) ||
-    !hasValue(donationsTableId) ||
-    !hasValue(conflictsTableId)
-  ) {
+  if (!hasValue(databaseId) || !hasValue(conflictsTableId)) {
     error(
-      'Missing APPWRITE_DATABASE_ID/APPWRITE_EVENTS_COLLECTION_ID/APPWRITE_DONATIONS_COLLECTION_ID/' +
-        'APPWRITE_DONATION_CONFLICTS_COLLECTION_ID function variables.',
+      'Missing APPWRITE_DATABASE_ID/APPWRITE_DONATION_CONFLICTS_COLLECTION_ID function variables.',
     );
     return res.json({ error: 'Server misconfiguration: missing database/table ID' }, 500);
   }
@@ -346,32 +307,14 @@ export async function handleConflictResolutionRequest({
     return res.json(tenantRejection.body, tenantRejection.status);
   }
 
-  let result;
-  switch (action) {
-    case 'recordConflict':
-      result = await handleRecordConflict({
-        TablesDBCtor,
-        adminClient,
-        payload,
-        databaseId,
-        conflictsTableId,
-        error,
-      });
-      break;
-    case 'resolveConflict':
-      result = await handleResolveConflict({
-        TablesDBCtor,
-        adminClient,
-        payload,
-        caller,
-        databaseId,
-        eventsTableId,
-        donationsTableId,
-        conflictsTableId,
-        error,
-      });
-      break;
-  }
+  const result = await handleRecordConflict({
+    TablesDBCtor,
+    adminClient,
+    payload,
+    databaseId,
+    conflictsTableId,
+    error,
+  });
 
   if (result.status === 200) {
     log(`${action} succeeded (by ${caller.$id}): ${JSON.stringify(result.body)}`);

@@ -8,7 +8,7 @@ import { writeEventAuditLog } from './event-audit.js';
  * Story 6.7: assignOperators for an Organizer-tier caller, reached from event-assignment.js.
  * The Event must be their own Tenant's and every assigned uid an active Operator Membership of
  * that same Tenant — never another company's people, never a legacy Label-only Operator. The
- * write itself is the Admin path's AD-2 recompute; the change is audit-logged server-side.
+ * write itself is tenant-grants.js's AD-2 recompute; the change is audit-logged server-side.
  */
 export async function assignOperatorsAsOrganizer(context) {
   const access = await authorizeOrganizerEventAccess({

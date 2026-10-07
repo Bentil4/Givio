@@ -5,8 +5,7 @@ import { handleTenantGrantsRequest, MAX_ROW_PERMISSIONS } from '../src/tenant-gr
 import { handleEventAssignmentRequest } from '../src/event-assignment.js';
 import { handleDonationRecordingRequest } from '../src/donation-recording.js';
 import {
-  ADMIN,
-  ADMIN_ONLY,
+  PRE_AMENDMENT_ADMIN_GRANTS,
   withEnv,
   inMemoryStore,
   invoke,
@@ -16,22 +15,58 @@ import {
   tenantFixture,
   backfill,
 } from './helpers/tenant-read-grants-fixtures.js';
+import { computeEventPermissions } from '../src/shared.js';
+
+const OP_7_READ = 'read("user:op-7")';
+
+test('AD-12 amended: computeEventPermissions grants each uid read once, and nothing to the Admin Label', () => {
+  assert.deepEqual(computeEventPermissions(['op-7', 'org-1', 'op-7']), [
+    OP_7_READ,
+    'read("user:org-1")',
+  ]);
+  assert.deepEqual(computeEventPermissions([]), []);
+});
+
+/** A pre-6.2 Event with no tenantId and one Donation, both still carrying the Admin Label. */
+function withLegacyEvent(store) {
+  const legacyPermissions = [...PRE_AMENDMENT_ADMIN_GRANTS, OP_7_READ];
+  store.tables['events-1'].push({
+    $id: 'legacy',
+    type: 'wedding',
+    status: 'active',
+    assignedUserIds: ['op-7'],
+    $permissions: legacyPermissions,
+  });
+  store.tables['donations-1'].push(donation('d-legacy', 'legacy', legacyPermissions));
+  return store;
+}
+
+const legacyRows = (store) => [
+  store.tables['events-1'].find((e) => e.$id === 'legacy'),
+  ...store.tables['donations-1'].filter((d) => d.eventId === 'legacy'),
+];
 
 test(
-  'a legacy Event with no tenantId is left untouched and gets no organizer-tier grants',
+  'AD-12 amended: the all-tenants backfill strips the Admin Label from a legacy Event and its Donations',
   withEnv(async () => {
-    const store = tenantFixture();
-    const legacyPermissions = [...ADMIN_ONLY, 'read("user:op-7")'];
-    store.tables['events-1'].push({
-      $id: 'legacy',
-      type: 'wedding',
-      status: 'active',
-      assignedUserIds: ['op-7'],
-      $permissions: legacyPermissions,
-    });
-    store.tables['donations-1'].push(donation('d-legacy', 'legacy', legacyPermissions));
+    const store = withLegacyEvent(tenantFixture());
 
-    await backfill(store);
+    const result = await backfill(store);
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.legacyEvents.eventsUpdated, 1);
+    assert.equal(result.body.legacyEvents.donationsUpdated, 1);
+    for (const row of legacyRows(store)) {
+      assert.deepEqual(row.$permissions, [OP_7_READ], `${row.$id} keeps only its assigned read`);
+    }
+  }),
+);
+
+test(
+  'AD-12 amended: a legacy Event gets no organizer-tier grants, and a new Donation on it no Admin Label',
+  withEnv(async () => {
+    const store = withLegacyEvent(tenantFixture());
+
     const recorded = await invoke(
       handleDonationRecordingRequest,
       store,
@@ -44,22 +79,47 @@ test(
         amountMinor: 500,
         donationType: 'cash',
       },
-      ADMIN,
+      { $id: 'op-7', labels: ['operator'] },
     );
 
-    assert.deepEqual(store.tables['events-1'].at(-1).$permissions, legacyPermissions);
-    const legacyDonations = store.tables['donations-1'].filter((d) => d.eventId === 'legacy');
     assert.equal(recorded.status, 200);
-    for (const row of legacyDonations) {
-      assert.deepEqual(row.$permissions, legacyPermissions);
+    assert.deepEqual(store.tables['donations-1'].at(-1).$permissions, [OP_7_READ]);
+  }),
+);
+
+test(
+  'AD-12 amended: a single-tenant backfill leaves legacy Events alone and reports no legacy sweep',
+  withEnv(async () => {
+    const store = withLegacyEvent(tenantFixture());
+
+    const result = await backfill(store, { tenantId: 't1' });
+
+    assert.equal(result.body.legacyEvents, undefined);
+    assert.ok(legacyRows(store).every((row) => row.$permissions.includes('read("label:admin")')));
+  }),
+);
+
+test(
+  "AD-12 amended: the backfill strips the Admin Label from a tenant's pre-amendment rows",
+  withEnv(async () => {
+    const store = tenantFixture();
+    for (const row of [...store.tables['events-1'], ...store.tables['donations-1']]) {
+      row.$permissions = [...PRE_AMENDMENT_ADMIN_GRANTS, ...row.$permissions];
+    }
+
+    await backfill(store, { tenantId: 't1' });
+
+    for (const row of [...store.tables['events-1'], ...store.tables['donations-1']]) {
+      assert.ok(!row.$permissions.some((p) => p.includes('label:admin')), `${row.$id} stripped`);
+      assert.ok(canRead(row, 'org-1'));
     }
   }),
 );
 
 test(
-  'recompute is idempotent: a second backfill writes nothing',
+  'recompute is idempotent: a second backfill writes nothing, legacy Events included',
   withEnv(async () => {
-    const store = tenantFixture();
+    const store = withLegacyEvent(tenantFixture());
     await backfill(store);
     const writesAfterFirst = store.writes.length;
     assert.ok(writesAfterFirst > 0);
@@ -70,6 +130,8 @@ test(
     assert.equal(store.writes.length, writesAfterFirst);
     assert.equal(second.body.tenants[0].eventsUpdated, 0);
     assert.equal(second.body.tenants[0].donationsUpdated, 0);
+    assert.equal(second.body.legacyEvents.eventsUpdated, 0);
+    assert.equal(second.body.legacyEvents.donationsUpdated, 0);
   }),
 );
 
@@ -197,11 +259,12 @@ test(
     const store = tenantFixture();
     await backfill(store);
 
-    const result = await invoke(handleEventAssignmentRequest, store, {
-      action: 'assignOperators',
-      eventId: 'e1',
-      assignedUserIds: ['op-2'],
-    });
+    const result = await invoke(
+      handleEventAssignmentRequest,
+      store,
+      { action: 'assignOperators', eventId: 'e1', assignedUserIds: ['op-2'] },
+      { $id: 'org-1', labels: [] },
+    );
 
     assert.equal(result.status, 200);
     const [e1] = store.tables['events-1'];

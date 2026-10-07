@@ -5,7 +5,9 @@ import { fakeRequestContext, withEnv } from './helpers/duplicate-events-fixtures
 
 const COUNT = { action: 'countPendingApprovals' };
 
-const TOTALS = { 'tenants-1': 2, 'reviews-1': 3, 'flags-1': 1 };
+const COUNT_SUPPORT = { action: 'countOpenSupportRequests' };
+
+const TOTALS = { 'tenants-1': 2, 'reviews-1': 3, 'flags-1': 1, 'support-1': 4 };
 
 const IDENTITY_ENV = {
   APPWRITE_IDENTITY_FLAGS_COLLECTION_ID: 'identity-flags-1',
@@ -22,8 +24,10 @@ function countingDatabases(listCalls, failingTableId) {
   };
 }
 
-async function call({ as = 'admin-1', failingTableId } = {}) {
-  const { ctx, errors } = fakeRequestContext({ body: COUNT, as });
+const SUPPORT_ENV = { APPWRITE_SUPPORT_REQUESTS_COLLECTION_ID: 'support-1' };
+
+async function call({ as = 'admin-1', failingTableId, body = COUNT } = {}) {
+  const { ctx, errors } = fakeRequestContext({ body, as });
   const listCalls = [];
   ctx.DatabasesCtor = countingDatabases(listCalls, failingTableId);
   const result = await main(ctx);
@@ -98,5 +102,31 @@ test(
 
     assert.equal(result.status, 500);
     assert.equal(listCalls.length, 0);
+  }),
+);
+
+test(
+  'AD-12 amended: Admin gets the count of open support and dispute requests, filtered by status',
+  withEnv(async () => {
+    const { result, listCalls } = await call({ body: COUNT_SUPPORT });
+
+    assert.equal(result.status, 200);
+    assert.deepEqual(result.body, { success: true, counts: { supportRequests: 4 } });
+    assert.equal(listCalls.length, 1);
+    assert.deepEqual(parsedQueries(listCalls[0]).find((q) => q.method === 'equal').values, [
+      'open',
+    ]);
+  }, SUPPORT_ENV),
+);
+
+test(
+  'AD-12 amended: the support count is Admin-only and needs its table configured',
+  withEnv(async () => {
+    const refused = await call({ as: 'so-a', body: COUNT_SUPPORT });
+    const unconfigured = await call({ body: COUNT_SUPPORT });
+
+    assert.equal(refused.result.status, 403);
+    assert.equal(unconfigured.result.status, 500);
+    assert.equal(refused.listCalls.length + unconfigured.listCalls.length, 0);
   }),
 );

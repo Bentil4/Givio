@@ -2,14 +2,14 @@ import { VALID, invalid, hasValue } from '../shared.js';
 import { DONATION_TYPES } from '../donation-recording.js';
 import { RESOLUTIONS } from '../conflict-resolution.js';
 
-// The same limits Admin's correction form enforces (admin-donations.ts): a donor name of at
+// The same limits the app's correction form enforces: a donor name of at
 // least 2 characters, an amount of up to GH₵ 9,999,999.99 in pesewas, and a reason long enough
 // to be a sentence rather than "typo" — it is what makes a changed total defensible later.
 const DONOR_NAME_MIN = 2;
 const AMOUNT_MINOR_MAX = 999_999_999;
 const REASON_MIN = 10;
 
-// The only fields a correction may touch — the same four Admin's updateDonation accepts.
+// The only fields a correction may touch.
 // Receipt number, phone, recorder and timestamps are the record of what happened at the desk.
 const EDITABLE_FIELDS = ['donorName', 'amountMinor', 'donationType', 'onBehalfOf'];
 

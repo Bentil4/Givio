@@ -22,7 +22,7 @@ describe('AdminAudit', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it("shows an Admin's own access rows alongside other actors' changes (Story 8.2)", async () => {
+  it("still shows historic Admin access rows alongside other actors' changes (Story 8.2)", async () => {
     entries.set([
       {
         id: 'a1',
@@ -75,5 +75,14 @@ describe('AdminAudit', () => {
     expect(text).toContain('Viewed all events (1 event)');
     expect(text).toContain('Across 2 tenants');
     expect(text).toContain('Donation AK-001 created');
+  });
+
+  it('AD-12 amended: no longer offers an Access filter — Admin reads of company data are not logged any more', async () => {
+    entries.set([]);
+    const el = await render();
+
+    const filters = [...el.querySelectorAll('.filter-tag')].map((b) => b.textContent?.trim());
+    expect(filters).toContain('Edit');
+    expect(filters).not.toContain('Access');
   });
 });
