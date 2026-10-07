@@ -17,7 +17,8 @@ export interface DonationStat {
   sub: string;
 }
 
-const DONATION_TYPES: readonly DonationType[] = ['cash', 'mobile_money', 'in_kind'];
+/** The fixed order donation types are listed and coloured in, everywhere. */
+export const DONATION_TYPES: readonly DonationType[] = ['cash', 'mobile_money', 'in_kind'];
 
 /**
  * Each donation type's share of the total, in a fixed order. Callers pass the rows that count
