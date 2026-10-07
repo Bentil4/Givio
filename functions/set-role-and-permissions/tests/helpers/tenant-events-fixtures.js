@@ -80,9 +80,13 @@ export const ACCOUNTS = {
 };
 
 function matches(row, queries) {
-  return queries
-    .map((q) => JSON.parse(q))
-    .every((q) => q.method !== 'equal' || q.values.includes(row[q.attribute]));
+  return queries.map((q) => JSON.parse(q)).every((q) => matchesQuery(row, q));
+}
+
+function matchesQuery(row, query) {
+  if (query.method === 'equal') return query.values.includes(row[query.attribute]);
+  if (query.method === 'isNull') return (row[query.attribute] ?? null) === null;
+  return true;
 }
 
 function fakeDatabases(store, calls, failOn) {

@@ -1,0 +1,56 @@
+@if (rows().length === 0) {
+<article class="empty glass" aria-labelledby="deleted-empty-title">
+  <mat-icon class="empty-icon" aria-hidden="true">delete_outline</mat-icon>
+  <h3 id="deleted-empty-title" class="t-card-title">Nothing has been removed</h3>
+  <p class="t-caption">Every donation on your events is live and counting toward the totals.</p>
+</article>
+} @else {
+<p class="held-back t-tertiary">
+  {{ rows().length }} {{ rows().length === 1 ? 'record' : 'records' }} held back · {{ totalLabel()
+  }}
+</p>
+<div class="table-wrap glass">
+  <table class="table">
+    <caption class="visually-hidden">
+      Removed donations
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Receipt</th>
+        <th scope="col">Donor</th>
+        <th scope="col" class="is-num">Amount</th>
+        <th scope="col">Removed by</th>
+        <th scope="col">Reason</th>
+        <th scope="col" class="is-actions">Recovery</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of rows(); track row.donation.id) {
+      <tr>
+        <td class="is-mono is-muted">{{ row.donation.receiptNumber }}</td>
+        <td class="is-struck">{{ row.donation.donorName }}</td>
+        <td class="is-num is-mono is-muted">{{ row.amountLabel }}</td>
+        <td class="is-muted">
+          {{ row.deletedByName }} · {{ row.donation.deletedAt | date: 'MMM d, y, h:mm a' }}
+        </td>
+        <td>{{ row.donation.deletionReason || '—' }}</td>
+        <td class="is-actions">
+          <span class="days" [class.is-expiring]="row.expiring">{{ row.daysLabel }}</span>
+          @if (store.canManage() && row.restorable) {
+          <button
+            type="button"
+            class="btn btn-secondary btn-recover"
+            (click)="askRestore(row.donation)"
+          >
+            Restore<span class="visually-hidden"> {{ row.donation.receiptNumber }}</span>
+          </button>
+          }
+        </td>
+      </tr>
+      }
+    </tbody>
+  </table>
+</div>
+} @if (action(); as current) {
+<app-donation-action-dialogs [action]="current" (closed)="action.set(null)" />
+}

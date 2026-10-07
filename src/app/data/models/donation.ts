@@ -67,6 +67,23 @@ export interface ConflictPair {
 
 export type ConflictResolution = 'keep-local' | 'keep-server' | 'keep-both';
 
+/** An open sync conflict on one of a company's Events, as the Function lists it. */
+export interface TenantConflict extends ConflictPair {
+  readonly conflictId: string;
+  readonly eventId: string;
+}
+
+/**
+ * A correction to a recorded donation — the only four fields Admin or a Super Organizer may
+ * change. `onBehalfOf: null` clears it.
+ */
+export interface DonationCorrection {
+  donorName?: string;
+  amountMinor?: number | null;
+  donationType?: DonationType;
+  onBehalfOf?: string | null;
+}
+
 export const DONATION_TYPE_LABELS: Record<DonationType, string> = {
   cash: 'Cash',
   mobile_money: 'Mobile Money',

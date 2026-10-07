@@ -1,0 +1,67 @@
+<!-- Backdrop click is a pointer convenience only; (keydown.escape) is the keyboard equivalent. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="dismissed.emit()" (keydown.escape)="dismissed.emit()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <form
+    class="dialog dialog--sm glass glass-thick"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="remove-donation-title"
+    aria-describedby="remove-donation-body"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    (click)="$event.stopPropagation()"
+    novalidate
+  >
+    <header class="dialog-head">
+      <h2 id="remove-donation-title" class="t-page-title">
+        Remove {{ donation().receiptNumber }}?
+      </h2>
+      <p class="t-secondary">{{ donation().donorName }} · {{ amountLabel() }}</p>
+    </header>
+
+    <div class="dialog-body">
+      <div class="delete-note">
+        <mat-icon aria-hidden="true">info</mat-icon>
+        <p id="remove-donation-body" class="t-caption">
+          This hides the record from operators and families and leaves it out of every total and
+          export. You can restore it for 30 days. It is never erased.
+        </p>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="removeDonationReason">
+          Reason <span class="req" aria-hidden="true">*</span>
+        </label>
+        <textarea
+          #reason
+          id="removeDonationReason"
+          class="input textarea"
+          rows="2"
+          required
+          placeholder="e.g. Duplicate of FUN-0104."
+          formControlName="reason"
+          [class.is-invalid]="reasonMissing()"
+          [attr.aria-invalid]="reasonMissing()"
+          [attr.aria-describedby]="reasonMissing() ? 'removeDonationReason-error' : null"
+        ></textarea>
+        @if (reasonMissing()) {
+        <p id="removeDonationReason-error" class="field-error">
+          Say why in a sentence — this goes in the activity log.
+        </p>
+        }
+      </div>
+
+      @if (error(); as message) {
+      <p class="field-error" role="alert">{{ message }}</p>
+      }
+    </div>
+
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="dismissed.emit()">Keep it</button>
+      <button type="submit" class="btn btn-danger" [disabled]="busy()">Remove donation</button>
+    </footer>
+  </form>
+</div>

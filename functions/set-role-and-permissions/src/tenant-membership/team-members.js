@@ -8,6 +8,7 @@ import { PENDING_REVIEW_STATUS } from './validation.js';
 
 // A pending_review row is listed so the adder sees it, with no explanation of why (Story 7.2).
 const LISTED_MEMBERSHIP_STATUSES = ['active', PENDING_REVIEW_STATUS];
+const LISTED_WITH_REVOKED_STATUSES = [...LISTED_MEMBERSHIP_STATUSES, 'revoked'];
 
 /**
  * Story 6.3: the only Function action that provisions a *new* Account, and the sole place
@@ -217,12 +218,14 @@ export async function grantTeamMemberAccess({
 /**
  * Story 7.1: the caller's own team, with each member's name/email — Memberships and Accounts are
  * only readable server-side, so the team screen can't assemble this itself. Scoped to the
- * resolved Tenant only (FR-2).
+ * resolved Tenant only (FR-2). `includeRevoked` (Organizer tier only, validation.js) adds revoked
+ * members, so a donation's recorder still has a name after they leave (FR-13).
  */
 export async function handleListTeamMembers({
   DatabasesCtor,
   UsersCtor,
   adminClient,
+  payload,
   caller,
   team,
   databaseId,
@@ -238,7 +241,7 @@ export async function handleListTeamMembers({
       tableId: membershipsCollectionId,
       queries: [
         Query.equal('tenantId', [team.tenantId]),
-        Query.equal('status', LISTED_MEMBERSHIP_STATUSES),
+        Query.equal('status', listedStatuses(payload)),
       ],
     });
     const members = await Promise.all(
@@ -261,4 +264,8 @@ export async function handleListTeamMembers({
     error(`listTeamMembers: lookup failed for tenant ${team.tenantId}: ${err.message}`);
     return { status: 502, body: { error: 'Failed to load the team' } };
   }
+}
+
+function listedStatuses({ includeRevoked }) {
+  return includeRevoked === true ? LISTED_WITH_REVOKED_STATUSES : LISTED_MEMBERSHIP_STATUSES;
 }

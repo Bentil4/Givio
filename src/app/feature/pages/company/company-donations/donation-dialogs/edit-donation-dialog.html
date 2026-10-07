@@ -1,0 +1,110 @@
+<!-- Backdrop click is a pointer convenience only; (keydown.escape) is the keyboard equivalent. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="scrim" (click)="dismissed.emit()" (keydown.escape)="dismissed.emit()">
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <form
+    class="dialog glass glass-thick"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="edit-donation-title"
+    aria-describedby="edit-donation-body"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    (click)="$event.stopPropagation()"
+    novalidate
+  >
+    <header class="dialog-head">
+      <h2 id="edit-donation-title" class="t-page-title">
+        Correct donation {{ donation().receiptNumber }}
+      </h2>
+      <p id="edit-donation-body" class="t-secondary">
+        Recorded by {{ recorderName() }} on {{ donation().recordedAt | date: 'MMM d, y, h:mm a' }}.
+        The family's live total updates the moment you save.
+      </p>
+    </header>
+
+    <div class="dialog-body">
+      <div class="field">
+        <label class="field-label" for="editDonationAmount">Amount (GH₵)</label>
+        <input
+          id="editDonationAmount"
+          class="input input--amount"
+          type="text"
+          inputmode="decimal"
+          formControlName="amount"
+          [attr.aria-invalid]="showError('amount')"
+          [attr.aria-describedby]="showError('amount') ? 'editDonationAmount-error' : null"
+        />
+        @if (showError('amount')) {
+        <p id="editDonationAmount-error" class="field-error">Enter an amount like 150 or 150.50.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="editDonationDonor">
+          Donor name <span class="req" aria-hidden="true">*</span>
+        </label>
+        <input
+          id="editDonationDonor"
+          class="input"
+          type="text"
+          formControlName="donorName"
+          required
+          [attr.aria-invalid]="showError('donorName')"
+          [attr.aria-describedby]="showError('donorName') ? 'editDonationDonor-error' : null"
+        />
+        @if (showError('donorName')) {
+        <p id="editDonationDonor-error" class="field-error">Enter at least 2 characters.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="editDonationType">Donation type</label>
+        <select id="editDonationType" class="select-field" formControlName="donationType">
+          @for (t of types; track t) {
+          <option [value]="t">{{ labels[t] }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="editDonationBehalf">On behalf of</label>
+        <input id="editDonationBehalf" class="input" type="text" formControlName="onBehalfOf" />
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="editDonationReason">
+          Why are you changing this? <span class="req" aria-hidden="true">*</span>
+        </label>
+        <textarea
+          id="editDonationReason"
+          class="input textarea"
+          rows="2"
+          formControlName="reason"
+          required
+          [class.is-invalid]="showError('reason')"
+          [attr.aria-invalid]="showError('reason')"
+          aria-describedby="editDonationReason-note"
+        ></textarea>
+        <p
+          id="editDonationReason-note"
+          [class]="showError('reason') ? 'field-error' : 'field-note t-caption'"
+        >
+          @if (showError('reason')) { Say why in a sentence — this goes in the activity log. } @else
+          { Stored in your company's activity log with your name. It cannot be edited later. }
+        </p>
+      </div>
+
+      @if (error(); as message) {
+      <p class="field-error" role="alert">{{ message }}</p>
+      }
+    </div>
+
+    <footer class="dialog-foot">
+      <button type="button" class="btn btn-secondary" (click)="dismissed.emit()">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="busy()">Save correction</button>
+    </footer>
+  </form>
+</div>

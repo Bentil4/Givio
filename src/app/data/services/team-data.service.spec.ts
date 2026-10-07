@@ -30,6 +30,15 @@ describe('TeamDataService', () => {
     expect(sentBody()).toEqual({ action: 'listTeamMembers' });
   });
 
+  it('listTeamMembersIncludingRevoked asks for revoked members too', async () => {
+    respond(200, { members: [{ membershipId: 'm1', status: 'revoked' }] });
+
+    const members = await service.listTeamMembersIncludingRevoked();
+
+    expect(members).toEqual([{ membershipId: 'm1', status: 'revoked' }]);
+    expect(sentBody()).toEqual({ action: 'listTeamMembers', includeRevoked: true });
+  });
+
   it('addTeamMember sends only the name, email and role', async () => {
     respond(200, { userId: 'u1', membershipId: 'm1', generatedPassword: 'pw' });
 

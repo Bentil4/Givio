@@ -1,0 +1,59 @@
+<section class="page" aria-labelledby="event-detail-title" [attr.aria-busy]="store.loading()">
+  @if (store.loading()) {
+  <h1 id="event-detail-title" class="visually-hidden">Event detail</h1>
+  <app-skeleton-rows [rows]="4" label="Loading the event and its donations…" />
+  } @else if (store.loadError(); as err) {
+  <h1 id="event-detail-title" class="t-page-title">Event detail</h1>
+  <div class="code-note is-error" role="alert">
+    <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <p class="t-caption">{{ err }}</p>
+    <button type="button" class="btn-ghost" (click)="load()">Try again</button>
+  </div>
+  } @else if (notFound()) {
+  <article class="empty glass" aria-labelledby="event-detail-title">
+    <mat-icon class="empty-icon" aria-hidden="true">event_busy</mat-icon>
+    <h1 id="event-detail-title" class="t-card-title">We couldn't find this event</h1>
+    <p class="t-caption">It may belong to another company, or the link may be mistyped.</p>
+    <a class="btn btn-secondary" routerLink="/company/events">Back to events</a>
+  </article>
+  } @else if (event(); as e) {
+  <header class="page-head">
+    <div>
+      <h1 id="event-detail-title" class="t-page-title">{{ e.name }}</h1>
+      <p class="t-secondary event-facts">
+        <span class="tag" [class]="chipClass[e.status]">{{ statusLabel(e.status) }}</span>
+        {{ e.type | titlecase }} · {{ e.date | date: 'mediumDate' : 'UTC' }}@if (e.venue) { · {{
+        e.venue }} }
+      </p>
+    </div>
+    <div class="page-head-actions">
+      <div class="page-head-total">
+        <span class="sub-label">Raised</span>
+        <span class="page-total-value">{{ totalLabel() }}</span>
+        <span class="t-tertiary"
+          >{{ donorCount() }} {{ donorCount() === 1 ? 'donor' : 'donors' }}</span
+        >
+      </div>
+      <button
+        type="button"
+        class="btn btn-primary"
+        [disabled]="liveDonations().length === 0"
+        (click)="exportXlsx()"
+      >
+        <mat-icon aria-hidden="true">download</mat-icon>
+        Export to Excel
+      </button>
+    </div>
+  </header>
+
+  <app-event-breakdown
+    [donations]="liveDonations()"
+    [dateLabel]="(e.date | date: 'mediumDate' : 'UTC') ?? ''"
+  />
+
+  <section class="donations" aria-labelledby="event-donations-title">
+    <h2 id="event-donations-title" class="t-card-title">Donations</h2>
+    <app-donation-browser [donations]="liveDonations()" />
+  </section>
+  }
+</section>

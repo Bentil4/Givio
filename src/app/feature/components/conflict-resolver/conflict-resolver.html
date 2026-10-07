@@ -4,7 +4,7 @@
   <div class="resolver-explainer">
     <h2 class="t-card-title">One record changed in two places while a desk was offline</h2>
     <p class="t-caption">
-      The tablet saved this donation with no internet, and an Admin corrected the same receipt on the
+      The tablet saved this donation with no internet, and the same receipt was corrected on the
       server. Both versions are kept — nothing is overwritten until you choose. This donation is
       excluded from all totals and exports in the meantime.
     </p>
@@ -15,19 +15,26 @@
       <header class="version-header">
         <div>
           <h3 class="t-card-title">Version A — saved on the tablet</h3>
-          <p class="t-tertiary">{{ conflict().local.recordedAt | date:'MMM d, y, h:mm a' }} · offline</p>
+          <p class="t-tertiary">
+            {{ conflict().local.recordedAt | date:'MMM d, y, h:mm a' }} · offline
+          </p>
         </div>
         <span class="tag tag-default">Offline</span>
       </header>
       <dl class="version-rows">
         @for (row of rows(); track row.label) {
-          <div class="version-row" [class.is-diff]="row.differs">
-            <dt class="t-tertiary">{{ row.label }}</dt>
-            <dd class="t-body-em">{{ row.local }}</dd>
-          </div>
+        <div class="version-row" [class.is-diff]="row.differs">
+          <dt class="t-tertiary">{{ row.label }}</dt>
+          <dd class="t-body-em">{{ row.local }}</dd>
+        </div>
         }
       </dl>
-      <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="resolved.emit('keep-local')">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        [disabled]="busy()"
+        (click)="resolved.emit('keep-local')"
+      >
         Keep the tablet version
       </button>
     </article>
@@ -36,19 +43,26 @@
       <header class="version-header">
         <div>
           <h3 class="t-card-title">Version B — on the server</h3>
-          <p class="t-tertiary">{{ conflict().server.recordedAt | date:'MMM d, y, h:mm a' }} · edited by an Admin</p>
+          <p class="t-tertiary">
+            {{ conflict().server.recordedAt | date:'MMM d, y, h:mm a' }} · edited on the server
+          </p>
         </div>
         <span class="tag tag-info">Server</span>
       </header>
       <dl class="version-rows">
         @for (row of rows(); track row.label) {
-          <div class="version-row" [class.is-diff]="row.differs">
-            <dt class="t-tertiary">{{ row.label }}</dt>
-            <dd class="t-body-em">{{ row.server }}</dd>
-          </div>
+        <div class="version-row" [class.is-diff]="row.differs">
+          <dt class="t-tertiary">{{ row.label }}</dt>
+          <dd class="t-body-em">{{ row.server }}</dd>
+        </div>
         }
       </dl>
-      <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="resolved.emit('keep-server')">
+      <button
+        type="button"
+        class="btn btn-primary"
+        [disabled]="busy()"
+        (click)="resolved.emit('keep-server')"
+      >
         Keep the server version
       </button>
     </article>
@@ -62,7 +76,12 @@
         survives and the family can see both entries.
       </p>
     </div>
-    <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="resolved.emit('keep-both')">
+    <button
+      type="button"
+      class="btn btn-secondary"
+      [disabled]="busy()"
+      (click)="resolved.emit('keep-both')"
+    >
       Keep both records
     </button>
   </div>

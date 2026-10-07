@@ -21,6 +21,8 @@ export class DonationRow {
   public donation = input.required<Donation>();
   public showPhone = input(false);
   public showRecordedBy = input(false);
+  /** Who recorded it, by name — the raw user id is shown when the parent can't resolve one. */
+  public recorderName = input<string | null>(null);
   /** Marks the most recent arrival so a live list movement is legible. */
   public isNew = input(false);
 
@@ -31,7 +33,7 @@ export class DonationRow {
     const d = this.donation();
     const parts: string[] = [this.typeLabel()];
     if (d.onBehalfOf) parts.push(d.onBehalfOf);
-    if (this.showRecordedBy() && d.recordedBy) parts.push(d.recordedBy);
+    if (this.showRecordedBy() && d.recordedBy) parts.push(this.recorderName() ?? d.recordedBy);
     if (this.showPhone() && d.donorPhone) parts.push(d.donorPhone);
     return parts.join(' · ');
   });

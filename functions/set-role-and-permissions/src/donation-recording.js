@@ -10,7 +10,7 @@ import {
 import { resolveEventReadPermissions } from './tenant-grants.js';
 
 const ACTIONS = ['recordDonation'];
-const DONATION_TYPES = ['cash', 'mobile_money', 'in_kind'];
+export const DONATION_TYPES = ['cash', 'mobile_money', 'in_kind'];
 
 const PAYLOAD_VALIDATORS = {
   recordDonation: ({ donationId, eventId, receiptNumber, donorName, donationType }) => {

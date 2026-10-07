@@ -18,6 +18,7 @@ import {
 } from './audit-log-writer';
 import { environment } from '../../../environments/environment';
 import { definitiveRejectionReason } from './sync-rejection';
+import { rowToDonation } from '../appwrite/donation-row';
 
 interface RecordDonationResult {
   success: true;
@@ -29,29 +30,6 @@ type UpdateDonationPatch = Partial<
 >;
 
 type SyncOutcome = 'synced' | 'pending' | 'conflict' | 'failed';
-
-/** Mirrors the row shape recordDonation's Function writes (donation-recording.js). */
-function rowToDonation(row: Models.DefaultRow): Donation {
-  return {
-    id: row['$id'],
-    eventId: row['eventId'],
-    receiptNumber: row['receiptNumber'],
-    donorName: row['donorName'],
-    amountMinor: row['amountMinor'] ?? null,
-    donationType: row['donationType'],
-    onBehalfOf: row['onBehalfOf'] ?? undefined,
-    donorPhone: row['donorPhone'] ?? undefined,
-    notes: row['notes'] ?? undefined,
-    recordedBy: row['recordedBy'],
-    recordedAt: row['recordedAt'],
-    deskLabel: row['deskLabel'] ?? undefined,
-    updatedAt: row['updatedAt'] ?? undefined,
-    syncStatus: row['syncStatus'] ?? 'synced',
-    deletedAt: row['deletedAt'] ?? null,
-    deletedBy: row['deletedBy'] ?? undefined,
-    deletionReason: row['deletionReason'] ?? undefined,
-  };
-}
 
 @Injectable({ providedIn: 'root' })
 export class DonationDataService {

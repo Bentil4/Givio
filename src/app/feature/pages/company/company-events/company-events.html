@@ -62,7 +62,9 @@
         @for (e of sortedEvents(); track e.id) {
         <tr>
           <td>
-            <span class="t-body-em">{{ e.name }}</span>
+            <a class="t-body-em event-link" [routerLink]="['/company/events', e.id]"
+              >{{ e.name }}</a
+            >
             <br />
             <span class="t-caption">
               {{ e.type | titlecase }} · {{ e.date | date: 'mediumDate' : 'UTC' }}@if (e.venue) { ·

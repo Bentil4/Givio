@@ -62,6 +62,17 @@
   min-width: 0;
 }
 
+.event-link {
+  color: var(--primary-dark);
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--primary-deep);
+    text-decoration: underline;
+  }
+}
+
 .event-figures {
   display: flex;
   flex-direction: column;

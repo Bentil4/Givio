@@ -1,1 +1,12 @@
 @use '../company-team/company-team.scss';
+
+.event-link {
+  color: var(--primary-dark);
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--primary-deep);
+    text-decoration: underline;
+  }
+}

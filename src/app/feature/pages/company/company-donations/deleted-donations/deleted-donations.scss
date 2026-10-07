@@ -1,0 +1,24 @@
+@use '../../company-team/company-team.scss';
+
+.held-back {
+  margin: 0 0 var(--space-sm);
+}
+
+.days {
+  display: inline-block;
+  margin-right: var(--space-sm);
+  font-size: 0.75rem; /* 7-step type scale: 12px (caption) */
+  color: var(--data-4);
+  white-space: nowrap;
+
+  // Under a week left: after this the record only lives in the archive, so it earns colour.
+  &.is-expiring {
+    font-weight: 700;
+    color: var(--func-warning);
+  }
+}
+
+.btn-recover {
+  padding: 6px 13px;
+  font-size: 0.75rem;
+}

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 import { CompanyEvents } from './company-events';
 import { OrganizerEventDataService } from '../../../../data/services/organizer-event-data.service';
 import { TeamDataService } from '../../../../data/services/team-data.service';
@@ -34,6 +35,7 @@ describe('CompanyEvents', () => {
     TestBed.configureTestingModule({
       imports: [CompanyEvents],
       providers: [
+        provideRouter([]),
         { provide: OrganizerEventDataService, useValue: eventData },
         { provide: TeamDataService, useValue: { listTeamMembers: vi.fn().mockResolvedValue([]) } },
         {
@@ -75,6 +77,14 @@ describe('CompanyEvents', () => {
     expect(eventData['listTenantEvents']).toHaveBeenCalledWith('tenant-a');
     expect(el.querySelectorAll('tbody tr')).toHaveLength(2);
     expect(el.textContent).toContain('Mensah Wedding');
+  });
+
+  it("links each Event's name to its detail page", async () => {
+    const { el } = await render([makeEvent({ id: 'e7', name: 'Mensah Wedding' })]);
+
+    const link = el.querySelector<HTMLAnchorElement>('tbody a');
+    expect(link?.textContent?.trim()).toBe('Mensah Wedding');
+    expect(link?.getAttribute('href')).toBe('/company/events/e7');
   });
 
   it('shows the empty state with a create action', async () => {

@@ -1,0 +1,17 @@
+@use '../company-team/company-team.scss';
+
+.event-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.donations {
+  display: grid;
+  gap: var(--space-sm);
+
+  h2 {
+    margin: var(--space-md) 0 0;
+  }
+}

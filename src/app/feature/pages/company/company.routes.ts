@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { sessionExpiryGuard } from '../../../core/guards/role.guard';
 import { approvedCompanyMatch, pendingCompanyMatch } from '../../../core/guards/tenant.guard';
 import { superOrganizerMatch } from '../../../core/guards/super-organizer.guard';
+import type { BreadcrumbItem } from '../../../shared/components/breadcrumb/breadcrumb';
 
 /**
  * The approved Organizer tier's pages. New /company/* screens (team, audit, reports, support…)
@@ -20,6 +21,21 @@ export const COMPANY_CHILD_ROUTES: Routes = [
     path: 'events',
     loadComponent: () => import('./company-events/company-events').then((m) => m.CompanyEvents),
     title: 'Events',
+  },
+  {
+    path: 'events/:id',
+    loadComponent: () =>
+      import('./company-event-detail/company-event-detail').then((m) => m.CompanyEventDetail),
+    title: 'Event detail',
+    data: {
+      breadcrumb: [{ label: 'Events', path: '/company/events' }] satisfies BreadcrumbItem[],
+    },
+  },
+  {
+    path: 'donations',
+    loadComponent: () =>
+      import('./company-donations/company-donations').then((m) => m.CompanyDonations),
+    title: 'Donations',
   },
   {
     path: 'team',
