@@ -88,6 +88,7 @@
             <button type="button" class="btn-ghost" (click)="ask('reinstate', u)">
               Reinstate<span class="visually-hidden"> {{ u.name }}</span>
             </button>
+            <app-sign-out-everywhere [userId]="u.id" [name]="u.name" />
             }
             <button type="button" class="btn-ghost" (click)="ask('demote', u)">
               Demote<span class="visually-hidden"> {{ u.name }}</span>

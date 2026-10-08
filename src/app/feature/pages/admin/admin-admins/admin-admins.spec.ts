@@ -183,6 +183,15 @@ describe('AdminAdmins', () => {
     expect(component.creating()).toBe(true);
   });
 
+  it('offers Sign out everywhere only on the suspended row', () => {
+    const buttons = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('app-sign-out-everywhere button'),
+    );
+    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Sign out everywhere: Kofi Suspended',
+    ]);
+  });
+
   it('shows a load error when listing fails', async () => {
     userService.listUsers.mockRejectedValueOnce(new ServiceError('Forbidden'));
 
