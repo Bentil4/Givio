@@ -8,6 +8,7 @@ import {
   invalid,
   hasValue,
   hasText,
+  runActionHandler,
   normalizeEmail,
   normalizeName,
   isConflictError,
@@ -484,6 +485,14 @@ async function handleForceExpireSessions({ UsersCtor, adminClient, payload, erro
   return { status: 200, body: { success: true, userId } };
 }
 
+export const ACTION_HANDLERS = {
+  listUsers: handleListUsers,
+  createUser: handleCreateUser,
+  updateUser: handleUpdateUser,
+  setStatus: handleSetStatus,
+  forceExpireSessions: handleForceExpireSessions,
+};
+
 /**
  * The sole writer of user Labels and the only place that can list/create/update/disable
  * user accounts (AD-9) — Appwrite's Users service is server-only, so every one of these
@@ -565,24 +574,12 @@ export async function handleAdminUsersRequest({
     error,
   };
 
-  let result;
-  switch (action) {
-    case 'listUsers':
-      result = await handleListUsers(actionContext);
-      break;
-    case 'createUser':
-      result = await handleCreateUser(actionContext);
-      break;
-    case 'updateUser':
-      result = await handleUpdateUser(actionContext);
-      break;
-    case 'setStatus':
-      result = await handleSetStatus(actionContext);
-      break;
-    case 'forceExpireSessions':
-      result = await handleForceExpireSessions(actionContext);
-      break;
-  }
+  const result = await runActionHandler({
+    handlers: ACTION_HANDLERS,
+    action,
+    context: actionContext,
+    error,
+  });
 
   if (result.status === 200) {
     log(
@@ -591,3 +588,5 @@ export async function handleAdminUsersRequest({
   }
   return res.json(result.body, result.status);
 }
+
+export { ACTIONS as ADMIN_USER_ACTIONS };

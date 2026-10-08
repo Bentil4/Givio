@@ -6,6 +6,7 @@ import {
   invalid,
   hasValue,
   rejectUnapprovedTenantMember,
+  runActionHandler,
 } from './shared.js';
 import { resolveEventReadPermissions } from './tenant-grants.js';
 
@@ -188,6 +189,8 @@ async function handleRecordDonation({
   }
 }
 
+export const ACTION_HANDLERS = { recordDonation: handleRecordDonation };
+
 export async function handleDonationRecordingRequest({
   req,
   res,
@@ -257,21 +260,21 @@ export async function handleDonationRecordingRequest({
     return res.json(tenantRejection.body, tenantRejection.status);
   }
 
-  let result;
-  switch (action) {
-    case 'recordDonation':
-      result = await handleRecordDonation({
-        TablesDBCtor,
-        adminClient,
-        payload,
-        caller,
-        databaseId,
-        eventsTableId,
-        donationsTableId,
-        error,
-      });
-      break;
-  }
+  const result = await runActionHandler({
+    handlers: ACTION_HANDLERS,
+    action,
+    context: {
+      TablesDBCtor,
+      adminClient,
+      payload,
+      caller,
+      databaseId,
+      eventsTableId,
+      donationsTableId,
+      error,
+    },
+    error,
+  });
 
   if (result.status === 200) {
     log(

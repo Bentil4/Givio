@@ -1,5 +1,5 @@
 import { Client, Account, Users, TablesDB, Query } from 'node-appwrite';
-import { buildClient, verifyAdminCaller, hasValue } from './shared.js';
+import { buildClient, verifyAdminCaller, hasValue, runActionHandler } from './shared.js';
 
 const ACTIONS = ['listSupportRequests', 'setSupportRequestStatus'];
 
@@ -57,10 +57,12 @@ export async function handleSupportInboxRequest({
     users: new UsersCtor(adminClient),
     error,
   };
-  const result =
-    action === 'listSupportRequests'
-      ? await listSupportRequests(context)
-      : await setSupportRequestStatus(context);
+  const result = await runActionHandler({
+    handlers: ACTION_HANDLERS,
+    action,
+    context,
+    error,
+  });
   if (result.status === 200) {
     log(`${action} succeeded (by admin ${verified.caller.$id})`);
   }
@@ -220,5 +222,10 @@ async function setSupportRequestStatus({ payload, tablesDB, error }) {
       : { status: 502, body: { error: 'Failed to update the request' } };
   }
 }
+
+export const ACTION_HANDLERS = {
+  listSupportRequests,
+  setSupportRequestStatus,
+};
 
 export { ACTIONS as SUPPORT_INBOX_ACTIONS };

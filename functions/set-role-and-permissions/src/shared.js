@@ -56,6 +56,18 @@ export async function verifyCaller({ req, ClientCtor, AccountCtor, endpoint, pro
   return { caller };
 }
 
+/**
+ * Runs the handler registered for a validated action. An action that passed validation but has
+ * no handler is a wiring bug — answered 500 and logged, never a TypeError on an undefined result.
+ */
+export async function runActionHandler({ handlers, action, context, error }) {
+  if (!Object.hasOwn(handlers, action)) {
+    error(`Unrouted action: ${action}`);
+    return { status: 500, body: { error: 'Unrouted action' } };
+  }
+  return handlers[action](context);
+}
+
 export const VALID = { valid: true };
 
 export function invalid(error) {
