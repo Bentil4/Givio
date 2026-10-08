@@ -241,6 +241,8 @@ describe('DonationEntry', () => {
     const { component } = await setup({ event: makeEvent({ status: 'paused' }) });
     expect(component.canRecord()).toBe(false);
     expect(component.blocked()).toContain('paused');
+    expect(component.blocked()).toContain("Ask your company's organizer to resume it.");
+    expect(component.blocked()).not.toContain('Admin');
   });
 
   it('only counts/totals donations recorded by the current operator', async () => {

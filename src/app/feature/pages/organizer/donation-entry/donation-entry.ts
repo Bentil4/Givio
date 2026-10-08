@@ -142,7 +142,7 @@ export class DonationEntry {
   public readonly blocked = computed(() => {
     const status = this.event()?.status;
     if (status === 'paused') {
-      return 'Giving is paused for this event. An Admin must resume it before you can record.';
+      return "Giving is paused for this event. Ask your company's organizer to resume it.";
     }
     if (status === 'closed') {
       return 'This event is closed. Its records are read-only.';

@@ -71,6 +71,8 @@ describe('EventSelect', () => {
 
     expect(router.navigate).not.toHaveBeenCalled();
     expect(component.notice()).toContain('paused');
+    expect(component.notice()).toContain("Ask your company's organizer to resume it.");
+    expect(component.notice()).not.toContain('Admin');
   });
 
   it('reports "no events" heading when none are assigned', async () => {
