@@ -10,6 +10,7 @@ import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { AuthService } from '../../../../data/services/auth.service';
 import { UserService } from '../../../../data/services/user.service';
 import { SignOutEverywhere } from '../../../components/sign-out-everywhere/sign-out-everywhere';
@@ -68,7 +69,14 @@ function errorMessage(err: unknown): string {
  */
 @Component({
   selector: 'app-admin-admins',
-  imports: [MatIconModule, ReactiveFormsModule, DatePipe, CdkTrapFocus, SignOutEverywhere],
+  imports: [
+    MatIconModule,
+    MatMenuModule,
+    ReactiveFormsModule,
+    DatePipe,
+    CdkTrapFocus,
+    SignOutEverywhere,
+  ],
   templateUrl: './admin-admins.html',
   styleUrl: './admin-admins.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
