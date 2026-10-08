@@ -1,4 +1,12 @@
-import { VALID, invalid, hasValue, isValidEmail, isValidPhone, normalizePhone } from '../shared.js';
+import {
+  VALID,
+  invalid,
+  hasValue,
+  hasText,
+  isValidEmail,
+  isValidPhone,
+  normalizePhone,
+} from '../shared.js';
 
 export const ACTIONS = [
   'createMembership',
@@ -113,13 +121,13 @@ const PAYLOAD_VALIDATORS = {
     return VALID;
   },
   addTeamMember: ({ name, email, phone, tenantId, role }, { isAdmin }) => {
-    if (!hasValue(name) || !hasValue(email)) {
+    if (!hasText(name) || !hasText(email)) {
       return invalid('Request must include name and email');
     }
     if (isAdmin && !hasValue(tenantId)) {
       return invalid('Request must include tenantId');
     }
-    if (!isValidEmail(email)) {
+    if (!isValidEmail(email.trim())) {
       return invalid('email must be a valid email address');
     }
     if (!TEAM_MEMBER_ROLES.includes(role)) {
@@ -144,10 +152,10 @@ const PAYLOAD_VALIDATORS = {
     return VALID;
   },
   inviteOrganizer: ({ name, email, company }) => {
-    if (!hasValue(name) || !hasValue(email)) {
+    if (!hasText(name) || !hasText(email)) {
       return invalid('Request must include name and email');
     }
-    if (!isValidEmail(email)) {
+    if (!isValidEmail(email.trim())) {
       return invalid('email must be a valid email address');
     }
     return validateCompanyContact(company, { phoneRequired: false });

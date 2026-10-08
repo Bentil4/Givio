@@ -66,6 +66,21 @@ export function hasValue(field) {
   return typeof field === 'string' && field.length > 0;
 }
 
+export function hasText(field) {
+  return typeof field === 'string' && field.trim().length > 0;
+}
+
+/** Collapses stray whitespace so "  Ama   Owusu " and "Ama Owusu" are the same person. */
+export function normalizeName(name) {
+  return name.trim().replace(/\s+/g, ' ');
+}
+
+// Not lowercased: Appwrite lowercases an Account's email itself, and identity screening
+// already compares emails case-insensitively through normalizeIdentity.
+export function normalizeEmail(email) {
+  return email.trim();
+}
+
 /** Shared by every module that writes a row protected by a unique-column constraint. */
 export function isConflictError(err) {
   return err?.code === 409;

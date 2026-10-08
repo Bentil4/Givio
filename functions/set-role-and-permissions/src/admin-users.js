@@ -7,6 +7,9 @@ import {
   VALID,
   invalid,
   hasValue,
+  hasText,
+  normalizeEmail,
+  normalizeName,
   isConflictError,
   isValidPhone,
 } from './shared.js';
@@ -77,7 +80,7 @@ const PAYLOAD_VALIDATORS = {
   listUsers: () => VALID,
 
   createUser: ({ name, email, role, phone, inviteChannels }) => {
-    if (!hasValue(name) || !hasValue(email) || !VALID_ROLES.includes(role)) {
+    if (!hasText(name) || !hasText(email) || !VALID_ROLES.includes(role)) {
       return invalid('Request must include name, email, and role ("admin" | "operator")');
     }
     if (phone !== undefined && !isValidPhone(phone)) {
@@ -293,7 +296,9 @@ async function handleCreateUser({
   payload,
   error,
 }) {
-  const { name, email, role, password, phone, inviteChannels = [] } = payload ?? {};
+  const { role, password, phone, inviteChannels = [] } = payload ?? {};
+  const name = normalizeName(payload.name);
+  const email = normalizeEmail(payload.email);
   const users = new UsersCtor(adminClient);
   const explicitPassword = hasValue(password);
   const generatedPassword = explicitPassword ? password : randomBytes(12).toString('base64url');
