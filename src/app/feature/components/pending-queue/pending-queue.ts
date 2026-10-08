@@ -33,8 +33,6 @@ export class PendingQueue {
   public syncing = input(false);
 
   public closed = output<void>();
-  public edit = output<DonationDraft>();
-  public discard = output<DonationDraft>();
   public syncNow = output<void>();
   public dismiss = output<DonationDraft>();
 

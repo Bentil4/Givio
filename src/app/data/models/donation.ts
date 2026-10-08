@@ -50,7 +50,6 @@ export interface DonationDraft {
   donorPhone?: string;
   notes?: string;
   queuedAt?: string;
-  attempts?: number;
   /** Pending-queue only: the provisional receipt already issued for this queued record. */
   receiptNumber?: string;
   /** Pending-queue only: set when the server definitively rejected this record. */

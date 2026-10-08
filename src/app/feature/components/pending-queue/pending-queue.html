@@ -86,28 +86,21 @@
             <span class="queue-amount">{{ amountLabel(draft) }}</span>
           </div>
           <p class="t-tertiary queue-meta">
-            {{ labels[draft.donationType] }} · queued {{ queuedAgo(draft) }} @if (draft.attempts &&
-            draft.attempts > 0) { · attempt {{ draft.attempts }} of 3 }
+            {{ labels[draft.donationType] }} · queued {{ queuedAgo(draft) }}
           </p>
-          <div class="queue-actions">
-            <button type="button" class="btn-ghost" (click)="edit.emit(draft)">Edit</button>
-            <button type="button" class="btn-ghost is-danger" (click)="discard.emit(draft)">
-              Discard
-            </button>
-          </div>
         </div>
       </li>
       }
     </ul>
 
     <!-- Stating the retry contract is the whole point of this panel: an operator who knows
-           a failed record is kept and escalated does not re-enter it and create a duplicate. -->
+           a queued record is kept and retried does not re-enter it and create a duplicate. -->
     <section class="queue-explainer">
       <h3 class="t-card-title">How syncing works</h3>
       <p class="t-caption">
-        The moment this device reaches the internet, queued donations upload oldest-first. Each one
-        is retried up to 3 times with a growing delay. If a record still fails, it stays here and an
-        Admin is notified — it is never dropped.
+        Queued donations upload oldest-first the moment this device reaches the internet. Givio will
+        keep trying to sync automatically; a donation stays here until the server has it — it is
+        never dropped.
       </p>
     </section>
     }

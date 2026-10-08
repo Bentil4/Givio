@@ -42,7 +42,6 @@ function draftFromOutboxEntry(entry: OutboxEntry): DonationDraft {
     donorPhone: donation.donorPhone,
     notes: donation.notes,
     queuedAt: entry.createdAt,
-    attempts: entry.retries,
     receiptNumber: donation.receiptNumber,
     rejectionReason: entry.status === 'failed' ? entry.lastError : undefined,
   };
