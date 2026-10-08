@@ -1,109 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { handleDonationRecordingRequest } from '../src/donation-recording.js';
-
-class FakeClient {
-  setEndpoint() {
-    return this;
-  }
-  setProject() {
-    return this;
-  }
-  setJWT() {
-    return this;
-  }
-  setKey() {
-    return this;
-  }
-}
-
-function fakeContext({ body, headers = {}, getAccount, tablesDB = {} }) {
-  const jsonCalls = [];
-  const logs = [];
-  const errors = [];
-  const calls = {};
-
-  const record =
-    (name, target) =>
-    async (...args) => {
-      calls[name] = calls[name] ?? [];
-      calls[name].push(args);
-      const impl = target[name];
-      return impl ? impl(...args) : undefined;
-    };
-
-  class AccountCtor {
-    async get() {
-      return getAccount();
-    }
-  }
-
-  class TablesDBCtor {
-    getRow = record('getRow', tablesDB);
-    createRow = record('createRow', tablesDB);
-    incrementRowColumn = record('incrementRowColumn', tablesDB);
-  }
-
-  const res = {
-    json(responseBody, status = 200) {
-      const result = { body: responseBody, status };
-      jsonCalls.push(result);
-      return result;
-    },
-  };
-
-  const req = {
-    bodyRaw: JSON.stringify(body),
-    headers,
-  };
-
-  return {
-    ctx: {
-      req,
-      res,
-      log: (msg) => logs.push(msg),
-      error: (msg) => errors.push(msg),
-      ClientCtor: FakeClient,
-      AccountCtor,
-      TablesDBCtor,
-    },
-    jsonCalls,
-    logs,
-    errors,
-    calls,
-  };
-}
-
-const ADMIN_HEADERS = { 'x-appwrite-user-jwt': 'admin-jwt', 'x-appwrite-key': 'dynamic-key' };
-const OPERATOR_HEADERS = { 'x-appwrite-user-jwt': 'op-jwt', 'x-appwrite-key': 'dynamic-key' };
-const asAdmin = async () => ({ $id: 'admin-1', labels: ['admin'] });
-const asOperator = (id) => async () => ({ $id: id, labels: ['operator'] });
-
-const BASE_PAYLOAD = {
-  action: 'recordDonation',
-  donationId: 'd1',
-  eventId: 'e1',
-  receiptNumber: 'P-1',
-  donorName: 'Ama',
-  amountMinor: 5000,
-  donationType: 'cash',
-  recordedAt: '2026-01-01T00:00:00.000Z',
-};
-
-function withEnv(fn) {
-  return async () => {
-    process.env.APPWRITE_DATABASE_ID = 'db-1';
-    process.env.APPWRITE_EVENTS_COLLECTION_ID = 'events-1';
-    process.env.APPWRITE_DONATIONS_COLLECTION_ID = 'donations-1';
-    try {
-      await fn();
-    } finally {
-      delete process.env.APPWRITE_DATABASE_ID;
-      delete process.env.APPWRITE_EVENTS_COLLECTION_ID;
-      delete process.env.APPWRITE_DONATIONS_COLLECTION_ID;
-    }
-  };
-}
+import {
+  fakeContext,
+  ADMIN_HEADERS,
+  OPERATOR_HEADERS,
+  asAdmin,
+  asOperator,
+  BASE_PAYLOAD,
+  withEnv,
+} from './helpers/donation-recording-fixtures.js';
 
 test(
   'rejects an unauthenticated request with 401',

@@ -37,6 +37,7 @@ function fakeContext({ body, account, memberships = [], tenants = {}, listRowsIm
     );
     getRow = record('getRow', async ({ tableId, rowId }) => {
       if (tableId === 'tenants-1') return tenants[rowId];
+      if (tableId === 'donations-1') throw Object.assign(new Error('not found'), { code: 404 });
       return { $id: 'e1', type: 'wedding', status: 'active', assignedUserIds: [account.$id] };
     });
     incrementRowColumn = record('incrementRowColumn', async () => ({ nextReceiptSeq: 1 }));

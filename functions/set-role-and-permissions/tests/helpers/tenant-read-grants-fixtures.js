@@ -68,7 +68,7 @@ export function inMemoryStore(tables, { failUpdate = () => false } = {}) {
   class TablesDBCtor {
     async getRow({ tableId, rowId }) {
       const row = table(tableId).find((r) => r.$id === rowId);
-      if (!row) throw new Error('row_not_found');
+      if (!row) throw Object.assign(new Error('row_not_found'), { code: 404 });
       return structuredClone(row);
     }
     async listRows({ tableId, queries = [] }) {

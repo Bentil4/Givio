@@ -7,10 +7,14 @@ import {
   hasValue,
   rejectUnapprovedTenantMember,
   runActionHandler,
+  isConflictError,
 } from './shared.js';
 import { resolveEventReadPermissions } from './tenant-grants.js';
 
 const ACTIONS = ['recordDonation'];
+const LOOKUP_FAILED = { status: 502, body: { error: 'Failed to check for an existing donation' } };
+const ID_TAKEN = { status: 409, body: { error: 'This donation id is already in use' } };
+
 export const DONATION_TYPES = ['cash', 'mobile_money', 'in_kind'];
 
 const PAYLOAD_VALIDATORS = {
@@ -112,6 +116,17 @@ async function handleRecordDonation({
   if (!(event.assignedUserIds ?? []).includes(caller.$id)) {
     return { status: 403, body: { error: 'You are not assigned to this event' } };
   }
+  // Before the status check: a lost-response retry of an already-saved Donation must still
+  // succeed after the Event is paused, or the client's outbox would retry it forever.
+  const earlier = await findEarlierDonation({
+    tablesDB,
+    databaseId,
+    donationsTableId,
+    donation: { id: donationId, eventId, recordedBy: caller.$id },
+  });
+  if (earlier.outcome) {
+    return earlier.outcome;
+  }
   if (event.status !== 'active') {
     return {
       status: 400,
@@ -144,49 +159,108 @@ async function handleRecordDonation({
     return { status: 502, body: { error: 'Failed to resolve who can read this donation' } };
   }
 
-  let updatedEvent;
+  const receipt = await assignReceiptNumber({
+    tablesDB,
+    databaseId,
+    eventsTableId,
+    event: { ...event, $id: eventId },
+    error,
+  });
+  if (receipt.errorResponse) {
+    return receipt.errorResponse;
+  }
+  const donation = {
+    id: donationId,
+    eventId,
+    receiptNumber: receipt.receiptNumber,
+    donorName,
+    amountMinor: amountMinor ?? null,
+    donationType,
+    onBehalfOf,
+    donorPhone,
+    notes,
+    recordedBy: caller.$id,
+    recordedAt,
+    syncStatus: 'synced',
+  };
+  return createDonationRow({
+    tablesDB,
+    databaseId,
+    donationsTableId,
+    donation,
+    permissions,
+    error,
+  });
+}
+
+/**
+ * The sole assigner of the canonical number. A createRow that fails afterwards leaves a gap in
+ * the sequence: handing the number back (a decrement) could duplicate one a concurrent request
+ * has already taken, and a gap is harmless where a duplicate receipt number is not.
+ */
+async function assignReceiptNumber({ tablesDB, databaseId, eventsTableId, event, error }) {
   try {
-    updatedEvent = await tablesDB.incrementRowColumn({
+    const updatedEvent = await tablesDB.incrementRowColumn({
       databaseId,
       tableId: eventsTableId,
-      rowId: eventId,
+      rowId: event.$id,
       column: 'nextReceiptSeq',
       value: 1,
     });
+    const shortCode = eventShortCode({ id: event.$id, type: event.type });
+    return { receiptNumber: `${shortCode}-${updatedEvent.nextReceiptSeq}` };
   } catch (err) {
     error(
-      `recordDonation: failed to increment nextReceiptSeq for event ${eventId}: ${err.message}`,
+      `recordDonation: failed to increment nextReceiptSeq for event ${event.$id}: ${err.message}`,
     );
-    return { status: 502, body: { error: 'Failed to assign a receipt number' } };
+    return { errorResponse: { status: 502, body: { error: 'Failed to assign a receipt number' } } };
   }
-  const canonicalReceiptNumber = `${eventShortCode({ id: eventId, type: event.type })}-${updatedEvent.nextReceiptSeq}`;
+}
 
+async function createDonationRow({ tablesDB, databaseId, donationsTableId, ...rest }) {
+  const { donation, permissions, error } = rest;
   try {
     const row = await tablesDB.createRow({
       databaseId,
       tableId: donationsTableId,
-      rowId: donationId,
-      data: {
-        id: donationId,
-        eventId,
-        receiptNumber: canonicalReceiptNumber,
-        donorName,
-        amountMinor: amountMinor ?? null,
-        donationType,
-        onBehalfOf,
-        donorPhone,
-        notes,
-        recordedBy: caller.$id,
-        recordedAt,
-        syncStatus: 'synced',
-      },
+      rowId: donation.id,
+      data: donation,
       permissions,
     });
     return { status: 200, body: { success: true, donation: row } };
   } catch (err) {
+    if (isConflictError(err)) {
+      return resolveCreateConflict({ tablesDB, databaseId, donationsTableId, ...rest });
+    }
     error(`recordDonation: createRow failed: ${err.message}`);
     return { status: 502, body: { error: 'Failed to save donation' } };
   }
+}
+
+// A concurrent duplicate request won the create between our lookup and our write.
+async function resolveCreateConflict({ tablesDB, databaseId, donationsTableId, donation, error }) {
+  const earlier = await findEarlierDonation({ tablesDB, databaseId, donationsTableId, donation });
+  error(`recordDonation: donation ${donation.id} already exists`);
+  return earlier.outcome ?? { status: 502, body: { error: 'Failed to save donation' } };
+}
+
+/**
+ * Makes recordDonation idempotent on the client's donationId. A Donation that already exists for
+ * the same Event and recorder is the earlier attempt of this very request (its response was
+ * lost) and is returned as-is, with no new receipt number; any other holder of the id is a 409.
+ * `outcome` is absent when the id is free.
+ */
+async function findEarlierDonation({ tablesDB, databaseId, donationsTableId, donation }) {
+  let row;
+  try {
+    row = await tablesDB.getRow({ databaseId, tableId: donationsTableId, rowId: donation.id });
+  } catch (err) {
+    return err?.code === 404 ? {} : { outcome: LOOKUP_FAILED };
+  }
+  const isSameRequest = row.eventId === donation.eventId && row.recordedBy === donation.recordedBy;
+  return {
+    outcome: isSameRequest ? { status: 200, body: { success: true, donation: row } } : ID_TAKEN,
+  };
 }
 
 export const ACTION_HANDLERS = { recordDonation: handleRecordDonation };
