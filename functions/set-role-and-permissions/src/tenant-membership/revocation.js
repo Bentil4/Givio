@@ -1,5 +1,5 @@
 import { hasValue, isConflictError } from '../shared.js';
-import { recomputeTenantReadGrants } from '../tenant-grants.js';
+import { recomputeTenantReadGrants, truncationWarning } from '../tenant-grants.js';
 import { identityTables, normalizeIdentity } from './identity-check.js';
 import {
   ORGANIZER_TIER_ROLES,
@@ -103,13 +103,14 @@ const REVOCATION_STEPS = [
 
 async function finishRevocation(context) {
   const failedSteps = [];
+  const sweep = {};
   for (const step of REVOCATION_STEPS) {
-    if (!(await runRevocationStep(context, step))) {
+    if (!(await runRevocationStep({ ...context, sweep }, step))) {
       failedSteps.push(step[0]);
     }
   }
   return failedSteps.length === 0
-    ? revokedResponse(context)
+    ? revokedResponse({ ...context, sweep })
     : incompleteRevocationResponse(context, failedSteps);
 }
 
@@ -124,7 +125,7 @@ async function runRevocationStep(context, [name, step]) {
   }
 }
 
-function revokedResponse({ membership, payload }) {
+function revokedResponse({ membership, payload, sweep }) {
   return {
     status: 200,
     body: {
@@ -132,6 +133,7 @@ function revokedResponse({ membership, payload }) {
       membershipId: membership.$id,
       status: 'revoked',
       reason: payload.reason,
+      ...truncationWarning(sweep.grants),
     },
   };
 }
@@ -152,12 +154,17 @@ function incompleteRevocationResponse({ membership }, failedSteps) {
  * revoked uid wherever it was granted. assignedUserIds is left untouched — it stays the record of
  * who was assigned; only the permission grant is retracted.
  */
-async function sweepEventGrants({ DatabasesCtor, adminClient, membership, error }) {
+async function sweepEventGrants({ DatabasesCtor, adminClient, membership, error, sweep }) {
   const tenantId = membership.tenantId;
   const grants = await recomputeTenantReadGrants({ DatabasesCtor, adminClient, tenantId, error });
   if (!grants.ok) {
-    throw new Error('some Event or Donation grants could not be re-derived');
+    throw new Error(
+      grants.timedOut
+        ? 'ran out of time re-deriving Event or Donation grants'
+        : 'some Event or Donation grants could not be re-derived',
+    );
   }
+  sweep.grants = grants;
 }
 
 async function removeRoleAccess(context) {

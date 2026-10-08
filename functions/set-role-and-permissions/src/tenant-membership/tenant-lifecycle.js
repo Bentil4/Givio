@@ -1,5 +1,5 @@
 import { hasValue } from '../shared.js';
-import { recomputeTenantReadGrants } from '../tenant-grants.js';
+import { recomputeTenantReadGrants, truncationWarning } from '../tenant-grants.js';
 import { isTenantIntakeComplete } from './validation.js';
 import { auditTenantDecision, decisionFor } from './tenant-decision-audit.js';
 
@@ -107,7 +107,7 @@ export async function handleSetTenantStatus(context) {
     };
   }
 
-  return { status: 200, body: { success: true, tenantId, status } };
+  return { status: 200, body: { success: true, tenantId, status, ...truncationWarning(grants) } };
 }
 
 /**

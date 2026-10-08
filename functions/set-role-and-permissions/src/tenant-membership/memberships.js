@@ -1,6 +1,6 @@
 import { ID, Query, Permission, Role } from 'node-appwrite';
 import { isConflictError, listAllRows } from '../shared.js';
-import { recomputeTenantReadGrants } from '../tenant-grants.js';
+import { recomputeTenantReadGrants, truncationWarning } from '../tenant-grants.js';
 
 // Every action after which a newly active Membership may be owed AD-2 read grants.
 const MEMBERSHIP_ACTIVATING_ACTIONS = new Set(['createMembership', 'addTeamMember']);
@@ -154,7 +154,7 @@ export async function grantTenantReadAfterMembershipWrite({
     error,
   });
   if (grants.ok) {
-    return result;
+    return { ...result, body: { ...result.body, ...truncationWarning(grants) } };
   }
   return {
     status: 502,
