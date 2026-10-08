@@ -309,7 +309,7 @@ Admin sees a real-time per-event dashboard and can export full donation records 
 ### Epic 5: Install & Use Anywhere (PWA, Responsive, Multi-Device)
 The app installs to a phone's home screen, works fully offline once installed, and multiple Operators can use it simultaneously on different devices without stepping on each other.
 **FRs covered:** FR-DEV-001..003
-**Implementation notes:** Fixes the duplicated `provideServiceWorker` call; adds `ngsw-config.json` `dataGroups` (currently asset-only); PWA manifest/icons; responsive pass (360px–1920px, ≥44px touch targets) across all 26 screens; Lighthouse PWA audit ≥ 90; multi-device concurrent-session verification (NFR-SCALE-001).
+**Implementation notes:** Fixes the duplicated `provideServiceWorker` call; adds `ngsw-config.json` `dataGroups` (currently asset-only); PWA manifest/icons; responsive pass (360px–1920px, ≥44px touch targets) across all 26 screens; installability and offline verification on real devices, and Lighthouse Performance, Accessibility and Best Practices ≥ 90 (Lighthouse 12+ removed the PWA category); multi-device concurrent-session verification (NFR-SCALE-001).
 
 ### Epic 6: Tenant Onboarding & Structural Isolation (added 2026-09-23)
 An event company can sign up, get vetted by Admin, and start working — completely isolated from every other company on the platform, on their own scoped credentials.
@@ -830,9 +830,9 @@ So that I don't need to find a browser tab mid-event.
 **When** updated
 **Then** appropriate `dataGroups` are added, consistent with the offline-first design already built in Epic 3
 
-**Given** the installed PWA
-**When** audited with Chrome Lighthouse
-**Then** it scores ≥ 90 on the PWA audit
+**Given** the production build served over HTTPS
+**When** checked in Chrome DevTools (Application > Manifest and installability)
+**Then** there are no manifest or service-worker errors and the app is installable; and when installed on a real Android Chrome device and an iOS Safari device it launches standalone and works offline for cached shell routes; and Lighthouse Performance, Accessibility and Best Practices are each ≥ 90
 
 ### Story 5.3: Multi-Device Concurrent Operators
 
