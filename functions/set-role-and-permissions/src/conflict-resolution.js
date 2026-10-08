@@ -7,6 +7,7 @@ import {
   hasValue,
   rejectUnapprovedTenantMember,
 } from './shared.js';
+import { loggableSummary } from './log-summary.js';
 import { resolveEventReadPermissions } from './tenant-grants.js';
 
 const ACTIONS = ['recordConflict'];
@@ -317,7 +318,7 @@ export async function handleConflictResolutionRequest({
   });
 
   if (result.status === 200) {
-    log(`${action} succeeded (by ${caller.$id}): ${JSON.stringify(result.body)}`);
+    log(`${action} succeeded (by ${caller.$id}): ${JSON.stringify(loggableSummary(result.body))}`);
   }
   return res.json(result.body, result.status);
 }

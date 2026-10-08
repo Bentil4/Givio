@@ -10,6 +10,7 @@ import {
   isConflictError,
   isValidPhone,
 } from './shared.js';
+import { loggableSummary } from './log-summary.js';
 import { renderInviteEmail } from './invite-email-template.js';
 
 const ACTIONS = ['listUsers', 'createUser', 'updateUser', 'setStatus', 'forceExpireSessions'];
@@ -579,7 +580,9 @@ export async function handleAdminUsersRequest({
   }
 
   if (result.status === 200) {
-    log(`${action} succeeded (by admin ${caller.$id}): ${JSON.stringify(result.body)}`);
+    log(
+      `${action} succeeded (by admin ${caller.$id}): ${JSON.stringify(loggableSummary(result.body))}`,
+    );
   }
   return res.json(result.body, result.status);
 }

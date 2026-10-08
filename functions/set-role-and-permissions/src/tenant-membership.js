@@ -1,5 +1,6 @@
 import { Client, Account, Users, TablesDB, Storage, Messaging } from 'node-appwrite';
 import { buildClient, verifyAdminCaller, verifyCaller, hasValue } from './shared.js';
+import { loggableSummary } from './log-summary.js';
 import { validatePayload } from './tenant-membership/validation.js';
 import { isAdminCaller, resolveTeamScope } from './tenant-membership/team-access.js';
 import {
@@ -217,36 +218,7 @@ export async function handleTenantMembershipRequest({
   result = await grantTenantReadAfterMembershipWrite({ action, result, ...actionContext });
 
   if (result.status === 200) {
-    log(`${action} succeeded (by ${caller.$id}): ${JSON.stringify(loggableBody(result.body))}`);
+    log(`${action} succeeded (by ${caller.$id}): ${JSON.stringify(loggableSummary(result.body))}`);
   }
   return res.json(result.body, result.status);
-}
-
-function loggableBody(body) {
-  return Object.fromEntries(
-    Object.entries(body).map(([key, value]) => [key, loggableValue(key, value)]),
-  );
-}
-
-function loggableValue(key, value) {
-  // Code-review fix: addTeamMember's success body carries generatedPassword — logging it
-  // verbatim would write a new Account's plaintext password into the Function's execution
-  // logs. Redact any *Password-suffixed field generically, so a future action returning a
-  // similarly-named secret doesn't reopen the same leak.
-  if (key.toLowerCase().endsWith('password')) {
-    return '[redacted]';
-  }
-  // A tenant logo is an image data URL — large enough to swamp the execution log.
-  if (key === 'logo' && value !== null) {
-    return '[omitted]';
-  }
-  // Nested too: updateCompanyProfile returns the logo inside `tenant`.
-  if (isPlainObject(value)) {
-    return loggableBody(value);
-  }
-  return value;
-}
-
-function isPlainObject(value) {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
