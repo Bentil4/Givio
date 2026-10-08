@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Appwrite Function — the sole writer of user role Labels and derived permissions (AD-9).",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "main": "src/main.js",
   "scripts": {
     "test": "node --test tests/*.test.js"
