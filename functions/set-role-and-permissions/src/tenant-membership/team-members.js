@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { ID, Query } from 'node-appwrite';
 import { sendInviteEmail } from '../admin-users.js';
-import { isConflictError, listAllRows } from '../shared.js';
+import { isConflictError, listAllRows, normalizeEmail, normalizeName } from '../shared.js';
 import { createMembershipRow } from './memberships.js';
 import { canManageRole, setOperatorLabel, syncTenantReadGrants } from './team-access.js';
 import { recordScreeningReview, screenTeamAddition } from './identity-check.js';
@@ -31,7 +31,9 @@ export async function handleAddTeamMember(context) {
     membershipsCollectionId,
     error,
   } = context;
-  const { name, email, phone, role } = payload;
+  const { phone, role } = payload;
+  const name = normalizeName(payload.name);
+  const email = normalizeEmail(payload.email);
   const { tenantId, callerRole } = team;
   const databases = new DatabasesCtor(adminClient);
 

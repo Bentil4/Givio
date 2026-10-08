@@ -10,7 +10,16 @@ import {
   Role,
 } from 'node-appwrite';
 import { notifyAdminsOfDispute } from './dispute-notification.js';
-import { buildClient, verifyCaller, VALID, invalid, hasValue, isValidEmail } from './shared.js';
+import { alertAdminsOfDisputeCap } from './dispute-cap-alert.js';
+import {
+  buildClient,
+  verifyCaller,
+  VALID,
+  invalid,
+  hasValue,
+  isValidEmail,
+  runActionHandler,
+} from './shared.js';
 
 const ACTIONS = ['submitSupportRequest', 'submitDispute'];
 
@@ -200,6 +209,12 @@ async function handleSubmitDispute({
     });
     if (globalRecent >= DISPUTE_LIMIT_GLOBAL_PER_HOUR) {
       error('submitDispute: global hourly cap reached');
+      await alertAdminsOfDisputeCap({
+        ...notification,
+        at,
+        limit: DISPUTE_LIMIT_GLOBAL_PER_HOUR,
+        error,
+      });
       return {
         status: 429,
         body: { error: 'We are receiving a lot of requests right now. Try again in an hour.' },
@@ -332,15 +347,22 @@ export async function handleSupportRequestsRequest({
     notification: { adminClient, UsersCtor, MessagingCtor },
   };
 
-  const result =
-    action === 'submitDispute'
-      ? await handleSubmitDispute(actionContext)
-      : await handleSubmitSupportRequest(actionContext);
+  const result = await runActionHandler({
+    handlers: ACTION_HANDLERS,
+    action,
+    context: actionContext,
+    error,
+  });
 
   if (result.status === 200) {
     log(`${action} succeeded${caller ? ` (by ${caller.$id})` : ' (unauthenticated)'}`);
   }
   return res.json(result.body, result.status);
 }
+
+export const ACTION_HANDLERS = {
+  submitSupportRequest: handleSubmitSupportRequest,
+  submitDispute: handleSubmitDispute,
+};
 
 export { ACTIONS as SUPPORT_REQUEST_ACTIONS };

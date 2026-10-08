@@ -1,6 +1,7 @@
 import { Query } from 'node-appwrite';
 import { listAllRows } from '../shared.js';
 import { recomputeTenantReadGrants } from '../tenant-grants.js';
+import { alertAdminsOfFailedSweep } from './sweep-alert.js';
 import { identityTables, isIdentityCheckConfigured } from './identity-check.js';
 import { handleRevokeMembership } from './revocation.js';
 import { grantTeamMemberAccess } from './team-members.js';
@@ -176,6 +177,9 @@ async function grantClearedMemberAccess(context) {
   const grants = await recomputeTenantReadGrants({ ...context, tenantId: membership.tenantId });
   if (accessGranted && grants.ok) {
     return { status: 200 };
+  }
+  if (!grants.ok) {
+    await alertAdminsOfFailedSweep({ ...context, tenantId: membership.tenantId, grants });
   }
   error(`resolveIdentityReview: access grant incomplete for ${membership.$id}`);
   return {

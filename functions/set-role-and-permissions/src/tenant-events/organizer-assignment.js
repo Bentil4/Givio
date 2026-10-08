@@ -1,6 +1,6 @@
 import { Query } from 'node-appwrite';
 import { listAllRows } from '../shared.js';
-import { recomputeEventReadGrants } from '../tenant-grants.js';
+import { recomputeEventReadGrants, truncationWarning } from '../tenant-grants.js';
 import { authorizeOrganizerEventAccess } from './organizer-scope.js';
 import { writeEventAuditLog } from './event-audit.js';
 
@@ -77,5 +77,8 @@ async function saveAssignment({ DatabasesCtor, adminClient, payload, event, call
     error,
   });
   log(`assignOperators succeeded (by organizer ${caller.$id}): ${eventId}`);
-  return { status: 200, body: { success: true, eventId, assignedUserIds } };
+  return {
+    status: 200,
+    body: { success: true, eventId, assignedUserIds, ...truncationWarning(grants) },
+  };
 }

@@ -68,7 +68,7 @@ export function inMemoryStore(tables, { failUpdate = () => false } = {}) {
   class TablesDBCtor {
     async getRow({ tableId, rowId }) {
       const row = table(tableId).find((r) => r.$id === rowId);
-      if (!row) throw new Error('row_not_found');
+      if (!row) throw Object.assign(new Error('row_not_found'), { code: 404 });
       return structuredClone(row);
     }
     async listRows({ tableId, queries = [] }) {
@@ -103,7 +103,7 @@ export function inMemoryStore(tables, { failUpdate = () => false } = {}) {
   return { TablesDBCtor, tables, writes };
 }
 
-export function invoke(handler, store, body, caller = ADMIN, users = {}) {
+export function invoke(handler, store, body, caller = ADMIN, users = {}, ctxOverrides = {}) {
   class AccountCtor {
     async get() {
       return caller;
@@ -129,6 +129,7 @@ export function invoke(handler, store, body, caller = ADMIN, users = {}) {
     UsersCtor,
     DatabasesCtor: store.TablesDBCtor,
     TablesDBCtor: store.TablesDBCtor,
+    ...ctxOverrides,
   });
 }
 

@@ -7,9 +7,14 @@ import {
   VALID,
   invalid,
   hasValue,
+  hasText,
+  runActionHandler,
+  normalizeEmail,
+  normalizeName,
   isConflictError,
   isValidPhone,
 } from './shared.js';
+import { loggableSummary } from './log-summary.js';
 import { renderInviteEmail } from './invite-email-template.js';
 
 const ACTIONS = ['listUsers', 'createUser', 'updateUser', 'setStatus', 'forceExpireSessions'];
@@ -76,7 +81,7 @@ const PAYLOAD_VALIDATORS = {
   listUsers: () => VALID,
 
   createUser: ({ name, email, role, phone, inviteChannels }) => {
-    if (!hasValue(name) || !hasValue(email) || !VALID_ROLES.includes(role)) {
+    if (!hasText(name) || !hasText(email) || !VALID_ROLES.includes(role)) {
       return invalid('Request must include name, email, and role ("admin" | "operator")');
     }
     if (phone !== undefined && !isValidPhone(phone)) {
@@ -292,7 +297,9 @@ async function handleCreateUser({
   payload,
   error,
 }) {
-  const { name, email, role, password, phone, inviteChannels = [] } = payload ?? {};
+  const { role, password, phone, inviteChannels = [] } = payload ?? {};
+  const name = normalizeName(payload.name);
+  const email = normalizeEmail(payload.email);
   const users = new UsersCtor(adminClient);
   const explicitPassword = hasValue(password);
   const generatedPassword = explicitPassword ? password : randomBytes(12).toString('base64url');
@@ -478,6 +485,14 @@ async function handleForceExpireSessions({ UsersCtor, adminClient, payload, erro
   return { status: 200, body: { success: true, userId } };
 }
 
+export const ACTION_HANDLERS = {
+  listUsers: handleListUsers,
+  createUser: handleCreateUser,
+  updateUser: handleUpdateUser,
+  setStatus: handleSetStatus,
+  forceExpireSessions: handleForceExpireSessions,
+};
+
 /**
  * The sole writer of user Labels and the only place that can list/create/update/disable
  * user accounts (AD-9) — Appwrite's Users service is server-only, so every one of these
@@ -510,11 +525,6 @@ export async function handleAdminUsersRequest({
   });
   if (errorResponse) {
     return res.json(errorResponse.body, errorResponse.status);
-  }
-  // Defense in depth for a suspended Admin whose JWT is still within its lifetime — Appwrite
-  // itself should already refuse a blocked user's account.get().
-  if (caller.status === false) {
-    return res.json({ error: 'Forbidden' }, 403);
   }
 
   let body;
@@ -564,27 +574,19 @@ export async function handleAdminUsersRequest({
     error,
   };
 
-  let result;
-  switch (action) {
-    case 'listUsers':
-      result = await handleListUsers(actionContext);
-      break;
-    case 'createUser':
-      result = await handleCreateUser(actionContext);
-      break;
-    case 'updateUser':
-      result = await handleUpdateUser(actionContext);
-      break;
-    case 'setStatus':
-      result = await handleSetStatus(actionContext);
-      break;
-    case 'forceExpireSessions':
-      result = await handleForceExpireSessions(actionContext);
-      break;
-  }
+  const result = await runActionHandler({
+    handlers: ACTION_HANDLERS,
+    action,
+    context: actionContext,
+    error,
+  });
 
   if (result.status === 200) {
-    log(`${action} succeeded (by admin ${caller.$id}): ${JSON.stringify(result.body)}`);
+    log(
+      `${action} succeeded (by admin ${caller.$id}): ${JSON.stringify(loggableSummary(result.body))}`,
+    );
   }
   return res.json(result.body, result.status);
 }
+
+export { ACTIONS as ADMIN_USER_ACTIONS };

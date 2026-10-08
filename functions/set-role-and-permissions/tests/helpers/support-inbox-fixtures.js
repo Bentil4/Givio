@@ -35,6 +35,7 @@ export function withInboxEnv(fn) {
 export function inboxContext({ body, getAccount = asAdmin, tables = {}, users = {} }) {
   const calls = { listRows: [], updateRow: [], usersList: [] };
   const errors = [];
+  const logs = [];
 
   class AccountCtor {
     async get() {
@@ -63,7 +64,7 @@ export function inboxContext({ body, getAccount = asAdmin, tables = {}, users = 
     ctx: {
       req: { bodyRaw: JSON.stringify(body), headers: ADMIN_HEADERS },
       res,
-      log: () => {},
+      log: (msg) => logs.push(msg),
       error: (msg) => errors.push(msg),
       ClientCtor: FakeClient,
       AccountCtor,
@@ -72,5 +73,6 @@ export function inboxContext({ body, getAccount = asAdmin, tables = {}, users = 
     },
     calls,
     errors,
+    logs,
   };
 }
