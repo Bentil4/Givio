@@ -1,5 +1,6 @@
 import { hasValue } from '../shared.js';
 import { recomputeTenantReadGrants, truncationWarning } from '../tenant-grants.js';
+import { alertAdminsOfFailedSweep } from './sweep-alert.js';
 import { isTenantIntakeComplete } from './validation.js';
 import { auditTenantDecision, decisionFor } from './tenant-decision-audit.js';
 
@@ -96,6 +97,7 @@ export async function handleSetTenantStatus(context) {
     error,
   });
   if (!grants.ok) {
+    await alertAdminsOfFailedSweep({ ...context, tenantId, tenantName: tenant.name, grants });
     return {
       status: 502,
       body: {

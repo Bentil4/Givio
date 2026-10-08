@@ -103,7 +103,7 @@ export function inMemoryStore(tables, { failUpdate = () => false } = {}) {
   return { TablesDBCtor, tables, writes };
 }
 
-export function invoke(handler, store, body, caller = ADMIN, users = {}) {
+export function invoke(handler, store, body, caller = ADMIN, users = {}, ctxOverrides = {}) {
   class AccountCtor {
     async get() {
       return caller;
@@ -129,6 +129,7 @@ export function invoke(handler, store, body, caller = ADMIN, users = {}) {
     UsersCtor,
     DatabasesCtor: store.TablesDBCtor,
     TablesDBCtor: store.TablesDBCtor,
+    ...ctxOverrides,
   });
 }
 

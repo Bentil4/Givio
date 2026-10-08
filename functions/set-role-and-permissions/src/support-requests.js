@@ -10,6 +10,7 @@ import {
   Role,
 } from 'node-appwrite';
 import { notifyAdminsOfDispute } from './dispute-notification.js';
+import { alertAdminsOfDisputeCap } from './dispute-cap-alert.js';
 import {
   buildClient,
   verifyCaller,
@@ -208,6 +209,12 @@ async function handleSubmitDispute({
     });
     if (globalRecent >= DISPUTE_LIMIT_GLOBAL_PER_HOUR) {
       error('submitDispute: global hourly cap reached');
+      await alertAdminsOfDisputeCap({
+        ...notification,
+        at,
+        limit: DISPUTE_LIMIT_GLOBAL_PER_HOUR,
+        error,
+      });
       return {
         status: 429,
         body: { error: 'We are receiving a lot of requests right now. Try again in an hour.' },

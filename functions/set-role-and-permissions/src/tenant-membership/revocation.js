@@ -1,5 +1,6 @@
 import { hasValue, isConflictError } from '../shared.js';
 import { recomputeTenantReadGrants, truncationWarning } from '../tenant-grants.js';
+import { alertAdminsOfFailedSweep } from './sweep-alert.js';
 import { identityTables, normalizeIdentity } from './identity-check.js';
 import {
   ORGANIZER_TIER_ROLES,
@@ -154,10 +155,12 @@ function incompleteRevocationResponse({ membership }, failedSteps) {
  * revoked uid wherever it was granted. assignedUserIds is left untouched — it stays the record of
  * who was assigned; only the permission grant is retracted.
  */
-async function sweepEventGrants({ DatabasesCtor, adminClient, membership, error, sweep }) {
-  const tenantId = membership.tenantId;
+async function sweepEventGrants({ membership, sweep, ...context }) {
+  const { tenantId } = membership;
+  const { DatabasesCtor, adminClient, error } = context;
   const grants = await recomputeTenantReadGrants({ DatabasesCtor, adminClient, tenantId, error });
   if (!grants.ok) {
+    await alertAdminsOfFailedSweep({ ...context, tenantId, grants });
     throw new Error(
       grants.timedOut
         ? 'ran out of time re-deriving Event or Donation grants'
