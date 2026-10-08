@@ -52,5 +52,6 @@ src/**/*.css.map
 Thumbs.db
 .qodo
 .vscode/
-.angular/test-results
+.angular
+/test-results
 functions/set-role-and-permissions/junit.xml
