@@ -23,6 +23,8 @@ export interface AddTeamMemberResult {
   generatedPassword: string;
   /** The Membership exists, but granting its sign-in/company access failed server-side. */
   setupIncomplete: boolean;
+  /** Whether the Function emailed the credentials; absent on older Function versions. */
+  inviteStatus?: { email?: 'sent' | 'failed' };
 }
 
 /**

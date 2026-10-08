@@ -30,6 +30,7 @@ export class TeamDataService {
     name: string;
     email: string;
     role: TeamMemberRole;
+    phone?: string;
   }): Promise<AddTeamMemberResult> {
     return invokeAdminFunction(this.functions, {
       action: 'addTeamMember',

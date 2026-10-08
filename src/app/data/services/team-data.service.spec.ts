@@ -53,6 +53,19 @@ describe('TeamDataService', () => {
     });
   });
 
+  it('addTeamMember passes an optional phone through', async () => {
+    respond(200, { userId: 'u1', membershipId: 'm1', generatedPassword: 'pw' });
+
+    await service.addTeamMember({
+      name: 'Kojo',
+      email: 'k@a.co',
+      role: 'operator',
+      phone: '+233201234567',
+    });
+
+    expect(sentBody().phone).toBe('+233201234567');
+  });
+
   it('revokeMembership surfaces the Function error message', async () => {
     respond(403, { error: 'Forbidden' });
 
