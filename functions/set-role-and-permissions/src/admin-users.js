@@ -511,11 +511,6 @@ export async function handleAdminUsersRequest({
   if (errorResponse) {
     return res.json(errorResponse.body, errorResponse.status);
   }
-  // Defense in depth for a suspended Admin whose JWT is still within its lifetime — Appwrite
-  // itself should already refuse a blocked user's account.get().
-  if (caller.status === false) {
-    return res.json({ error: 'Forbidden' }, 403);
-  }
 
   let body;
   try {
