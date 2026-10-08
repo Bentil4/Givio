@@ -4,10 +4,6 @@ import {
   handleDonationRecordingRequest,
   DONATION_RECORDING_ACTIONS,
 } from './donation-recording.js';
-import {
-  handleConflictResolutionRequest,
-  CONFLICT_RESOLUTION_ACTIONS,
-} from './conflict-resolution.js';
 import { handleFamilyAccessRequest, FAMILY_ACCESS_ACTIONS } from './family-access.js';
 import { handleTenantMembershipRequest, TENANT_MEMBERSHIP_ACTIONS } from './tenant-membership.js';
 import { handleTenantGrantsRequest, TENANT_GRANT_ACTIONS } from './tenant-grants.js';
@@ -25,7 +21,7 @@ import { handleAuditLogGrantsRequest, AUDIT_LOG_GRANT_ACTIONS } from './audit-lo
  * same "sole trusted writer" role (AD-9): admin-users.js for user Labels, event-assignment.js
  * for Event.assignedUserIds and the Appwrite permissions derived from it (AD-2),
  * donation-recording.js for creating a Donation with those same derived permissions
- * (Story 3.1), conflict-resolution.js for filing/resolving sync conflicts (Story 3.5),
+ * (Story 3.1), conflict-resolution.js for resolving existing sync conflicts (Story 3.5),
  * family-access.js for the Family access-code flow (Story 2.4) — the one module with a
  * genuinely public, unauthenticated action (resolveAccessCode), since a Family Member has no
  * account at all (AD-10) — and tenant-membership.js for Memberships/Tenant status (AD-1/AD-9
@@ -44,9 +40,6 @@ export default async (context) => {
   }
   if (DONATION_RECORDING_ACTIONS.includes(action)) {
     return handleDonationRecordingRequest(context);
-  }
-  if (CONFLICT_RESOLUTION_ACTIONS.includes(action)) {
-    return handleConflictResolutionRequest(context);
   }
   if (FAMILY_ACCESS_ACTIONS.includes(action)) {
     return handleFamilyAccessRequest(context);

@@ -1,6 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { ID, Query, Permission, Role } from 'node-appwrite';
-import { hasValue, listAllRows, isConflictError, normalizePhone } from '../shared.js';
+import {
+  hasValue,
+  listAllRows,
+  isConflictError,
+  normalizeEmail,
+  normalizeName,
+  normalizePhone,
+} from '../shared.js';
 import { sendInviteEmail } from '../admin-users.js';
 import { createMembershipRow } from './memberships.js';
 
@@ -28,7 +35,9 @@ export async function handleInviteOrganizer({
   membershipsCollectionId,
   error,
 }) {
-  const { name, email, company } = payload;
+  const { company } = payload;
+  const name = normalizeName(payload.name);
+  const email = normalizeEmail(payload.email);
   const databases = new DatabasesCtor(adminClient);
   const users = new UsersCtor(adminClient);
   const generatedPassword = randomBytes(12).toString('base64url');

@@ -1,6 +1,14 @@
 import { randomBytes as nodeRandomBytes } from 'node:crypto';
 import { Client, Account, TablesDB, Query } from 'node-appwrite';
-import { buildClient, verifyCaller, VALID, invalid, hasValue, listAllRows } from './shared.js';
+import {
+  buildClient,
+  verifyCaller,
+  VALID,
+  invalid,
+  hasValue,
+  listAllRows,
+  runActionHandler,
+} from './shared.js';
 import { authorizeOrganizerEventAccess } from './tenant-events/organizer-scope.js';
 
 const ACTIONS = ['generateAccessCode', 'resolveAccessCode'];
@@ -184,6 +192,11 @@ async function handleResolveAccessCode({
   };
 }
 
+export const ACTION_HANDLERS = {
+  generateAccessCode: handleGenerateAccessCode,
+  resolveAccessCode: handleResolveAccessCode,
+};
+
 export async function handleFamilyAccessRequest({
   req,
   res,
@@ -268,31 +281,21 @@ export async function handleFamilyAccessRequest({
     }
   }
 
-  let result;
-  switch (action) {
-    case 'generateAccessCode':
-      result = await handleGenerateAccessCode({
-        TablesDBCtor,
-        adminClient,
-        payload,
-        databaseId,
-        eventsTableId,
-        randomBytes,
-        error,
-      });
-      break;
-    case 'resolveAccessCode':
-      result = await handleResolveAccessCode({
-        TablesDBCtor,
-        adminClient,
-        payload,
-        databaseId,
-        eventsTableId,
-        donationsTableId,
-        error,
-      });
-      break;
-  }
+  const result = await runActionHandler({
+    handlers: ACTION_HANDLERS,
+    action,
+    context: {
+      TablesDBCtor,
+      adminClient,
+      payload,
+      databaseId,
+      eventsTableId,
+      donationsTableId,
+      randomBytes,
+      error,
+    },
+    error,
+  });
 
   if (result.status === 200) {
     log(`${action} succeeded${caller ? ` (by ${caller.$id})` : ' (unauthenticated)'}`);

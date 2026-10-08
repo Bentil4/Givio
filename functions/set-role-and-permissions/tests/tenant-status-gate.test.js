@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { handleDonationRecordingRequest } from '../src/donation-recording.js';
-import { handleConflictResolutionRequest } from '../src/conflict-resolution.js';
 
 // Story 6.4 (FR-9): every action a non-Admin can call refuses a caller whose Tenant isn't
 // approved — while today's Label-based Operators and Admins (no Membership row) pass unchanged.
@@ -37,6 +36,7 @@ function fakeContext({ body, account, memberships = [], tenants = {}, listRowsIm
     );
     getRow = record('getRow', async ({ tableId, rowId }) => {
       if (tableId === 'tenants-1') return tenants[rowId];
+      if (tableId === 'donations-1') throw Object.assign(new Error('not found'), { code: 404 });
       return { $id: 'e1', type: 'wedding', status: 'active', assignedUserIds: [account.$id] };
     });
     incrementRowColumn = record('incrementRowColumn', async () => ({ nextReceiptSeq: 1 }));
@@ -96,18 +96,7 @@ const DONATION = {
   donationType: 'cash',
   recordedAt: '2026-01-01T00:00:00.000Z',
 };
-const CONFLICT = {
-  action: 'recordConflict',
-  receiptNumber: 'P-1',
-  eventId: 'e1',
-  localVersion: {},
-  serverVersion: {},
-};
-
-const HANDLERS = [
-  ['recordDonation', handleDonationRecordingRequest, DONATION],
-  ['recordConflict', handleConflictResolutionRequest, CONFLICT],
-];
+const HANDLERS = [['recordDonation', handleDonationRecordingRequest, DONATION]];
 
 const organizer = { $id: 'org-1', labels: [] };
 const membershipAt = (status = 'active') => [

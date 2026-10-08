@@ -8,6 +8,7 @@ import {
   pageRows,
   samePermissions,
 } from './shared.js';
+import { createTimeBudget, mapWithConcurrency } from './bounded-work.js';
 
 const ACTIONS = ['recomputeTenantReadGrants'];
 
@@ -16,6 +17,10 @@ export const ORGANIZER_TIER_ROLES = ['super_organizer', 'organizer'];
 // Appwrite rejects a `permissions` array longer than 100 entries (the server's array-param
 // limit; not stated in the public docs). Each uid takes one read entry.
 export const MAX_ROW_PERMISSIONS = 100;
+
+// Parallel row rewrites per sweep: enough to fit a few hundred rows in the time budget without
+// flooding the Appwrite API.
+const DONATION_WRITE_CONCURRENCY = 10;
 
 // Enough to diagnose a failed sweep from the response without echoing thousands of row ids.
 const MAX_REPORTED_FAILURES = 20;
@@ -129,6 +134,8 @@ function newReport(tenantId) {
     eventsUpdated: 0,
     donationsUpdated: 0,
     truncatedEventIds: [],
+    timedOut: false,
+    remaining: 0,
     failureCount: 0,
     failures: [],
   };
@@ -145,95 +152,123 @@ function recordFailure(report, error, failure) {
 }
 
 function finish(report) {
-  return { ok: report.failureCount === 0, ...report };
+  return { ok: report.failureCount === 0 && !report.timedOut, ...report };
 }
 
 /**
  * Brings one Event and its Donations in line with its derived read set. Donations are written
  * first and the Event last, so the Event's own permissions double as the "done" marker: an
  * Event already matching its read set is known to have matching Donations and is skipped, and
- * one whose Donations failed is left stale so the next sweep redoes them. `force` fans out to
- * Donations anyway (the backfill — pre-amendment Donations were never kept in line), and
- * `data` is written with the Event (assignOperators' new assignedUserIds).
+ * one whose Donations failed (or ran out of time) is left stale so the next sweep redoes them.
+ * `force` fans out to Donations anyway (the backfill — pre-amendment Donations were never kept
+ * in line), and `data` is written with the Event (assignOperators' new assignedUserIds).
  */
 async function recomputeEventRow({
-  DatabasesCtor,
-  adminClient,
   event,
   context,
   report,
   error,
+  budget,
   force = false,
-  data,
+  ...rest
 }) {
-  const { databaseId, eventsTableId, donationsTableId } = grantTables();
-  const databases = new DatabasesCtor(adminClient);
   const { permissions, truncated } = boundedPermissions(readUserIdsFor(event, context));
   if (truncated) {
-    error(
-      `tenant read grants: event ${event.$id} needs more than ${MAX_ROW_PERMISSIONS} permissions — organizer-tier grants past the limit were dropped`,
-    );
-    report.truncatedEventIds.push(event.$id);
+    noteTruncatedEvent({ report, error, event });
   }
-
   const eventChanged = !samePermissions(event.$permissions, permissions);
-  if (!eventChanged && !force && data === undefined) {
+  if (!eventChanged && !force && rest.data === undefined) {
     return;
   }
-
-  if (eventChanged || force) {
-    if (!hasValue(donationsTableId)) {
-      recordFailure(report, error, {
-        table: 'donations',
-        rowId: event.$id,
-        reason: 'APPWRITE_DONATIONS_COLLECTION_ID is not configured',
-      });
-      return;
-    }
-    const failuresBefore = report.failureCount;
-    try {
-      for await (const donations of pageRows({
-        DatabasesCtor,
-        adminClient,
-        databaseId,
-        tableId: donationsTableId,
-        queries: [Query.equal('eventId', [event.$id])],
-      })) {
-        for (const donation of donations) {
-          if (samePermissions(donation.$permissions, permissions)) {
-            continue;
-          }
-          try {
-            await databases.updateRow({
-              databaseId,
-              tableId: donationsTableId,
-              rowId: donation.$id,
-              data: {},
-              permissions,
-            });
-            report.donationsUpdated += 1;
-          } catch (err) {
-            recordFailure(report, error, {
-              table: 'donations',
-              rowId: donation.$id,
-              reason: err.message,
-            });
-          }
-        }
-      }
-    } catch (err) {
-      recordFailure(report, error, { table: 'donations', rowId: event.$id, reason: err.message });
-    }
-    if (report.failureCount > failuresBefore) {
-      return;
-    }
-  }
-  if (!eventChanged && data === undefined) {
+  if (budget.expired()) {
+    skipForTimeout(report, 1);
     return;
   }
+  const row = { ...rest, event, permissions, report, error, budget };
+  if ((eventChanged || force) && !(await rewriteDonations(row))) {
+    return;
+  }
+  if (eventChanged || rest.data !== undefined) {
+    await writeEventRow(row);
+  }
+}
 
+function noteTruncatedEvent({ report, error, event }) {
+  error(
+    `tenant read grants: event ${event.$id} needs more than ${MAX_ROW_PERMISSIONS} permissions — organizer-tier grants past the limit were dropped`,
+  );
+  report.truncatedEventIds.push(event.$id);
+}
+
+function skipForTimeout(report, count) {
+  report.timedOut = true;
+  report.remaining += count;
+}
+
+/** True when every stale Donation was rewritten — no failure and nothing skipped for time. */
+async function rewriteDonations({ DatabasesCtor, adminClient, event, permissions, ...rest }) {
+  const { report, error } = rest;
+  const { databaseId, donationsTableId } = grantTables();
+  if (!hasValue(donationsTableId)) {
+    recordFailure(report, error, {
+      table: 'donations',
+      rowId: event.$id,
+      reason: 'APPWRITE_DONATIONS_COLLECTION_ID is not configured',
+    });
+    return false;
+  }
+  const before = { failures: report.failureCount, skipped: report.remaining };
   try {
-    await databases.updateRow({
+    for await (const donations of pageRows({
+      DatabasesCtor,
+      adminClient,
+      databaseId,
+      tableId: donationsTableId,
+      queries: [Query.equal('eventId', [event.$id])],
+    })) {
+      await rewriteDonationPage({ DatabasesCtor, adminClient, donations, permissions, ...rest });
+      if (report.remaining > before.skipped) {
+        break;
+      }
+    }
+  } catch (err) {
+    recordFailure(report, error, { table: 'donations', rowId: event.$id, reason: err.message });
+  }
+  return report.failureCount === before.failures && report.remaining === before.skipped;
+}
+
+function rewriteDonationPage({ donations, permissions, ...rest }) {
+  const stale = donations.filter((d) => !samePermissions(d.$permissions, permissions));
+  return mapWithConcurrency(stale, DONATION_WRITE_CONCURRENCY, (donation) =>
+    rewriteDonationRow({ donation, permissions, ...rest }),
+  );
+}
+
+async function rewriteDonationRow({ DatabasesCtor, adminClient, donation, permissions, ...rest }) {
+  const { report, error, budget } = rest;
+  if (budget.expired()) {
+    skipForTimeout(report, 1);
+    return;
+  }
+  try {
+    await new DatabasesCtor(adminClient).updateRow({
+      databaseId: grantTables().databaseId,
+      tableId: grantTables().donationsTableId,
+      rowId: donation.$id,
+      data: {},
+      permissions,
+    });
+    report.donationsUpdated += 1;
+  } catch (err) {
+    recordFailure(report, error, { table: 'donations', rowId: donation.$id, reason: err.message });
+  }
+}
+
+async function writeEventRow({ DatabasesCtor, adminClient, event, permissions, data, ...rest }) {
+  const { report, error } = rest;
+  const { databaseId, eventsTableId } = grantTables();
+  try {
+    await new DatabasesCtor(adminClient).updateRow({
       databaseId,
       tableId: eventsTableId,
       rowId: event.$id,
@@ -250,7 +285,14 @@ async function recomputeEventRow({
  * One tenant-owned Event (assignOperators): the same recompute the tenant sweep runs, plus the
  * Event's new `data`. Returns the same report shape as recomputeTenantReadGrants.
  */
-export async function recomputeEventReadGrants({ DatabasesCtor, adminClient, event, data, error }) {
+export async function recomputeEventReadGrants({
+  DatabasesCtor,
+  adminClient,
+  event,
+  data,
+  error,
+  budget = createTimeBudget(),
+}) {
   const report = newReport(event.tenantId);
   let context;
   try {
@@ -263,7 +305,16 @@ export async function recomputeEventReadGrants({ DatabasesCtor, adminClient, eve
     recordFailure(report, error, { table: 'tenants', rowId: event.tenantId, reason: err.message });
     return finish(report);
   }
-  await recomputeEventRow({ DatabasesCtor, adminClient, event, context, report, error, data });
+  await recomputeEventRow({
+    DatabasesCtor,
+    adminClient,
+    event,
+    context,
+    report,
+    error,
+    budget,
+    data,
+  });
   return finish(report);
 }
 
@@ -281,6 +332,7 @@ export async function recomputeTenantReadGrants({
   tenantStatus,
   force = false,
   error,
+  budget = createTimeBudget(),
 }) {
   const { databaseId, eventsTableId } = grantTables();
   const report = newReport(tenantId);
@@ -309,8 +361,12 @@ export async function recomputeTenantReadGrants({
           context,
           report,
           error,
+          budget,
           force,
         });
+      }
+      if (report.timedOut) {
+        break;
       }
     }
   } catch (err) {
@@ -326,7 +382,12 @@ export async function recomputeTenantReadGrants({
  * resolveEventReadPermissions derives for it — every assigned uid — dropping the Admin Label
  * grants such rows were created with. Idempotent and never throws, like the tenant sweep.
  */
-export async function recomputeLegacyEventReadGrants({ DatabasesCtor, adminClient, error }) {
+export async function recomputeLegacyEventReadGrants({
+  DatabasesCtor,
+  adminClient,
+  error,
+  budget = createTimeBudget(),
+}) {
   const { databaseId, eventsTableId } = grantTables();
   const report = newReport(null);
   try {
@@ -337,7 +398,10 @@ export async function recomputeLegacyEventReadGrants({ DatabasesCtor, adminClien
       tableId: eventsTableId,
       queries: [Query.isNull('tenantId')],
     })) {
-      await recomputeLegacyEventRows({ DatabasesCtor, adminClient, events, report, error });
+      await recomputeLegacyEventRows({ DatabasesCtor, adminClient, events, report, error, budget });
+      if (report.timedOut) {
+        break;
+      }
     }
   } catch (err) {
     recordFailure(report, error, { table: 'events', rowId: null, reason: err.message });
@@ -345,18 +409,10 @@ export async function recomputeLegacyEventReadGrants({ DatabasesCtor, adminClien
   return finish(report);
 }
 
-async function recomputeLegacyEventRows({ DatabasesCtor, adminClient, events, report, error }) {
+async function recomputeLegacyEventRows({ events, ...rest }) {
   for (const event of events) {
     const context = legacyGrantContext(event);
-    await recomputeEventRow({
-      DatabasesCtor,
-      adminClient,
-      event,
-      context,
-      report,
-      error,
-      force: true,
-    });
+    await recomputeEventRow({ ...rest, event, context, force: true });
   }
 }
 
@@ -448,31 +504,52 @@ export async function handleTenantGrantsRequest({
     }
   }
 
-  const tenants = [];
-  for (const id of tenantIds) {
-    tenants.push(
-      await recomputeTenantReadGrants({
-        DatabasesCtor,
-        adminClient,
-        tenantId: id,
-        force: true,
-        error,
-      }),
-    );
-  }
-
+  // One budget for the whole backfill: the 30 s limit is per request, not per tenant.
+  const budget = createTimeBudget();
+  const { tenants, unsweptTenantCount } = await sweepTenants({
+    DatabasesCtor,
+    adminClient,
+    tenantIds,
+    budget,
+    error,
+  });
   const legacyEvents =
-    tenantId === undefined
-      ? await recomputeLegacyEventReadGrants({ DatabasesCtor, adminClient, error })
+    tenantId === undefined && unsweptTenantCount === 0
+      ? await recomputeLegacyEventReadGrants({ DatabasesCtor, adminClient, error, budget })
       : null;
-  const ok = tenants.every((t) => t.ok) && (legacyEvents?.ok ?? true);
-  const result = { success: ok, tenants, ...(legacyEvents && { legacyEvents }) };
+  const ok = unsweptTenantCount === 0 && tenants.every((t) => t.ok) && (legacyEvents?.ok ?? true);
+  const truncatedEventIds = tenants.flatMap((t) => t.truncatedEventIds);
+  const result = {
+    success: ok,
+    tenants,
+    ...(legacyEvents && { legacyEvents }),
+    ...(unsweptTenantCount > 0 && { timedOut: true, unsweptTenantCount }),
+    ...(truncatedEventIds.length > 0 && { truncatedEventIds }),
+  };
   log(
     `recomputeTenantReadGrants (by admin ${caller.$id}): ${tenants.length} tenant(s), ` +
       `${tenants.filter((t) => !t.ok).length} with failures` +
+      (unsweptTenantCount > 0 ? `, ${unsweptTenantCount} not reached (out of time)` : '') +
+      (truncatedEventIds.length > 0 ? `, ${truncatedEventIds.length} truncated event(s)` : '') +
       (legacyEvents ? `, ${legacyEvents.eventsUpdated} legacy event(s) updated` : ''),
   );
   return res.json(result, ok ? 200 : 502);
+}
+
+async function sweepTenants({ tenantIds, budget, ...sweep }) {
+  const tenants = [];
+  for (const id of tenantIds) {
+    if (budget.expired()) {
+      break;
+    }
+    tenants.push(await recomputeTenantReadGrants({ ...sweep, tenantId: id, force: true, budget }));
+  }
+  return { tenants, unsweptTenantCount: tenantIds.length - tenants.length };
+}
+
+/** The response field that makes a silently dropped organizer-tier grant visible to callers. */
+export function truncationWarning(grants) {
+  return grants.truncatedEventIds.length > 0 ? { truncatedEventIds: grants.truncatedEventIds } : {};
 }
 
 export { ACTIONS as TENANT_GRANT_ACTIONS };

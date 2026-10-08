@@ -1,5 +1,12 @@
 import { Client, Account, Users, TablesDB, Storage, Messaging } from 'node-appwrite';
-import { buildClient, verifyAdminCaller, verifyCaller, hasValue } from './shared.js';
+import {
+  buildClient,
+  verifyAdminCaller,
+  verifyCaller,
+  hasValue,
+  runActionHandler,
+} from './shared.js';
+import { loggableSummary } from './log-summary.js';
 import { validatePayload } from './tenant-membership/validation.js';
 import { isAdminCaller, resolveTeamScope } from './tenant-membership/team-access.js';
 import {
@@ -33,6 +40,23 @@ export {
   TENANT_TYPES,
   isTenantIntakeComplete,
 } from './tenant-membership/validation.js';
+
+export const ACTION_HANDLERS = {
+  createMembership: handleCreateMembership,
+  revokeMembership: handleRevokeMembership,
+  setTenantStatus: handleSetTenantStatus,
+  addTeamMember: handleAddTeamMember,
+  inviteOrganizer: handleInviteOrganizer,
+  submitTenantApplication: handleSubmitTenantApplication,
+  listTeamMembers: handleListTeamMembers,
+  recordTenantVerification: handleRecordTenantVerification,
+  listIdentityReviews: handleListIdentityReviews,
+  resolveIdentityReview: handleResolveIdentityReview,
+  suspendTenant: handleSuspendTenant,
+  designateSuperOrganizer: handleDesignateSuperOrganizer,
+  getMyTenantStatus: handleGetMyTenantStatus,
+  updateCompanyProfile: handleUpdateCompanyProfile,
+};
 
 // Story 6.4: the one action here a non-Admin reaches — the applicant's own brand-new Account
 // submitting their intake. Story 9.2: getMyTenantStatus reads only the caller's own tenant.
@@ -169,84 +193,16 @@ export async function handleTenantMembershipRequest({
     actionContext.team = team;
   }
 
-  let result;
-  switch (action) {
-    case 'createMembership':
-      result = await handleCreateMembership(actionContext);
-      break;
-    case 'revokeMembership':
-      result = await handleRevokeMembership(actionContext);
-      break;
-    case 'setTenantStatus':
-      result = await handleSetTenantStatus(actionContext);
-      break;
-    case 'addTeamMember':
-      result = await handleAddTeamMember(actionContext);
-      break;
-    case 'inviteOrganizer':
-      result = await handleInviteOrganizer(actionContext);
-      break;
-    case 'submitTenantApplication':
-      result = await handleSubmitTenantApplication(actionContext);
-      break;
-    case 'listTeamMembers':
-      result = await handleListTeamMembers(actionContext);
-      break;
-    case 'recordTenantVerification':
-      result = await handleRecordTenantVerification(actionContext);
-      break;
-    case 'listIdentityReviews':
-      result = await handleListIdentityReviews(actionContext);
-      break;
-    case 'resolveIdentityReview':
-      result = await handleResolveIdentityReview(actionContext);
-      break;
-    case 'suspendTenant':
-      result = await handleSuspendTenant(actionContext);
-      break;
-    case 'designateSuperOrganizer':
-      result = await handleDesignateSuperOrganizer(actionContext);
-      break;
-    case 'getMyTenantStatus':
-      result = await handleGetMyTenantStatus(actionContext);
-      break;
-    case 'updateCompanyProfile':
-      result = await handleUpdateCompanyProfile(actionContext);
-      break;
-  }
+  let result = await runActionHandler({
+    handlers: ACTION_HANDLERS,
+    action,
+    context: actionContext,
+    error,
+  });
   result = await grantTenantReadAfterMembershipWrite({ action, result, ...actionContext });
 
   if (result.status === 200) {
-    log(`${action} succeeded (by ${caller.$id}): ${JSON.stringify(loggableBody(result.body))}`);
+    log(`${action} succeeded (by ${caller.$id}): ${JSON.stringify(loggableSummary(result.body))}`);
   }
   return res.json(result.body, result.status);
-}
-
-function loggableBody(body) {
-  return Object.fromEntries(
-    Object.entries(body).map(([key, value]) => [key, loggableValue(key, value)]),
-  );
-}
-
-function loggableValue(key, value) {
-  // Code-review fix: addTeamMember's success body carries generatedPassword — logging it
-  // verbatim would write a new Account's plaintext password into the Function's execution
-  // logs. Redact any *Password-suffixed field generically, so a future action returning a
-  // similarly-named secret doesn't reopen the same leak.
-  if (key.toLowerCase().endsWith('password')) {
-    return '[redacted]';
-  }
-  // A tenant logo is an image data URL — large enough to swamp the execution log.
-  if (key === 'logo' && value !== null) {
-    return '[omitted]';
-  }
-  // Nested too: updateCompanyProfile returns the logo inside `tenant`.
-  if (isPlainObject(value)) {
-    return loggableBody(value);
-  }
-  return value;
-}
-
-function isPlainObject(value) {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

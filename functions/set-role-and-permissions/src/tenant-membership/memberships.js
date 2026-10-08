@@ -1,6 +1,7 @@
 import { ID, Query, Permission, Role } from 'node-appwrite';
 import { isConflictError, listAllRows } from '../shared.js';
-import { recomputeTenantReadGrants } from '../tenant-grants.js';
+import { recomputeTenantReadGrants, truncationWarning } from '../tenant-grants.js';
+import { alertAdminsOfFailedSweep } from './sweep-alert.js';
 
 // Every action after which a newly active Membership may be owed AD-2 read grants.
 const MEMBERSHIP_ACTIVATING_ACTIONS = new Set(['createMembership', 'addTeamMember']);
@@ -135,27 +136,22 @@ export async function createMembershipRow({
  * The Membership already exists when this fails, so the action's body (including any
  * generatedPassword) is kept in the 502 — the grant is retried via recomputeTenantReadGrants.
  */
-export async function grantTenantReadAfterMembershipWrite({
-  action,
-  result,
-  payload,
-  DatabasesCtor,
-  adminClient,
-  error,
-}) {
+export async function grantTenantReadAfterMembershipWrite({ action, result, payload, ...context }) {
   if (!MEMBERSHIP_ACTIVATING_ACTIONS.has(action) || result.status !== 200) {
     return result;
   }
+  // The handler's resolved tenant, not the request's: an Organizer caller never sends one.
+  const tenantId = result.body?.tenantId ?? payload.tenantId;
   const grants = await recomputeTenantReadGrants({
-    DatabasesCtor,
-    adminClient,
-    // The handler's resolved tenant, not the request's: an Organizer caller never sends one.
-    tenantId: result.body?.tenantId ?? payload.tenantId,
-    error,
+    DatabasesCtor: context.DatabasesCtor,
+    adminClient: context.adminClient,
+    tenantId,
+    error: context.error,
   });
   if (grants.ok) {
-    return result;
+    return { ...result, body: { ...result.body, ...truncationWarning(grants) } };
   }
+  await alertAdminsOfFailedSweep({ ...context, tenantId, grants });
   return {
     status: 502,
     body: {

@@ -5,6 +5,8 @@ import {
   DISPUTE_EMAIL_EXCERPT_MAX,
   DISPUTE_EMAIL_MAX_RECIPIENTS,
 } from '../src/dispute-notification.js';
+import { resetDisputeCapAlertThrottle } from '../src/dispute-cap-alert.js';
+import { DISPUTE_LIMIT_GLOBAL_PER_HOUR } from '../src/support-requests.js';
 import { FakeClient } from './helpers/support-inbox-fixtures.js';
 
 const PUBLIC_HEADERS = { 'x-appwrite-key': 'dynamic-key' };
@@ -30,13 +32,21 @@ function withNotifyEnv(fn) {
   };
 }
 
-function submissionContext({ body, headers = PUBLIC_HEADERS, users, sendEmail, rows = [] }) {
+function submissionContext({
+  body,
+  headers = PUBLIC_HEADERS,
+  users,
+  sendEmail,
+  rows = [],
+  supportRows = [],
+  now = () => new Date('2026-09-30T12:00:00.000Z'),
+}) {
   const sent = [];
   const errors = [];
   const usersListed = [];
   class TablesDBCtor {
     async listRows({ tableId }) {
-      return { rows: tableId === 'memberships-1' ? rows : [] };
+      return { rows: { 'memberships-1': rows, 'support-1': supportRows }[tableId] ?? [] };
     }
     async createRow(args) {
       return { $id: 'sr-1', ...args.data };
@@ -70,7 +80,7 @@ function submissionContext({ body, headers = PUBLIC_HEADERS, users, sendEmail, r
       TablesDBCtor,
       UsersCtor,
       MessagingCtor,
-      now: () => new Date('2026-09-30T12:00:00.000Z'),
+      now,
     },
     sent,
     errors,
@@ -160,5 +170,70 @@ test(
     assert.equal((await main(ctx)).status, 200);
     assert.equal(sent.length, 0);
     assert.equal(usersListed.length, 0);
+  }),
+);
+
+const CAPPED_ROWS = Array.from({ length: DISPUTE_LIMIT_GLOBAL_PER_HOUR }, (_, i) => ({
+  $id: `r${i}`,
+}));
+const at = (isoTime) => () => new Date(isoTime);
+
+test(
+  'hitting the global dispute cap still answers 429 and emails the active Admins once',
+  withNotifyEnv(async () => {
+    resetDisputeCapAlertThrottle();
+    const { ctx, sent } = submissionContext({
+      body: DISPUTE,
+      users: USERS,
+      supportRows: CAPPED_ROWS,
+    });
+
+    const result = await main(ctx);
+
+    assert.equal(result.status, 429);
+    assert.equal(sent.length, 1);
+    assert.deepEqual(sent[0].users, ['a1']);
+    assert.equal(sent[0].html, false);
+    assert.match(sent[0].subject, /hourly limit/);
+    assert.match(sent[0].content, /\nhttps:\/\/givio\.test\/dashboard\/support$/);
+  }),
+);
+
+test(
+  'the dispute-cap alert is throttled to once an hour',
+  withNotifyEnv(async () => {
+    resetDisputeCapAlertThrottle();
+    const sends = [];
+    for (const time of ['12:00:00', '12:30:00', '12:59:59', '13:00:01']) {
+      const now = at(`2026-09-30T${time}.000Z`);
+      const { ctx, sent } = submissionContext({
+        body: DISPUTE,
+        users: USERS,
+        supportRows: CAPPED_ROWS,
+        now,
+      });
+      assert.equal((await main(ctx)).status, 429);
+      sends.push(sent.length);
+    }
+
+    assert.deepEqual(sends, [1, 0, 0, 1]);
+  }),
+);
+
+test(
+  'a failing alert email never changes the 429 answer',
+  withNotifyEnv(async () => {
+    resetDisputeCapAlertThrottle();
+    const { ctx, errors } = submissionContext({
+      body: DISPUTE,
+      users: USERS,
+      supportRows: CAPPED_ROWS,
+      sendEmail: () => Promise.reject(new Error('smtp down')),
+    });
+
+    const result = await main(ctx);
+
+    assert.equal(result.status, 429);
+    assert.ok(errors.some((message) => /Dispute cap alert email failed/.test(message)));
   }),
 );

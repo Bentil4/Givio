@@ -10,45 +10,29 @@ export function buildClient(ClientCtor, endpoint, projectId) {
   return new ClientCtor().setEndpoint(endpoint).setProject(projectId);
 }
 
+const FORBIDDEN = { status: 403, body: { error: 'Forbidden' } };
+
 /**
  * Verifies the caller via their JWT (never the spoofable x-appwrite-user-id header) —
  * runs before any action-specific payload parsing/validation, so an unauthenticated or
  * non-admin caller always gets 401/403 first, regardless of what action they asked for.
  */
-export async function verifyAdminCaller({
-  req,
-  ClientCtor,
-  AccountCtor,
-  endpoint,
-  projectId,
-  error,
-}) {
-  const callerJwt = req.headers['x-appwrite-user-jwt'];
-  if (!callerJwt) {
-    return { errorResponse: { status: 401, body: { error: 'Unauthenticated' } } };
+export async function verifyAdminCaller(options) {
+  const verified = await verifyCaller(options);
+  if (verified.errorResponse) {
+    return verified;
   }
-
-  const callerClient = buildClient(ClientCtor, endpoint, projectId).setJWT(callerJwt);
-
-  let caller;
-  try {
-    caller = await new AccountCtor(callerClient).get();
-  } catch (err) {
-    error(`Caller JWT verification failed: ${err.message}`);
-    return { errorResponse: { status: 401, body: { error: 'Unauthenticated' } } };
+  if (!(verified.caller.labels ?? []).includes('admin')) {
+    return { errorResponse: FORBIDDEN };
   }
-
-  if (!(caller.labels ?? []).includes('admin')) {
-    return { errorResponse: { status: 403, body: { error: 'Forbidden' } } };
-  }
-
-  return { caller };
+  return verified;
 }
 
 /**
  * Same JWT verification as verifyAdminCaller, without the admin-only gate — for actions an
  * Operator may legitimately call (e.g. recording a donation). The caller's own role/assignment
- * is then checked by the action itself, against whatever resource it's acting on.
+ * is then checked by the action itself, against whatever resource it's acting on. A blocked
+ * Account is refused here as defense in depth: its JWT stays valid until it expires.
  */
 export async function verifyCaller({ req, ClientCtor, AccountCtor, endpoint, projectId, error }) {
   const callerJwt = req.headers['x-appwrite-user-jwt'];
@@ -66,7 +50,22 @@ export async function verifyCaller({ req, ClientCtor, AccountCtor, endpoint, pro
     return { errorResponse: { status: 401, body: { error: 'Unauthenticated' } } };
   }
 
+  if (caller.status === false) {
+    return { errorResponse: FORBIDDEN };
+  }
   return { caller };
+}
+
+/**
+ * Runs the handler registered for a validated action. An action that passed validation but has
+ * no handler is a wiring bug — answered 500 and logged, never a TypeError on an undefined result.
+ */
+export async function runActionHandler({ handlers, action, context, error }) {
+  if (!Object.hasOwn(handlers, action)) {
+    error(`Unrouted action: ${action}`);
+    return { status: 500, body: { error: 'Unrouted action' } };
+  }
+  return handlers[action](context);
 }
 
 export const VALID = { valid: true };
@@ -77,6 +76,21 @@ export function invalid(error) {
 
 export function hasValue(field) {
   return typeof field === 'string' && field.length > 0;
+}
+
+export function hasText(field) {
+  return typeof field === 'string' && field.trim().length > 0;
+}
+
+/** Collapses stray whitespace so "  Ama   Owusu " and "Ama Owusu" are the same person. */
+export function normalizeName(name) {
+  return name.trim().replace(/\s+/g, ' ');
+}
+
+// Not lowercased: Appwrite lowercases an Account's email itself, and identity screening
+// already compares emails case-insensitively through normalizeIdentity.
+export function normalizeEmail(email) {
+  return email.trim();
 }
 
 /** Shared by every module that writes a row protected by a unique-column constraint. */
