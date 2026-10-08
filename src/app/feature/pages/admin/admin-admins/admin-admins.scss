@@ -12,6 +12,11 @@
   border: 0;
 }
 
+.menu-trigger {
+  display: inline-flex;
+  align-items: center;
+}
+
 .field-error,
 .row-error {
   margin: 0;

@@ -11,6 +11,8 @@ export interface OrganizerEventDetails {
   date: string;
   hostName: string;
   venue: string | null;
+  description?: string | null;
+  notes?: string | null;
   image: string | null;
 }
 

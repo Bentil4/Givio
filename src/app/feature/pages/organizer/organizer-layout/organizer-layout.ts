@@ -99,9 +99,6 @@ export class OrganizerLayout {
     { name: 'Dashboard', icon: 'dashboard', route: '/organizer' },
     { name: 'My Events', icon: 'event', route: '/organizer/events' },
     { name: 'Donations', icon: 'volunteer_activism', route: '/organizer/donations' },
-    // No Operator-facing report screen exists yet — the PRD scopes Reports & Export to
-    // Admin/Family only. Shown so the intent is visible, not wired to a route.
-    { name: 'Report', icon: 'bar_chart', route: '/organizer/report', disabled: true },
     { name: 'Settings', icon: 'settings', route: ORGANIZER_SETTINGS_ROUTE },
   ];
 

@@ -18,7 +18,15 @@ import {
 import { ServiceError } from '../../../../../core/services/service-error';
 import type { Event, EventType } from '../../../../../data/models/event';
 
-type FormControlName = 'name' | 'date' | 'hostName' | 'venue';
+type FormControlName = 'name' | 'date' | 'hostName' | 'venue' | 'description' | 'notes';
+type LongTextControl = 'description' | 'notes';
+
+const LONG_TEXT_MAX = 1024;
+
+export const LONG_TEXT_FIELDS: readonly { control: LongTextControl; label: string }[] = [
+  { control: 'description', label: 'Description (optional)' },
+  { control: 'notes', label: 'Notes (optional)' },
+];
 
 /**
  * Create or edit one of the company's Events. `event` null means create; the occasion (type)
@@ -41,6 +49,7 @@ export class EventFormDialog implements OnInit {
 
   public readonly busy = signal(false);
   public readonly formError = signal<string | null>(null);
+  public readonly longTextFields = LONG_TEXT_FIELDS;
   public readonly isCreate = computed(() => this.event() === null);
   public readonly title = computed(() => (this.isCreate() ? 'Create event' : 'Edit event'));
 
@@ -50,6 +59,8 @@ export class EventFormDialog implements OnInit {
     date: ['', Validators.required],
     hostName: ['', [Validators.required, Validators.maxLength(120)]],
     venue: ['', Validators.maxLength(160)],
+    description: ['', Validators.maxLength(LONG_TEXT_MAX)],
+    notes: ['', Validators.maxLength(LONG_TEXT_MAX)],
     image: this.fb.control<string | null>(null),
   });
 
@@ -62,6 +73,8 @@ export class EventFormDialog implements OnInit {
         date: event.date.slice(0, 10),
         hostName: event.hostName,
         venue: event.venue ?? '',
+        description: event.description ?? '',
+        notes: event.notes ?? '',
         image: event.image ?? null,
       });
     }
@@ -70,6 +83,11 @@ export class EventFormDialog implements OnInit {
   public invalid(control: FormControlName): boolean {
     const c = this.form.controls[control];
     return c.invalid && (c.touched || c.dirty);
+  }
+
+  public remainingHint(control: LongTextControl): string {
+    const left = LONG_TEXT_MAX - this.form.controls[control].value.length;
+    return left >= 0 ? `${left} characters left` : `Over the limit by ${-left}`;
   }
 
   public async submit(): Promise<void> {
@@ -97,12 +115,14 @@ export class EventFormDialog implements OnInit {
   }
 
   private details(): OrganizerEventDetails {
-    const { name, date, hostName, venue, image } = this.form.getRawValue();
+    const { name, date, hostName, venue, description, notes, image } = this.form.getRawValue();
     return {
       name: name.trim(),
       date,
       hostName: hostName.trim(),
       venue: venue.trim() || null,
+      description: description.trim() || null,
+      notes: notes.trim() || null,
       image: image || null,
     };
   }

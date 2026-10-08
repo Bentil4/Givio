@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
 import { EventService } from '../../../../data/services/event.service';
@@ -80,7 +87,7 @@ export class EventSelect implements OnInit {
   public blockedReason(e: Event): string {
     switch (e.status) {
       case 'paused':
-        return 'Giving is paused for this event. An Admin must resume it before you can record.';
+        return "Giving is paused for this event. Ask your company's organizer to resume it.";
       case 'closed':
         return 'This event is closed. Its records are read-only.';
       default:

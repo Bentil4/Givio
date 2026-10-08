@@ -11,6 +11,7 @@ import {
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CdkTrapFocus } from '@angular/cdk/a11y';
+import { Clipboard } from '@angular/cdk/clipboard';
 import { MatIconModule } from '@angular/material/icon';
 import { TenantService } from '../../../../data/services/tenant.service';
 import { TeamDataService } from '../../../../data/services/team-data.service';
@@ -18,10 +19,12 @@ import { ServiceError } from '../../../../core/services/service-error';
 import { FunctionRejectedError } from '../../../../data/appwrite/invoke-admin-function';
 import type { MembershipRole } from '../../../../data/models/membership';
 import type {
+  AddTeamMemberResult,
   RevocationChoice,
   TeamMember,
   TeamMemberRole,
 } from '../../../../data/models/team-member';
+import { normalizePhone, phoneValidator } from '../../../../utils/phone.util';
 import { RevokeMemberDialog } from './revoke-member-dialog/revoke-member-dialog';
 
 const ROLE_ORDER: Record<MembershipRole, number> = {
@@ -72,7 +75,8 @@ function isRetryableRevokeFailure(err: unknown): boolean {
 
 interface NewMemberNotice {
   readonly name: string;
-  readonly password: string;
+  /** Null when the credentials were emailed — the password is only shown as a fallback. */
+  readonly password: string | null;
   readonly setupIncomplete: boolean;
 }
 
@@ -100,6 +104,7 @@ export class CompanyTeam implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly teamData = inject(TeamDataService);
   private readonly tenantService = inject(TenantService);
+  private readonly clipboard = inject(Clipboard);
   private readonly heading = viewChild.required<ElementRef<HTMLHeadingElement>>('heading');
 
   private readonly members = signal<readonly TeamMember[]>([]);
@@ -112,6 +117,7 @@ export class CompanyTeam implements OnInit {
   public readonly revoking = signal<TeamMember | null>(null);
   public readonly unfinishedRevoke = signal<UnfinishedRevoke | null>(null);
   public readonly newMember = signal<NewMemberNotice | null>(null);
+  public readonly announcement = signal('');
   public readonly skeletons = [0, 1, 2];
 
   private readonly callerRole = computed<MembershipRole | null>(
@@ -140,6 +146,7 @@ export class CompanyTeam implements OnInit {
   public readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]],
     email: ['', [Validators.required, Validators.email]],
+    phone: ['', [phoneValidator]],
   });
 
   ngOnInit(): void {
@@ -178,7 +185,7 @@ export class CompanyTeam implements OnInit {
 
   public openAdd(role: TeamMemberRole): void {
     this.formError.set(null);
-    this.form.reset({ name: '', email: '' });
+    this.form.reset({ name: '', email: '', phone: '' });
     this.adding.set(role);
   }
 
@@ -186,7 +193,7 @@ export class CompanyTeam implements OnInit {
     this.adding.set(null);
   }
 
-  public invalid(control: 'name' | 'email'): boolean {
+  public invalid(control: 'name' | 'email' | 'phone'): boolean {
     const c = this.form.controls[control];
     return c.invalid && (c.touched || c.dirty);
   }
@@ -198,7 +205,8 @@ export class CompanyTeam implements OnInit {
       this.form.markAllAsTouched();
       return;
     }
-    const { name, email } = this.form.getRawValue();
+    const { name, email, phone } = this.form.getRawValue();
+    const normalizedPhone = normalizePhone(phone);
     this.busy.set(true);
     this.formError.set(null);
     try {
@@ -206,12 +214,9 @@ export class CompanyTeam implements OnInit {
         name: name.trim(),
         email: email.trim(),
         role,
+        ...(normalizedPhone ? { phone: normalizedPhone } : {}),
       });
-      this.newMember.set({
-        name: result.name,
-        password: result.generatedPassword,
-        setupIncomplete: result.setupIncomplete,
-      });
+      this.showNewMember(result);
       this.closeAdd();
       await this.load();
     } catch (err) {
@@ -221,8 +226,24 @@ export class CompanyTeam implements OnInit {
     }
   }
 
+  private showNewMember(result: AddTeamMemberResult): void {
+    const emailed = result.inviteStatus?.email === 'sent';
+    this.newMember.set({
+      name: result.name,
+      password: emailed ? null : result.generatedPassword,
+      setupIncomplete: result.setupIncomplete,
+    });
+    this.announcement.set(`Account created for ${result.name}.`);
+  }
+
+  public copyPassword(password: string): void {
+    const copied = this.clipboard.copy(password);
+    this.announcement.set(copied ? 'Password copied.' : "Couldn't copy — select it instead.");
+  }
+
   public dismissNewMember(): void {
     this.newMember.set(null);
+    this.announcement.set('');
   }
 
   public askRevoke(member: TeamMember): void {

@@ -62,6 +62,18 @@ describe('PendingQueue', () => {
     expect(summary).not.toContain('60.00');
   });
 
+  it('describes the real retry behaviour and offers no dead Edit or Discard actions', async () => {
+    await render([draft()]);
+
+    expect(el.textContent).toContain('keep trying to sync automatically');
+    expect(el.textContent).not.toContain('3 times');
+    expect(el.textContent).not.toContain('Admin is notified');
+    expect(el.textContent).not.toContain('attempt');
+    expect(button('Edit')).toBeUndefined();
+    expect(button('Discard')).toBeUndefined();
+    expect(button('Sync now')).toBeDefined();
+  });
+
   it('shows the rejected section even when nothing else is pending', async () => {
     await render([], [draft({ rejectionReason: 'Event not found' })]);
 

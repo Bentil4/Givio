@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { ID, Query } from 'node-appwrite';
+import { sendInviteEmail } from '../admin-users.js';
 import { isConflictError, listAllRows, normalizeEmail, normalizeName } from '../shared.js';
 import { createMembershipRow } from './memberships.js';
 import { canManageRole, setOperatorLabel, syncTenantReadGrants } from './team-access.js';
@@ -13,14 +14,14 @@ const LISTED_WITH_REVOKED_STATUSES = [...LISTED_MEMBERSHIP_STATUSES, 'revoked'];
 /**
  * Story 6.3: the only Function action that provisions a *new* Account, and the sole place
  * "distinct Account per tenant relationship" (FR-4/FR-5) is actually enforced end-to-end.
- * Deliberately no invite-email/SMS delivery here (no AC needs it) — the generated password is
- * returned in the response, the same shape admin-users.js's createUser already uses, so a
- * later story that needs delivery can reuse that existing mechanism rather than a new one.
+ * The new member is emailed their credentials (sendInviteEmail, as onboarding's inviteOrganizer
+ * does); the generated password is still returned so the UI can show it when delivery failed.
  */
 export async function handleAddTeamMember(context) {
   const {
     DatabasesCtor,
     UsersCtor,
+    MessagingCtor,
     adminClient,
     payload,
     caller,
@@ -161,6 +162,21 @@ export async function handleAddTeamMember(context) {
     screening.membershipStatus !== 'active' ||
     (await grantTeamMemberAccess({ ...context, tenantId, userId: account.$id, role }));
   const setupIncomplete = !reviewRecorded || !accessGranted;
+  // Delivery failure never fails the add: the Account exists and the password stays in the
+  // response as the adder's fallback. Sent for a held (pending_review) addition too, so the
+  // response never reveals that a check happened.
+  const inviteStatus = {
+    email: await sendInviteEmail({
+      MessagingCtor,
+      adminClient,
+      userId: account.$id,
+      name,
+      role: role === 'operator' ? 'Operator' : 'Organizer',
+      email,
+      generatedPassword,
+      error,
+    }),
+  };
 
   return {
     status: 200,
@@ -174,6 +190,7 @@ export async function handleAddTeamMember(context) {
       role,
       generatedPassword,
       setupIncomplete,
+      inviteStatus,
     },
   };
 }

@@ -23,17 +23,32 @@
     }
   </header>
 
+  <p class="visually-hidden" role="status">{{ announcement() }}</p>
   @if (newMember(); as added) {
-  <div class="code-note" role="status">
+  <section class="code-note" tabindex="0" aria-labelledby="new-member-title">
     <mat-icon aria-hidden="true">vpn_key</mat-icon>
-    <p class="t-caption">
-      {{ added.name }}'s password: <strong class="is-mono">{{ added.password }}</strong> — share it
-      with them directly; it won't be shown again. @if (added.setupIncomplete) { Their account was
-      created, but their access isn't fully set up yet — contact Givio support before they sign in.
+    <div class="note-body">
+      <h2 id="new-member-title" class="t-body-em">{{ added.name }}'s account is ready</h2>
+      @if (added.password; as password) {
+      <p class="t-caption">
+        We couldn't email their sign-in details. Their password:
+        <strong class="is-mono">{{ password }}</strong> — share it with them directly; it won't be
+        shown again.
+      </p>
+      <button type="button" class="btn-ghost" (click)="copyPassword(password)">
+        Copy password<span class="visually-hidden"> for {{ added.name }}</span>
+      </button>
+      } @else {
+      <p class="t-caption">We emailed {{ added.name }} their sign-in details.</p>
+      } @if (added.setupIncomplete) {
+      <p class="t-caption">
+        Their account was created, but their access isn't fully set up yet — contact Givio support
+        before they sign in.
+      </p>
       }
-    </p>
+    </div>
     <button type="button" class="btn-ghost" (click)="dismissNewMember()">Dismiss</button>
-  </div>
+  </section>
   } @if (unfinishedRevoke(); as unfinished) {
   <div class="code-note is-error" role="alert">
     <mat-icon aria-hidden="true">error_outline</mat-icon>
@@ -204,6 +219,25 @@
         <p id="teamEmail-hint" class="field-note t-caption">
           Use an address they don't already sign in to Givio with — every company relationship gets
           its own login.
+        </p>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="teamPhone">Phone (optional)</label>
+        <input
+          id="teamPhone"
+          class="input"
+          type="tel"
+          formControlName="phone"
+          autocomplete="off"
+          [attr.aria-invalid]="invalid('phone')"
+          [attr.aria-describedby]="invalid('phone') ? 'teamPhone-error' : null"
+          [class.is-invalid]="invalid('phone')"
+        />
+        @if (invalid('phone')) {
+        <p id="teamPhone-error" class="field-error">
+          Enter the number with its country code, like +233201234567.
         </p>
         }
       </div>

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import { Clipboard } from '@angular/cdk/clipboard';
 import { CompanyTeam } from './company-team';
 import { TenantService } from '../../../../data/services/tenant.service';
 import { TeamDataService } from '../../../../data/services/team-data.service';
@@ -42,6 +43,7 @@ describe('CompanyTeam', () => {
     addTeamMember: ReturnType<typeof vi.fn>;
     revokeMembership: ReturnType<typeof vi.fn>;
   };
+  let clipboard: { copy: ReturnType<typeof vi.fn> };
 
   async function render(role: MembershipRole, members: TeamMember[]) {
     teamData.listTeamMembers.mockResolvedValue(members);
@@ -49,6 +51,7 @@ describe('CompanyTeam', () => {
       imports: [CompanyTeam],
       providers: [
         { provide: TeamDataService, useValue: teamData },
+        { provide: Clipboard, useValue: clipboard },
         {
           provide: TenantService,
           useValue: {
@@ -69,6 +72,7 @@ describe('CompanyTeam', () => {
     Array.from(el.querySelectorAll('button')).map((b) => b.textContent?.trim() ?? '');
 
   beforeEach(() => {
+    clipboard = { copy: vi.fn().mockReturnValue(true) };
     teamData = {
       listTeamMembers: vi.fn(),
       addTeamMember: vi.fn(),
@@ -113,27 +117,26 @@ describe('CompanyTeam', () => {
     expect(rows[2].querySelector('button')?.textContent).toContain('Revoke');
   });
 
-  it('adds an Operator, shows their one-time password and reloads the team', async () => {
+  async function addOperator(inviteStatus: { email: 'sent' | 'failed' } | undefined, phone = '') {
     const { fixture, el } = await render('super_organizer', [SELF_SO]);
     teamData.addTeamMember.mockResolvedValue({
       name: 'Kojo Mensah',
       role: 'operator',
       generatedPassword: 'pw-123',
       setupIncomplete: false,
+      inviteStatus,
     });
     teamData.listTeamMembers.mockResolvedValue([SELF_SO, member({ name: 'Kojo Mensah' })]);
-
-    (
-      Array.from(el.querySelectorAll('button')).find((b) =>
-        b.textContent?.includes('Add Operator'),
-      ) as HTMLButtonElement
-    ).click();
+    fixture.componentInstance.openAdd('operator');
     fixture.detectChanges();
-    expect(el.querySelector('[role="dialog"]')?.textContent).toContain('Add Operator');
-
-    fixture.componentInstance.form.setValue({ name: ' Kojo Mensah ', email: 'kojo@a.co' });
+    fixture.componentInstance.form.setValue({ name: ' Kojo Mensah ', email: 'kojo@a.co', phone });
     await fixture.componentInstance.add();
     fixture.detectChanges();
+    return { fixture, el };
+  }
+
+  it('adds an Operator, reloads the team and announces only that the account was created', async () => {
+    const { el } = await addOperator({ email: 'failed' });
 
     expect(teamData.addTeamMember).toHaveBeenCalledWith({
       name: 'Kojo Mensah',
@@ -141,8 +144,54 @@ describe('CompanyTeam', () => {
       role: 'operator',
     });
     expect(el.querySelector('[role="dialog"]')).toBeNull();
-    expect(el.querySelector('[role="status"]')?.textContent).toContain('pw-123');
+    expect(el.querySelector('[role="status"]')?.textContent).toBe(
+      'Account created for Kojo Mensah.',
+    );
     expect(el.textContent).toContain('Kojo Mensah');
+  });
+
+  it('passes a normalized optional phone through to the Function', async () => {
+    await addOperator({ email: 'sent' }, '+233 20 123 4567');
+
+    expect(teamData.addTeamMember.mock.calls[0][0].phone).toBe('+233201234567');
+  });
+
+  it('rejects a phone that is not in international format', async () => {
+    const { fixture } = await render('super_organizer', [SELF_SO]);
+    fixture.componentInstance.openAdd('operator');
+    fixture.componentInstance.form.setValue({ name: 'Kojo', email: 'k@a.co', phone: '0201234567' });
+
+    await fixture.componentInstance.add();
+
+    expect(teamData.addTeamMember).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.invalid('phone')).toBe(true);
+  });
+
+  it('keeps the password off screen when the credentials were emailed', async () => {
+    const { el } = await addOperator({ email: 'sent' });
+
+    expect(el.textContent).toContain('We emailed Kojo Mensah their sign-in details.');
+    expect(el.textContent).not.toContain('pw-123');
+    expect(el.textContent).not.toContain('Copy password');
+  });
+
+  it('falls back to a focusable, labelled password region with a copy button', async () => {
+    const { fixture, el } = await addOperator({ email: 'failed' });
+    const region = el.querySelector('section[aria-labelledby="new-member-title"]');
+
+    expect(region?.getAttribute('tabindex')).toBe('0');
+    expect(region?.textContent).toContain('pw-123');
+    expect(region?.closest('[role="status"]')).toBeNull();
+
+    (
+      Array.from(el.querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('Copy password'),
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    expect(clipboard.copy).toHaveBeenCalledWith('pw-123');
+    expect(el.querySelector('[role="status"]')?.textContent).toBe('Password copied.');
   });
 
   it('keeps the dialog open and shows the server message when the add is refused', async () => {
@@ -152,7 +201,7 @@ describe('CompanyTeam', () => {
     );
 
     fixture.componentInstance.openAdd('organizer');
-    fixture.componentInstance.form.setValue({ name: 'Kojo', email: 'kojo@a.co' });
+    fixture.componentInstance.form.setValue({ name: 'Kojo', email: 'kojo@a.co', phone: '' });
     await fixture.componentInstance.add();
     fixture.detectChanges();
 

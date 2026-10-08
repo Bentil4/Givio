@@ -80,19 +80,26 @@
           </td>
           <td class="is-muted">{{ u.registeredAt | date: 'mediumDate' }}</td>
           <td class="is-actions">
-            @if (canManage(u)) { @if (u.active) {
-            <button type="button" class="btn-ghost is-danger" (click)="ask('suspend', u)">
-              Suspend<span class="visually-hidden"> {{ u.name }}</span>
+            @if (canManage(u)) {
+            <button
+              type="button"
+              class="btn-ghost menu-trigger"
+              [matMenuTriggerFor]="rowMenu"
+              [attr.aria-label]="'Actions for ' + u.name"
+            >
+              Actions<mat-icon aria-hidden="true">arrow_drop_down</mat-icon>
             </button>
-            } @else {
-            <button type="button" class="btn-ghost" (click)="ask('reinstate', u)">
-              Reinstate<span class="visually-hidden"> {{ u.name }}</span>
-            </button>
-            }
-            <button type="button" class="btn-ghost" (click)="ask('demote', u)">
-              Demote<span class="visually-hidden"> {{ u.name }}</span>
-            </button>
-            } @else {
+            <mat-menu #rowMenu="matMenu" xPosition="before">
+              @if (u.active) {
+              <button type="button" mat-menu-item (click)="ask('suspend', u)">Suspend</button>
+              } @else {
+              <button type="button" mat-menu-item (click)="ask('reinstate', u)">Reinstate</button>
+              }
+              <button type="button" mat-menu-item (click)="ask('demote', u)">Demote</button>
+            </mat-menu>
+            @if (!u.active) {
+            <app-sign-out-everywhere [userId]="u.id" [name]="u.name" />
+            } } @else {
             <span class="t-tertiary"
               >{{ u.id === currentUserId() ? "That's you" : 'Managed out-of-band' }}</span
             >

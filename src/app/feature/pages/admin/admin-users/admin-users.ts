@@ -14,6 +14,7 @@ import { UserService } from '../../../../data/services/user.service';
 import { ServiceError } from '../../../../core/services/service-error';
 import type { AdminUser } from '../../../../data/models/admin-user';
 import type { Role } from '../../../../data/models/role';
+import { SignOutEverywhere } from '../../../components/sign-out-everywhere/sign-out-everywhere';
 import { E164_PHONE_PATTERN } from '../../../../utils/phone.util';
 
 export type UserStatus = 'active' | 'deactivated';
@@ -74,7 +75,7 @@ function toManaged(u: AdminUser): ManagedUser {
  */
 @Component({
   selector: 'app-admin-users',
-  imports: [MatIconModule, ReactiveFormsModule, DatePipe],
+  imports: [MatIconModule, ReactiveFormsModule, DatePipe, SignOutEverywhere],
   templateUrl: './admin-users.html',
   styleUrl: './admin-users.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

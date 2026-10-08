@@ -37,6 +37,16 @@ describe('OrganizerLayout', () => {
     expect(component).toBeTruthy();
   });
 
+  it('lists only navigation items that lead somewhere', () => {
+    expect(component.navItems.map((i) => i.name)).toEqual([
+      'Dashboard',
+      'My Events',
+      'Donations',
+      'Settings',
+    ]);
+    expect(component.navItems.some((i) => i.disabled)).toBe(false);
+  });
+
   it('onLogout logs out and navigates to /login', async () => {
     account.deleteSession.mockResolvedValueOnce({});
 

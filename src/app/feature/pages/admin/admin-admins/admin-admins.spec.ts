@@ -183,6 +183,48 @@ describe('AdminAdmins', () => {
     expect(component.creating()).toBe(true);
   });
 
+  it('gives each manageable row one named menu trigger and none to the Super Admin row', () => {
+    const triggers = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('button[aria-haspopup]'),
+    );
+    expect(triggers.map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Actions for Ama Admin',
+      'Actions for Kofi Suspended',
+    ]);
+    expect(triggers[0].getAttribute('aria-expanded')).toBe('false');
+    expect(text()).toContain("That's you");
+  });
+
+  async function openMenuItems(rowIndex: number): Promise<(string | undefined)[]> {
+    const triggers = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+      'button[aria-haspopup]',
+    );
+    triggers[rowIndex].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(triggers[rowIndex].getAttribute('aria-expanded')).toBe('true');
+    return Array.from(document.querySelectorAll('[role="menuitem"]')).map((i) =>
+      i.textContent?.trim(),
+    );
+  }
+
+  it('offers Suspend and Demote in an active Admin’s menu', async () => {
+    expect(await openMenuItems(0)).toEqual(['Suspend', 'Demote']);
+  });
+
+  it('offers Reinstate and Demote in a suspended Admin’s menu', async () => {
+    expect(await openMenuItems(1)).toEqual(['Reinstate', 'Demote']);
+  });
+
+  it('offers Sign out everywhere only on the suspended row', () => {
+    const buttons = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('app-sign-out-everywhere button'),
+    );
+    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Sign out everywhere: Kofi Suspended',
+    ]);
+  });
+
   it('shows a load error when listing fails', async () => {
     userService.listUsers.mockRejectedValueOnce(new ServiceError('Forbidden'));
 
