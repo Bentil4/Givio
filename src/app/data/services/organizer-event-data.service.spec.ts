@@ -9,6 +9,8 @@ const ROW = {
   date: '2026-11-02T00:00:00.000+00:00',
   hostName: 'The Odoi Family',
   venue: null,
+  description: 'Celebration of life',
+  notes: 'Dress in white',
   status: 'active',
   tenantId: 'tenant-a',
   assignedUserIds: [],
@@ -23,6 +25,8 @@ const DETAILS = {
   date: '2026-11-02',
   hostName: 'The Odoi Family',
   venue: null,
+  description: 'Celebration of life',
+  notes: 'Dress in white',
   image: null,
 };
 
@@ -89,6 +93,8 @@ describe('OrganizerEventDataService', () => {
     const event = await service.createEvent({ ...DETAILS, type: 'funeral' });
 
     expect(event.tenantId).toBe('tenant-a');
+    expect(event.description).toBe('Celebration of life');
+    expect(event.notes).toBe('Dress in white');
     expect(sentBody()).toEqual({ action: 'createTenantEvent', ...DETAILS, type: 'funeral' });
   });
 

@@ -110,6 +110,31 @@
         />
       </div>
 
+      @for (f of longTextFields; track f.control) {
+      <div class="field">
+        <label class="field-label" [for]="'ev-' + f.control">{{ f.label }}</label>
+        <textarea
+          class="input"
+          rows="3"
+          [id]="'ev-' + f.control"
+          [formControlName]="f.control"
+          [attr.aria-invalid]="invalid(f.control)"
+          [attr.aria-describedby]="
+            'ev-' + f.control + '-hint' + (invalid(f.control) ? ' ev-' + f.control + '-error' : '')
+          "
+          [class.is-invalid]="invalid(f.control)"
+        ></textarea>
+        <p [id]="'ev-' + f.control + '-hint'" class="field-note t-caption">
+          {{ remainingHint(f.control) }}
+        </p>
+        @if (invalid(f.control)) {
+        <p [id]="'ev-' + f.control + '-error'" class="field-error">
+          Keep this to 1024 characters or fewer.
+        </p>
+        }
+      </div>
+      }
+
       <div class="field">
         <app-image-upload formControlName="image" label="Event photo (optional)" />
       </div>
