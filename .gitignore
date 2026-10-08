@@ -53,3 +53,5 @@ Thumbs.db
 .qodo
 .vscode/
 .angular
+/test-results
+functions/set-role-and-permissions/junit.xml

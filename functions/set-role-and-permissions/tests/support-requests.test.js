@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import main from '../src/main.js';
+import { EMAIL_PATTERN } from '../src/shared.js';
 import {
   handleSupportRequestsRequest,
   DISPUTE_LIMIT_GLOBAL_PER_HOUR,
@@ -356,19 +357,32 @@ for (const [label, overrides] of [
   );
 }
 
-test('submitDispute email validation stays linear-time on a dot-heavy domain', () => {
-  const hostile = `a@${'.'.repeat(5000)}`;
+function millisecondsToMatchDots(count) {
+  const hostile = `a@${'.'.repeat(count)}`;
+  const started = process.hrtime.bigint();
+  for (let run = 0; run < 20; run += 1) {
+    EMAIL_PATTERN.test(hostile);
+  }
+  return Number(process.hrtime.bigint() - started) / 1e6;
+}
+
+// Compares two input sizes instead of asserting a fixed duration, so a loaded CI machine
+// slows both measurements alike. Quadratic work would make the ratio about 100, not 10.
+test('email pattern stays linear-time on a dot-heavy domain', () => {
+  const small = millisecondsToMatchDots(5000);
+  const large = millisecondsToMatchDots(50000);
+  assert.ok(large < 2000, `50,000 dots took ${large}ms`);
+  assert.ok(large / Math.max(small, 1) <= 25, `small ${small}ms, large ${large}ms`);
+});
+
+test('submitDispute rejects a dot-heavy email domain with 400', async () => {
   const { ctx } = fakeContext({
-    body: { ...VALID_DISPUTE, email: hostile },
+    body: { ...VALID_DISPUTE, email: `a@${'.'.repeat(5000)}` },
     headers: PUBLIC_HEADERS,
     getAccount: unreachableAccount,
   });
-  const started = process.hrtime.bigint();
-  return handleSupportRequestsRequest(ctx).then((result) => {
-    const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
-    assert.equal(result.status, 400);
-    assert.ok(elapsedMs < 50, `validation took ${elapsedMs}ms`);
-  });
+  const result = await handleSupportRequestsRequest(ctx);
+  assert.equal(result.status, 400);
 });
 
 test('submitDispute rejects an oversized body with 413 before parsing it', async () => {
