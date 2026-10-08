@@ -52,4 +52,4 @@ src/**/*.css.map
 Thumbs.db
 .qodo
 .vscode/
-.angular
+.angular/test-results
